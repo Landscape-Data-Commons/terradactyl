@@ -14,11 +14,13 @@ gather.species.inventory<-function(filepath,
   return(species.inventory)
 }
 
-species.inventory.tall<-species.inventory
+
 species.count<-function(species.inventory.tall, ...){
   grouping.variables<-rlang::quos(...)
 
   species.count<-species.inventory.tall %>% select(PrimaryKey, SpeciesCount)
+
+  return(species.count)
 
 
 }
