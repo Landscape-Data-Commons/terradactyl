@@ -9,9 +9,9 @@ scaled.gap<-function(gap.tall, height.tall, out){
                  type="canopy",
                  breaks=seq(from=0, to=1000, length.out=400))
   #Calculate mean maximum height for each plot
-  height<-mean.height(lpi.height.tall = lpi.height.tall,
+  height<-mean.height(lpi.height.tall = height.tall,
                       type = "max",
-                      omit.zero = TRUE, 
+                      omit.zero = TRUE,
                       by.line = FALSE)
   #Calculate the total number of gaps in each plot
   gap.probability<-gap %>% dplyr::group_by(PrimaryKey) %>%
