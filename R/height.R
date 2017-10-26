@@ -10,6 +10,7 @@
 mean.height<-function(lpi.height.tall,
                       type="mean",
                       omit.zero=FALSE,
+                      by.line=FALSE,
                       ...){
   ## Get a list of the variables the user wants to group by.
   grouping.variables <- rlang::quos(...)
