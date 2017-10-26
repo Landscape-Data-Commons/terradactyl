@@ -51,7 +51,7 @@ surface.soil.texture<-function(filepath,
   soil.surface.texture<-soil.surface.texture[soil.surface.texture$HorizonDepthUpper==0,c("PrimaryKey", "texture_class")]
 
   #Return soil texture
-  return(soil)
+  return(soil.surface.texture)
 }
 
 
