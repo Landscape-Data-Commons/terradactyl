@@ -24,7 +24,7 @@ scaled.gap<-function(gap.tall, height.tall, out){
     #Rename gap intervals so they are numeric
     gap$interval.value<-gsub(pattern="\\[|\\,.+$", x=gap$Gap.Class, replacement="") %>% as.numeric()
     scaled.gap<-merge(gap, height, allow.cartesian=TRUE) %>% dplyr::group_by(PrimaryKey, Gap.Class) %>%
-    dplyr::summarise(scaled.gap=interval.value/max.height)
+    dplyr::summarise(scaled.gap=interval.value/mean.height)
 
     #Merge the scaled gap and gap probability
     gap.output<-merge(scaled.gap, gap.probability, allow.cartesian=TRUE)
