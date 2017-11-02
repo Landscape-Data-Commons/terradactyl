@@ -44,11 +44,18 @@ surface.soil.texture<-function(filepath,
   #Read in soil pit data
   soil.pit.horizons<-read.geodatabase(filepath = filepath, gdb=gdb, feature.name = "tblSoilPitHorizons")
 
-  #merge soil texture classes with soil texture data
-  soil.surface.texture<-merge(soil.pit.horizons, texture.lut, by.x="Texture", by.y="abbreviation")
+  #Remove duplicated soil pit entries
+  soil.pit.horizons.unique<-unique(soil.pit.horizons[,-c("OBJECTID","DateLoadedInDb")])
 
   #Subset soil by surface soil horizon and the Primary Key and Texture Class fields only
-  soil.surface.texture<-soil.surface.texture[soil.surface.texture$HorizonDepthUpper==0,c("PrimaryKey", "texture_class")]
+  soil.surface.texture<-soil.pit.horizons.unique[soil.pit.horizons.unique$HorizonDepthUpper==0,c("PrimaryKey", "Texture")]
+
+  #merge soil texture classes with soil texture data
+  soil.surface.texture<-merge(soil.surface.texture, texture.lut, by.x="Texture", by.y="abbreviation")
+
+  #Remove duplicates and "Texture" field
+  soil.surface.texture<-soil.surface.texture[,-"Texture"] %>% unique()
+
 
   #Return soil texture
   return(soil.surface.texture)
