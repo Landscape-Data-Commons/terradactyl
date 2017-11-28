@@ -79,7 +79,7 @@ aero.coordinates.bare.soil<-function(filepath, gdb){
 
 write.to.aero<-function (out, gap.output, coordinates.bare.soil, soil.surface.texture,
                          folder.location="C:\\Users\\mgalloza\\Desktop\\NICK\\BLM_BATCH_example\\BLM_Data\\AllTerrADat\\", #location of files on computer with AERO
-                         combo.name="All.TerrADat"){
+                         combo.name="AllTerrADat"){
 
   #Find out which plots have gap, bare soil, and surface texture data
   common.PK<-Reduce(intersect,(list (unique(gap.output$PrimaryKey),unique(coordinates.bare.soil$PrimaryKey),unique(soil.surface.texture$PrimaryKey) )))
@@ -94,6 +94,8 @@ write.to.aero<-function (out, gap.output, coordinates.bare.soil, soil.surface.te
   #Write Ini and Combofiles
   combo<-NULL
   #Write the ini files out to folder and compile the list of files for the combo .bat files
+
+  ###For some reason this isn't working in the context of running the function broadly, but works if you run the pieces individually####
   combo<-lapply(common.PK,
          function(p){cat(file=paste(out, p,".ini", sep=""),
                         "[INPUT_VALUES]",
@@ -108,7 +110,24 @@ write.to.aero<-function (out, gap.output, coordinates.bare.soil, soil.surface.te
          combo<-c(combo,paste(p, ".ini"," ^", sep="" ))
          return(combo)})
 
-  #Write out the comb.bat file
+  #Determine the number of bat files needed
+  combo.v<-as.vector(combo)
+  n.bat<-ceiling(length(combo)/40)
+  combo.cut<-cut(as.vector(combo), n.bat)
+
+  #Write out the combo.bat file
+  lapply(n.bat, function(n){
+    cat(file=paste(out, combo.name,".bat", sep=""),
+        "\n python -m WEME.driver.combo -v ^",
+        paste("    --combos ",combo[1], sep="") ,
+        paste("             ",combo[2:length(combo)], sep=""),
+        "    --cases blm_case.ini ^",
+        "    --output blm_terradat.html",
+        sep="\n", append=F)
+  })
+
+
+
   cat(file=paste(out, combo.name,".bat", sep=""),
       "\n python -m WEME.driver.combo -v ^",
       paste("    --combos ",combo[1], sep="") ,
