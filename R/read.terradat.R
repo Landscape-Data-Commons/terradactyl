@@ -12,7 +12,7 @@ library(arcgisbinding)
 arc.check_product()
 library(tidyverse)
 
-read.geodatabase<-function(filepath, gdb, feature.name) {
+read.geodatabase<-function(filepath, gdb=NULL, feature.name) {
   return(test<-data.table::as.data.table(arcgisbinding::arc.select(arcgisbinding::arc.open(paste(filepath, gdb, feature.name, sep = "/")))))
 }
 

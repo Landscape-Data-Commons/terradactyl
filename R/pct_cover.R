@@ -35,11 +35,11 @@ pct.cover <- function(lpi.tall,
 
   # Convert all codes to upper case
   lpi.tall$code<-toupper(lpi.tall$code)
-  # Within a plot, we need the number of pin drops, which we'll calculate by sorting the
-  # values then taking the last [number of lines on the plot] values
-  point.totals <- lpi.tall %>%
+  # Within a plot, we need the number of pin drops, which we'll calculate taking the unique combination of PrimaryKey, LineKey and Point number
+  #for each group level
+  point.totals <- lpi.tall %>% dplyr::distinct(PrimaryKey, LineKey, PointNbr)%>%
     dplyr::group_by(!!!level) %>%
-    dplyr::summarize(point.count = sum(tail(sort(PointNbr), length(unique(PrimaryKey, LineKey)))))
+    dplyr::summarize(point.count = n())
 
   # Add the point.counts field (it'll be the same for every record associated with a plot)
   lpi.tall <- merge(x = lpi.tall,
@@ -59,6 +59,7 @@ pct.cover <- function(lpi.tall,
     lpi.tall <- dplyr::filter(.data = lpi.tall,
                               layer == "SoilSurface")
   }
+
 
   summary <- switch(hit,
                     "any" = {
