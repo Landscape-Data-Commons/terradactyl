@@ -2,12 +2,11 @@
 #'
 
 
-gather.species.inventory<-function(filepath,
-                                   gdb){
+gather.species.inventory<-function(dsn){
 
-  species.inventory.detail<-read.geodatabase(filepath, gdb, feature.name = "tblSpecRichDetail")%>% select(-OBJECTID)
+  species.inventory.detail<-suppressWarnings(sf::st_read(dsn, layer =  "tblSpecRichDetail")%>% select(-OBJECTID))
 
-  species.inventory.header<-read.geodatabase(filepath, gdb, feature.name = "tblSpecRichHeader")%>% select(-OBJECTID)
+  species.inventory.header<-suppressWarnings(sf::st_read(dsn, layer =  "tblSpecRichHeader")%>% select(-OBJECTID))
 
   species.inventory<-merge(species.inventory.header, species.inventory.detail, allow.cartesian=TRUE)
 
