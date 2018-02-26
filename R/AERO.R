@@ -62,7 +62,7 @@ surface.soil.texture<-function(filepath,
 }
 
 
-aero.coordinates.bare.soil<-function(filepath, gdb){
+aero.coordinates.bare.soil.2<-function(filepath, gdb){
   library(arcgisbinding)
   arcgisbinding::arc.check_product()
 
