@@ -1,13 +1,10 @@
 
 
-gather.gap<-function(filepath,
-                     gdb){
-  #load library
-  library(arcgisbinding)
-  arcgisbinding::arc.check_product()
+gather.gap<-function(dsn){
 
-  gap.detail <- read.geodatabase(filepath, gdb, feature.name = "tblGapDetail")
-  gap.header<-read.geodatabase(filepath, gdb, feature.name = "tblGapHeader")
+
+  gap.detail <- suppressWarnings(sf::st_read(dsn, layer = "tblGapDetail"))
+  gap.header<-suppressWarnings(sf::st_read(dsn, layer = "tblGapHeader"))
 
 
 

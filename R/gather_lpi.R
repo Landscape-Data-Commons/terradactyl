@@ -1,9 +1,7 @@
 #' Gather LPI data into tall/long data frames
 #'
 #' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.
-#' @param dima.tables A list of data frames. Recommended to use the output from\code{read.dima()}. Must contain data frames called tblLPIHeader and tblLPIDetail which have the same fields as the tables in DIMA with the same names. If \code{meta} is \code{TRUE} then it must also include data frames called tblSites, tblPlots, and tblLines which have the same fields as the tables in DIMA with the same names. If \code{species.characteristics} is \code{TRUE} then it must also include data frames called tblSpecies and tblSpeciesGrowthHabit (and optionally tblSpeciesGroups) which have the same fields as the tables in DIMA with the same names.
-#' @param meta Logical. If \code{TRUE} then the site, plot, and line names and keys will be added to the output data frames from \code{dima.list} using the data frames called tblSites, tblPlots, and tblLines. Defaults to \code{TRUE}
-#' @param species.characteristics Logical. If \code{TRUE} then the available species information will be added from \code{dima.list} using the data frames tblSpecies, tblSpeciesGrowthHabit, and, if available, tblSpeciesGroups. Defaults to \code{TRUE}.
+#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
 #'
 #' @return A list of two data frames: one containing the data from the LPI pin intercepts and one containing the data from the height methd done alongside pin drops.
 #' @export
@@ -84,17 +82,13 @@ generic.growth.habits<-function(species.codes, species.list
 }
 
 ##Function to make tall format of LPI data
-gather.lpi <- function(filepath,
-                       gdb,
+gather.lpi <- function(dsn,
                        species.characteristics = TRUE,
                        tblSpecies=NA,
                        tblSpeciesGrowthHabit=NA){
-  #load library
-  library(arcgisbinding)
-  arcgisbinding::arc.check_product()
 
-  lpi.detail <- read.geodatabase(filepath, gdb, feature.name = "tblLPIDetail")
-  lpi.header<-read.geodatabase(filepath, gdb, feature.name = "tblLPIHeader")
+  lpi.detail <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIDetail"))
+  lpi.header<-suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIHeader"))
 
   ## Make a tall data frame with the hit codes by layer and the checkbox designation
   lpi.hits.tall<-data.table::melt(data=lpi.detail,
@@ -167,13 +161,12 @@ gather.lpi <- function(filepath,
 
 
 ## Gather Height Data
-gather.height <- function(filepath,
-                       gdb,
+gather.height <- function(dsn,
                        species.characteristics = TRUE,
                        tblSpecies=NA,
                        tblSpeciesGrowthHabit=NA){
-  lpi.detail <- read.geodatabase(filepath, gdb, feature.name = "tblLPIDetail")
-  lpi.header <- read.geodatabase(filepath, gdb, feature.name = "tblLPIHeader")
+  lpi.detail <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIDetail"))
+  lpi.header <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIHeader"))
 
   #we only want to carry a subset of the lpi.header fields forward
   lpi.header<-subset(lpi.header, select=c(PrimaryKey, LineKey:CheckboxLabel ))
@@ -237,7 +230,7 @@ if (species.characteristics) {
 
 # Remove orphaned records and duplicates, if they expist
 lpi.height<-unique(lpi.height)
-lpi.height<-lpi.height[!is.na(lpi.habit.height$PrimaryKey),]
+lpi.height<-lpi.height[!is.na(lpi.height$PrimaryKey),]
  #Output the woody/herbaceous level data
   return (lpi.height)
 }

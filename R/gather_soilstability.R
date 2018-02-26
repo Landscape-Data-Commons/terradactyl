@@ -3,16 +3,12 @@
 #'
 #'
 
-gather.soil.stability<-function( filepath,
-                                 gdb){
+gather.soil.stability<-function(dsn){
 
-  #load library
-  library(arcgisbinding)
-  arcgisbinding::arc.check_product()
 
   #read in tabular data
-  soil.stability.detail <- read.geodatabase(filepath, gdb, feature.name = "tblSoilStabDetail")
-  soil.stability.header<-read.geodatabase(filepath, gdb, feature.name = "tblSoilStabHeader")
+  soil.stability.detail <- suppressWarnings(sf::st_read(dsn, layer =  "tblSoilStabDetail"))
+  soil.stability.header<-suppressWarnings(sf::st_read(dsn, layer =  "tblSoilStabHeader"))
 
 
   #remove orphaned records
