@@ -30,8 +30,7 @@ pct.cover <- function(lpi.tall,
                             code != "",
                             code != "None",
                             !is.na(PrimaryKey),
-                            !is.na(LineKey),
-                            !is.na(RecKey))
+                            !is.na(LineKey))
 
   # Convert all codes to upper case
   lpi.tall$code<-toupper(lpi.tall$code)
@@ -95,7 +94,8 @@ pct.cover <- function(lpi.tall,
                           dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
                       })
 
-
+  #remove rows with no grouping applied
+  summary<-subset(summary, indicator!=".")
 
   if (!tall) {
     summary <- tidyr::spread(summary, key = indicator, value = percent) %>%
