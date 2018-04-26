@@ -1,0 +1,45 @@
+#Gather LMF
+
+gather.lpi.lmf<-function(dsn){
+  #Read LMF PINTERCEPT table
+  pintercept<-sf::st_read(dsn, layer="PINTERCEPT", stringsAsFactors=FALSE)
+
+  #For line point intercept data (cover calculations--point number 75 is recorded twice—once on each transect.
+  #We only want to use it once in the calculations.
+  #Prior to doing these calculations, it would be beneficial to remove one of the point 75’s from the data set.
+  #Remove the nesw transect—that would be all rows in pintercept where column 6 = “nesw” AND column 7 = 75.
+  pintercept<-pintercept%>%subset(!(MARK==75&TRANSECT=="nesw"))
+
+  #Where there is a Soil hit, LMF records "None" in BASAL and leaves NONSOIL blank. Let's fill in an "S" to indicate soil
+  pintercept$NONSOIL[pintercept$BASAL=="None" & pintercept$NONSOIL==""]<-"S"
+
+  #Create a tall table
+  lpi.hits.tall<-data.table::melt(data=pintercept,
+                                  id.vars=c("PLOTKEY","TRANSECT","MARK","SAGEBRUSH_SHAPE"),
+                                  measure.vars=c(colnames(pintercept)[grepl(pattern="^HIT[1-6]$", x=colnames(pintercept))],
+                                                 "BASAL",
+                                                 "NONSOIL"),
+                                  variable.name="layer",
+                                  value.name="code",
+                                  na.rm=TRUE)
+
+  #Remove blank fiels with no data
+  lpi.hits.tall<-lpi.hits.tall %>%subset(code!="")
+
+  #Rename "BASAL" and "NONSOIL" to "SoilSurface"
+  lpi.hits.tall$layer<-stringr::str_replace_all(string=lpi.hits.tall$layer,
+                                                        pattern="BASAL|NONSOIL",
+                                                        replacement= "SoilSurface")
+  #Rename "Hit1" as "TopCanopy"
+  lpi.hits.tall$layer<-stringr::str_replace_all(string=lpi.hits.tall$layer,
+                                                pattern="HIT1",
+                                                replacement= "TopCanopy")
+
+
+  #Change "PlotKey" field name to "PrimaryKey"
+
+  lpi.hits.tall<-dplyr::rename(lpi.hits.tall, PrimaryKey=PLOTKEY, LineKey=TRANSECT, PointNbr=MARK)
+
+
+  return(lpi.hits.tall)
+}

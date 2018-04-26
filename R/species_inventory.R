@@ -36,3 +36,29 @@ tall.species <- function(spec.rich.detail) {
 }
 
 
+#Gather LMF data
+gather.species.lmf<-function(dsn, file.type="gdb"){
+  plantcensus <- switch(file.type,
+                      "gdb" = {suppressWarnings(sf::st_read(dsn, layer="PLANTCENSUS", stringsAsFactors=FALSE))},
+                      "txt" = {read.table(paste(dsn,"plantcensus.txt", sep=""), stringsAsFactors = FALSE, header=FALSE, sep="|", strip.white = TRUE)})
+
+
+  #if it is in a text file, there are no field names assigned.
+  colnames<-as.vector(as.data.frame(subset(nri.data.column.explanations, TABLE.NAME=="PLANTCENSUS", select = FIELD.NAME)))
+  colnames<-colnames$FIELD.NAME
+  plantcensus<-plantcensus[1:length(colnames)]
+  names(plantcensus)<-colnames
+
+  #We need to establish and/or fix the PLOTKEY so it exists in a single field.
+  plantcensus$PLOTKEY<-paste(plantcensus$SURVEY, plantcensus$STATE, plantcensus$COUNTY, plantcensus$PSU, plantcensus$POINT, sep="")
+
+  #Get species count
+ species.inventory<-plantcensus %>% group_by(PLOTKEY) %>% summarize(., SpeciesCount=n()) %>% merge(., plantcensus)
+
+  #rename fields
+  species.inventory<-dplyr::rename(species.inventory, PrimaryKey=PLOTKEY,
+                        Codes=CPLANT) %>%select(., -c(SURVEY:SEQNUM))
+
+  return(species.inventory)
+}
+

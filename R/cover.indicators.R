@@ -150,17 +150,16 @@ pct.cover.live<-function(lpi.tall, tall=FALSE, by.year=FALSE, by.line=FALSE, hit
 #' @rdname cover.indicators
 
 ##Percent Cover by Species
-pct.cover.species<-function(lpi.tall, tall=FALSE, by.year=FALSE, by.line=FALSE, hit="any",...){
-  grouping.variables<-rlang::quos(...)
+pct.cover.species<-function(lpi.tall, tall=TRUE, by.year=FALSE, by.line=FALSE, hit="any"){
 
-  summary<-pct.cover(lpi.tall,tall=TRUE, hit=hit, by.year=by.year, by.line=by.line,code,!!!grouping.variables)
+  summary<-pct.cover(lpi.tall,tall=TRUE, hit=hit, by.year=by.year, by.line=by.line,code)
 
   summary<-subset(summary,nchar(indicator)>=3 )
 
   summary<-dplyr::rename(summary,Species=indicator)
 
   if (!tall) {
-    summary <- tidyr::spread(summary, key = indicator, value = percent) %>%
+    summary <- tidyr::spread(summary, key = Species, value = percent) %>%
       ## Replace the NA values with 0s because they represent 0% cover for that indicator
       tidyr::replace_na(replace = setNames(as.list(rep.int(0,
                                                            # Make a list of 0s named with the newly-created field names for replace_na()

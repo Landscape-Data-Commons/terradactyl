@@ -41,10 +41,8 @@ pct.cover <- function(lpi.tall,
     dplyr::summarize(point.count = n())
 
   # Add the point.counts field (it'll be the same for every record associated with a plot)
-  lpi.tall <- merge(x = lpi.tall,
-                    y = point.totals,
-                    all.x = TRUE,
-                    allow.cartesian = TRUE)
+  lpi.tall <- left_join(x = lpi.tall,
+                    y = point.totals)
 
   # Get the layers into the correct order
   lpi.tall <- dplyr::mutate(.data = lpi.tall,
@@ -96,6 +94,10 @@ pct.cover <- function(lpi.tall,
 
   #remove rows with no grouping applied
   summary<-subset(summary, indicator!=".")
+
+  #add zeros where no cover occurred
+  summary<-suppressWarnings(expand.grid(PrimaryKey=unique(lpi.tall$PrimaryKey),indicator=unique(summary$indicator) ) %>%
+    dplyr::left_join(., summary) %>% mutate_all(funs(replace(., is.na(.), 0))))
 
   if (!tall) {
     summary <- tidyr::spread(summary, key = indicator, value = percent) %>%

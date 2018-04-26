@@ -24,18 +24,20 @@ mean.height<-function(lpi.height.tall,
     level <- rlang::quos(PrimaryKey)
   }
 
-  #If height of zer is dropped by the calculation, filter out zeros
+  #If height of zer0 is dropped by the calculation, filter out zeros
   if(omit.zero){
     lpi.height.tall<-lpi.height.tall %>% dplyr::filter(Height!=0)
   }
 
-  # Calculate mean height by grouping variable, if type=mean
+  # Calculate mean height by grouping variable, if method==grouped
   if (method=="grouped"){
     summary<-lpi.height.tall %>% dplyr::filter(!is.na(Height)) %>%
       dplyr::group_by(!!!level,!!!grouping.variables) %>%
-      dplyr::summarize(mean.height=mean(Height))
+      dplyr::summarize(mean.height=mean(Height)) %>%
+      tidyr::unite(indicator, !!!grouping.variables, sep = ".") %>%
+      dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
   }
-  # Calculate the max height by grouping variable, if type="max"
+  # Calculate the max height by grouping variable, if method="max"
   if (method=="max"){
     lpi.height.tall.spread<-lpi.height.tall%>% tidyr::spread(key = type, value=Height)
     lpi.height.tall.spread$max<- pmax(lpi.height.tall.spread$herbaceous, lpi.height.tall.spread$woody, na.rm = TRUE)

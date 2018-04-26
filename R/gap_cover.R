@@ -42,8 +42,8 @@ gap.cover <- function(gap.tall,
     merge(gap.tall,., allow.cartesian = TRUE)
 
  #Find the interval class for each gap
-
- gap.tall$interval<-cut(gap.tall$Gap, breaks=unique(c(breaks, gap.tall$LineLengthAmount)),  right=FALSE)
+breaks<-c(breaks, 100000)
+ gap.tall$interval<-cut(gap.tall$Gap, breaks=breaks,  right=FALSE)
 
 #Summarize gaps by interval class
 gap.summary<-gap.tall%>%  dplyr::filter(!is.na(interval))  %>% dplyr::group_by(PrimaryKey, total.line.length, interval)%>%

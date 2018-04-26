@@ -9,7 +9,7 @@ scaled.gap<-function(gap.tall, height.tall, out){
                  breaks=seq(from=0, to=1000, length.out=400))
   #Calculate mean maximum height for each plot
   height<-mean.height(lpi.height.tall = height.tall,
-                      type = "max",
+                      method = "max",
                       omit.zero = TRUE,
                       by.line = FALSE)
   #Calculate the total number of gaps in each plot
@@ -23,7 +23,7 @@ scaled.gap<-function(gap.tall, height.tall, out){
     #Rename gap intervals so they are numeric
     gap$interval.value<-gsub(pattern="\\[|\\,.+$", x=gap$Gap.Class, replacement="") %>% as.numeric()
     scaled.gap<-merge(gap, height, allow.cartesian=TRUE) %>% dplyr::group_by(PrimaryKey, Gap.Class) %>%
-    dplyr::summarise(scaled.gap=interval.value/mean.height)
+    dplyr::summarise(scaled.gap=interval.value/max.height)
 
     #Merge the scaled gap and gap probability
     gap.output<-merge(scaled.gap, gap.probability, allow.cartesian=TRUE)
@@ -31,7 +31,7 @@ scaled.gap<-function(gap.tall, height.tall, out){
 
   }
 
-
+##If running for field texture soils
 surface.soil.texture<-function(filepath,
                                gdb, soil.texture.file){
   library(arcgisbinding)
@@ -76,12 +76,13 @@ aero.coordinates.bare.soil.2<-function(filepath, gdb){
 
 #Write out files
 
-write.to.aero<-function (out, gap.output, coordinates.bare.soil, soil.surface.texture,
-                         folder.location="C:\\Users\\mgalloza\\Desktop\\NICK\\BLM_BATCH_example\\BLM_Data\\AllTerrADat\\", #location of files on computer with AERO
-                         combo.name="AllTerrADat"){
+write.to.aero<-function (out, gap.output, coordinates, bare.soil, soil.surface.texture,
+                         folder.location="D:\\NRI\\LMF_20180322\\", #location of files on computer with AERO
+                         combo.name="LMF"){
 
   #Find out which plots have gap, bare soil, and surface texture data
-  common.PK<-Reduce(intersect,(list (unique(gap.output$PrimaryKey),unique(coordinates.bare.soil$PrimaryKey),unique(soil.surface.texture$PrimaryKey) )))
+  common.PK<-Reduce(intersect,(list (unique(gap.output$PrimaryKey),unique(coordinates$PrimaryKey),
+                                     unique(soil.surface.texture$PrimaryKey), unique(bare.soil$PrimaryKey) )))
 
   #Write Scaled Gap txt files
   lapply(common.PK,
@@ -92,16 +93,17 @@ write.to.aero<-function (out, gap.output, coordinates.bare.soil, soil.surface.te
 
   #Write Ini and Combofiles
   combo<-NULL
-  #Write the ini files out to folder and compile the list of files for the combo .bat files
 
-  ###For some reason this isn't working in the context of running the function broadly, but works if you run the pieces individually####
+  #Write the ini files out to folder and compile the list of files for the combo .bat files
   combo<-lapply(common.PK,
          function(p){cat(file=paste(out, p,".ini", sep=""),
+
                         "[INPUT_VALUES]",
-                        paste("wind_location:", coordinates.bare.soil$Latitude[coordinates.bare.soil$PrimaryKey==p],
-                              coordinates.bare.soil$Longitude[coordinates.bare.soil$PrimaryKey==p], sep=" "),
-                        paste("soil_type: " , soil.surface.texture$texture_class[soil.surface.texture$PrimaryKey==p], sep=""),
-                        paste("veg_cover_fraction: ", (100-coordinates.bare.soil$BareSoilCover_FH[coordinates.bare.soil$PrimaryKey==p])/100, sep=""),
+                        paste("wind_location:", coordinates$Latitude[coordinates$PrimaryKey==p],
+                              coordinates$Longitude[coordinates$PrimaryKey==p], sep=" "),
+                        paste("soil_sand_fraction: " , soil.surface.texture$sand[soil.surface.texture$PrimaryKey==p], sep=""),
+                        paste("soil_clay_fraction: " , soil.surface.texture$clay[soil.surface.texture$PrimaryKey==p], sep=""),
+                        paste("veg_cover_fraction: ", (100-bare.soil$S[bare.soil$PrimaryKey==p])/100, sep=""),
                         paste("gap_obsv: ", folder.location, p, ".txt", sep=""),
                         "[METHOD_REQUESTS]","[OUTPUTS]", "horizontal_flux_total", "vertical_flux", "_vflux_bins","soil_type","_vflux_psd",
                         sep="\n", append=F)
@@ -111,8 +113,8 @@ write.to.aero<-function (out, gap.output, coordinates.bare.soil, soil.surface.te
 
   #Determine the number of bat files needed
   combo.v<-as.vector(combo)
-  n.bat<-ceiling(length(combo)/40)
-  combo.cut<-cut(as.vector(combo), n.bat)
+  n.bat<-ceiling(length(combo.v)/40)
+  #combo.cut<-cut(as.vector(combo.v), n.bat)
 
   #Write out the combo.bat file
   lapply(n.bat, function(n){

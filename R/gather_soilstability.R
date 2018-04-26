@@ -1,9 +1,10 @@
 #' Gather Soil Stability Data
-#'
+#' @param dsn
+#' @param source
 #'
 #'
 
-gather.soil.stability<-function(dsn){
+gather.soil.stability<-function(dsn, source="AIM"){
 
 
   #read in tabular data
@@ -17,7 +18,7 @@ gather.soil.stability<-function(dsn){
 
   gathered<-soil.stability.detail %>%
     #Remove standard columns (In and Dip Times and Date Downloaded in DB)
-    dplyr::select(., match= -dplyr::starts_with("In"), -dplyr::starts_with("Dip"), -dplyr::starts_with("DateLoaded"), -OBJECTID)%>%
+    dplyr::select(., match= -dplyr::starts_with("In"), -dplyr::starts_with("Dip"), -dplyr::starts_with("DateLoaded"))%>%
     #Convert to tall format
     tidyr::gather(., key=variable, value=value, -PrimaryKey, -RecKey, -BoxNum)
 
@@ -47,7 +48,50 @@ gather.soil.stability<-function(dsn){
 
 
   #Return final merged file
-  return(soil.stability)
+  return(soil.stability.tall)
   }
 
+gather.soil.stability.lmf<-function(dsn, file.type="gdb"){
+  soildisag<-switch(file.type,
+                    "gdb"={suppressWarnings(sf::st_read(dsn = dsn, layer = "SOILDISAG"))},
+                    "txt" = {read.table(paste(dsn,"soildisag.txt", sep=""), stringsAsFactors = FALSE, strip.white=TRUE, header=FALSE, sep="|")}
 
+  )
+  #Add column names
+  if(file.type=="txt"){
+    colnames<-as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME=="SOILDISAG", select = FIELD.NAME)))
+    colnames<-colnames$FIELD.NAME
+    pintercept<-soildisag[1:length(colnames)]
+    names(soildisag)<-colnames
+  }
+  #We need to establish and/or fix the PLOTKEY so it exists in a single field.
+  soildisag$PLOTKEY<-paste(soildisag$SURVEY, soildisag$STATE, soildisag$COUNTY, soildisag$PSU, soildisag$POINT, sep="")
+
+  #conver white space to NA
+  soildisag[soildisag==""]<-NA
+
+  #Convert to tall format
+  soil.tall<-dplyr::select(soildisag, -c(SURVEY:POINT)) %>% tidyr::gather(., key=variable, value=value, -PLOTKEY)
+
+  #Remove NAs
+  gathered<-soil.tall[!is.na(soil.tall$value),]
+
+  #Separate numerical suffixes from field type
+  gathered$variable<-stringr::str_extract(string=gathered$variable, pattern = "^[A-z]+")
+
+  #Spread the gathered data so that Line, Rating, Vegetation, and Hydro are all different variables
+
+  soil.stability.tidy<-lapply(X=as.list(unique(gathered$variable)),
+                                     FUN=function(k=as.list(unique(gathered$variable)),df=gathered ){
+                                       df[df$variable==k,] %>% mutate(id=1:n())%>%
+                                         tidyr::spread(key=variable, value=value)%>% select(-id)
+                                     })%>% purrr::reduce(merge)
+
+  soil.stability.tidy<-dplyr::rename(soil.stability.tidy, Veg=VEG, Rating=STABILITY, PrimaryKey=PLOTKEY)
+  soil.stability.tidy$Rating<-as.numeric(soil.stability.tidy$Rating)
+
+  #Return final merged file
+  return(soil.stability.tidy)
+
+
+}
