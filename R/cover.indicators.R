@@ -16,7 +16,7 @@
 #This function assumes that all non-plant codes are <3 characters long
 pct.cover.between.plant<-function(lpi.tall, tall=FALSE, by.year=FALSE, by.line=FALSE){
   #Calculate between plant cover
-  summary<-pct.cover(lpi.tall, tall=FALSE, hit="first",by.year=by.year, by.line=by.line, code)%>%
+  summary<-pct.cover(lpi.tall, tall=TRUE, hit="first",by.year=by.year, by.line=by.line, code)%>%
     #Remove all layer codes that are >=3 codes (i.e., species codes)
     subset(., nchar(indicator)<3)
 
