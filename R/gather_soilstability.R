@@ -4,7 +4,7 @@
 #'
 #'
 
-gather.soil.stability<-function(dsn, source="AIM"){
+gather.soil.stability<-function(dsn){
 
 
   #read in tabular data
@@ -16,30 +16,38 @@ gather.soil.stability<-function(dsn, source="AIM"){
   soil.stability.detail<-soil.stability.detail[!is.na(soil.stability.detail$PrimaryKey),]
   #Morph soil stability detail into a tidy format
 
+  #If DIMA Key exists, remove it
+  if("DIMAKey" %in% colnames(soil.stability.detail)){
+    soil.stability.detail<-dplyr::select(soil.stability.detail, -DIMAKey)
+  }
+
   gathered<-soil.stability.detail %>%
     #Remove standard columns (In and Dip Times and Date Downloaded in DB)
     dplyr::select(., match= -dplyr::starts_with("In"), -dplyr::starts_with("Dip"), -dplyr::starts_with("DateLoaded"))%>%
     #Convert to tall format
-    tidyr::gather(., key=variable, value=value, -PrimaryKey, -RecKey, -BoxNum)
+    tidyr::gather(., key=variable, value=value, -PrimaryKey, -BoxNum, -RecKey,na.rm=TRUE)
 
-    #Remove NAs
-    gathered<-gathered[!is.na(gathered$value),]
+    #Remove blank values
+    gathered<-subset(gathered, value!="")
 
     #Separate numerical suffixes from field type
   gathered$key<-stringr::str_extract(string=gathered$variable, pattern = "^[A-z]+")
+  gathered$Position<-stringr::str_extract(string=gathered$variable, pattern = "[0-9]+")
 
   gathered<-subset(gathered, select=-c(variable,BoxNum))
 
-  #Remove duplicates
-  gathered<-unique(gathered)
+  # #Remove duplicates
+  # gathered<-unique(gathered)
 
   #Spread the gathered data so that Line, Rating, Vegetation, and Hydro are all different variables
 
-  soil.stability.detail.tidy<-lapply(X=as.list(unique(gathered$key)),
+  soil.stability.detail.list<-lapply(X=as.list(unique(gathered$key)),
                                      FUN=function(k=as.list(unique(gathered$key)),df=gathered ){
-                                       df[df$key==k,] %>% mutate(id=1:n())%>%
+                                     test<-  df[df$key==k,] %>% mutate(id=1:n())%>%
                                          tidyr::spread(key=key, value=value)%>% select(-id)
-                                     })%>% purrr::reduce(merge)
+                                     })
+  #create a single tidy dataframe
+  soil.stability.detail.tidy<-purrr::reduce(soil.stability.detail.list, dplyr::full_join)%>%unique()
 
   soil.stability.detail.tidy$Rating<-as.numeric(soil.stability.detail.tidy$Rating)
 

@@ -5,7 +5,7 @@ soil.stability<-function(soil.stability.tall,
                          all=TRUE,
                          cover=TRUE,
                          uncovered=TRUE,
-                         all.cover.type=TRUE,
+                         all.cover.type=FALSE,
                          tall=FALSE){
 
 
