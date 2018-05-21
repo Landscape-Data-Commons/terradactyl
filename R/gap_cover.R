@@ -11,9 +11,16 @@
 #Percent Gap
 gap.cover <- function(gap.tall,
                       tall = FALSE,
-                      breaks=c(20,25,50, 100, 200),
-                      type="canopy") {
+                      breaks=c(20,25,51, 100, 200),
+                      type="canopy",
+                      by.line=TRUE) {
 
+  # For how deep to group. Always by plot, sometimes by line
+  if (by.line) {
+    level <- rlang::quos(PrimaryKey, LineKey)
+  } else {
+    level <- rlang::quos(PrimaryKey)
+  }
 
 
   ## Convert the line lengths to the same units as the gaps
@@ -37,25 +44,26 @@ gap.cover <- function(gap.tall,
 
 #Summarize total line length for the plot
   gap.tall<-gap.tall%>% dplyr::distinct(PrimaryKey, LineKey, .keep_all=TRUE)%>% #get the distinct PrimaryKey-LineKey combinations
-    dplyr::group_by(PrimaryKey)%>% unique()%>% dplyr::summarize(total.line.length=sum(LineLengthAmount)) %>%
+    dplyr::group_by(!!!level)%>% unique()%>% dplyr::summarize(total.line.length=sum(LineLengthAmount)) %>%
     #Merge back with original gap data
-    merge(gap.tall,., allow.cartesian = TRUE)
+    dplyr::left_join(gap.tall,.)
 
  #Find the interval class for each gap
-breaks<-c(breaks, 100000)
+  breaks<-c(breaks, 100000)
  gap.tall$interval<-cut(gap.tall$Gap, breaks=breaks,  right=FALSE)
-
+  gap.tall$interval<-gap.tall$interval %>% as.character()%>% replace(., is.na(.), "NoGap")
 #Summarize gaps by interval class
-gap.summary<-gap.tall%>%  dplyr::filter(!is.na(interval))  %>% dplyr::group_by(PrimaryKey, total.line.length, interval)%>%
+gap.summary<-gap.tall%>%   dplyr::group_by(!!!level, total.line.length, interval)%>%
   #calculate number of gaps,total length of gaps, and percent of gaps in each indicator category
   dplyr::summarize(n = length(Gap),
                    length = sum(Gap))%>%
   dplyr::mutate(.,percent=100*(length/total.line.length))
 
+
 #Convert to wide format
-percent <- gap.summary %>% dplyr::select(., -n,-length)%>% tidyr::spread(key = interval, value = percent, fill=0)
-n<-gap.summary %>% dplyr:: select(., -percent,-length) %>%tidyr::spread( key = interval, value = n, fill=0)
-length<-gap.summary %>% dplyr:: select(., -n,-percent) %>% tidyr::spread(key = interval, value = length, fill=0)
+percent <- gap.summary %>% dplyr::select(., -n,-length)%>% tidyr::spread(key = interval, value = percent, fill=0) %>% select(-NoGap)
+n<-gap.summary %>% dplyr:: select(., -percent,-length) %>%tidyr::spread( key = interval, value = n, fill=0)%>% select(-NoGap)
+length<-gap.summary %>% dplyr:: select(., -n,-percent) %>% tidyr::spread(key = interval, value = length, fill=0)%>% select(-NoGap)
 
 
 

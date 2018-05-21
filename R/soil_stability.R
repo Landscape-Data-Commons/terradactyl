@@ -11,6 +11,9 @@ soil.stability<-function(soil.stability.tall,
 
   soil.stability.rating<-list()
 
+#Remove NA Rating values
+  soil.stability.tall<-subset(soil.stability.tall, !is.na(Rating))
+
 #Calculate a mean rating for all cover types
   if (all==TRUE){
     soil.stability.rating[["all"]]<-soil.stability.tall %>% dplyr::group_by(PrimaryKey) %>%

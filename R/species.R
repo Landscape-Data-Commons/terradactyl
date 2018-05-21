@@ -36,20 +36,26 @@ gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
     warning("No valid Growth Habit Table. Must be .csv or .gdb file")
     return(species)
   } else {
-    #merge species and growth habits
-    species.list <- merge(x = species,
-                     y = growth.habit,
-                     by.x = species.growth.habit.code,
-                     by.y = growth.habit.code,
-                     all.x = TRUE,
-                     allow.cartesian = TRUE)
+
+    #rename spcies growth habits
+    growth.habit<-growth.habit %>% dplyr::rename_at(vars(growth.habit.code), ~species.growth.habit.code)
+
+    #remove PrimaryKey, DIMAKey, and DateLoadedInDb if they exist
+    growth.habit<-growth.habit[,!colnames(growth.habit) %in% c("DIMAKey","PrimaryKey","DateLoadedInDb")]
+
+    #Merge species list and growth habit
+    species.list <- dplyr::left_join(x = species[,!colnames(growth.habit) %in% "PrimaryKey"],
+                                     y = growth.habit)
+
+
     return(species.list)}
 }
 
 
 
 ##Attribute generic species growth habits, for now this assumes field names.
-generic.growth.habits<-function(recorded.species.codes, #string of all species codes that occur in a dataset
+generic.growth.habits<-function(data,
+                                data.code="code", #Species field in the data
                                 species.list, #from  gather.species ()
                                 species.code="SpeciesCode", #Species code value from species list
                                 species.growth.habit.code="GrowthHabitSub", #field name in species file of the species code to link to GrowthHabit
@@ -57,22 +63,42 @@ generic.growth.habits<-function(recorded.species.codes, #string of all species c
 
 ){
 
-  #get the unknown generic codes from the recorded species list
-  Symbol<-recorded.species.codes[grepl("^[A-z]{2}[0-5000]|^2", recorded.species.codes)] %>%toupper %>%unique()%>% as.character()
 
-  Prefix<-gsub(x=Symbol, pattern="[0-9]+", replacement="") %>% as.character()
+  generic.df<-data.frame(recorded.species=unique(data[,colnames(data)==data.code]))%>%
+    #Clean up the species codes
+                           dplyr::mutate(SpeciesFixed=recorded.species %>%toupper()%>%
+                           stringr::str_replace_all(string=.,pattern = " |-", replacement=""))%>%
+    #Get unknown codes and clean them up. Unknown codes beging with a 2 (LMF/NRI) or a 2 letter prefix followed by a number.
+    #Older projects also used "AAFF" etc. to identify unknown and dead beyond recognition codes. So we'll need to detect those too
+    dplyr::filter(stringr::str_detect(SpeciesFixed,"^2|^[A-z]{2}[[:digit:]]|\\b(?=\\w*(^[A|P|S|T])\\1+)\\w+\\b"))%>%
 
-  generic.df<-data.frame(Symbol, Prefix)
-  colnames(generic.df)[1]<-species.code
+    #Identify prefix
+    dplyr::mutate(Code=gsub(SpeciesFixed, pattern="[[:digit:]]", replacement="")%>%
+                    gsub(., pattern = "([[:alpha:]])\\1+", replacement="\\1")%>% as.character())%>%
+    #Rename to data species code field
+    dplyr::rename_at(vars(recorded.species), ~data.code)
 
-  generic.code.df<-merge(terradactyl::generic.species,
-                         generic.df,
-                         by.y="Prefix",
-                         by.x="Code",
-                         all.y=TRUE)
 
+  #Merge with generic species definitions
+  generic.code.df<-dplyr::inner_join(terradactyl::generic.species,
+                                    generic.df)
+
+
+
+  #Connect unknown codes to DIMAKey
+  if("DIMAKey"%in% colnames(data)){
+    generic.code.df<-dplyr::inner_join(test<-subset(generic.code.df, !is.na(species.code)),
+                                      unique(data[,colnames(data)%in% c(data.code, "DIMAKey")]))
+  }
+
+  #Rename to SpeciesCode in species list
+  generic.code.df<-generic.code.df %>% dplyr::rename_at(vars(data.code), ~species.code)
   #Merge with main species list
-  species.generic<-merge(species.list, generic.code.df, all=TRUE)
+  species.generic<-dplyr::full_join(species.list, generic.code.df)
+
+  #Remove Code, Prefix, and PrimaryKey if they exist
+  species.generic<-species.generic[,!colnames(species.generic) %in% c("Code","PrimaryKey","Prefix", "DateLoadedInDb")]
+
 
   return(species.generic)
 }
@@ -88,7 +114,6 @@ species.join<-function(data, #field data,
                         growth.habit.file="", #path to .csv or gdb holding tblSpeciesGrowthHabit
                         growth.habit.code="Code") { #field name in growth habit file to link to GrowthHabit data table
 
-
     #Print
     print("Gathering species data")
 
@@ -99,7 +124,8 @@ species.join<-function(data, #field data,
                             species.growth.habit.code = species.growth.habit.code)
 
     ##Merge unknown codes
-    species.generic<-generic.growth.habits(recorded.species.codes=unique(data[,colnames(data)==data.code]),
+    species.generic<-generic.growth.habits(data=data,
+                                           data.code = data.code,
                                            species.list=species,
                                            species.code = species.code,
                                            species.growth.habit.code=species.growth.habit.code, #field name in species file of the species code to link to GrowthHabit
@@ -114,16 +140,17 @@ species.join<-function(data, #field data,
     }
 
 
-
     #Print
     print("Merging data and species tables")
 
+    ##Rename column
+    species.generic<-species.generic %>% dplyr::rename_at(vars(species.code), ~data.code)
+
     ## Add species information to LPI table
-    data.species <- merge(x = data,
-                              y = species.generic,
-                              by.x = data.code,
-                              by.y = species.code,
-                              all.x = TRUE,
-                              allow.cartesian = TRUE)
+    data.species <- dplyr::left_join(x = data %>% dplyr::mutate_at(vars(data.code), toupper),
+                                     y = species.generic,
+                                     #Merge by the species code and the DIMAKey, eventually we'll rename DIMAKey to something else
+                                     by=c(data.code, "DIMAKey"))
+
     return(data.species)
   }

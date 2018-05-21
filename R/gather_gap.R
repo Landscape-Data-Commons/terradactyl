@@ -9,16 +9,21 @@ gather.gap<-function(dsn){
 
 
   #Merge header and detail data together
-  gap.tall<-merge(x=gap.header,
-                  y=gap.detail,
-                  by=c("PrimaryKey", "RecKey"),
-                  all=TRUE,
-                  allow.cartesian = TRUE)
+  gap.tall<-dplyr::left_join(x=gap.header,
+                  y=gap.detail)
 
 
   ##Remove all orphaned records
   gap.tall<-gap.tall[!is.na(gap.tall$PrimaryKey),]
 
+  ##Add zero values where there is no gap present on line
+  gap.tall[gap.tall$NoCanopyGaps==1,]<-gap.tall %>% dplyr::filter (NoCanopyGaps==1)%>%
+    tidyr::replace_na(list(RecType="C", GapStart=0, GapEnd=0, Gap=0))
+
+  gap.tall[gap.tall$NoBasalGaps==1,]<-gap.tall %>% dplyr::filter (NoBasalGaps==1)%>%
+    tidyr::replace_na(list(RecType="B", GapStart=0, GapEnd=0, Gap=0))
+
+return(gap.tall)
 }
 
 

@@ -34,6 +34,8 @@ pct.cover <- function(lpi.tall,
 
   # Convert all codes to upper case
   lpi.tall$code<-toupper(lpi.tall$code)
+
+  lpi.tall<-lpi.tall %>% mutate_at(vars(!!!grouping.variables), toupper)
   # Within a plot, we need the number of pin drops, which we'll calculate taking the unique combination of PrimaryKey, LineKey and Point number
   #for each group level
   point.totals <- lpi.tall %>% dplyr::distinct(PrimaryKey, LineKey, PointNbr)%>%
@@ -61,6 +63,8 @@ pct.cover <- function(lpi.tall,
   summary <- switch(hit,
                     "any" = {
                         summary <- lpi.tall %>%
+                          #Remove records where there are NAs for the grouping variables
+                          dplyr::filter(complete.cases(!!!grouping.variables))%>%
                           dplyr::group_by(PrimaryKey,LineKey, PointNbr, point.count,
                                           !!!grouping.variables) %>%
                           ## Here's the breakdown of the gnarly parts:
@@ -71,12 +75,12 @@ pct.cover <- function(lpi.tall,
                           dplyr::ungroup() %>% dplyr::group_by( !!!level, indicator) %>%
                           # Within a plot, find the sum of all the "presents" then divide by the number of possible hits, which
                           # we added in point.count
-                          dplyr::summarize(percent = 100*sum(present, na.rm = TRUE)/first(point.count)) %>%
-                          ## Remove the empty groupings—that is the ones where all the indicator variable values were NA
-                          dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
+                          dplyr::summarize(percent = 100*sum(present, na.rm = TRUE)/first(point.count))
                       },
                     "first" = {
                         summary <- lpi.tall %>%
+                          #Remove records where there are NAs for the grouping variables
+                          #dplyr::filter(complete.cases(!!!grouping.variables))%>%
                           # Strip out all the non-hit codes
                           dplyr::filter(!(code %in% c("", NA, "None"))) %>%
                           dplyr::group_by(PrimaryKey,LineKey, PointNbr, point.count) %>%

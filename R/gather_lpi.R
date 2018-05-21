@@ -68,7 +68,7 @@ gather.lpi <- function(dsn,
   print("Merging LPI Header and LPI Detail tables")
   #Merge checkbox and hit data as well as the header data
   lpi.tall<-suppressWarnings(dplyr::left_join(x = lpi.hits.tall,y = lpi.chkbox.tall, all.x=TRUE,by=c("PrimaryKey", "PointLoc","PointNbr","RecKey", "layer"))%>%
-    dplyr::left_join(select(lpi.header, LineKey:CheckboxLabel, PrimaryKey), ., by=c("PrimaryKey", "RecKey")))
+    dplyr::left_join(select(lpi.header, LineKey:CheckboxLabel, PrimaryKey, DIMAKey), ., by=c("PrimaryKey", "RecKey")))
 
   #Rename ShrubShape to SAGEBRUSH_SHAPE
   lpi.tall<-dplyr::rename(lpi.tall, "SAGEBRUSH_SHAPE"=ShrubShape)

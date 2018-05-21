@@ -12,11 +12,16 @@ gather.height <- function(dsn,
   lpi.detail <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIDetail"))
   lpi.header <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIHeader"))
 
+  if(colnames(lpi.header) %in% "DIMAKey"){
+    levels<-rlang::quos(PrimaryKey, DIMAKey)
+  }
+    levels<-rlang::quos(PrimaryKey)
+
   #we only want to carry a subset of the lpi.header fields forward
-  lpi.header<-subset(lpi.header, select=c(PrimaryKey, LineKey:CheckboxLabel ))
+  lpi.header<-subset(lpi.header, select=c(PrimaryKey, LineKey:CheckboxLabel, DIMAKey ))
 
   lpi.height.tall.woody <- dplyr::select(.data = lpi.detail,
-                                         PrimaryKey,
+                                         !!!levels,
                                          PointLoc,
                                          PointNbr,
                                          RecKey,
@@ -27,7 +32,7 @@ gather.height <- function(dsn,
                                                            replacement = "")
 
   lpi.height.tall.herb <- dplyr::select(.data = lpi.detail,
-                                        PrimaryKey,
+                                        !!!levels,
                                         PointLoc,
                                         PointNbr,
                                         RecKey,
@@ -37,60 +42,26 @@ gather.height <- function(dsn,
                                                           replacement = "")
 
   lpi.height <- rbind(lpi.height.tall.woody, lpi.height.tall.herb) %>%
-    merge(x=., y=lpi.header, all=TRUE, allow.cartesian = TRUE) %>% subset(., !is.na(Height))
+    dplyr::full_join(x=., y=lpi.header) %>% subset(., !is.na(Height))
 
 
   ## If we're adding species
   if (species.characteristics) {
-    #check for the source of the species data
-    if (is.null(species.file)){
-      species.file<-dsn
-    }
-    if (is.null(species.file)){
-      growth.habit.file<-dsn
-    }
 
     #Print
     print("Gathering species data")
-    ##Load species data
-    species<-gather.species(species.file=species.file,
-                            growth.habit.file = growth.habit.file,
-                            growth.habit.code = growth.habit.code,
-                            species.growth.habit.code = species.growth.habit.code)
-
-    ##Merge unknown codes
-    species.generic<-generic.growth.habits(recorded.species.codes=lpi.height$code,
-                                           species.list=species,
-                                           species.code = species.code,
-                                           species.growth.habit.code=species.growth.habit.code, #field name in species file of the species code to link to GrowthHabit
-                                           species.duration=species.duration #field name for duration
-    )
-
-
-    #check for duplicate species
-    if (nrow(species.generic[duplicated(species.generic$Symbol),]>0)){
-      warning("Duplicate species codes in the species file. The first species occurrence will be used.")
-      print(species.generic[duplicated(species.generic$Symbol),])
-    }
-
-
-
-    #Print
-    print("Merging LPI and species tables")
-
-    ## Add species info to the LPI.height table
-    lpi.habit.height <- merge(x = lpi.height,
-                              y = species.generic,
-                              by.x = "Species",
-                              by.y = species.code,
-                              all.x = TRUE,
-                              allow.cartesian=TRUE)
-
-    # Remove orphaned records and duplicates, if they expist
-    lpi.habit.height<-unique(lpi.habit.height)
-    lpi.habit.height<-lpi.habit.height[!is.na(lpi.habit.height$PrimaryKey),]
+    lpi.height.species<-species.join(data=lpi.height,
+                                     data.code="Species",
+                                     species.file=species.file,#path to .csv or .gdb holding  the species table
+                                     species.code=species.code, #field name in species file that identifies the species code
+                                     species.growth.habit.code=species.growth.habit.code, #field name in species file of the species code to link to GrowthHabit
+                                     species.duration=species.duration, #field name in species file of the Duration assignment
+                                     growth.habit.file=growth.habit.file, #path to .csv or gdb holding tblSpeciesGrowthHabit
+                                     growth.habit.code=growth.habit.code)
+    lpi.height.species<-unique(lpi.height.species)
+    lpi.height.species<-lpi.height.species[!is.na(lpi.height.species$PrimaryKey),]
     #Output the species level data
-    return (lpi.habit.height)
+    return (lpi.height.species)
   }
 
   # Remove orphaned records and duplicates, if they expist
