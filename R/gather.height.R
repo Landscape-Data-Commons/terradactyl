@@ -1,4 +1,6 @@
-
+#' Convert wide-format TerrADat height data to a tall, tidy format
+#' @param dsn Character string. The full path to the .gdb containing the TerrADat tblLPIDetail and tblLPIHeader tables.
+#'
 
 ## Gather Height Data
 gather.height <- function(dsn,
@@ -9,6 +11,12 @@ gather.height <- function(dsn,
                           species.duration="Duration", #field name in species file of the Duration assignment
                           growth.habit.file="", #path to .csv or gdb holding tblSpeciesGrowthHabit
                           growth.habit.code="Code"){
+  # Make sure the geodatabse exists
+  if (!file.exists(dsn)){
+    stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+  }
+
+  # Read in the LPI tables from the geodatabase
   lpi.detail <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIDetail"))
   lpi.header <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIHeader"))
 
@@ -18,7 +26,10 @@ gather.height <- function(dsn,
     levels<-rlang::quos(PrimaryKey)
 
   #we only want to carry a subset of the lpi.header fields forward
-  lpi.header<-subset(lpi.header, select=c(PrimaryKey, LineKey:CheckboxLabel, DIMAKey ))
+  lpi.header <- subset(x = lpi.header,
+                       select = c(PrimaryKey,
+                                  LineKey:CheckboxLabel,
+                                  DIMAKey))
 
   lpi.height.tall.woody <- dplyr::select(.data = lpi.detail,
                                          !!!levels,
