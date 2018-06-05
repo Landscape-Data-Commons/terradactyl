@@ -22,15 +22,15 @@ gather.height <- function(dsn,
 
   ## TODO: Make this an else statement
   if(colnames(lpi.header) %in% "DIMAKey"){
-    levels<-rlang::quos(PrimaryKey, DIMAKey)
+    levels <- rlang::quos(PrimaryKey, DIMAKey)
+  } else {
+    levels <- rlang::quos(PrimaryKey)
   }
-    levels<-rlang::quos(PrimaryKey)
 
   #we only want to carry a subset of the lpi.header fields forward
   lpi.header <- subset(x = lpi.header,
-                       select = c(PrimaryKey,
-                                  LineKey:CheckboxLabel,
-                                  DIMAKey))
+                       select = c(levels,
+                                  LineKey:CheckboxLabel))
 
   lpi.height.tall.woody <- dplyr::select(.data = lpi.detail,
                                          !!!levels,
