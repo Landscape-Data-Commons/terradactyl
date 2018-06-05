@@ -4,7 +4,10 @@
 \alias{gather.soil.stability}
 \title{Gather Soil Stability Data}
 \usage{
-\method{gather}{soil.stability}(filepath, gdb)
+gather.soil.stability(dsn)
+}
+\arguments{
+\item{source}{}
 }
 \description{
 Gather Soil Stability Data

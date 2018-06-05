@@ -4,19 +4,19 @@
 \alias{gap.cover}
 \title{Calculate the number, length, and percent of gaps}
 \usage{
-gap.cover(gap.tall, tall = FALSE, breaks = c(20, 25, 50, 100, 200),
-  type = "canopy")
+gap.cover(gap.tall, tall = FALSE, breaks = c(20, 25, 51, 100, 200),
+  type = "canopy", by.line = TRUE)
 }
 \arguments{
 \item{tall}{Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.}
 
 \item{breaks}{Vector of all break values.}
 
+\item{by.line}{Logical. If \code{TRUR} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
+
 \item{dima.tables}{Raw tables as imported from TerrADat Use data from \code{read.dima( all=T)}.}
 
 \item{by.year}{Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.}
-
-\item{by.line}{Logical. If \code{TRUR} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
 }
 \description{
 Calculate the number, length, and percent of gaps by plot or line.

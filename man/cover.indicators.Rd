@@ -7,6 +7,8 @@
 \alias{pct.cover.total.foliar}
 \alias{pct.cover.bare.soil}
 \alias{pct.cover.litter}
+\alias{pct.cover.live}
+\alias{pct.cover.species}
 \title{Percent Cover Indicators}
 \usage{
 pct.cover.between.plant(lpi.tall, tall = FALSE, by.year = FALSE,
@@ -22,6 +24,12 @@ pct.cover.bare.soil(lpi.tall, tall = FALSE, by.year = FALSE,
   by.line = FALSE)
 
 pct.cover.litter(lpi.tall, tall = FALSE, by.year = FALSE, by.line = FALSE)
+
+pct.cover.live(lpi.tall, tall = FALSE, by.year = FALSE, by.line = FALSE,
+  hit = "any", ...)
+
+pct.cover.species(lpi.tall, tall = TRUE, by.year = FALSE, by.line = FALSE,
+  hit = "any")
 }
 \arguments{
 \item{lpi.tall}{A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.}
@@ -29,6 +37,8 @@ pct.cover.litter(lpi.tall, tall = FALSE, by.year = FALSE, by.line = FALSE)
 \item{by.year}{Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.}
 
 \item{by.line}{Logical. If \code{TRUR} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
+
+\item{...}{Character string of field names for addiitonal grouping (.e.g, Species Code, Growth Habit)}
 }
 \value{
 A \code{tbl} of either wide or tall format.
