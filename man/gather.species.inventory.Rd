@@ -4,7 +4,7 @@
 \alias{gather.species.inventory}
 \title{Gather Species Inventory}
 \usage{
-\method{gather}{species.inventory}(filepath, gdb)
+gather.species.inventory(dsn)
 }
 \description{
 Gather Species Inventory
