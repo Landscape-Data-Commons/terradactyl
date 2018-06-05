@@ -20,6 +20,7 @@ gather.height <- function(dsn,
   lpi.detail <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIDetail"))
   lpi.header <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIHeader"))
 
+  ## TODO: Make this an else statement
   if(colnames(lpi.header) %in% "DIMAKey"){
     levels<-rlang::quos(PrimaryKey, DIMAKey)
   }
