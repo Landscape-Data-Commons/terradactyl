@@ -1,6 +1,5 @@
 #' Gather Soil Stability Data
-#' @param dsn
-#' @param source
+#' @param dsn Character string. Full filepath including file extension to the geodatabase that contains the tables tblSoilStabDetail and tblSoilStabHeader.
 #'
 #'
 

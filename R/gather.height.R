@@ -85,7 +85,8 @@ gather.height <- function(dsn,
 
 
 #Gather Height for LMF/NRI
-gather.height.lmf<-function(dsn, file.type="gdb"){
+gather.height.lmf<-function(dsn,
+                            file.type = "gdb"){
 
   #Read in the data as .txt or .gdb
   vegheight <- switch(file.type,

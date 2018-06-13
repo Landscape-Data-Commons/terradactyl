@@ -2,7 +2,7 @@
 #' @description Calculate the percent cover  indicators by plot or line for variables or combinations of variables.This is a family of standard indicator variables to examine total foliar cover, bare soil, litter cover, and other ground cover indicators. To compute cover by species, growth habit and duration, or other custom line-point intercept combinations, see \code{pct.cover()}.
 #' @param lpi.tall A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.
 #' @param by.year Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.
-#' @param by.line Logical. If \code{TRUR} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.
+#' @param by.line Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.
 #' @param ... Character string of field names for addiitonal grouping (.e.g, Species Code, Growth Habit)
 #' @name cover.indicators
 #' @return A \code{tbl} of either wide or tall format.
@@ -14,9 +14,17 @@
 
 # Percent Cover Between Plants####
 #This function assumes that all non-plant codes are <3 characters long
-pct.cover.between.plant<-function(lpi.tall, tall=FALSE, by.year=FALSE, by.line=FALSE){
+pct.cover.between.plant<-function(lpi.tall,
+                                  tall = FALSE,
+                                  by.year = FALSE,
+                                  by.line = FALSE){
   #Calculate between plant cover
-  summary<-pct.cover(lpi.tall, tall=TRUE, hit="first",by.year=by.year, by.line=by.line, code)%>%
+  summary < -pct.cover(lpi.tall,
+                       tall = TRUE,
+                       hit = "first",
+                       by.year = by.year,
+                       by.line = by.line,
+                       code) %>%
     #Remove all layer codes that are >=3 codes (i.e., species codes)
     subset(., nchar(indicator)<3)
 
@@ -35,7 +43,9 @@ pct.cover.between.plant<-function(lpi.tall, tall=FALSE, by.year=FALSE, by.line=F
 
 #Percent Ground Cover####
 #This function assumes that all non-plant codes are <3 characters long
-pct.cover.all.ground<-function(lpi.tall, tall=FALSE, by.year=FALSE, by.line=FALSE){
+pct.cover.all.ground <- function(lpi.tall,
+                                 tall = FALSE,
+                                 by.year=FALSE, by.line=FALSE){
   #Calculate between plant cover
   summary<-pct.cover(lpi.tall, tall=TRUE, hit="basal",by.year=by.year, by.line=by.line, code)%>%
     #Remove all layer codes that are >=3 codes (i.e., species codes)
