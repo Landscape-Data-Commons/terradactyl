@@ -5,7 +5,7 @@
 \title{Soil Stability Indicator Calculations}
 \usage{
 soil.stability(soil.stability.tall, all = TRUE, cover = TRUE,
-  uncovered = TRUE, all.cover.type = TRUE, tall = FALSE)
+  uncovered = TRUE, all.cover.type = FALSE, tall = FALSE)
 }
 \description{
 Soil Stability Indicator Calculations
