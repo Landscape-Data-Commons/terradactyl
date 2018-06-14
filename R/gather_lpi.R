@@ -29,15 +29,11 @@ gather.lpi <- function(dsn,
   lpi.header<-suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIHeader"))
 
   ## Make a tall data frame with the hit codes by layer and the checkbox designation
-  lpi.hits.tall<-data.table::melt(data=lpi.detail,
-                                  id.vars=c("PrimaryKey","PointLoc","PointNbr","RecKey", "ShrubShape"),
-                                  measure.vars=c("TopCanopy", "SoilSurface",
-                                                 colnames(lpi.detail)[grepl(pattern="^Lower[1-7]$", x=colnames(lpi.detail))]),
-                                  variable.name="layer",
-                                  value.name="code",
-                                  na.rm=TRUE)
+  lpi.hits.tall<-lpi.detail %>% dplyr::select(PrimaryKey, PointLoc, PointNbr, RecKey, ShrubShape,
+                                              TopCanopy, SoilSurface,colnames(lpi.detail)[grepl(pattern="^Lower[1-7]$", x=colnames(lpi.detail))]) %>%
+    tidyr::gather(key=layer, value=code, -PrimaryKey, -PointLoc, -PointNbr, -RecKey, -ShrubShape, na.rm=TRUE)
 
-  #Remove all records where no hit was recorded (e.g., "None", "NA"
+   #Remove all records where no hit was recorded (e.g., "None", "NA"
   lpi.hits.tall <- dplyr::filter(.data = lpi.hits.tall,
                             !is.na(code),
                             code != "",
@@ -47,11 +43,9 @@ gather.lpi <- function(dsn,
 
 
   ## Make a tall data framethe checkbox status by layer
-  lpi.chkbox.tall <- data.table::melt(data=lpi.detail,
-                                      id.vars=c("PrimaryKey", "PointLoc","PointNbr", "RecKey"),
-                                      measure.vars=colnames(lpi.detail)[grepl(pattern="^Chkbox", x=colnames(lpi.detail))],
-                                      variable.name="layer",
-                                      value.name="chckbox")
+  lpi.chkbox.tall <-lpi.detail %>% dplyr::select(PrimaryKey, PointLoc, PointNbr, RecKey, ShrubShape,
+                                                 colnames(lpi.detail)[grepl(pattern="^Chkbox", x=colnames(lpi.detail))]) %>%
+    tidyr::gather(key=layer, value=chckbox,-PrimaryKey, -PointLoc, -PointNbr, -RecKey, -ShrubShape, na.rm=TRUE)
 
   #Remove Woody and Herbaceous Checkbox
   lpi.chkbox.tall<-lpi.chkbox.tall[!(lpi.chkbox.tall$chckbox%in%c("ChckboxWoody", "ChckboxHerbaceous")),]
@@ -135,21 +129,11 @@ gather.lpi.lmf<-function(dsn,
   pintercept$NONSOIL[pintercept$BASAL=="None" & pintercept$NONSOIL==""]<-"S"
 
 
-  #Identify the pin drop variables
-  pin.drop<-c(colnames(pintercept)[grepl(pattern="^HIT[1-6]$", x=colnames(pintercept))],
-              "BASAL",
-              "NONSOIL")
+   #Create a tall table
+  lpi.hits.tall<-pintercept %>% select(pintercept,-c(SURVEY:POINT))%>%
+    tidyr::gather(key=layer, value=code, BASAL, NONSOIL, colnames(pintercept)[grepl(pattern="^HIT[1-6]$", x=colnames(pintercept))] )
 
-  pintercept<-select(pintercept,-c(SURVEY:POINT))
-  #Create a tall table
-  lpi.hits.tall<-data.table::melt(data=pintercept ,
-                                  id.vars=colnames(pintercept)[!colnames(pintercept)%in%pin.drop],
-                                  measure.vars=pin.drop,
-                                  variable.name="layer",
-                                  value.name="code",
-                                  na.rm=TRUE)
-
-  #Remove blank fiels with no data
+    #Remove blank fields with no data
   lpi.hits.tall<-lpi.hits.tall %>%subset(code!="")
 
   #Rename "BASAL" and "NONSOIL" to "SoilSurface"
