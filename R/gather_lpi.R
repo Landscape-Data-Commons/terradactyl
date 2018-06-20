@@ -10,8 +10,7 @@
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
 #' @return A list of two data frames: one containing the data from the LPI pin intercepts and one containing the data from the height methd done alongside pin drops.
-#' @export
-
+#' @export gather.lpi
 
 
 ##Function to make tall format of LPI data
@@ -35,6 +34,7 @@ gather.lpi <- function(dsn,
   }
 
   ## Make a tall data frame with the hit codes by layer and the checkbox designation
+
   lpi.hits.tall <- data.table::melt(data = lpi.detail,
                                     id.vars = c("PrimaryKey",
                                                 "PointLoc",
@@ -49,6 +49,7 @@ gather.lpi <- function(dsn,
                                     na.rm = TRUE)
 
   #Remove all records where no hit was recorded (e.g., "None", "NA"
+
   lpi.hits.tall <- dplyr::filter(.data = lpi.hits.tall,
                                  !is.na(code),
                                  code != "",
@@ -58,6 +59,7 @@ gather.lpi <- function(dsn,
 
 
   ## Make a tall data framethe checkbox status by layer
+
   lpi.chkbox.tall <- data.table::melt(data = lpi.detail,
                                       id.vars = c("PrimaryKey",
                                                   "PointLoc",
@@ -66,6 +68,7 @@ gather.lpi <- function(dsn,
                                       measure.vars = colnames(lpi.detail)[grepl(pattern = "^Chkbox", x = colnames(lpi.detail))],
                                       variable.name = "layer",
                                       value.name = "chckbox")
+
 
   #Remove Woody and Herbaceous Checkbox
   lpi.chkbox.tall <- lpi.chkbox.tall[!(lpi.chkbox.tall$chckbox %in% c("ChckboxWoody", "ChckboxHerbaceous")),]
@@ -81,6 +84,7 @@ gather.lpi <- function(dsn,
   #Print update because this function can take a while
   message("Merging LPI Header and LPI Detail tables")
   #Merge checkbox and hit data as well as the header data
+
   lpi.tall<-suppressWarnings(dplyr::left_join(x = lpi.hits.tall,
                                               y = lpi.chkbox.tall,
                                               all.x = TRUE,
@@ -94,6 +98,7 @@ gather.lpi <- function(dsn,
 
   #Rename ShrubShape to SAGEBRUSH_SHAPE
   lpi.tall <- dplyr::rename(lpi.tall, "SAGEBRUSH_SHAPE" = ShrubShape)
+
 
   ## If we're adding species
 
@@ -113,6 +118,8 @@ gather.lpi <- function(dsn,
   ## Output the list
 
 }
+
+#' @export gather.lpi.lmf
 
 gather.lpi.lmf<-function(dsn,
                          file.type="gdb",
@@ -157,6 +164,7 @@ gather.lpi.lmf<-function(dsn,
   pintercept$NONSOIL[pintercept$BASAL=="None" & pintercept$NONSOIL==""]<-"S"
 
 
+
   #Identify the pin drop variables
   pin.drop<-c(colnames(pintercept)[grepl(pattern="^HIT[1-6]$", x=colnames(pintercept))],
               "BASAL",
@@ -171,7 +179,8 @@ gather.lpi.lmf<-function(dsn,
                                   value.name="code",
                                   na.rm=TRUE)
 
-  #Remove blank fiels with no data
+
+    #Remove blank fields with no data
   lpi.hits.tall<-lpi.hits.tall %>%subset(code!="")
 
   #Rename "BASAL" and "NONSOIL" to "SoilSurface"
