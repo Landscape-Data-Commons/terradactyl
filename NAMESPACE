@@ -3,6 +3,7 @@
 export(build.PK)
 export(gap.cover)
 export(gather.lpi)
+export(gather.species)
 export(mean.height)
 export(pct.cover)
 export(pct.cover.all.ground)

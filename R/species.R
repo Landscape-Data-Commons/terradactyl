@@ -1,4 +1,4 @@
-##Species
+#' Gather species data
 #' @param species.file Character string. The full file path (including file extension) to the csv containing the species list. If NULL then the file from the provided geodatabase will be used.
 #' @param species.growth.habit.code Character. The field name for the growth habit codes in the species file.
 #' @param growth.habit.file Character string. The full file path (including file extension) to the csv containing the growth habit list. If NULL then the file from the provided geodatabase will be used.
@@ -6,6 +6,7 @@
 #' @param recorded.species.codes Vector. Species recorded so that generic.growth.habit() can identify unknown codes.
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
+#' @export gather.species
 
 #Function to gather species information
 gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
