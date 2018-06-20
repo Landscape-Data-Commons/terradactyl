@@ -1,4 +1,4 @@
-#' Gather LPI data into tall/long data frames
+#' Gather TerrADat LPI data into tall/long data frames
 #'
 #' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.
 #' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
@@ -6,7 +6,7 @@
 #' @param species.growth.habit.code Character. The field name for the growth habit codes in the species file.
 #' @param growth.habit.file Character string. The full file path (including file extension) to the csv containing the growth habit list. If NULL then the file from the provided geodatabase will be used.
 #' @param growth.habit.code Character. The field name for the growth habit codes in the growth habit file.
-#' @param recorded.species.codes Vector. Species recorded so that generic.growth.habit() can identify unknown codes.
+#' @param recorded.species.codes Vector. Species recorded so that \code{generic.growth.habit()} can identify unknown codes.
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
 #' @return A list of two data frames: one containing the data from the LPI pin intercepts and one containing the data from the height methd done alongside pin drops.
@@ -16,71 +16,105 @@
 ##Function to make tall format of LPI data
 gather.lpi <- function(dsn,
                        species.characteristics = TRUE,
-                       species.file="",#path to .csv or .gdb holding  the species table
-                       species.code="SpeciesCode", #field name in species file that identifies the species code
-                       species.growth.habit.code="GrowthHabitSub", #field name in species file of the species code to link to GrowthHabit
-                       species.duration="Duration", #field name in species file of the Duration assignment
-                       growth.habit.file="", #path to .csv or gdb holding tblSpeciesGrowthHabit
-                       growth.habit.code="Code") { #field name in growth habit file to link to GrowthHabit
+                       species.file = "",#path to .csv or .gdb holding  the species table
+                       species.code = "SpeciesCode", #field name in species file that identifies the species code
+                       species.growth.habit.code = "GrowthHabitSub", #field name in species file of the species code to link to GrowthHabit
+                       species.duration = "Duration", #field name in species file of the Duration assignment
+                       growth.habit.file = "", #path to .csv or gdb holding tblSpeciesGrowthHabit
+                       growth.habit.code = "Code") { #field name in growth habit file to link to GrowthHabit
 
   #Read LPI information from TerrADat
-  lpi.detail <- suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIDetail"))
-  lpi.header<-suppressWarnings(sf::st_read(dsn=dsn, layer = "tblLPIHeader"))
+  lpi.detail <- suppressWarnings(sf::st_read(dsn = dsn,
+                                             layer = "tblLPIDetail"))
+  lpi.header <- suppressWarnings(sf::st_read(dsn = dsn,
+                                             layer = "tblLPIHeader"))
+
+  if (isTRUE(species.characteristics) & species.file == "") {
+    stop("If species.characteristics is TRUE, you must provide a path as species.file.")
+  }
 
   ## Make a tall data frame with the hit codes by layer and the checkbox designation
-  lpi.hits.tall<-lpi.detail %>% dplyr::select(PrimaryKey, PointLoc, PointNbr, RecKey, ShrubShape,
-                                              TopCanopy, SoilSurface,colnames(lpi.detail)[grepl(pattern="^Lower[1-7]$", x=colnames(lpi.detail))]) %>%
-    tidyr::gather(key=layer, value=code, -PrimaryKey, -PointLoc, -PointNbr, -RecKey, -ShrubShape, na.rm=TRUE)
 
-   #Remove all records where no hit was recorded (e.g., "None", "NA"
+  lpi.hits.tall <- data.table::melt(data = lpi.detail,
+                                    id.vars = c("PrimaryKey",
+                                                "PointLoc",
+                                                "PointNbr",
+                                                "RecKey",
+                                                "ShrubShape"),
+                                    measure.vars = c("TopCanopy",
+                                                     "SoilSurface",
+                                                     colnames(lpi.detail)[grepl(pattern="^Lower[1-7]$", x = colnames(lpi.detail))]),
+                                    variable.name = "layer",
+                                    value.name = "code",
+                                    na.rm = TRUE)
+
+  #Remove all records where no hit was recorded (e.g., "None", "NA"
+
   lpi.hits.tall <- dplyr::filter(.data = lpi.hits.tall,
-                            !is.na(code),
-                            code != "",
-                            code != "None",
-                            !is.na(PrimaryKey),
-                            !is.na(RecKey))
+                                 !is.na(code),
+                                 code != "",
+                                 code != "None",
+                                 !is.na(PrimaryKey),
+                                 !is.na(RecKey))
 
 
   ## Make a tall data framethe checkbox status by layer
-  lpi.chkbox.tall <-lpi.detail %>% dplyr::select(PrimaryKey, PointLoc, PointNbr, RecKey, ShrubShape,
-                                                 colnames(lpi.detail)[grepl(pattern="^Chkbox", x=colnames(lpi.detail))]) %>%
-    tidyr::gather(key=layer, value=chckbox,-PrimaryKey, -PointLoc, -PointNbr, -RecKey, -ShrubShape, na.rm=TRUE)
+
+  lpi.chkbox.tall <- data.table::melt(data = lpi.detail,
+                                      id.vars = c("PrimaryKey",
+                                                  "PointLoc",
+                                                  "PointNbr",
+                                                  "RecKey"),
+                                      measure.vars = colnames(lpi.detail)[grepl(pattern = "^Chkbox", x = colnames(lpi.detail))],
+                                      variable.name = "layer",
+                                      value.name = "chckbox")
+
 
   #Remove Woody and Herbaceous Checkbox
-  lpi.chkbox.tall<-lpi.chkbox.tall[!(lpi.chkbox.tall$chckbox%in%c("ChckboxWoody", "ChckboxHerbaceous")),]
+  lpi.chkbox.tall <- lpi.chkbox.tall[!(lpi.chkbox.tall$chckbox %in% c("ChckboxWoody", "ChckboxHerbaceous")),]
 
   ## Make the names in the layer variable match
-  lpi.chkbox.tall$layer <- stringr::str_replace_all(string = lpi.chkbox.tall$layer,
-                                                    pattern = "^Chkbox",
-                                                    replacement = "")
+  lpi.chkbox.tall$layer <- gsub(lpi.chkbox.tall$layer,
+                                pattern = "^Chkbox",
+                                replacement = "")
 
   lpi.chkbox.tall$layer[lpi.chkbox.tall$layer == "Top"] <- "TopCanopy"
   lpi.chkbox.tall$layer[lpi.chkbox.tall$layer == "Soil"] <- "SoilSurface"
 
   #Print update because this function can take a while
-  print("Merging LPI Header and LPI Detail tables")
+  message("Merging LPI Header and LPI Detail tables")
   #Merge checkbox and hit data as well as the header data
-  lpi.tall<-suppressWarnings(dplyr::left_join(x = lpi.hits.tall,y = lpi.chkbox.tall, all.x=TRUE,by=c("PrimaryKey", "PointLoc","PointNbr","RecKey","ShrubShape", "layer"))%>%
-    dplyr::left_join(select(lpi.header, LineKey:CheckboxLabel, PrimaryKey, DIMAKey), ., by=c("PrimaryKey", "RecKey")))
+
+  lpi.tall<-suppressWarnings(dplyr::left_join(x = lpi.hits.tall,
+                                              y = lpi.chkbox.tall,
+                                              all.x = TRUE,
+                                              by = c("PrimaryKey", "PointLoc", "PointNbr", "RecKey", "layer")) %>%
+                               dplyr::left_join(x = dplyr::select(lpi.header,
+                                                                  LineKey:CheckboxLabel,
+                                                                  PrimaryKey,
+                                                                  DIMAKey),
+                                                y = .,
+                                                by = c("PrimaryKey", "RecKey")))
 
   #Rename ShrubShape to SAGEBRUSH_SHAPE
-  lpi.tall<-dplyr::rename(lpi.tall, "SAGEBRUSH_SHAPE"="ShrubShape")
+  lpi.tall <- dplyr::rename(lpi.tall, "SAGEBRUSH_SHAPE" = ShrubShape)
+
 
   ## If we're adding species
 
   if(species.characteristics){
-    lpi.tall.species<-species.join(data=lpi.tall,
-                                   data.code="code",
-                                   species.file=species.file,#path to .csv or .gdb holding  the species table
-                                   species.code=species.code, #field name in species file that identifies the species code
-                                   species.growth.habit.code=species.growth.habit.code, #field name in species file of the species code to link to GrowthHabit
-                                   species.duration=species.duration, #field name in species file of the Duration assignment
-                                   growth.habit.file=growth.habit.file, #path to .csv or gdb holding tblSpeciesGrowthHabit
-                                   growth.habit.code=growth.habit.code
-                                   )
+    lpi.tall.species <- species.join(data = lpi.tall,
+                                     data.code = "code",
+                                     species.file = species.file,#path to .csv or .gdb holding  the species table
+                                     species.code = species.code, #field name in species file that identifies the species code
+                                     species.growth.habit.code = species.growth.habit.code, #field name in species file of the species code to link to GrowthHabit
+                                     species.duration = species.duration, #field name in species file of the Duration assignment
+                                     growth.habit.file = growth.habit.file, #path to .csv or gdb holding tblSpeciesGrowthHabit
+                                     growth.habit.code = growth.habit.code
+    )
     return(lpi.tall.species)
   }
-    return(lpi.tall)
+  return(lpi.tall)
   ## Output the list
 
 }
@@ -100,10 +134,10 @@ gather.lpi.lmf<-function(dsn,
   #Read  PINTERCEPT table in .txt or .gdb
 
   pintercept <- switch(file.type,
-                    "gdb" = {suppressWarnings(sf::st_read(dsn = dsn, layer = "PINTERCEPT"))},
-                    "txt" = {read.table(paste(dsn,"pintercept.txt", sep=""), stringsAsFactors = FALSE, strip.white=TRUE, header=FALSE, sep="|")})
+                       "gdb" = {suppressWarnings(sf::st_read(dsn = dsn, layer = "PINTERCEPT"))},
+                       "txt" = {read.table(paste(dsn,"pintercept.txt", sep=""), stringsAsFactors = FALSE, strip.white=TRUE, header=FALSE, sep="|")})
 
-   #if it is in a text file, there are no field names assigned.
+  #if it is in a text file, there are no field names assigned.
   if (file.type=="txt"){
     colnames<-as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME=="PINTERCEPT", select = FIELD.NAME)))
     colnames<-colnames$FIELD.NAME
@@ -130,9 +164,21 @@ gather.lpi.lmf<-function(dsn,
   pintercept$NONSOIL[pintercept$BASAL=="None" & pintercept$NONSOIL==""]<-"S"
 
 
-   #Create a tall table
-  lpi.hits.tall<-pintercept %>% dplyr::select(pintercept,-c(SURVEY:POINT))%>%
-    tidyr::gather(key=layer, value=code, BASAL, NONSOIL, colnames(pintercept)[grepl(pattern="^HIT[1-6]$", x=colnames(pintercept))] )
+
+  #Identify the pin drop variables
+  pin.drop<-c(colnames(pintercept)[grepl(pattern="^HIT[1-6]$", x=colnames(pintercept))],
+              "BASAL",
+              "NONSOIL")
+
+  pintercept <- dplyr::select(pintercept,-c(SURVEY:POINT))
+  #Create a tall table
+  lpi.hits.tall<-data.table::melt(data=pintercept ,
+                                  id.vars=colnames(pintercept)[!colnames(pintercept)%in%pin.drop],
+                                  measure.vars=pin.drop,
+                                  variable.name="layer",
+                                  value.name="code",
+                                  na.rm=TRUE)
+
 
     #Remove blank fields with no data
   lpi.hits.tall<-lpi.hits.tall %>%subset(code!="")

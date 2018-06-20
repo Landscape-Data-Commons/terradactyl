@@ -2,7 +2,7 @@
 % Please edit documentation in R/gather_lpi.R
 \name{gather.lpi}
 \alias{gather.lpi}
-\title{Gather LPI data into tall/long data frames}
+\title{Gather TerrADat LPI data into tall/long data frames}
 \usage{
 \method{gather}{lpi}(dsn, species.characteristics = TRUE, species.file = "",
   species.code = "SpeciesCode",
@@ -25,7 +25,7 @@
 
 \item{growth.habit.code}{Character. The field name for the growth habit codes in the growth habit file.}
 
-\item{recorded.species.codes}{Vector. Species recorded so that generic.growth.habit() can identify unknown codes.}
+\item{recorded.species.codes}{Vector. Species recorded so that \code{generic.growth.habit()} can identify unknown codes.}
 }
 \value{
 A list of two data frames: one containing the data from the LPI pin intercepts and one containing the data from the height methd done alongside pin drops.

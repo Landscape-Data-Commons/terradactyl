@@ -36,9 +36,9 @@ pct.cover.species(lpi.tall, tall = TRUE, by.year = FALSE, by.line = FALSE,
 
 \item{by.year}{Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.}
 
-\item{by.line}{Logical. If \code{TRUR} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
+\item{by.line}{Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
 
-\item{...}{Character string of field names for addiitonal grouping (.e.g, Species Code, Growth Habit)}
+\item{...}{Optional bare variable names. Names of variables to include as part of grouping e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.}
 }
 \value{
 A \code{tbl} of either wide or tall format.

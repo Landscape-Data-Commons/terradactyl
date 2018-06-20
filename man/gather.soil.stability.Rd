@@ -7,7 +7,7 @@
 gather.soil.stability(dsn)
 }
 \arguments{
-\item{source}{}
+\item{dsn}{Character string. Full filepath including file extension to the geodatabase that contains the tables tblSoilStabDetail and tblSoilStabHeader.}
 }
 \description{
 Gather Soil Stability Data

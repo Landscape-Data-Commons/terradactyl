@@ -1,5 +1,5 @@
 #' Convert wide-format TerrADat height data to a tall, tidy format
-#' @param dsn Character string. The full path to the .gdb containing the TerrADat tblLPIDetail and tblLPIHeader tables.
+# #' @param dsn Character string. The full path to the .gdb containing the TerrADat tblLPIDetail and tblLPIHeader tables.
 #'
 
 ## Gather Height Data
@@ -85,7 +85,8 @@ gather.height <- function(dsn,
 
 
 #Gather Height for LMF/NRI
-gather.height.lmf<-function(dsn, file.type="gdb"){
+gather.height.lmf<-function(dsn,
+                            file.type = "gdb"){
 
   #Read in the data as .txt or .gdb
   vegheight <- switch(file.type,
