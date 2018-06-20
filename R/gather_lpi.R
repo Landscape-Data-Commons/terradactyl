@@ -10,8 +10,7 @@
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
 #' @return A list of two data frames: one containing the data from the LPI pin intercepts and one containing the data from the height methd done alongside pin drops.
-#' @export
-
+#' @export gather.lpi
 
 
 ##Function to make tall format of LPI data
@@ -61,11 +60,11 @@ gather.lpi <- function(dsn,
   #Print update because this function can take a while
   print("Merging LPI Header and LPI Detail tables")
   #Merge checkbox and hit data as well as the header data
-  lpi.tall<-suppressWarnings(dplyr::left_join(x = lpi.hits.tall,y = lpi.chkbox.tall, all.x=TRUE,by=c("PrimaryKey", "PointLoc","PointNbr","RecKey", "layer"))%>%
+  lpi.tall<-suppressWarnings(dplyr::left_join(x = lpi.hits.tall,y = lpi.chkbox.tall, all.x=TRUE,by=c("PrimaryKey", "PointLoc","PointNbr","RecKey","ShrubShape", "layer"))%>%
     dplyr::left_join(select(lpi.header, LineKey:CheckboxLabel, PrimaryKey, DIMAKey), ., by=c("PrimaryKey", "RecKey")))
 
   #Rename ShrubShape to SAGEBRUSH_SHAPE
-  lpi.tall<-dplyr::rename(lpi.tall, "SAGEBRUSH_SHAPE"=ShrubShape)
+  lpi.tall<-dplyr::rename(lpi.tall, "SAGEBRUSH_SHAPE"="ShrubShape")
 
   ## If we're adding species
 
@@ -85,6 +84,8 @@ gather.lpi <- function(dsn,
   ## Output the list
 
 }
+
+#' @export gather.lpi.lmf
 
 gather.lpi.lmf<-function(dsn,
                          file.type="gdb",
@@ -130,7 +131,7 @@ gather.lpi.lmf<-function(dsn,
 
 
    #Create a tall table
-  lpi.hits.tall<-pintercept %>% select(pintercept,-c(SURVEY:POINT))%>%
+  lpi.hits.tall<-pintercept %>% dplyr::select(pintercept,-c(SURVEY:POINT))%>%
     tidyr::gather(key=layer, value=code, BASAL, NONSOIL, colnames(pintercept)[grepl(pattern="^HIT[1-6]$", x=colnames(pintercept))] )
 
     #Remove blank fields with no data

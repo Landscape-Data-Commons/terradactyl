@@ -4,7 +4,7 @@
 \alias{gather.lpi}
 \title{Gather LPI data into tall/long data frames}
 \usage{
-gather.lpi(dsn, species.characteristics = TRUE, species.file = "",
+\method{gather}{lpi}(dsn, species.characteristics = TRUE, species.file = "",
   species.code = "SpeciesCode",
   species.growth.habit.code = "GrowthHabitSub",
   species.duration = "Duration", growth.habit.file = "",
