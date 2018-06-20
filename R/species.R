@@ -38,7 +38,7 @@ gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
   } else {
 
     #rename spcies growth habits
-    growth.habit<-growth.habit %>% dplyr::rename_at(vars(growth.habit.code), ~species.growth.habit.code)
+    growth.habit<-growth.habit %>% dplyr::rename_at(dplyr::vars(growth.habit.code), ~species.growth.habit.code)
 
     #remove PrimaryKey, DIMAKey, and DateLoadedInDb if they exist
     growth.habit<-growth.habit[,!colnames(growth.habit) %in% c("DIMAKey","PrimaryKey","DateLoadedInDb")]
@@ -76,7 +76,7 @@ generic.growth.habits<-function(data,
     dplyr::mutate(Code=gsub(SpeciesFixed, pattern="[[:digit:]]", replacement="")%>%
                     gsub(., pattern = "([[:alpha:]])\\1+", replacement="\\1")%>% as.character())%>%
     #Rename to data species code field
-    dplyr::rename_at(vars(recorded.species), ~data.code)
+    dplyr::rename_at(dplyr::vars(recorded.species), ~data.code)
 
 
   #Merge with generic species definitions
@@ -92,7 +92,7 @@ generic.growth.habits<-function(data,
   }
 
   #Rename to SpeciesCode in species list
-  generic.code.df<-generic.code.df %>% dplyr::rename_at(vars(data.code), ~species.code)
+  generic.code.df<-generic.code.df %>% dplyr::rename_at(dplyr::vars(data.code), ~species.code)
   #Merge with main species list
   species.generic<-dplyr::full_join(species.list, generic.code.df)
 
@@ -144,10 +144,10 @@ species.join<-function(data, #field data,
     print("Merging data and species tables")
 
     ##Rename column
-    species.generic<-species.generic %>% dplyr::rename_at(vars(species.code), ~data.code)
+    species.generic<-species.generic %>% dplyr::rename_at(dplyr::vars(species.code), ~data.code)
 
     ## Add species information to LPI table
-    data.species <- dplyr::left_join(x = data %>% dplyr::mutate_at(vars(data.code), toupper),
+    data.species <- dplyr::left_join(x = data %>% dplyr::mutate_at(dplyr::vars(data.code), toupper),
                                      y = species.generic,
                                      #Merge by the species code and the DIMAKey, eventually we'll rename DIMAKey to something else
                                      by=c(data.code, "DIMAKey"))
