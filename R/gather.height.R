@@ -1,5 +1,5 @@
 #' Convert wide-format TerrADat height data to a tall, tidy format
-#' @param dsn Character string. The full path to the .gdb containing the TerrADat tblLPIDetail and tblLPIHeader tables.
+# #' @param dsn Character string. The full path to the .gdb containing the TerrADat tblLPIDetail and tblLPIHeader tables.
 #'
 
 ## Gather Height Data

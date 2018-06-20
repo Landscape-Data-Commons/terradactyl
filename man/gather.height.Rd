@@ -10,9 +10,6 @@ gather.height(dsn, species.characteristics = TRUE, species.file = "",
   species.duration = "Duration", growth.habit.file = "",
   growth.habit.code = "Code")
 }
-\arguments{
-\item{dsn}{Character string. The full path to the .gdb containing the TerrADat tblLPIDetail and tblLPIHeader tables.}
-}
 \description{
 Convert wide-format TerrADat height data to a tall, tidy format
 }
