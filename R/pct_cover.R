@@ -15,11 +15,11 @@ pct.cover <- function(lpi.tall,
                       by.line = FALSE,
                       ...){
   ## Get a list of the variables the user wants to group by.
-  grouping.variables <- rlang::quos(rlang::ensyms(...))
+  grouping.variables <- rlang::quos(...)
 
-  if (!isFALSE(!all(list(...) %in% names(lpi.tall)))){
-    stop("All grouping variables need to be variables in the lpi.tall data frame.")
-  }
+  # if (!isFALSE(!all(sapply(list(...), FUN = function(X){deparse(substitute(X))}) %in% names(lpi.tall)))){
+  #   stop("All grouping variables need to be variables in the lpi.tall data frame.")
+  # }
 
   if (class(lpi.tall) != "data.frame"){
     stop("lpi.tall must be a data frame.")
