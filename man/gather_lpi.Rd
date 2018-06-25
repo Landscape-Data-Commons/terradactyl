@@ -2,10 +2,17 @@
 % Please edit documentation in R/gather_lpi.R
 \name{gather.lpi}
 \alias{gather.lpi}
+\alias{gather.lpi.lmf}
 \title{Gather TerrADat LPI data into tall/long data frames}
 \usage{
-\method{gather}{lpi}(dsn, species.characteristics = TRUE, species.file = "",
+gather.lpi(dsn, species.characteristics = TRUE, species.file = "",
   species.code = "SpeciesCode",
+  species.growth.habit.code = "GrowthHabitSub",
+  species.duration = "Duration", growth.habit.file = "",
+  growth.habit.code = "Code")
+
+gather.lpi.lmf(dsn, file.type = "gdb", species.characteristics = TRUE,
+  species.file = "", species.code = "SpeciesCode",
   species.growth.habit.code = "GrowthHabitSub",
   species.duration = "Duration", growth.habit.file = "",
   growth.habit.code = "Code")

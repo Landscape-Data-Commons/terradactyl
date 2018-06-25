@@ -10,7 +10,7 @@
 \arguments{
 \item{method}{Character string. Indicates the type of indicator, \code{"max"}, which yields the average maximum height (of the herbaceous or woody heights) on the plot or \code{"mean"} which yields the mean height by functional group (woody/herbaceous).}
 
-\item{omit.zero}{Logical. If \code{TRUE} the results omit height measurements of \code{0}. Defaults to \code{FALSE}.}
+\item{omit.zero}{Logical. If \code{TRUE} the results omit height measurements of \code {0}. Defaults to \code{FALSE}.}
 
 \item{by.line}{Logical. If \code{TRUE} then the results will be calculated on a per-line basis. If \code{FALSE} then the results will be calculated on a per-plot basis. Defaults to \code{FALSE}.}
 
