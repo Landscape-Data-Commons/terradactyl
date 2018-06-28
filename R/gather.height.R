@@ -1,8 +1,18 @@
 #' Convert wide-format TerrADat height data to a tall, tidy format
-# #' @param dsn Character string. The full path to the .gdb containing the TerrADat tblLPIDetail and tblLPIHeader tables.
-#'
+#' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.
+#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
+#' @param species.file Character string. The full file path (including file extension) to the csv containing the species list. If NULL then the file from the provided geodatabase will be used.
+#' @param species.growth.habit.code Character. The field name for the growth habit codes in the species file.
+#' @param growth.habit.file Character string. The full file path (including file extension) to the csv containing the growth habit list. If NULL then the file from the provided geodatabase will be used.
+#' @param growth.habit.code Character. The field name for the growth habit codes in the growth habit file.
+#' @param recorded.species.codes Vector. Species recorded so that \code{generic.growth.habit()} can identify unknown codes.
+#' @param species.code Character. The field name for the species codes in the species file.
+#' @param species.duration Character. the field name for the Duration field in the species file.
+#' @return A data frames containing the data from the height measurements.
 
 ## Gather Height Data
+#' @export
+#' @rdname gather.height
 gather.height <- function(dsn,
                           species.characteristics = TRUE,
                           species.file="",#path to .csv or .gdb holding  the species table
@@ -83,6 +93,8 @@ gather.height <- function(dsn,
   return (lpi.height)
 }
 
+#' @export
+#' @rdname gather.height.lmf
 
 #Gather Height for LMF/NRI
 gather.height.lmf<-function(dsn,

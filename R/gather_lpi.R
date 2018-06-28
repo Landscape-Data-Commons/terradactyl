@@ -9,8 +9,7 @@
 #' @param recorded.species.codes Vector. Species recorded so that \code{generic.growth.habit()} can identify unknown codes.
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
-#' @return A list of two data frames: one containing the data from the LPI pin intercepts and one containing the data from the height methd done alongside pin drops.
-
+#' @return A data frames containing the data from the LPI pin intercepts
 #' @export gather.lpi
 #' @rdname gather_lpi
 
