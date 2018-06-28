@@ -6,7 +6,10 @@
 #' @param recorded.species.codes Vector. Species recorded so that generic.growth.habit() can identify unknown codes.
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
-#' @export gather.species
+#' @name species
+#'
+#' @export
+#' @rdname gather.species
 
 #Function to gather species information
 gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
@@ -53,7 +56,8 @@ gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
 }
 
 
-
+#' @export
+#' @rdname generic.growth.habits
 ##Attribute generic species growth habits, for now this assumes field names.
 generic.growth.habits<-function(data,
                                 data.code="code", #Species field in the data
@@ -104,6 +108,8 @@ generic.growth.habits<-function(data,
   return(species.generic)
 }
 
+#' @export
+#' @rdname species.join
 
 #Join species with field data
 species.join<-function(data, #field data,
