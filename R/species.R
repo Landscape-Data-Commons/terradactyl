@@ -28,7 +28,7 @@ gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
                     CSV = {read.csv(species.file, stringsAsFactors = FALSE, na.strings=c(""," "))})
 
   #Add NAs if there are blank fields
-  species<-species %>% dplyr::mutate_all(funs(stringr::str_replace_na))
+  #species<-species %>% dplyr::mutate_all(funs(stringr::str_replace_na))
 
   #stop if there is no species .csv or .gdb file assigned
   if (is.null(species)){
