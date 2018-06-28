@@ -38,9 +38,7 @@ gather.height <- function(dsn,
   }
 
   #we only want to carry a subset of the lpi.header fields forward
-  lpi.header <- subset(x = lpi.header,
-                       select = c(levels,
-                                  LineKey:CheckboxLabel))
+  lpi.header <- dplyr::select(lpi.header, !!!levels,LineKey:CheckboxLabel)
 
   lpi.height.tall.woody <- dplyr::select(.data = lpi.detail,
                                          !!!levels,
