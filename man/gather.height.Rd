@@ -10,6 +10,26 @@ gather.height(dsn, species.characteristics = TRUE, species.file = "",
   species.duration = "Duration", growth.habit.file = "",
   growth.habit.code = "Code")
 }
+\arguments{
+\item{dsn}{Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.}
+
+\item{species.file}{Character string. The full file path (including file extension) to the csv containing the species list. If NULL then the file from the provided geodatabase will be used.}
+
+\item{species.code}{Character. The field name for the species codes in the species file.}
+
+\item{species.growth.habit.code}{Character. The field name for the growth habit codes in the species file.}
+
+\item{species.duration}{Character. the field name for the Duration field in the species file.}
+
+\item{growth.habit.file}{Character string. The full file path (including file extension) to the csv containing the growth habit list. If NULL then the file from the provided geodatabase will be used.}
+
+\item{growth.habit.code}{Character. The field name for the growth habit codes in the growth habit file.}
+
+\item{recorded.species.codes}{Vector. Species recorded so that \code{generic.growth.habit()} can identify unknown codes.}
+}
+\value{
+A data frames containing the data from the height measurements.
+}
 \description{
-Convert wide-format TerrADat height data to a tall, tidy format
+Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.
 }
