@@ -197,6 +197,9 @@ gather.lpi.lmf<-function(dsn,
                                                 pattern="HIT1",
                                                 replacement= "TopCanopy")
 
+  #Rename
+  lpi.hits.tall$ShrubShape<-lpi.hits.tall$SAGEBRUSH_SHAPE %>% as.factor()
+
 
   #Change "PlotKey" field name to "PrimaryKey"
 
