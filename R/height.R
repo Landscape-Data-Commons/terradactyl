@@ -62,11 +62,10 @@ mean.height <- function(lpi.height.tall,
       dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
   }
 
-  #Convert NA indicator values to 0s
-  summary$indicator[is.na(summary$indicator)]<-0
+
 #Convert to wide format
   if(tall){
-    summary<-summary %>% tidyr::spread(key=indicator, value=mean.height)
+    summary<-summary %>% tidyr::spread(key=indicator, value=mean.height, fill=0)
   }
 
   return(summary)
