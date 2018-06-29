@@ -2,6 +2,8 @@
 
 export(build.PK)
 export(gap.cover)
+export(gather.gap)
+export(gather.gap.lmf)
 export(gather.height)
 export(gather.height.lmf)
 export(gather.lpi)

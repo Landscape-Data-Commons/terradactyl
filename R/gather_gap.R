@@ -1,3 +1,10 @@
+#' Gather TerrADat Gap data into tall/long data frames
+#'
+#' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for Gap.
+#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
+#'@return A data frames containing the data from the Gap intercepts data in tall format.
+#' @export gather.gap
+#' @rdname gather_gap
 
 
 gather.gap<-function(dsn){
@@ -26,6 +33,9 @@ gather.gap<-function(dsn){
 return(gap.tall)
 }
 
+
+#' @export gather.gap.lmf
+#' @rdname gather_gap
 
 gather.gap.lmf<-function(dsn, file.type="gdb"){
   gintercept <- switch(file.type,
