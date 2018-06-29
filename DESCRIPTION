@@ -1,12 +1,11 @@
 Package: terradactyl
 Type: Package
 Title: Tools for Creating and Using TerrADat
-Version: 0.1.0
+Version: 0.1.5
 Author@R: c(person(given="Sarah", family="McCord", role=c("aut", "cre"), email="sarah.mccord@ars.usda.gov"),
             person(given="Nelson", family="Stauffer", role="aut"))
 Maintainer: Sarah McCord <sarah.mccord@ars.usda.gov>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Description: TODO
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
