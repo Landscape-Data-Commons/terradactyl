@@ -64,6 +64,9 @@ gather.height <- function(dsn,
   lpi.height <- rbind(lpi.height.tall.woody, lpi.height.tall.herb) %>%
     dplyr::full_join(x=., y=lpi.header) %>% subset(., !is.na(Height))
 
+  #Add NA to fields with no species
+  lpi.height$Species[!grepl(pattern = "[[:digit:]]", lpi.height$Species)]<-NA
+
 
   ## If we're adding species
   if (species.characteristics) {
