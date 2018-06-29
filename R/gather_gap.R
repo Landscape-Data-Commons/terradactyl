@@ -10,8 +10,8 @@
 gather.gap<-function(dsn){
 
 
-  gap.detail <- suppressWarnings(sf::st_read(dsn, layer = "tblGapDetail"))
-  gap.header<-suppressWarnings(sf::st_read(dsn, layer = "tblGapHeader"))
+  gap.detail <- suppressWarnings(sf::st_read(dsn, layer = "tblGapDetail")) %>% subset(., select=-GlobalID)
+  gap.header<-suppressWarnings(sf::st_read(dsn, layer = "tblGapHeader"))%>% subset(., select=-GlobalID)
 
 
 
