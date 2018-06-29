@@ -9,8 +9,9 @@
 #' @param recorded.species.codes Vector. Species recorded so that \code{generic.growth.habit()} can identify unknown codes.
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
-#' @return A list of two data frames: one containing the data from the LPI pin intercepts and one containing the data from the height methd done alongside pin drops.
+#' @return A data frames containing the data from the LPI pin intercepts
 #' @export gather.lpi
+#' @rdname gather_lpi
 
 
 ##Function to make tall format of LPI data
@@ -120,6 +121,7 @@ gather.lpi <- function(dsn,
 }
 
 #' @export gather.lpi.lmf
+#' @rdname gather_lpi
 
 gather.lpi.lmf<-function(dsn,
                          file.type="gdb",
@@ -193,6 +195,9 @@ gather.lpi.lmf<-function(dsn,
   lpi.hits.tall$layer<-stringr::str_replace_all(string=lpi.hits.tall$layer,
                                                 pattern="HIT1",
                                                 replacement= "TopCanopy")
+
+  #Rename
+  lpi.hits.tall$ShrubShape<-lpi.hits.tall$SAGEBRUSH_SHAPE %>% as.factor()
 
 
   #Change "PlotKey" field name to "PrimaryKey"

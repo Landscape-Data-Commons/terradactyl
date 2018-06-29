@@ -1,5 +1,10 @@
 #' Gather Species Inventory
-#'
+#' @description Create a tall species inventory data frame.
+#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
+#' @return A data frames containing the data from the species inventory data in tall format.
+#' @export gather.species.inventory
+#' @rdname species_inventory
+
 
 
 gather.species.inventory<-function(dsn){
@@ -16,7 +21,8 @@ gather.species.inventory<-function(dsn){
   return(species.inventory.tall)
 }
 
-
+#' @export species.count
+#' @rdname species_inventory
 species.count<-function(species.inventory.tall, ...){
   grouping.variables<-rlang::quos(...)
 
@@ -34,7 +40,8 @@ species.count<-function(species.inventory.tall, ...){
 
 
 }
-
+#' @export tall.species
+#' @rdname species_inventory
 tall.species <- function(species.inventory.detail) {
   tall.list <- lapply(1:nrow(species.inventory.detail), FUN = function(X, df){
     codes <- stringr::str_split(df[X, "SpeciesList"], pattern = ";")[[1]]
@@ -48,6 +55,8 @@ tall.species <- function(species.inventory.detail) {
 
 
 #Gather LMF data
+#' @export gather.species.lmf
+#' @rdname species_inventory
 gather.species.lmf<-function(dsn, file.type="gdb"){
   plantcensus <- switch(file.type,
                       "gdb" = {suppressWarnings(sf::st_read(dsn, layer="PLANTCENSUS", stringsAsFactors=FALSE))},

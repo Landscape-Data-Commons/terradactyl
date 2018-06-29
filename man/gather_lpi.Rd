@@ -2,10 +2,17 @@
 % Please edit documentation in R/gather_lpi.R
 \name{gather.lpi}
 \alias{gather.lpi}
+\alias{gather.lpi.lmf}
 \title{Gather TerrADat LPI data into tall/long data frames}
 \usage{
-\method{gather}{lpi}(dsn, species.characteristics = TRUE, species.file = "",
+gather.lpi(dsn, species.characteristics = TRUE, species.file = "",
   species.code = "SpeciesCode",
+  species.growth.habit.code = "GrowthHabitSub",
+  species.duration = "Duration", growth.habit.file = "",
+  growth.habit.code = "Code")
+
+gather.lpi.lmf(dsn, file.type = "gdb", species.characteristics = TRUE,
+  species.file = "", species.code = "SpeciesCode",
   species.growth.habit.code = "GrowthHabitSub",
   species.duration = "Duration", growth.habit.file = "",
   growth.habit.code = "Code")
@@ -28,7 +35,7 @@
 \item{recorded.species.codes}{Vector. Species recorded so that \code{generic.growth.habit()} can identify unknown codes.}
 }
 \value{
-A list of two data frames: one containing the data from the LPI pin intercepts and one containing the data from the height methd done alongside pin drops.
+A data frames containing the data from the LPI pin intercepts
 }
 \description{
 Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.

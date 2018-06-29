@@ -6,7 +6,10 @@
 #' @param recorded.species.codes Vector. Species recorded so that generic.growth.habit() can identify unknown codes.
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
-#' @export gather.species
+#' @name species
+#'
+#' @export
+#' @rdname gather.species
 
 #Function to gather species information
 gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
@@ -22,7 +25,11 @@ gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
   #read from .csv or .gdb
   species <- switch(toupper(stringr::str_extract(species.file, pattern = "[A-z]{3}$")),
                     GDB = {suppressWarnings(sf::st_read(dsn = species.file, layer = "tblSpecies"))},
-                    CSV = {read.csv(species.file, stringsAsFactors = FALSE)})
+                    CSV = {read.csv(species.file, stringsAsFactors = FALSE, na.strings=c(""," "))})
+
+  #Add NAs if there are blank fields
+  #species<-species %>% dplyr::mutate_all(funs(stringr::str_replace_na))
+
   #stop if there is no species .csv or .gdb file assigned
   if (is.null(species)){
     stop("No valid Species Table. Must be .csv or .gdb file")
@@ -53,7 +60,8 @@ gather.species<-function(species.file,#path to .csv or .gdb holding  tblSpecies
 }
 
 
-
+#' @export
+#' @rdname generic.growth.habits
 ##Attribute generic species growth habits, for now this assumes field names.
 generic.growth.habits<-function(data,
                                 data.code="code", #Species field in the data
@@ -104,6 +112,8 @@ generic.growth.habits<-function(data,
   return(species.generic)
 }
 
+#' @export
+#' @rdname species.join
 
 #Join species with field data
 species.join<-function(data, #field data,
