@@ -10,12 +10,12 @@
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
 #' @return A data frames containing the data from the LPI pin intercepts
-#' @export gather.lpi
+#' @export gather.lpi.terradat
 #' @rdname gather_lpi
 
 
 ##Function to make tall format of LPI data
-gather.lpi <- function(dsn,
+gather.lpi.terradat <- function(dsn,
                        species.characteristics = TRUE,
                        species.file = "",#path to .csv or .gdb holding  the species table
                        species.code = "SpeciesCode", #field name in species file that identifies the species code
@@ -93,13 +93,9 @@ gather.lpi <- function(dsn,
                                dplyr::left_join(x = dplyr::select(lpi.header,
                                                                   LineKey:CheckboxLabel,
                                                                   PrimaryKey,
-                                                                  DIMAKey),
+                                                                  DBKey),
                                                 y = .,
                                                 by = c("PrimaryKey", "RecKey")))
-
-  #Rename ShrubShape to SAGEBRUSH_SHAPE
-  lpi.tall <- dplyr::rename(lpi.tall, "SAGEBRUSH_SHAPE" = ShrubShape)
-
 
   ## If we're adding species
 
@@ -150,8 +146,8 @@ gather.lpi.lmf<-function(dsn,
   #remove any NA field names that may have been introduced
   pintercept<-pintercept[,!is.na(colnames(pintercept))]
 
-  #We need to establish and/or fix the PLOTKEY so it exists in a single field.
-  pintercept$PLOTKEY<-paste(pintercept$SURVEY, pintercept$STATE, pintercept$COUNTY, pintercept$PSU, pintercept$POINT, sep="")
+  #We need to establish and/or fix the PrimaryKey so it exists in a single field.
+  pintercept$PrimaryKey<-paste(pintercept$SURVEY, pintercept$STATE, pintercept$COUNTY, pintercept$PSU, pintercept$POINT, sep="")
 
 
   #For line point intercept data (cover calculations--point number 75 is recorded twice—once on each transect.
@@ -196,17 +192,20 @@ gather.lpi.lmf<-function(dsn,
                                                 pattern="HIT1",
                                                 replacement= "TopCanopy")
 
-  #Rename
-  lpi.hits.tall$ShrubShape<-lpi.hits.tall$SAGEBRUSH_SHAPE %>% as.factor()
 
 
-  #Change "PlotKey" field name to "PrimaryKey"
+  #Change "Transect and Mark to common names to DIMA schema
 
-  lpi.hits.tall<-dplyr::rename(lpi.hits.tall, PrimaryKey=PLOTKEY, LineKey=TRANSECT, PointNbr=MARK)
+  lpi.hits.tall<-dplyr::rename(lpi.hits.tall,  LineKey=TRANSECT, PointNbr=MARK, ShrubShape=SAGEBRUSH_SHAPE)
 
   #Convert to factor
   lpi.hits.tall<-lpi.hits.tall %>% mutate_if(is.character, funs(factor))
 
+  #Convert ShrubShape values to be consistent with DIMA schema, 1==Columnar, 2=Spreading, 3=Mixed, 0 is NA
+  lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape==1]<-"C"
+  lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape==2]<-"S"
+  lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape==3]<-"M"
+  lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape==0]<-NA
 
   if(species.characteristics){
     lpi.tall.species<-species.join(data=lpi.hits.tall,
@@ -223,5 +222,35 @@ gather.lpi.lmf<-function(dsn,
 
 
   return(lpi.hits.tall)
+}
+
+#' @export gather.lpi
+#' @rdname gather_lpi
+
+#Wrapper gather.lpi function
+gather.lpi<-function(dsn,
+                     file.type = "gdb",
+                     source){
+  #Check for a valid source
+  try(if(!toupper(source)%in% c("AIM","TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
+
+  #Gather LPI using the appropriate gather function
+  lpi<-switch(toupper(source),
+              "AIM" = gather.lpi.terradat(dsn = dsn, species.characteristics = FALSE),
+              "TERRADAT" = gather.lpi.terradat(dsn = dsn, species.characteristics = FALSE),
+              "DIMA" = gather.lpi.terradat(dsn = dsn, species.characteristics = FALSE),
+              "LMF" = gather.lpi.lmf(dsn = dsn, file.type = file.type, species.characteristics = FALSE),
+              "NRI" = gather.lpi.lmf(dsn = dsn, file.type = file.type, species.characteristics = FALSE))
+
+  #Add source field
+  lpi$source<-toupper(source)
+
+  #Find date fields & convert to character
+  #Find fields that are in a Date structure
+  change.vars <-names(lpi)[do.call(rbind,sapply(lpi, class))[,1] %in% c("POSIXct", "POSIXt")]
+  #Update fields
+  lpi<-dplyr::mutate_at(lpi, dplyr::vars(change.vars), dplyr::funs(as.character))
+
+  return(lpi)
 }
 
