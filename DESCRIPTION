@@ -2,15 +2,21 @@ Package: terradactyl
 Type: Package
 Title: Tools for Creating and Using TerrADat
 Version: 0.1.5
-Author@R: c(person(given="Sarah", family="McCord", role=c("aut", "cre"), email="sarah.mccord@ars.usda.gov"),
+Author: c(person(given="Sarah", family="McCord", role=c("aut", "cre"), 
+    email="sarah.mccord@ars.usda.gov"),
             person(given="Nelson", family="Stauffer", role="aut"))
 Maintainer: Sarah McCord <sarah.mccord@ars.usda.gov>
-Description: TODO
-License: What license is it under?
+Description: Access, tidy, and calculate standard indicators for data from the 
+    BLM AIM program, the BLM LMF program, and the NRCS NRI monitoring programs.
+License: BY-SA
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0
 Imports:
-  tidyverse,
-  sf
-Remotes: r-spatial/sf
+  dplyr,
+  stringr,
+  tidyr,
+  sf,
+  magrittr
+Suggests: testthat
+Depends: R (>= 2.10)
