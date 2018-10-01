@@ -3,10 +3,24 @@
 \name{species}
 \alias{species}
 \alias{gather.species}
+\alias{generic.growth.habits}
+\alias{species.join}
 \title{Gather species data}
 \usage{
-gather.species(species.file, species.growth.habit.code = "GrowthHabitSub",
-  growth.habit.file = "", growth.habit.code = "Code")
+gather.species(species.file,
+  species.growth.habit.code = "GrowthHabitSub", growth.habit.file = "",
+  growth.habit.code = "Code")
+
+generic.growth.habits(data, data.code = "code", species.list,
+  species.code = "SpeciesCode",
+  species.growth.habit.code = "GrowthHabitSub",
+  species.duration = "Duration")
+
+species.join(data, data.code = "code", species.file = "",
+  species.code = "SpeciesCode",
+  species.growth.habit.code = "GrowthHabitSub",
+  species.duration = "Duration", growth.habit.file = "",
+  growth.habit.code = "Code")
 }
 \arguments{
 \item{species.file}{Character string. The full file path (including file extension) to the csv containing the species list. If NULL then the file from the provided geodatabase will be used.}
@@ -17,11 +31,11 @@ gather.species(species.file, species.growth.habit.code = "GrowthHabitSub",
 
 \item{growth.habit.code}{Character. The field name for the growth habit codes in the growth habit file.}
 
-\item{recorded.species.codes}{Vector. Species recorded so that generic.growth.habit() can identify unknown codes.}
-
 \item{species.code}{Character. The field name for the species codes in the species file.}
 
 \item{species.duration}{Character. the field name for the Duration field in the species file.}
+
+\item{recorded.species.codes}{Vector. Species recorded so that generic.growth.habit() can identify unknown codes.}
 }
 \description{
 Gather species data
