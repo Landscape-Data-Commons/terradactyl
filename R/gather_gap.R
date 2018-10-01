@@ -9,121 +9,138 @@
 #' @rdname gather_gap
 
 
-gather.gap.terradat<-function(dsn){
+gather.gap.terradat <- function(dsn) {
+  gap.detail <- suppressWarnings(sf::st_read(dsn, layer = "tblGapDetail")) %>%
+    subset(., select = -c(
+      GlobalID,
+      created_user,
+      created_date,
+      last_edited_user,
+      last_edited_date
+    ))
+  gap.header <- suppressWarnings(sf::st_read(dsn, layer = "tblGapHeader")) %>%
+    subset(., select = -c(
+      GlobalID,
+      created_user,
+      created_date,
+      last_edited_user,
+      last_edited_date
+    ))
 
 
-  gap.detail <- suppressWarnings(sf::st_read(dsn, layer = "tblGapDetail")) %>% subset(., select=-c(GlobalID,
-                                                                                                   created_user,
-                                                                                                   created_date,
-                                                                                                   last_edited_user,
-                                                                                                   last_edited_date))
-  gap.header<-suppressWarnings(sf::st_read(dsn, layer = "tblGapHeader"))%>% subset(., select=-c(GlobalID,
-                                                                                                created_user,
-                                                                                                created_date,
-                                                                                                last_edited_user,
-                                                                                                last_edited_date))
+  # Merge header and detail data together
+  gap.tall <- dplyr::left_join(
+    x = gap.header,
+    y = gap.detail
+  )
 
+  ## Remove all orphaned records
+  gap.tall <- gap.tall[!is.na(gap.tall$PrimaryKey), ]
 
-  #Merge header and detail data together
-  gap.tall<-dplyr::left_join(x=gap.header,
-                  y=gap.detail)
+  ## Add zero values where there is no canopy gap present on line
+  gap.tall[gap.tall$NoCanopyGaps == 1, ] <- gap.tall %>%
+    dplyr::filter(NoCanopyGaps == 1) %>%
+    tidyr::replace_na(list(RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0))
 
-  ##Remove all orphaned records
-  gap.tall<-gap.tall[!is.na(gap.tall$PrimaryKey),]
+  ## Add zero values where there is no basal gap present on line
+  gap.tall[gap.tall$NoBasalGaps == 1, ] <- gap.tall %>%
+    dplyr::filter(NoBasalGaps == 1) %>%
+    tidyr::replace_na(list(RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0))
 
-  ##Add zero values where there is no canopy gap present on line
-  gap.tall[gap.tall$NoCanopyGaps==1,]<-gap.tall %>% dplyr::filter (NoCanopyGaps==1)%>%
-    tidyr::replace_na(list(RecType="C", GapStart=0, GapEnd=0, Gap=0))
-
-  ##Add zero values where there is no basal gap present on line
-  gap.tall[gap.tall$NoBasalGaps==1,]<-gap.tall %>% dplyr::filter (NoBasalGaps==1)%>%
-    tidyr::replace_na(list(RecType="B", GapStart=0, GapEnd=0, Gap=0))
-
-return(gap.tall)
+  return(gap.tall)
 }
 
 #' @export gather.gap.lmf
 #' @rdname gather_gap
 
-gather.gap.lmf<-function(dsn, file.type="gdb"){
+gather.gap.lmf <- function(dsn, file.type = "gdb") {
   gintercept <- switch(file.type,
-                       "gdb" = {suppressWarnings(sf::st_read(dsn = dsn, layer = "GINTERCEPT")) %>% subset(., select=-c(GlobalID,
-                                                                                                                       created_user,
-                                                                                                                       created_date,
-                                                                                                                       last_edited_user,
-                                                                                                                       last_edited_date))},
-                       "txt" = {read.table(paste(dsn,"gintercept.txt", sep=""), stringsAsFactors = FALSE, strip.white=TRUE, header=FALSE, sep="|")})
+    "gdb" = {
+      suppressWarnings(sf::st_read(dsn = dsn, layer = "GINTERCEPT")) %>% subset(., select = -c(
+        GlobalID,
+        created_user,
+        created_date,
+        last_edited_user,
+        last_edited_date
+      ))
+    },
+    "txt" = {
+      read.table(paste(dsn, "gintercept.txt", sep = ""), stringsAsFactors = FALSE, strip.white = TRUE, header = FALSE, sep = "|")
+    }
+  )
 
 
-  if(file.type=="txt"){
-    #Add meaningful column names
-  colnames<-as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME=="GINTERCEPT", select = FIELD.NAME)))
-  colnames<-colnames$FIELD.NAME
-  pintercept<-gintercept[1:length(colnames)]
-  names(gintercept)<-colnames
-}
+  if (file.type == "txt") {
+    # Add meaningful column names
+    colnames <- as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME == "GINTERCEPT", select = FIELD.NAME)))
+    colnames <- colnames$FIELD.NAME
+    pintercept <- gintercept[1:length(colnames)]
+    names(gintercept) <- colnames
+  }
 
 
-  #convert to metric
-  gintercept$START_GAP<-gintercept$START_GAP*30.48
-  gintercept$END_GAP<-gintercept$END_GAP*30.48
-  gintercept$Gap<-gintercept$END_GAP-gintercept$START_GAP
+  # convert to metric
+  gintercept$START_GAP <- gintercept$START_GAP * 30.48
+  gintercept$END_GAP <- gintercept$END_GAP * 30.48
+  gintercept$Gap <- gintercept$END_GAP - gintercept$START_GAP
 
 
-  #We need to establish and/or fix the PLOTKEY so it exists in a single field.
-  gintercept$PrimaryKey<-paste(gintercept$SURVEY, gintercept$STATE, gintercept$COUNTY, gintercept$PSU, gintercept$POINT, sep="")
+  # We need to establish and/or fix the PLOTKEY so it exists in a single field.
+  gintercept$PrimaryKey <- paste(gintercept$SURVEY, gintercept$STATE, gintercept$COUNTY, gintercept$PSU, gintercept$POINT, sep = "")
 
 
-  #check for negative values and remove
-  gap<-gintercept %>% subset(Gap>=0)
+  # check for negative values and remove
+  gap <- gintercept %>% subset(Gap >= 0)
 
 
-  #recode gap type so that it fits the DIMA types
-  gap$GAP_TYPE<-as.character(gap$GAP_TYPE)
-  gap$GAP_TYPE[gap$GAP_TYPE=="peren"]<-"P"
-  gap$GAP_TYPE[gap$GAP_TYPE=="canopy"]<-"C"
-  gap$GAP_TYPE[gap$GAP_TYPE=="basal"]<-"B"
+  # recode gap type so that it fits the DIMA types
+  gap$GAP_TYPE <- as.character(gap$GAP_TYPE)
+  gap$GAP_TYPE[gap$GAP_TYPE == "peren"] <- "P"
+  gap$GAP_TYPE[gap$GAP_TYPE == "canopy"] <- "C"
+  gap$GAP_TYPE[gap$GAP_TYPE == "basal"] <- "B"
 
-  #rename fields so they can be merged with a DIMA/TerrADat type
-  gap<-dplyr::rename(gap, LineKey=TRANSECT, RecType=GAP_TYPE,
-                     GapStart=START_GAP, GapEnd=END_GAP, SeqNo=SEQNUM)
+  # rename fields so they can be merged with a DIMA/TerrADat type
+  gap <- dplyr::rename(gap,
+    LineKey = TRANSECT, RecType = GAP_TYPE,
+    GapStart = START_GAP, GapEnd = END_GAP, SeqNo = SEQNUM
+  )
 
-  gap$Measure<-1 #units are metric
-  gap$LineLengthAmount<-150*30.48 #line length of an NRI transect
-  gap$GapMin<-12*2.54 #minimum gap size
+  gap$Measure <- 1 # units are metric
+  gap$LineLengthAmount <- 150 * 30.48 # line length of an NRI transect
+  gap$GapMin <- 12 * 2.54 # minimum gap size
 
-  #Strip down fields
-  gap<-select(gap, -c(SURVEY:POINT))
+  # Strip down fields
+  gap <- select(gap, -c(SURVEY:POINT))
 
   return(gap)
-
 }
 
-###Wrapper function for flexibility
+### Wrapper function for flexibility
 #' @export gather.gap
 #' @rdname gather_gap
-gather.gap<-function(dsn,
-           file.type="gdb",
-           source){
-  #Check for a valid source
-  try(if(!toupper(source)%in% c("AIM","TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
+gather.gap <- function(dsn,
+                       file.type = "gdb",
+                       source) {
+  # Check for a valid source
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
 
-  #Gather gap using the appropriate method
-  gap<-switch(toupper(source),
-                     "AIM" = gather.gap.terradat(dsn = dsn),
-                     "TERRADAT" = gather.gap.terradat(dsn = dsn),
-                     "DIMA" = gather.gap.terradat(dsn = dsn),
-                     "LMF" = gather.gap.lmf(dsn = dsn, file.type = file.type),
-                     "NRI" = gather.gap.lmf(dsn = dsn, file.type = file.type))
+  # Gather gap using the appropriate method
+  gap <- switch(toupper(source),
+    "AIM" = gather.gap.terradat(dsn = dsn),
+    "TERRADAT" = gather.gap.terradat(dsn = dsn),
+    "DIMA" = gather.gap.terradat(dsn = dsn),
+    "LMF" = gather.gap.lmf(dsn = dsn, file.type = file.type),
+    "NRI" = gather.gap.lmf(dsn = dsn, file.type = file.type)
+  )
 
-  #Add source field so that we know where the data came from
-  gap$source<-toupper(source)
+  # Add source field so that we know where the data came from
+  gap$source <- toupper(source)
 
-  #Find date fields & convert to character
-  #Find fields that are in a Date structure
-  change.vars <-names(gap)[do.call(rbind,sapply(gap, class))[,1] %in% c("POSIXct", "POSIXt")]
-  #Update fields
-  gap<-dplyr::mutate_at(gap, dplyr::vars(change.vars), dplyr::funs(as.character))
+  # Find date fields & convert to character
+  # Find fields that are in a Date structure
+  change.vars <- names(gap)[do.call(rbind, sapply(gap, class))[, 1] %in% c("POSIXct", "POSIXt")]
+  # Update fields
+  gap <- dplyr::mutate_at(gap, dplyr::vars(change.vars), dplyr::funs(as.character))
 
   return(gap)
 }

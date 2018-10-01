@@ -1,52 +1,60 @@
 
-gather.coordinates<-function(dsn){
+gather.coordinates <- function(dsn) {
 
-  ##Read plot data in
-  #Try the TerrADat format
-  try(plots <- sf::st_read(dsn = dsn,
-                           layer = "tblPlots",
-                           quiet = TRUE),
-      silent = TRUE)
-  #Try the LMF Format
-  if(!exists("plots")){
-    try(plots <- sf::st_read(dsn = dsn,
-                             layer = "POINTCOORDINATES"),
-        silent = TRUE)
+  ## Read plot data in
+  # Try the TerrADat format
+  try(plots <- sf::st_read(
+    dsn = dsn,
+    layer = "tblPlots",
+    quiet = TRUE
+  ),
+  silent = TRUE
+  )
+  # Try the LMF Format
+  if (!exists("plots")) {
+    try(plots <- sf::st_read(
+      dsn = dsn,
+      layer = "POINTCOORDINATES"
+    ),
+    silent = TRUE
+    )
   }
-  #Try the NRI format
-  if(!exists("plots")){
-    try(plots <- read.csv(paste(dsn, "pointcoordinates.txt"), sep="|"),
-        silent = TRUE)
+  # Try the NRI format
+  if (!exists("plots")) {
+    try(plots <- read.csv(paste(dsn, "pointcoordinates.txt"), sep = "|"),
+      silent = TRUE
+    )
   }
-  #If no valid plot file provided, send error
-  if(!exists("plots")){
+  # If no valid plot file provided, send error
+  if (!exists("plots")) {
     stop("No valid plot coordinate filepath provided")
   }
 
-  ##Clean Up LMF and NRI data
+  ## Clean Up LMF and NRI data
 
-  if(!("PrimaryKey" %in% colnames(plots))){
-    #Build PrimaryKey
+  if (!("PrimaryKey" %in% colnames(plots))) {
+    # Build PrimaryKey
     plots <- terradactyl::build.PK(plots)
-    #Correct Longitude
+    # Correct Longitude
     plots$FIELD_LONGITUDE <- plots$FIELD_LONGITUDE * -1
-    #Select and Rename relevant fields
+    # Select and Rename relevant fields
     plots <- dplyr::select(plots,
-                           PrimaryKey,
-                           Latitude = FIELD_LATITUDE,
-                           Longitude = FIELD_LONGITUDE)
-  }else{
-    #extract just PrimaryKey and coordinates
+      PrimaryKey,
+      Latitude = FIELD_LATITUDE,
+      Longitude = FIELD_LONGITUDE
+    )
+  } else {
+    # extract just PrimaryKey and coordinates
     plots <- dplyr::select(plots, PrimaryKey, Latitude, Longitude)
   }
 
-  ##Make the layer spatial
+  ## Make the layer spatial
   plots.sp <- sf::st_as_sf(plots,
-                           coords = c("Longitude", "Latitude"),
-                           crs = ("+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs"))
+    coords = c("Longitude", "Latitude"),
+    crs = ("+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs")
+  )
 
   return(plots.sp)
-
 }
 
 #' Create valid PrimaryKey values
@@ -55,7 +63,7 @@ gather.coordinates<-function(dsn){
 #' @return The data frame \code{plots} with a new variable "PrimaryKey" added containing the PrimaryKey value for each plot in the data frame.
 #' @export
 
-build.PK <- function(plots){
+build.PK <- function(plots) {
   if (class(plots) != "data.frame") {
     stop("The plots argument must be a data frame")
   }
@@ -79,51 +87,52 @@ build.PK <- function(plots){
 
 plot.query <- function(gathered.data,
                        extent,
-                       plots = NULL){
+                       plots = NULL) {
   if (class(gathered.data) != "data.frame") {
     stop("gathered.data must be a data frame")
   }
-  if (!("PrimaryKey" %in% names(gathered.data))){
+  if (!("PrimaryKey" %in% names(gathered.data))) {
     stop("gathered.data must contain the variable 'PrimaryKey'")
   }
 
   if (!grepl(class(extent)[1], pattern = "^Spatial.+DataFrame$")) {
     stop("extent must be a spatial data frame.")
   }
-  if (!("PrimaryKey" %in% names(extent@data))){
+  if (!("PrimaryKey" %in% names(extent@data))) {
     stop("extent must contain the variable 'PrimaryKey'")
   }
 
-  #Treat the query differently if it is spatial or aspatial
-if(!is.null(plots)){
-  if (class(plots)[1] != "SpatialPointsDataFrame") {
-    stop("Plots must be a spatial points data frame.")
-  }
-  if (!("PrimaryKey" %in% names(plots@data))){
-    stop("plots must contain the variable 'PrimaryKey'")
-  }
+  # Treat the query differently if it is spatial or aspatial
+  if (!is.null(plots)) {
+    if (class(plots)[1] != "SpatialPointsDataFrame") {
+      stop("Plots must be a spatial points data frame.")
+    }
+    if (!("PrimaryKey" %in% names(plots@data))) {
+      stop("plots must contain the variable 'PrimaryKey'")
+    }
 
-  #Get everything on same projection
-  extent <- sf::st_transform(extent, crs = sf::st_crs(plots))
-  #Subset all plots by extent
-  plot.subset <- sf::st_intersection(plots, extent)
-  #Subset gathered data by plots subset
-  data.subset <- subset(gathered.data,
-                        PrimaryKey %in% plot.subset$PrimaryKey)
-} else {
-  if(!is.null(plots) & is.null(extent)){
-    message("No extent provided. Treating query as aspatial.")
+    # Get everything on same projection
+    extent <- sf::st_transform(extent, crs = sf::st_crs(plots))
+    # Subset all plots by extent
+    plot.subset <- sf::st_intersection(plots, extent)
+    # Subset gathered data by plots subset
+    data.subset <- subset(
+      gathered.data,
+      PrimaryKey %in% plot.subset$PrimaryKey
+    )
+  } else {
+    if (!is.null(plots) & is.null(extent)) {
+      message("No extent provided. Treating query as aspatial.")
+    }
+    if (is.null(plots) & !is.null(extent)) {
+      message("No plots provided. Treating query as aspatial.")
+    }
+    # Aspatial subset
+    data.subset <- subset(
+      gathered.data,
+      PrimaryKey %in% extent$PrimaryKey
+    )
   }
-  if(is.null(plots) & !is.null(extent)){
-    message("No plots provided. Treating query as aspatial.")
-  }
-  #Aspatial subset
-  data.subset <- subset(gathered.data,
-                        PrimaryKey %in% extent$PrimaryKey)
-}
 
   return(data.subset)
 }
-
-
-

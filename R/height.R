@@ -7,20 +7,20 @@
 #' @param tall Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.
 #' @export mean.height
 
-mean.height <- function(lpi.height.tall,
-                      method = "mean",
-                      omit.zero = FALSE,
-                      by.line = FALSE,
-                      tall=FALSE,
-                      ...){
+mean.height <- function(height.tall,
+                        method = "mean",
+                        omit.zero = FALSE,
+                        by.line = FALSE,
+                        tall = FALSE,
+                        ...) {
   ## Get a list of the variables the user wants to group by.
   grouping.variables <- rlang::quos(...)
 
-  if (class(lpi.height.tall) != "data.frame"){
-    stop("lpi.height.tall must be a data frame.")
+  if (class(height.tall) != "data.frame") {
+    stop("height.tall must be a data frame.")
   }
 
-  if (!(method %in% c("mean", "max"))){
+  if (!(method %in% c("mean", "max"))) {
     stop("method must be either 'mean' or 'max'.")
   }
 
@@ -31,41 +31,47 @@ mean.height <- function(lpi.height.tall,
     level <- rlang::quos(PrimaryKey)
   }
 
-  #If height of zer0 is dropped by the calculation, filter out zeros
-  if(omit.zero){
-    lpi.height.tall <- dplyr::filter(lpi.height.tall, Height != 0)
+  # If height of zer0 is dropped by the calculation, filter out zeros
+  if (omit.zero) {
+    height.tall <- dplyr::filter(height.tall, Height != 0)
   }
 
   # Calculate mean height by grouping variable, if method == "mean"
-  if (method == "mean"){
-    summary <- lpi.height.tall %>% dplyr::filter(!is.na(Height)) %>%
-      dplyr::group_by(!!!level,
-                      !!!grouping.variables) %>%
-      dplyr::summarize(mean.height = mean(Height)) %>%
+  if (method == "mean") {
+    summary <- height.tall %>%
+      dplyr::filter(!is.na(Height)) %>%
+      dplyr::group_by(
+        !!!level,
+        !!!grouping.variables
+      ) %>%
+      dplyr::summarize(mean.height = mean(as.numeric(Height))) %>%
       tidyr::unite(indicator,
-                   !!!grouping.variables,
-                   sep = ".")
+        !!!grouping.variables,
+        sep = "."
+      )
 
-    summary<-summary[!grepl(summary$indicator, pattern = "NA.|.NA"),]
-
+    summary <- summary[!grepl(summary$indicator, pattern = "NA.|.NA"), ]
   }
   # Calculate the max height by grouping variable, if method =="max"
-  if (method == "max"){
-    lpi.height.tall.spread <- lpi.height.tall %>% tidyr::spread(key = type,
-                                                                value=Height)
-    lpi.height.tall.spread$max <- pmax(lpi.height.tall.spread$herbaceous,
-                                       lpi.height.tall.spread$woody,
-                                       na.rm = TRUE)
-    summary<- lpi.height.tall.spread %>%
+  if (method == "max") {
+    height.tall.spread <- height.tall %>% tidyr::spread(
+      key = type,
+      value = Height
+    )
+    height.tall.spread$max <- pmax(height.tall.spread$herbaceous,
+      height.tall.spread$woody,
+      na.rm = TRUE
+    )
+    summary <- height.tall.spread %>%
       dplyr::group_by(!!!level, !!!grouping.variables) %>%
-      dplyr::summarize(max.height = mean(max))%>%
+      dplyr::summarize(max.height = mean(max)) %>%
       dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
   }
 
 
-#Convert to wide format
-  if(tall){
-    summary<-summary %>% tidyr::spread(key=indicator, value=mean.height, fill=0)
+  # Convert to wide format
+  if (!tall) {
+    summary <- summary %>% tidyr::spread(key = indicator, value = mean.height, fill = 0)
   }
 
   return(summary)

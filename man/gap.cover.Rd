@@ -5,7 +5,7 @@
 \title{Calculate the number, length, and percent of gaps}
 \usage{
 gap.cover(gap.tall, tall = FALSE, breaks = c(20, 25, 51, 100, 200),
-  type = "canopy", by.line = TRUE)
+  type = "canopy", by.line = FALSE)
 }
 \arguments{
 \item{tall}{Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.}

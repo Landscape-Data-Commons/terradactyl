@@ -13,58 +13,67 @@
 #' @rdname cover.indicators
 
 # Percent Cover Between Plants####
-#This function assumes that all non-plant codes are <3 characters long
+# This function assumes that all non-plant codes are <3 characters long
 pct.cover.between.plant <- function(lpi.tall,
                                     tall = FALSE,
                                     by.year = FALSE,
-                                    by.line = FALSE){
-  #Calculate between plant cover
+                                    by.line = FALSE) {
+  # Calculate between plant cover
   summary <- pct.cover(lpi.tall,
-                       tall = TRUE,
-                       hit = "first",
-                       by.year = by.year,
-                       by.line = by.line,
-                       code) %>%
-    #Remove all layer codes that are >=3 codes (i.e., species codes)
+    tall = TRUE,
+    hit = "first",
+    by.year = by.year,
+    by.line = by.line,
+    code
+  ) %>%
+    # Remove all layer codes that are >=3 codes (i.e., species codes)
     subset(., nchar(indicator) < 3)
 
   if (!tall) {
     summary <- tidyr::spread(summary, key = indicator, value = percent) %>%
       ## Replace the NA values with 0s because they represent 0% cover for that indicator
-      tidyr::replace_na(replace = setNames(as.list(rep.int(0,
-                                                           # Make a list of 0s named with the newly-created field names for replace_na()
-                                                           times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))])))),
-                                           unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])))
+      tidyr::replace_na(replace = setNames(
+        as.list(rep.int(0,
+          # Make a list of 0s named with the newly-created field names for replace_na()
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+        )),
+        unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
+      ))
   }
   return(summary)
 }
 #' @export
 #' @rdname cover.indicators
 
-#Percent Ground Cover####
-#This function assumes that all non-plant codes are <3 characters long
+# Percent Ground Cover####
+# This function assumes that all non-plant codes are <3 characters long
 pct.cover.all.ground <- function(lpi.tall,
                                  tall = FALSE,
                                  by.year = FALSE,
-                                 by.line = FALSE){
-  #Calculate between plant cover
+                                 by.line = FALSE) {
+  # Calculate between plant cover
   summary <- pct.cover(lpi.tall,
-                       tall = TRUE,
-                       hit = "basal",
-                       by.year = by.year,
-                       by.line = by.line,
-                       code) %>%
-    #Remove all layer codes that are >=3 codes (i.e., species codes)
+    tall = TRUE,
+    hit = "basal",
+    by.year = by.year,
+    by.line = by.line,
+    code
+  ) %>%
+    # Remove all layer codes that are >=3 codes (i.e., species codes)
     subset(., nchar(indicator) < 3)
   if (!tall) {
     summary <- tidyr::spread(summary,
-                             key = indicator,
-                             value = percent) %>%
+      key = indicator,
+      value = percent
+    ) %>%
       ## Replace the NA values with 0s because they represent 0% cover for that indicator
-      tidyr::replace_na(replace = setNames(as.list(rep.int(0,
-                                                           # Make a list of 0s named with the newly-created field names for replace_na()
-                                                           times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))])))),
-                                           unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])))
+      tidyr::replace_na(replace = setNames(
+        as.list(rep.int(0,
+          # Make a list of 0s named with the newly-created field names for replace_na()
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+        )),
+        unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
+      ))
   }
   return(summary)
 }
@@ -72,94 +81,109 @@ pct.cover.all.ground <- function(lpi.tall,
 #' @export
 #' @rdname cover.indicators
 
-#Percent Total Foliar Cover####
+# Percent Total Foliar Cover####
 pct.cover.total.foliar <- function(lpi.tall,
                                    tall = FALSE,
                                    by.year = FALSE,
-                                   by.line = FALSE){
-  #Calculate between plant cover
+                                   by.line = FALSE) {
+  # Calculate between plant cover
   summary <- pct.cover(lpi.tall,
-                       tall = TRUE,
-                       hit = "first",
-                       by.year = by.year,
-                       by.line = by.line,
-                       code) %>%
+    tall = TRUE,
+    hit = "first",
+    by.year = by.year,
+    by.line = by.line,
+    code
+  ) %>%
     # Remove all layer codes that are < 3 codes (i.e., non-species codes)
     subset(., nchar(indicator) >= 3)
 
-  #Sum all first hit plant codes to get total foliar cover
+  # Sum all first hit plant codes to get total foliar cover
   summary <- dplyr::group_by_at(summary, names(summary)[-grep("percent|indicator", names(summary))]) %>%
     dplyr::summarize(., percent = sum(percent))
-  summary$indicator <-"TotalFoliar"
+  summary$indicator <- "TotalFoliarCover"
 
-  #Widen the data frame if tall=FALSE
+  # Widen the data frame if tall=FALSE
   if (!tall) {
     summary <- tidyr::spread(summary,
-                             key = indicator,
-                             value = percent) %>%
+      key = indicator,
+      value = percent
+    ) %>%
       ## Replace the NA values with 0s because they represent 0% cover for that indicator
-      tidyr::replace_na(replace = setNames(as.list(rep.int(0,
-                                                           # Make a list of 0s named with the newly-created field names for replace_na()
-                                                           times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))])))),
-                                           unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])))
+      tidyr::replace_na(replace = setNames(
+        as.list(rep.int(0,
+          # Make a list of 0s named with the newly-created field names for replace_na()
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+        )),
+        unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
+      ))
   }
   return(summary)
 }
 #' @export
 #' @rdname cover.indicators
 
-#Percent Bare Soil Cover####
+# Percent Bare Soil Cover####
 pct.cover.bare.soil <- function(lpi.tall,
                                 tall = FALSE,
                                 by.year = FALSE,
-                                by.line = FALSE){
-  #Calculate between plant cover
+                                by.line = FALSE) {
+  # Calculate between plant cover
   summary <- pct.cover(lpi.tall,
-                       tall = TRUE,
-                       hit = "first",
-                       by.year = by.year,
-                       by.line = by.line,
-                       code) %>%
-    #Find all of the first hit "S" codes
+    tall = TRUE,
+    hit = "first",
+    by.year = by.year,
+    by.line = by.line,
+    code
+  ) %>%
+    # Find all of the first hit "S" codes
     subset(., indicator == "S")
   if (!tall) {
     summary <- tidyr::spread(summary,
-                             key = indicator,
-                             value = percent) %>%
+      key = indicator,
+      value = percent
+    ) %>%
       ## Replace the NA values with 0s because they represent 0% cover for that indicator
-      tidyr::replace_na(replace = setNames(as.list(rep.int(0,
-                                                           # Make a list of 0s named with the newly-created field names for replace_na()
-                                                           times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))])))),
-                                           unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])))
+      tidyr::replace_na(replace = setNames(
+        as.list(rep.int(0,
+          # Make a list of 0s named with the newly-created field names for replace_na()
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+        )),
+        unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
+      ))
   }
   return(summary)
 }
 #' @export
 #' @rdname cover.indicators
 
-#Percent Litter Cover####
+# Percent Litter Cover####
 pct.cover.litter <- function(lpi.tall,
                              tall = FALSE,
                              by.year = FALSE,
-                             by.line = FALSE){
-  #Calculate between plant cover
-  summary<-pct.cover(lpi.tall,
-                     tall = TRUE,
-                     hit = "any",
-                     by.year = by.year,
-                     by.line = by.line,
-                     code) %>%
-    #Remove all layer codes that are <3 codes (i.e., non-species codes)
-    subset(., indicator %in% c("L","WL", "NL", "HL"))
+                             by.line = FALSE) {
+  # Calculate between plant cover
+  summary <- pct.cover(lpi.tall,
+    tall = TRUE,
+    hit = "any",
+    by.year = by.year,
+    by.line = by.line,
+    code
+  ) %>%
+    # Remove all layer codes that are <3 codes (i.e., non-species codes)
+    subset(., indicator %in% c("L", "WL", "NL", "HL", "AM", "DN", "ER"))
   if (!tall) {
     summary <- tidyr::spread(summary,
-                             key = indicator,
-                             value = percent) %>%
+      key = indicator,
+      value = percent
+    ) %>%
       ## Replace the NA values with 0s because they represent 0% cover for that indicator
-      tidyr::replace_na(replace = setNames(as.list(rep.int(0,
-                                                           # Make a list of 0s named with the newly-created field names for replace_na()
-                                                           times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))])))),
-                                           unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])))
+      tidyr::replace_na(replace = setNames(
+        as.list(rep.int(0,
+          # Make a list of 0s named with the newly-created field names for replace_na()
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+        )),
+        unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
+      ))
   }
 
   return(summary)
@@ -168,84 +192,94 @@ pct.cover.litter <- function(lpi.tall,
 #' @export
 #' @rdname cover.indicators
 
-#Percent Cover Live vs Dead
+# Percent Cover Live vs Dead
 pct.cover.live <- function(lpi.tall,
                            tall = FALSE,
                            by.year = FALSE,
                            by.line = FALSE,
                            hit = "any",
-                           ...){
-  grouping.variables<-rlang::quos(...)
-  #summarize by checkbox and pre-assigned grouping variables
+                           ...) {
+  grouping.variables <- rlang::quos(...)
+  # summarize by checkbox and pre-assigned grouping variables
   summary <- pct.cover(lpi.tall,
-                       tall = TRUE,
-                       hit = hit,
-                       by.year = by.year,
-                       by.line = by.line,
-                       chckbox,
-                       !!!grouping.variables)
+    tall = TRUE,
+    hit = hit,
+    by.year = by.year,
+    by.line = by.line,
+    chckbox,
+    !!!grouping.variables
+  )
 
-  #remove groupings with NAs
-  summary <- subset(summary,
-                    !indicator %in% c("0..", "1.NA.NA", "1..", "0.NA.NA"))
+  # remove groupings with NAs
+  summary <- subset(
+    summary,
+    !indicator %in% c("0..", "1.NA.NA", "1..", "0.NA.NA")
+  )
   # A more flexible option:
   # summary <- subset(summary,
   #                   !grepl(indicator, pattern = "\\.\\.|NA"))
 
-  #replace "0" and "1" with live and dead
+  # replace "0" and "1" with live and dead
   summary$indicator <- gsub(summary$indicator, pattern = "^0", "Live")
   summary$indicator <- gsub(summary$indicator, pattern = "^1", "Dead")
 
   if (!tall) {
     summary <- tidyr::spread(summary,
-                             key = indicator,
-                             value = percent) %>%
+      key = indicator,
+      value = percent
+    ) %>%
       ## Replace the NA values with 0s because they represent 0% cover for that indicator
-      tidyr::replace_na(replace = setNames(as.list(rep.int(0,
-                                                           # Make a list of 0s named with the newly-created field names for replace_na()
-                                                           times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))])))),
-                                           unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])))
+      tidyr::replace_na(replace = setNames(
+        as.list(rep.int(0,
+          # Make a list of 0s named with the newly-created field names for replace_na()
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+        )),
+        unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
+      ))
   }
 
-  #return
+  # return
   return(summary)
-
 }
 
 #' @export
 #' @rdname cover.indicators
 
-##Percent Cover by Species
+## Percent Cover by Species
 pct.cover.species <- function(lpi.tall,
                               tall = TRUE,
                               by.year = FALSE,
                               by.line = FALSE,
-                              hit = "any"){
-
+                              hit = "any") {
   summary <- pct.cover(lpi.tall,
-                       tall = TRUE,
-                       hit = hit,
-                       by.year = by.year,
-                       by.line = by.line,
-                       code)
+    tall = TRUE,
+    hit = hit,
+    by.year = by.year,
+    by.line = by.line,
+    code
+  )
 
   # Kick out codes of length < 3 because species codes should all be >= 3 characters
-  summary <- subset(summary, nchar(indicator) >= 3 )
+  summary <- subset(summary, nchar(indicator) >= 3)
 
   # pct.cover() used the species as an indicator, but that name makes less sense as an output here
   summary <- dplyr::rename(summary, Species = indicator)
 
   if (!tall) {
     summary <- tidyr::spread(summary,
-                             key = Species,
-                             value = percent) %>%
+      key = Species,
+      value = percent
+    ) %>%
       ## Replace the NA values with 0s because they represent 0% cover for that indicator
-      tidyr::replace_na(replace = setNames(as.list(rep.int(0,
-                                                           # Make a list of 0s named with the newly-created field names for replace_na()
-                                                           times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))])))),
-                                           unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])))
+      tidyr::replace_na(replace = setNames(
+        as.list(rep.int(0,
+          # Make a list of 0s named with the newly-created field names for replace_na()
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+        )),
+        unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
+      ))
   }
 
-  #return
+  # return
   return(summary)
 }

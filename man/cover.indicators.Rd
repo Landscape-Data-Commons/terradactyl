@@ -23,13 +23,14 @@ pct.cover.total.foliar(lpi.tall, tall = FALSE, by.year = FALSE,
 pct.cover.bare.soil(lpi.tall, tall = FALSE, by.year = FALSE,
   by.line = FALSE)
 
-pct.cover.litter(lpi.tall, tall = FALSE, by.year = FALSE, by.line = FALSE)
+pct.cover.litter(lpi.tall, tall = FALSE, by.year = FALSE,
+  by.line = FALSE)
 
-pct.cover.live(lpi.tall, tall = FALSE, by.year = FALSE, by.line = FALSE,
-  hit = "any", ...)
+pct.cover.live(lpi.tall, tall = FALSE, by.year = FALSE,
+  by.line = FALSE, hit = "any", ...)
 
-pct.cover.species(lpi.tall, tall = TRUE, by.year = FALSE, by.line = FALSE,
-  hit = "any")
+pct.cover.species(lpi.tall, tall = TRUE, by.year = FALSE,
+  by.line = FALSE, hit = "any")
 }
 \arguments{
 \item{lpi.tall}{A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.}

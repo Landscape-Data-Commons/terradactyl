@@ -2,6 +2,7 @@
 % Please edit documentation in R/gather.height.R
 \name{gather.height}
 \alias{gather.height}
+\alias{gather.height.lmf}
 \title{Convert wide-format TerrADat height data to a tall, tidy format}
 \usage{
 gather.height(dsn, species.characteristics = TRUE, species.file = "",
@@ -9,6 +10,8 @@ gather.height(dsn, species.characteristics = TRUE, species.file = "",
   species.growth.habit.code = "GrowthHabitSub",
   species.duration = "Duration", growth.habit.file = "",
   growth.habit.code = "Code")
+
+gather.height.lmf(dsn, file.type = "gdb")
 }
 \arguments{
 \item{dsn}{Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.}
