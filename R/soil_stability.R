@@ -1,5 +1,7 @@
 #' Soil Stability Indicator Calculations
-
+#' @description
+#' @param soil.stability.tall Gather soil stability data
+#'
 
 soil.stability <- function(soil.stability.tall,
                            all = TRUE,
@@ -51,7 +53,8 @@ soil.stability <- function(soil.stability.tall,
 
   # if tall=FALSE spread into a wide format
   if (!tall) {
-    soil.stability.rating.all <- soil.stability.rating.all %>% spread(key = Veg, value = rating)
+    soil.stability.rating.all <- soil.stability.rating.all %>%
+      tidyr::spread(key = Veg, value = rating)
   }
 
 

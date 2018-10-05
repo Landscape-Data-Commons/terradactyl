@@ -43,7 +43,8 @@ gap.cover <- function(gap.tall,
 
   # Summarize total line length for the plot
   gap.tall <- gap.tall %>%
-    dplyr::distinct(PrimaryKey, LineKey, .keep_all = TRUE) %>% # get the distinct PrimaryKey-LineKey combinations
+    # get the distinct PrimaryKey-LineKey combinations
+    dplyr::distinct(PrimaryKey, LineKey, .keep_all = TRUE) %>%
     dplyr::group_by(!!!level) %>%
     unique() %>%
     dplyr::summarize(total.line.length = sum(LineLengthAmount)) %>%
@@ -62,13 +63,20 @@ gap.cover <- function(gap.tall,
       n = length(Gap),
       length = sum(Gap)
     ) %>%
-    dplyr::mutate(., percent = 100 * (length / total.line.length)) %>% dplyr::ungroup()
+    dplyr::mutate(., percent = 100 * (length / total.line.length)) %>%
+    dplyr::ungroup()
 
 
   # Convert to wide format
-  percent <- gap.summary %>% dplyr::select(., -n, -length) %>% tidyr::spread(key = interval, value = percent, fill = 0) %>% select(-NoGap)
-  n <- gap.summary %>% dplyr::select(., -percent, -length) %>% tidyr::spread(key = interval, value = n, fill = 0) %>% select(-NoGap)
-  length <- gap.summary %>% dplyr::select(., -n, -percent) %>% tidyr::spread(key = interval, value = length, fill = 0) %>% select(-NoGap)
+  percent <- gap.summary %>% dplyr::select(., -n, -length) %>%
+    tidyr::spread(key = interval, value = percent, fill = 0) %>%
+    dplyr::select(-NoGap)
+  n <- gap.summary %>% dplyr::select(., -percent, -length) %>%
+    tidyr::spread(key = interval, value = n, fill = 0) %>%
+    dplyr::select(-NoGap)
+  length <- gap.summary %>% dplyr::select(., -n, -percent) %>%
+    tidyr::spread(key = interval, value = length, fill = 0) %>%
+    dplyr::select(-NoGap)
 
 
 
@@ -76,9 +84,20 @@ gap.cover <- function(gap.tall,
   if (!tall) {
     gap.summary <- list("percent" = percent, "n" = n, "length" = length)
   } else { # Convert back to tall, this adds zeros in needed columns
-    gap.summary <- percent %>% tidyr::gather(key = Gap.Class, value = percent, -PrimaryKey, -total.line.length)
-    gap.summary <- n %>% tidyr::gather(key = Gap.Class, value = n, -PrimaryKey, -total.line.length) %>% merge(gap.summary, allow.cartesian = TRUE)
-    gap.summary <- length %>% tidyr::gather(key = Gap.Class, value = length, -PrimaryKey, -total.line.length) %>% merge(gap.summary, allow.cartesian = TRUE)
+    gap.summary <- percent %>% tidyr::gather(key = Gap.Class,
+                                             value = percent,
+                                             -PrimaryKey,
+                                             -total.line.length)
+    gap.summary <- n %>% tidyr::gather(key = Gap.Class,
+                                       value = n,
+                                       -PrimaryKey,
+                                       -total.line.length) %>%
+      merge(gap.summary, allow.cartesian = TRUE)
+    gap.summary <- length %>% tidyr::gather(key = Gap.Class,
+                                            value = length,
+                                            -PrimaryKey,
+                                            -total.line.length) %>%
+      merge(gap.summary, allow.cartesian = TRUE)
   }
 
   return(gap.summary)

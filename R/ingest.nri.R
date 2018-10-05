@@ -40,7 +40,7 @@ nri.field.names <- function(dsn) {
   field.names <- field.names %>% dplyr::mutate(DBKey = DBKEY) %>% dplyr::select(-DBKEY)
 
   # Merge the original nri.data.column.explataions table saved in the package
-  nri.data.column.explanations <- dplyr::full_join(nri.data.column.explanations, field.names) %>% distinct()
+  nri.data.column.explanations <- dplyr::full_join(terradactyl::nri.data.column.explanations, field.names) %>% distinct()
 
   # Look for instances where field of the same name may have different data types assigned
   disjointed.data.types <- nri.data.column.explanations %>% dplyr::group_by(FIELD.NAME) %>% dplyr::summarise(n = n_distinct(DATA.TYPE))

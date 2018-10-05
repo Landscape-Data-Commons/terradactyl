@@ -3,19 +3,17 @@
 #' @param species.growth.habit.code Character. The field name for the growth habit codes in the species file.
 #' @param growth.habit.file Character string. The full file path (including file extension) to the csv containing the growth habit list. If NULL then the file from the provided geodatabase will be used.
 #' @param growth.habit.code Character. The field name for the growth habit codes in the growth habit file.
-#' @param recorded.species.codes Vector. Species recorded so that generic.growth.habit() can identify unknown codes.
 #' @param species.code Character. The field name for the species codes in the species file.
 #' @param species.duration Character. the field name for the Duration field in the species file.
 #' @name species
-#'
 #' @export gather.species
 #' @rdname gather.species
 
 # Function to gather species information
-gather.species <- function(species.file, # path to .csv or .gdb holding  tblSpecies
-                           species.growth.habit.code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
-                           growth.habit.file = "", # path to .csv or gdb holding tblSpeciesGrowthHabit
-                           growth.habit.code = "Code" # field name in growth habit file to link to GrowthHabit
+gather.species <- function(species.file, #
+                           species.growth.habit.code = "GrowthHabitSub",
+                           growth.habit.file = "",
+                           growth.habit.code = "Code" #
 ) {
 
 
@@ -76,7 +74,7 @@ gather.species <- function(species.file, # path to .csv or .gdb holding  tblSpec
 
 #' @export generic.growth.habits
 #' @rdname gather.species
-## Attribute generic species growth habits, for now this assumes field names.
+#' Attribute generic species growth habits, for now this assumes field names.
 generic.growth.habits <- function(data,
                                   data.code = "code", # Species field in the data
                                   species.list, # from  gather.species ()
@@ -85,11 +83,12 @@ generic.growth.habits <- function(data,
                                   species.duration = "Duration" # field name for duration
 
 ) {
-  generic.df <- data.frame(recorded.species = unique(data[, colnames(data) == data.code])) %>%
+  generic.df <- data.frame(SpeciesFixed = unique(data[, colnames(data) == data.code])) %>%
+
     # Clean up the species codes
-    dplyr::mutate(SpeciesFixed = recorded.species %>%
-      toupper() %>%
+    dplyr::mutate(SpeciesFixed = toupper(SpeciesFixed) %>%
       stringr::str_replace_all(string = ., pattern = " |-", replacement = "")) %>%
+
     # Get unknown codes and clean them up. Unknown codes beging with a 2 (LMF/NRI) or a 2 letter prefix followed by a number.
     # Older projects also used "AAFF" etc. to identify unknown and dead beyond recognition codes. So we'll need to detect those too
     dplyr::filter(stringr::str_detect(SpeciesFixed, "^2|^[A-z]{2}[[:digit:]]|\\b(?=\\w*(^[A|P|S|T])\\1+)\\w+\\b")) %>%
@@ -98,8 +97,9 @@ generic.growth.habits <- function(data,
     dplyr::mutate(Code = gsub(SpeciesFixed, pattern = "[[:digit:]]", replacement = "") %>%
       gsub(., pattern = "([[:alpha:]])\\1+", replacement = "\\1") %>%
       as.character()) %>%
+
     # Rename to data species code field
-    dplyr::rename_at(dplyr::vars(recorded.species), ~data.code)
+    dplyr::rename_at(dplyr::vars(SpeciesFixed), ~data.code)
 
 
   # Merge with generic species definitions
@@ -110,20 +110,24 @@ generic.growth.habits <- function(data,
 
 
   # Connect unknown codes to SpeciesState
-  if ("SpeciesState" %in% colnames(data)) {
-    generic.code.df <- dplyr::inner_join(
-      subset(generic.code.df, !is.na(species.code)),
-      unique(data[, colnames(data) %in% c(data.code, "SpeciesState")])
+  if ("SpeciesState" %in% colnames(species.list)) {
+    generic.code.df <- generic.code.df %>%
+      subset(!is.na(species.code)) %>%
+      dplyr::inner_join (., dplyr::select(data, !!!dplyr::vars(data.code),
+                                          SpeciesState)
     )
   }
 
   # Rename to SpeciesCode in species list
-  generic.code.df <- generic.code.df %>% dplyr::rename_at(dplyr::vars(data.code), ~species.code)
-  # Merge with main species list
+  generic.code.df <- generic.code.df %>%
+    dplyr::rename_at(dplyr::vars(data.code), ~species.code)
+
+   # Merge with main species list
   species.generic <- dplyr::full_join(species.list, generic.code.df)
 
   # Remove Code, Prefix, and PrimaryKey if they exist
-  species.generic <- species.generic[, !colnames(species.generic) %in% c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
+  species.generic <- species.generic[, !colnames(species.generic) %in%
+                                       c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
 
 
   return(species.generic)
@@ -155,7 +159,7 @@ species.join <- function(data, # field data,
 
   ## Merge unknown codes
   species.generic <- generic.growth.habits(
-    data = data,
+    data = as.data.frame(data), #in some applications, data will be an sf object
     data.code = data.code,
     species.list = species,
     species.code = species.code,
@@ -181,10 +185,7 @@ species.join <- function(data, # field data,
   ## Add species information to LPI table
   data.species <- dplyr::left_join(
     x = data %>% dplyr::mutate_at(dplyr::vars(data.code), toupper),
-    y = species.generic,
-    # Merge by the species code and the DBKey and SpeciesState
-    by = c(data.code, "SpeciesState")
-  )
+    y = species.generic)
 
   return(data.species)
 }

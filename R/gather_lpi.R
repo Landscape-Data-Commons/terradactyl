@@ -2,28 +2,17 @@
 #'
 #' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.
 #' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
-#' @param species.file Character string. The full file path (including file extension) to the csv containing the species list. If NULL then the file from the provided geodatabase will be used.
-#' @param species.growth.habit.code Character. The field name for the growth habit codes in the species file.
-#' @param growth.habit.file Character string. The full file path (including file extension) to the csv containing the growth habit list. If NULL then the file from the provided geodatabase will be used.
-#' @param growth.habit.code Character. The field name for the growth habit codes in the growth habit file.
-#' @param recorded.species.codes Vector. Species recorded so that \code{generic.growth.habit()} can identify unknown codes.
-#' @param species.code Character. The field name for the species codes in the species file.
-#' @param species.duration Character. the field name for the Duration field in the species file.
+#' @param source Character string. The data source format. \code("AIM", "NRI", "LMF, "TerrADat") are valid options.
 #' @importFrom magrittr %>%
+#' @name gather_lpi
+#' @family <gather>
 #' @return A data frames containing the data from the LPI pin intercepts
 
 
 #' @export gather.lpi.terradat
 #' @rdname gather_lpi
 ## Function to make tall format of LPI data from TerrADat
-gather.lpi.terradat <- function(dsn,
-                                species.characteristics = TRUE,
-                                species.file = "", # path to .csv or .gdb holding  the species table
-                                species.code = "SpeciesCode", # field name in species file that identifies the species code
-                                species.growth.habit.code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
-                                species.duration = "Duration", # field name in species file of the Duration assignment
-                                growth.habit.file = "", # path to .csv or gdb holding tblSpeciesGrowthHabit
-                                growth.habit.code = "Code") { # field name in growth habit file to link to GrowthHabit
+gather.lpi.terradat <- function(dsn) {
 
   # Read LPI information from TerrADat
   lpi.detail <- suppressWarnings(sf::st_read(
@@ -35,30 +24,14 @@ gather.lpi.terradat <- function(dsn,
     layer = "tblLPIHeader"
   ))
 
-  if (isTRUE(species.characteristics) & species.file == "") {
-    stop("If species.characteristics is TRUE, you must provide a path as species.file.")
-  }
+  # Make a tall data frame with the hit codes by layer and the checkbox designation
 
-  ## Make a tall data frame with the hit codes by layer and the checkbox designation
-
-  lpi.hits.tall <- data.table::melt(
-    data = lpi.detail,
-    id.vars = c(
-      "PrimaryKey",
-      "PointLoc",
-      "PointNbr",
-      "RecKey",
-      "ShrubShape"
-    ),
-    measure.vars = c(
-      "TopCanopy",
-      "SoilSurface",
-      colnames(lpi.detail)[grepl(pattern = "^Lower[1-7]$", x = colnames(lpi.detail))]
-    ),
-    variable.name = "layer",
-    value.name = "code",
-    na.rm = TRUE
-  )
+  lpi.hits.tall <-  lpi.detail %>% dplyr::mutate_if(is.factor, as.character) %>%
+    dplyr::select(PrimaryKey, PointLoc, PointNbr, RecKey, ShrubShape,
+                  TopCanopy, SoilSurface, dplyr::matches("^Lower")) %>%
+    tidyr::gather(key = layer,
+                  value = code,
+                  TopCanopy, SoilSurface, dplyr::matches("^Lower"))
 
   # Remove all records where no hit was recorded (e.g., "None", "NA"
 
@@ -72,24 +45,20 @@ gather.lpi.terradat <- function(dsn,
   )
 
 
-  ## Make a tall data framethe checkbox status by layer
+  ## Make a tall data frame the checkbox status by layer
 
-  lpi.chkbox.tall <- data.table::melt(
-    data = lpi.detail,
-    id.vars = c(
-      "PrimaryKey",
-      "PointLoc",
-      "PointNbr",
-      "RecKey"
-    ),
-    measure.vars = colnames(lpi.detail)[grepl(pattern = "^Chkbox", x = colnames(lpi.detail))],
-    variable.name = "layer",
-    value.name = "chckbox"
-  )
+  lpi.chkbox.tall <- lpi.detail %>%
+    dplyr::select(PrimaryKey, PointLoc, PointNbr, RecKey,
+                  dplyr::matches("^Chkbox")) %>%
+    tidyr::gather(key = layer, value = "chckbox",
+                  dplyr::matches("^Chkbox"))
+
 
 
   # Remove Woody and Herbaceous Checkbox
-  lpi.chkbox.tall <- lpi.chkbox.tall[!(lpi.chkbox.tall$chckbox %in% c("ChckboxWoody", "ChckboxHerbaceous")), ]
+  lpi.chkbox.tall <- lpi.chkbox.tall[!(lpi.chkbox.tall$chckbox %in%
+                                         c("ChckboxWoody",
+                                           "ChckboxHerbaceous")), ]
 
   ## Make the names in the layer variable match
   lpi.chkbox.tall$layer <- gsub(lpi.chkbox.tall$layer,
@@ -102,8 +71,8 @@ gather.lpi.terradat <- function(dsn,
 
   # Print update because this function can take a while
   message("Merging LPI Header and LPI Detail tables")
-  # Merge checkbox and hit data as well as the header data
 
+  # Merge checkbox and hit data as well as the header data
   lpi.tall <- suppressWarnings(dplyr::left_join(
     x = lpi.hits.tall,
     y = lpi.chkbox.tall,
@@ -121,21 +90,6 @@ gather.lpi.terradat <- function(dsn,
       by = c("PrimaryKey", "RecKey")
     ))
 
-  ## If we're adding species
-
-  if (species.characteristics) {
-    lpi.tall.species <- species.join(
-      data = lpi.tall,
-      data.code = "code",
-      species.file = species.file, # path to .csv or .gdb holding  the species table
-      species.code = species.code, # field name in species file that identifies the species code
-      species.growth.habit.code = species.growth.habit.code, # field name in species file of the species code to link to GrowthHabit
-      species.duration = species.duration, # field name in species file of the Duration assignment
-      growth.habit.file = growth.habit.file, # path to .csv or gdb holding tblSpeciesGrowthHabit
-      growth.habit.code = growth.habit.code
-    )
-    return(lpi.tall.species)
-  }
   return(lpi.tall)
   ## Output the list
 }
@@ -144,14 +98,7 @@ gather.lpi.terradat <- function(dsn,
 #' @rdname gather_lpi
 
 gather.lpi.lmf <- function(dsn,
-                           file.type = "gdb",
-                           species.characteristics = TRUE,
-                           species.file = "", # path to .csv or .gdb holding  the species table
-                           species.code = "SpeciesCode", # field name in species file that identifies the species code
-                           species.growth.habit.code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
-                           species.duration = "Duration", # field name in species file of the Duration assignment
-                           growth.habit.file = "", # path to .csv or gdb holding tblSpeciesGrowthHabit
-                           growth.habit.code = "Code") {
+                           file.type = "gdb" ) {
 
   # Read  PINTERCEPT table in .txt or .gdb
 
@@ -160,13 +107,19 @@ gather.lpi.lmf <- function(dsn,
       suppressWarnings(sf::st_read(dsn = dsn, layer = "PINTERCEPT"))
     },
     "txt" = {
-      read.table(paste(dsn, "pintercept.txt", sep = ""), stringsAsFactors = FALSE, strip.white = TRUE, header = FALSE, sep = "|")
+      read.table(paste(dsn, "pintercept.txt", sep = ""),
+                 stringsAsFactors = FALSE,
+                 strip.white = TRUE,
+                 header = FALSE, sep = "|")
     }
   )
 
   # if it is in a text file, there are no field names assigned.
   if (file.type == "txt") {
-    colnames <- as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME == "PINTERCEPT", select = FIELD.NAME)))
+    colnames <- as.vector(as.data.frame(subset(
+      terradactyl::nri.data.column.explanations,
+      TABLE.NAME == "PINTERCEPT",
+      select = FIELD.NAME)))
     colnames <- colnames$FIELD.NAME
     colnames <- colnames[1:ncol(pintercept)] %>% na.omit()
     names(pintercept) <- colnames
@@ -176,7 +129,12 @@ gather.lpi.lmf <- function(dsn,
   pintercept <- pintercept[, !is.na(colnames(pintercept))]
 
   # We need to establish and/or fix the PrimaryKey so it exists in a single field.
-  pintercept$PrimaryKey <- paste(pintercept$SURVEY, pintercept$STATE, pintercept$COUNTY, pintercept$PSU, pintercept$POINT, sep = "")
+  pintercept$PrimaryKey <- paste(pintercept$SURVEY,
+                                 pintercept$STATE,
+                                 pintercept$COUNTY,
+                                 pintercept$PSU,
+                                 pintercept$POINT,
+                                 sep = "")
 
 
   # For line point intercept data (cover calculations--point number 75 is recorded twice—once on each transect.
@@ -236,28 +194,14 @@ gather.lpi.lmf <- function(dsn,
   lpi.hits.tall <- dplyr::rename(lpi.hits.tall, LineKey = TRANSECT, PointNbr = MARK, ShrubShape = SAGEBRUSH_SHAPE)
 
   # Convert to factor
-  lpi.hits.tall <- lpi.hits.tall %>% mutate_if(is.character, funs(factor))
+  lpi.hits.tall <- lpi.hits.tall %>% dplyr::mutate_if(is.character, dplyr::funs(factor))
 
-  # Convert ShrubShape values to be consistent with DIMA schema, 1==Columnar, 2=Spreading, 3=Mixed, 0 is NA
+  # Convert ShrubShape values to be consistent with DIMA schema,
+  #1==Columnar, 2=Spreading, 3=Mixed, 0 is NA
   lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape == 1] <- "C"
   lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape == 2] <- "S"
   lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape == 3] <- "M"
   lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape == 0] <- NA
-
-  if (species.characteristics) {
-    lpi.tall.species <- species.join(
-      data = lpi.hits.tall,
-      data.code = "code",
-      species.file = species.file, # path to .csv or .gdb holding  the species table
-      species.code = species.code, # field name in species file that identifies the species code
-      species.growth.habit.code = species.growth.habit.code, # field name in species file of the species code to link to GrowthHabit
-      species.duration = species.duration, # field name in species file of the Duration assignment
-      growth.habit.file = growth.habit.file, # path to .csv or gdb holding tblSpeciesGrowthHabit
-      growth.habit.code = growth.habit.code
-    )
-    return(lpi.tall.species)
-  }
-
 
   return(lpi.hits.tall)
 }
@@ -270,15 +214,16 @@ gather.lpi <- function(dsn,
                        file.type = "gdb",
                        source) {
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))
+    stop("No valid source provided"))
 
   # Gather LPI using the appropriate gather function
   lpi <- switch(toupper(source),
-    "AIM" = gather.lpi.terradat(dsn = dsn, species.characteristics = FALSE),
-    "TERRADAT" = gather.lpi.terradat(dsn = dsn, species.characteristics = FALSE),
-    "DIMA" = gather.lpi.terradat(dsn = dsn, species.characteristics = FALSE),
-    "LMF" = gather.lpi.lmf(dsn = dsn, file.type = file.type, species.characteristics = FALSE),
-    "NRI" = gather.lpi.lmf(dsn = dsn, file.type = file.type, species.characteristics = FALSE)
+    "AIM" = gather.lpi.terradat(dsn = dsn),
+    "TERRADAT" = gather.lpi.terradat(dsn = dsn),
+    "DIMA" = gather.lpi.terradat(dsn = dsn),
+    "LMF" = gather.lpi.lmf(dsn = dsn, file.type = file.type),
+    "NRI" = gather.lpi.lmf(dsn = dsn, file.type = file.type)
   )
 
   # Add source field
@@ -286,7 +231,8 @@ gather.lpi <- function(dsn,
 
   # Find date fields & convert to character
   # Find fields that are in a Date structure
-  change.vars <- names(lpi)[do.call(rbind, sapply(lpi, class))[, 1] %in% c("POSIXct", "POSIXt")]
+  change.vars <- names(lpi)[do.call(rbind, sapply(lpi, class))[, 1] %in%
+                              c("POSIXct", "POSIXt")]
   # Update fields
   lpi <- dplyr::mutate_at(lpi, dplyr::vars(change.vars), dplyr::funs(as.character))
 

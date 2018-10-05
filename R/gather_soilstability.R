@@ -3,7 +3,9 @@
 #'
 #'
 
-gather.soil.stability <- function(dsn) {
+#' @export gather.soil.stability.terradat
+#' @rdname gather_soilstability
+gather.soil.stability.terradat <- function(dsn) {
 
 
   # read in tabular data
@@ -46,9 +48,9 @@ gather.soil.stability <- function(dsn) {
     X = as.list(unique(gathered$key)),
     FUN = function(k = as.list(unique(gathered$key)), df = gathered) {
       test <- df[df$key == k, ] %>%
-        mutate(id = 1:n()) %>%
+        dplyr::mutate(id = 1:n()) %>%
         tidyr::spread(key = key, value = value) %>%
-        select(-id)
+        dplyr::select(-id)
     }
   )
   # create a single tidy dataframe
@@ -64,6 +66,9 @@ gather.soil.stability <- function(dsn) {
   return(soil.stability.tall)
 }
 
+#' @export gather.soil.stability.terradat
+#' @rdname gather_soilstability
+
 gather.soil.stability.lmf <- function(dsn, file.type = "gdb") {
   soildisag <- switch(file.type,
     "gdb" = {
@@ -77,17 +82,23 @@ gather.soil.stability.lmf <- function(dsn, file.type = "gdb") {
   if (file.type == "txt") {
     colnames <- as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME == "SOILDISAG", select = FIELD.NAME)))
     colnames <- colnames$FIELD.NAME
-    pintercept <- soildisag[1:length(colnames)]
+    soildisag <- soildisag[1:length(colnames)]
     names(soildisag) <- colnames
   }
   # We need to establish and/or fix the PLOTKEY so it exists in a single field.
-  soildisag$PLOTKEY <- paste(soildisag$SURVEY, soildisag$STATE, soildisag$COUNTY, soildisag$PSU, soildisag$POINT, sep = "")
+  soildisag$PrimaryKey <- paste(soildisag$SURVEY, soildisag$STATE, soildisag$COUNTY, soildisag$PSU, soildisag$POINT, sep = "")
 
+  #Remove any database management fields
+  soildisag <- soildisag[!names(soildisag) %in% c ("created_user",
+                                                   "created_date",
+                                                   "last_edited_user",
+                                                   "last_edited_date" )]
   # conver white space to NA
   soildisag[soildisag == ""] <- NA
 
   # Convert to tall format
-  soil.tall <- dplyr::select(soildisag, -c(SURVEY:POINT)) %>% tidyr::gather(., key = variable, value = value, -PLOTKEY)
+  soil.tall <- dplyr::select(soildisag, VEG1:STABILITY18, PrimaryKey, DBKey) %>%
+    tidyr::gather(., key = variable, value = value, -PrimaryKey, -DBKey)
 
   # Remove NAs
   gathered <- soil.tall[!is.na(soil.tall$value), ]
@@ -101,15 +112,39 @@ gather.soil.stability.lmf <- function(dsn, file.type = "gdb") {
     X = as.list(unique(gathered$variable)),
     FUN = function(k = as.list(unique(gathered$variable)), df = gathered) {
       df[df$variable == k, ] %>%
-        mutate(id = 1:n()) %>%
+        dplyr::mutate(id = 1:n()) %>%
         tidyr::spread(key = variable, value = value) %>%
-        select(-id)
+        dplyr::select(-id)
     }
-  ) %>% purrr::reduce(merge)
+  ) %>% Reduce(dplyr::left_join, .)
 
-  soil.stability.tidy <- dplyr::rename(soil.stability.tidy, Veg = VEG, Rating = STABILITY, PrimaryKey = PLOTKEY)
+  soil.stability.tidy <- dplyr::rename(soil.stability.tidy, Veg = VEG, Rating = STABILITY)
   soil.stability.tidy$Rating <- as.numeric(soil.stability.tidy$Rating)
 
   # Return final merged file
   return(soil.stability.tidy)
+}
+
+
+#' @export gather.soil.stability
+#' @rdname gather_soilstability
+gather.soil.stability <- function (dsn, source, file.type = "gdb") {
+
+  # Check for a valid source
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
+
+  # Gather soil.stability using the appropriate method
+  soil.stability <- switch(toupper(source),
+                              "AIM" = gather.soil.stability.terradat(dsn = dsn),
+                              "TERRADAT" = gather.soil.stability.terradat(dsn = dsn),
+                              "DIMA" = gather.soil.stability.terradat(dsn = dsn),
+                              "LMF" = gather.soil.stability.lmf(dsn = dsn, file.type = file.type),
+                              "NRI" = gather.soil.stability.lmf(dsn = dsn, file.type = file.type)
+  )
+
+  # Add source field so that we know where the data came from
+  soil.stability$source <- toupper(source)
+
+  return(soil.stability)
+
 }

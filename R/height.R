@@ -16,8 +16,8 @@ mean.height <- function(height.tall,
   ## Get a list of the variables the user wants to group by.
   grouping.variables <- rlang::quos(...)
 
-  if (class(height.tall) != "data.frame") {
-    stop("height.tall must be a data frame.")
+  if (!is.data.frame(height.tall)) {
+    stop("lpi.tall must be a data frame.")
   }
 
   if (!(method %in% c("mean", "max"))) {

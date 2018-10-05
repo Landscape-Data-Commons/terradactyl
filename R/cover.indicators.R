@@ -35,7 +35,11 @@ pct.cover.between.plant <- function(lpi.tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
+                                                           "PlotKey",
+                                                           "PlotID",
+                                                           "LineKey",
+                                                           "LineID"))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))

@@ -21,7 +21,7 @@ pct.cover <- function(lpi.tall,
   #   stop("All grouping variables need to be variables in the lpi.tall data frame.")
   # }
 
-  if (class(lpi.tall) != "data.frame") {
+  if (!is.data.frame(lpi.tall)) {
     stop("lpi.tall must be a data frame.")
   }
 
@@ -49,7 +49,7 @@ pct.cover <- function(lpi.tall,
   # Convert all codes to upper case
   lpi.tall$code <- toupper(lpi.tall$code)
 
-  lpi.tall <- lpi.tall %>% dplyr::mutate_at(vars(!!!grouping.variables), toupper)
+  lpi.tall <- lpi.tall %>% dplyr::mutate_at(dplyr::vars(!!!grouping.variables), toupper)
   # Within a plot, we need the number of pin drops, which we'll calculate taking the unique combination of PrimaryKey, LineKey and Point number
   # for each group level
   point.totals <- dplyr::distinct(
@@ -60,7 +60,7 @@ pct.cover <- function(lpi.tall,
     dplyr::summarize(point.count = n())
 
   # Add the point.counts field (it'll be the same for every record associated with a plot)
-  lpi.tall <- left_join(
+  lpi.tall <- dplyr::left_join(
     x = lpi.tall,
     y = point.totals
   )
@@ -108,7 +108,7 @@ pct.cover <- function(lpi.tall,
         dplyr::group_by(!!!level, indicator) %>%
         # Within a plot, find the sum of all the "presents" then divide by the number of possible hits, which
         # we added in point.count
-        dplyr::summarize(percent = 100 * sum(present, na.rm = TRUE) / first(point.count))
+        dplyr::summarize(percent = 100 * sum(present, na.rm = TRUE) / dplyr::first(point.count))
     },
     "first" = {
       summary <- lpi.tall %>%
@@ -118,7 +118,7 @@ pct.cover <- function(lpi.tall,
         dplyr::filter(!(code %in% c("", NA, "None"))) %>%
         dplyr::group_by(PrimaryKey, LineKey, PointNbr, point.count) %>%
         # Get the first hit at a point
-        dplyr::summarize(code = first(code)) %>%
+        dplyr::summarize(code = dplyr::first(code)) %>%
         # Get all the other fields back
         merge(
           x = dplyr::distinct(dplyr::select(lpi.tall, PrimaryKey, LineKey, PointNbr, code, !!!grouping.variables)),
@@ -128,7 +128,7 @@ pct.cover <- function(lpi.tall,
         tidyr::unite(indicator, !!!grouping.variables, sep = ".") %>%
         dplyr::ungroup() %>%
         dplyr::group_by(!!!level, indicator) %>%
-        dplyr::summarize(percent = 100 * n() / first(point.count)) %>%
+        dplyr::summarize(percent = 100 * n() / dplyr::first(point.count)) %>%
         dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
     }
   )
@@ -139,7 +139,7 @@ pct.cover <- function(lpi.tall,
   # add zeros where no cover occurred
   summary <- suppressWarnings(expand.grid(PrimaryKey = unique(lpi.tall$PrimaryKey), indicator = unique(summary$indicator)) %>%
     dplyr::left_join(., summary) %>%
-    mutate_all(funs(replace(., is.na(.), 0))))
+    dplyr::mutate_all(dplyr::funs(replace(., is.na(.), 0))))
 
   if (!tall) {
     summary <- tidyr::spread(summary, key = indicator, value = percent) %>%

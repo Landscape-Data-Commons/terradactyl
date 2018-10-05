@@ -1,13 +1,16 @@
 #' Gather Species Inventory
 #' @description Create a tall species inventory data frame.
 #' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
+#' @param source Character string. Data format source, AIM, TerrADat, LMF, NRI are all valid options.
 #' @return A data frames containing the data from the species inventory data in tall format.
-#' @export gather.species.inventory
+
+
+#' @export gather.species.inventory.terradat
 #' @rdname species_inventory
 
 
 
-gather.species.inventory <- function(dsn) {
+gather.species.inventory.terradat <- function(dsn) {
   # load raw tables
   species.inventory.detail <- suppressWarnings(sf::st_read(dsn, layer = "tblSpecRichDetail"))
   species.inventory.header <- suppressWarnings(sf::st_read(dsn, layer = "tblSpecRichHeader"))
@@ -70,22 +73,50 @@ gather.species.lmf <- function(dsn, file.type = "gdb") {
 
 
   # if it is in a text file, there are no field names assigned.
-  colnames <- as.vector(as.data.frame(subset(nri.data.column.explanations, TABLE.NAME == "PLANTCENSUS", select = FIELD.NAME)))
-  colnames <- colnames$FIELD.NAME
-  plantcensus <- plantcensus[1:length(colnames)]
-  names(plantcensus) <- colnames
+  if (file.type == "txt") {
+    colnames <- as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME == "PLANTCENSUS", select = FIELD.NAME)))
+    colnames <- colnames$FIELD.NAME
+    plantcensus <- plantcensus[1:length(colnames)]
+    names(plantcensus) <- colnames
+  }
+
 
   # We need to establish and/or fix the PLOTKEY so it exists in a single field.
-  plantcensus$PLOTKEY <- paste(plantcensus$SURVEY, plantcensus$STATE, plantcensus$COUNTY, plantcensus$PSU, plantcensus$POINT, sep = "")
+  plantcensus$PrimaryKey <- paste(plantcensus$SURVEY, plantcensus$STATE, plantcensus$COUNTY, plantcensus$PSU, plantcensus$POINT, sep = "")
 
   # Get species count
-  species.inventory <- plantcensus %>% group_by(PLOTKEY) %>% summarize(., SpeciesCount = n()) %>% merge(., plantcensus)
+  species.inventory <- plantcensus %>% dplyr::group_by(PrimaryKey) %>% dplyr::summarize(., SpeciesCount = n()) %>% merge(., plantcensus)
 
   # rename fields
   species.inventory <- dplyr::rename(species.inventory,
-    PrimaryKey = PLOTKEY,
-    Codes = CPLANT
-  ) %>% select(., -c(SURVEY:SEQNUM))
+    Species = CPLANT
+  ) %>% dplyr::select(., -c(SURVEY:SEQNUM))
 
   return(species.inventory)
+}
+
+
+#' Species Inventory Gather wrapper
+#' @export gather.species.inventory
+#' @rdname species_inventory
+
+gather.species.inventory <- function (dsn, source, file.type = "gdb") {
+
+  # Check for a valid source
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
+
+  # Gather species.inventory using the appropriate method
+  species.inventory <- switch(toupper(source),
+                "AIM" = gather.species.inventory.terradat(dsn = dsn),
+                "TERRADAT" = gather.species.inventory.terradat(dsn = dsn),
+                "DIMA" = gather.species.terradat(dsn = dsn),
+                "LMF" = gather.species.lmf(dsn = dsn, file.type = file.type),
+                "NRI" = gather.species.lmf(dsn = dsn, file.type = file.type)
+  )
+
+  # Add source field so that we know where the data came from
+  species.inventory$source <- toupper(source)
+
+  return(species.inventory)
+
 }

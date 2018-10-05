@@ -55,24 +55,30 @@ gather.gap.terradat <- function(dsn) {
 
 gather.gap.lmf <- function(dsn, file.type = "gdb") {
   gintercept <- switch(file.type,
-    "gdb" = {
-      suppressWarnings(sf::st_read(dsn = dsn, layer = "GINTERCEPT")) %>% subset(., select = -c(
-        GlobalID,
-        created_user,
-        created_date,
-        last_edited_user,
-        last_edited_date
-      ))
-    },
-    "txt" = {
-      read.table(paste(dsn, "gintercept.txt", sep = ""), stringsAsFactors = FALSE, strip.white = TRUE, header = FALSE, sep = "|")
-    }
+                       "gdb" = {
+                         suppressWarnings(sf::st_read(dsn = dsn,
+                                                      layer = "GINTERCEPT")) %>%
+                           subset(., select = -c(
+                             GlobalID,
+                             created_user,
+                             created_date,
+                             last_edited_user,
+                             last_edited_date
+                           ))
+                       },
+                       "txt" = {
+                         read.table(paste(dsn, "gintercept.txt", sep = ""),
+                                    stringsAsFactors = FALSE, strip.white = TRUE,
+                                    header = FALSE, sep = "|")
+                       }
   )
 
 
   if (file.type == "txt") {
     # Add meaningful column names
-    colnames <- as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME == "GINTERCEPT", select = FIELD.NAME)))
+    colnames <- as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations,
+                                               TABLE.NAME == "GINTERCEPT",
+                                               select = FIELD.NAME)))
     colnames <- colnames$FIELD.NAME
     pintercept <- gintercept[1:length(colnames)]
     names(gintercept) <- colnames
@@ -86,7 +92,12 @@ gather.gap.lmf <- function(dsn, file.type = "gdb") {
 
 
   # We need to establish and/or fix the PLOTKEY so it exists in a single field.
-  gintercept$PrimaryKey <- paste(gintercept$SURVEY, gintercept$STATE, gintercept$COUNTY, gintercept$PSU, gintercept$POINT, sep = "")
+  gintercept$PrimaryKey <- paste(gintercept$SURVEY,
+                                 gintercept$STATE,
+                                 gintercept$COUNTY,
+                                 gintercept$PSU,
+                                 gintercept$POINT,
+                                 sep = "")
 
 
   # check for negative values and remove
@@ -110,7 +121,7 @@ gather.gap.lmf <- function(dsn, file.type = "gdb") {
   gap$GapMin <- 12 * 2.54 # minimum gap size
 
   # Strip down fields
-  gap <- select(gap, -c(SURVEY:POINT))
+  gap <- dplyr::select(gap, -c(SURVEY:POINT))
 
   return(gap)
 }
@@ -122,7 +133,8 @@ gather.gap <- function(dsn,
                        file.type = "gdb",
                        source) {
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))
+    stop("No valid source provided"))
 
   # Gather gap using the appropriate method
   gap <- switch(toupper(source),
@@ -138,9 +150,16 @@ gather.gap <- function(dsn,
 
   # Find date fields & convert to character
   # Find fields that are in a Date structure
-  change.vars <- names(gap)[do.call(rbind, sapply(gap, class))[, 1] %in% c("POSIXct", "POSIXt")]
-  # Update fields
-  gap <- dplyr::mutate_at(gap, dplyr::vars(change.vars), dplyr::funs(as.character))
+  if (any(str(gap) %in% c("POSIXct", "POSIXt"))) {
+
+     change.vars <- names(gap)[do.call(rbind, vapply(gap, class))[, 1] %in%
+                                c("POSIXct", "POSIXt")]
+
+     # Update fields
+     gap <- dplyr::mutate_at(gap, dplyr::vars(change.vars),
+                             dplyr::funs(as.character))
+  }
+
 
   return(gap)
 }

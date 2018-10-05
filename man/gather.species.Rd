@@ -3,18 +3,12 @@
 \name{species}
 \alias{species}
 \alias{gather.species}
-\alias{generic.growth.habits}
 \alias{species.join}
 \title{Gather species data}
 \usage{
 gather.species(species.file,
   species.growth.habit.code = "GrowthHabitSub", growth.habit.file = "",
   growth.habit.code = "Code")
-
-generic.growth.habits(data, data.code = "code", species.list,
-  species.code = "SpeciesCode",
-  species.growth.habit.code = "GrowthHabitSub",
-  species.duration = "Duration")
 
 species.join(data, data.code = "code", species.file = "",
   species.code = "SpeciesCode",
@@ -34,8 +28,6 @@ species.join(data, data.code = "code", species.file = "",
 \item{species.code}{Character. The field name for the species codes in the species file.}
 
 \item{species.duration}{Character. the field name for the Duration field in the species file.}
-
-\item{recorded.species.codes}{Vector. Species recorded so that generic.growth.habit() can identify unknown codes.}
 }
 \description{
 Gather species data
