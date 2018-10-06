@@ -7,6 +7,9 @@
 soil.stability(soil.stability.tall, all = TRUE, cover = TRUE,
   uncovered = TRUE, all.cover.type = FALSE, tall = FALSE)
 }
+\arguments{
+\item{soil.stability.tall}{Gather soil stability data}
+}
 \description{
 Soil Stability Indicator Calculations
 }

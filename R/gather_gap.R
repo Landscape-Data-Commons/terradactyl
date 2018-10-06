@@ -85,7 +85,7 @@ gather.gap.lmf <- function(dsn, file.type = "gdb") {
   }
 
 
-  # convert to metric
+  # convert to metric, original data are in decimal feet
   gintercept$START_GAP <- gintercept$START_GAP * 30.48
   gintercept$END_GAP <- gintercept$END_GAP * 30.48
   gintercept$Gap <- gintercept$END_GAP - gintercept$START_GAP

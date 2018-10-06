@@ -2,7 +2,7 @@
 #'
 #' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.
 #' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
-#' @param source Character string. The data source format. \code("AIM", "NRI", "LMF, "TerrADat") are valid options.
+#' @param source Character string. The data source format.
 #' @importFrom magrittr %>%
 #' @name gather_lpi
 #' @family <gather>
@@ -214,7 +214,7 @@ gather.lpi <- function(dsn,
                        file.type = "gdb",
                        source) {
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))
+  try(!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"),
     stop("No valid source provided"))
 
   # Gather LPI using the appropriate gather function

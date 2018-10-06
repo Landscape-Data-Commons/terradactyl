@@ -4,7 +4,8 @@
 \alias{gather.all}
 \title{Build tall tables}
 \usage{
-gather.all(dsn, out, method = c("gap", "lpi", "species.inventory"),
+gather.all(dsn, out, method = c("gap", "lpi", "height",
+  "species inventory", "soil stability", "rangeland health"),
   append = TRUE, source = c("AIM", "LMF"), file.type = "gdb")
 }
 \arguments{

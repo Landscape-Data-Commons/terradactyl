@@ -2,12 +2,23 @@
 #' @param dsn The observed data datasource
 #' @param species_list_file The file path to the species list. If the dsn contains the species list, then specify the layer within the dsn.
 
-#' @export species_list_file
+#' @export species_list_check
 #' @rdname species
-species_list_check<-function(dsn, species.list.file, source = "AIM", ...) {
+species_list_check<-function(dsn_tall, species.list.file, source = "AIM", ...) {
 
   ###Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs<-rlang::quos(...)
+
+  #Read header information to provide subset and link between species tables
+  header <- sf::read_sf(dsn=dsn_tall, layer="header") %>% as.data.frame
+
+  #Read in LPI
+  lpi <- sf::read_sf(dsn = dsn_tall, layer = "lpi_tall")
+
+  #Read in height
+  height <- sf:st_read(dsn = dsn_tall, layer = "height_tall")
+
+
 
   if (source == "AIM") {
 
@@ -22,31 +33,24 @@ species_list_check<-function(dsn, species.list.file, source = "AIM", ...) {
     #PI
     lpi.tall<-gather.lpi(dsn = dsn, source = source) %>%
       #Subset to study area
-      dplyr::left_join(PK, .) %>%
-      #Join to species
-    lpi.tall <- lpi.tall %>%  species.join(data = .,
-                                           data.code = "code",
-                                           species.file = species.list.file)
+      dplyr::left_join(PK, .)
 
     #Height
     height.tall <-gather.height(dsn = dsn, source = source) %>%
       #Subset to study area
-      dplyr::left_join(PK, .) %>%
-      #Join to species
-      species.join(data = ., data.code = "Species", species.file = species.list.file)
+      dplyr::left_join(PK, .)
 
     #Species Inventory
     spp.inventory <-gather.species.inventory(dsn = dsn, source = source) %>%
       #Subset to study area
-      dplyr::left_join(PK, .) %>%
-      #Join to species
-      species.join(data = ., data.code = "Species", species.file = species.list.file)
+      dplyr::left_join(PK, .)
 
 
     all.species <-rbind(dplyr::select(lpi.tall, Species = code, GrowthHabit:Duration),
                         dplyr::select(height.tall, Species, GrowthHabit:Duration),
                         dplyr::select(spp.inventory, Species, GrowthHabit:Duration)) %>%
-      subset(nchar(Species) >=3) %>% dplyr::distinct()
+      subset(nchar(Species) >=3) %>% dplyr::distinct() #Join to species
+    species.join(data = ., data.code = "Species", species.file = species.list.file)
 
     write.csv(all.species, "all.species_AIM.csv")
     shell.exec("all.species_AIM.csv")
