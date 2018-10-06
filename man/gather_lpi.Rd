@@ -16,7 +16,7 @@ gather.lpi(dsn, file.type = "gdb", source)
 \arguments{
 \item{dsn}{Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.}
 
-\item{source}{Character string. The data source format. \code("AIM", "NRI", "LMF, "TerrADat") are valid options.}
+\item{source}{Character string. The data source format.}
 }
 \value{
 A data frames containing the data from the LPI pin intercepts

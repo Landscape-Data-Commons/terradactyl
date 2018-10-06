@@ -74,7 +74,7 @@ gather.rangeland.health.terradat <- function(dsn) {
 }
 
 
-#' @export gather.rangeland.health.lmf
+#' @export gather_rangeland_health_lmf
 #' @rdname IIRH
 #'
 
