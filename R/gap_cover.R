@@ -1,10 +1,11 @@
 #' Calculate the number, length, and percent of gaps
 #' @description Calculate the number, length, and percent of gaps by plot or line.
-#' @param dima.tables Raw tables as imported from TerrADat Use data from \code{read.dima( all=T)}.
+#' @param gap.tall Raw tables as imported from TerrADat Use data from \code{read.dima( all=T)}.
 #' @param tall Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.
 #' @param by.year Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.
 #' @param by.line Logical. If \code{TRUR} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.
 #' @param breaks Vector of all break values.
+#' @param type
 #' @export
 
 
@@ -35,10 +36,13 @@ gap.cover <- function(gap.tall,
   }
   ## Note if this is Basal or Canopy Gap by removing gaps from the opposite type. "NA"s in RecType occur when there are no gaps
   if (type == "canopy") {
-    gap.tall <- subset(gap.tall, RecType != "B")
+    gap.tall <- subset(gap.tall, RecType %in% "C")
   }
   if (type == "basal") {
-    gap.tall <- subset(gap.tall, RecType != "C")
+    gap.tall <- subset(gap.tall, RecType %in% "B")
+  }
+  if (type == "perennial canopy") {
+    gap.tall <- subset(gap.tall, RecType %in% "P")
   }
 
   # Summarize total line length for the plot
@@ -66,18 +70,17 @@ gap.cover <- function(gap.tall,
     dplyr::mutate(., percent = 100 * (length / total.line.length)) %>%
     dplyr::ungroup()
 
+  #Subset the fields we need to output
+  gap.summary <- gap.summary %>%
+    dplyr::select(PrimaryKey, total.line.length, interval, n, length, percent)
 
   # Convert to wide format
   percent <- gap.summary %>% dplyr::select(., -n, -length) %>%
-    tidyr::spread(key = interval, value = percent, fill = 0) %>%
-    dplyr::select(-NoGap)
+    tidyr::spread(key = interval, value = percent, fill = 0)
   n <- gap.summary %>% dplyr::select(., -percent, -length) %>%
-    tidyr::spread(key = interval, value = n, fill = 0) %>%
-    dplyr::select(-NoGap)
+    tidyr::spread(key = interval, value = n, fill = 0)
   length <- gap.summary %>% dplyr::select(., -n, -percent) %>%
-    tidyr::spread(key = interval, value = length, fill = 0) %>%
-    dplyr::select(-NoGap)
-
+    tidyr::spread(key = interval, value = length, fill = 0)
 
 
   ## If tall=FALSE, then convert to wide format
