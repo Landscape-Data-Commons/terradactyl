@@ -144,8 +144,10 @@ pct.cover <- function(lpi.tall,
     dplyr::mutate_all(dplyr::funs(replace(., is.na(.), 0))))
 
   # Remove indicators that have incomplete grouping variable combinations
-  summary <- summary %>% subset(!grepl(x = indicator,
-                                       pattern = "^[.]|[.]$|\\.\\.|NA"))
+  summary <- summary %>% subset(!grepl(
+    x = indicator,
+    pattern = "^[.]|[.]$|\\.\\.|NA"
+  ))
 
   if (!tall) {
     summary <- tidyr::spread(summary, key = indicator, value = percent) %>%

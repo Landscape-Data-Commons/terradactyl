@@ -36,7 +36,6 @@ species.count <- function(species.inventory.tall, ...) {
   }
 
   species.count <- species.inventory.tall %>%
-
     dplyr::count(!!!levels, !!!grouping.variables) %>%
     tidyr::unite(indicator, !!!grouping.variables, sep = ".") %>%
     dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
@@ -101,23 +100,22 @@ gather.species.lmf <- function(dsn, file.type = "gdb") {
 #' @export gather.species.inventory
 #' @rdname species_inventory
 
-gather.species.inventory <- function (dsn, source, file.type = "gdb") {
+gather.species.inventory <- function(dsn, source, file.type = "gdb") {
 
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
 
   # Gather species.inventory using the appropriate method
   species.inventory <- switch(toupper(source),
-                "AIM" = gather.species.inventory.terradat(dsn = dsn),
-                "TERRADAT" = gather.species.inventory.terradat(dsn = dsn),
-                "DIMA" = gather.species.terradat(dsn = dsn),
-                "LMF" = gather.species.lmf(dsn = dsn, file.type = file.type),
-                "NRI" = gather.species.lmf(dsn = dsn, file.type = file.type)
+    "AIM" = gather.species.inventory.terradat(dsn = dsn),
+    "TERRADAT" = gather.species.inventory.terradat(dsn = dsn),
+    "DIMA" = gather.species.terradat(dsn = dsn),
+    "LMF" = gather.species.lmf(dsn = dsn, file.type = file.type),
+    "NRI" = gather.species.lmf(dsn = dsn, file.type = file.type)
   )
 
   # Add source field so that we know where the data came from
   species.inventory$source <- toupper(source)
 
   return(species.inventory)
-
 }

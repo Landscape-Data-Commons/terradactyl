@@ -1,23 +1,30 @@
-### Rangeland Health###
+### Interpreting Indicators of Rangeland Health ###
 #' @title Rangeland Health
-#' @param dsn
+#' @param dsn String. Data source name to the geodatabase or text file
+#' containing  interpreting indicators of rangeland health data.
+#' @param file.type String. Specifies whether the dsn is a text file \code("txt")
+#' or a geodatabase \code("gdb")
+#' @param layer String. Specifies the original data source layer.
+#' \code ("LMF", "AIM", "TERRADAT", "NRI") are all valid.
 #'
 
-#' @export gather.rangeland.health.terradat
+#' @export gather_rangeland_health_terradat
 #' @rdname IIRH
-gather.rangeland.health.terradat <- function(dsn) {
- #check file
+gather_rangeland_health_terradat <- function(dsn) {
+  # check file
   if (!file.exists(dsn)) {
-    stop("dsn must be a valid filepath to a geodatabase containing tblQualHeader and tblQualDetail")
+    stop("dsn must be a valid filepath")
   }
 
+  # Read in tblQualHeader
+  IIRH_header <- sf::st_read(dsn, layer = "tblQualHeader")
 
-   IIRH.header <- sf::st_read(dsn, layer = "tblQualHeader")
-  IIRH.detail <- sf::st_read(dsn, layer = "tblQualDetail")
+  # Read in tblQualDetail
+  IIRH_detail <- sf::st_read(dsn, layer = "tblQualDetail")
 
 
   # Clean up the Indicators Table
-  rangeland.health.indicators <- IIRH.detail %>%
+  rangeland_health_indicators <- IIRH_detail %>%
     dplyr::mutate(
       indicator = Seq %>%
         as.character() %>%
@@ -58,17 +65,17 @@ gather.rangeland.health.terradat <- function(dsn) {
     tidyr::spread(key = indicator, value = Rating)
 
   # Attributes and then joined to Indicators
-  IIRH <- dplyr::select(IIRH.header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
-                        RH_HydrologicFunction = HFVxWRatingFinal,
-                        RH_BioticIntegrity = BIVxWRatingFinal,
-                        RH_SoilSiteStability = SSSVxWRatingFinal,
-                        RH_CommentsBI = CommentBI,
-                        RH_CommentsHF = CommentHF,
-                        RH_CommentsSS = CommentSSS
+  IIRH <- dplyr::select(IIRH_header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
+    RH_HydrologicFunction = HFVxWRatingFinal,
+    RH_BioticIntegrity = BIVxWRatingFinal,
+    RH_SoilSiteStability = SSSVxWRatingFinal,
+    RH_CommentsBI = CommentBI,
+    RH_CommentsHF = CommentHF,
+    RH_CommentsSS = CommentSSS
   ) %>%
 
     # Add the indicators
-    dplyr::left_join(rangeland.health.indicators)
+    dplyr::left_join(rangeland_health_indicators)
 
   return(IIRH)
 }
@@ -76,76 +83,98 @@ gather.rangeland.health.terradat <- function(dsn) {
 
 #' @export gather_rangeland_health_lmf
 #' @rdname IIRH
-#'
-
 gather_rangeland_health_lmf <- function(dsn, file.type = "gdb") {
-
   if (!file.exists(dsn)) {
-    stop("dsn must be a valid filepath to a folder geodatabase containing  RHSUMMARY")
+    stop("dsn must be a valid filepath to a geodatabase containing  RHSUMMARY")
   }
 
   # Read in the data as .txt or .gdb
   IIRH <- switch(file.type,
-                      "gdb" = {
-                        suppressWarnings(sf::st_read(dsn, layer = "RANGEHEALTH", stringsAsFactors = FALSE))
-                      },
-                      "txt" = {
-                        read.table(paste(dsn, "rangehealth.txt", sep = ""), stringsAsFactors = FALSE, header = FALSE, sep = "|", strip.white = TRUE)
-                      }
+    "gdb" = {
+      suppressWarnings(sf::st_read(dsn,
+        layer = "RANGEHEALTH",
+        stringsAsFactors = FALSE
+      ))
+    },
+    "txt" = {
+      read.table(paste(dsn, "rangehealth.txt", sep = ""),
+        stringsAsFactors = FALSE,
+        header = FALSE,
+        sep = "|",
+        strip.white = TRUE
+      )
+    }
   )
 
-  if (file.type == "txt"){
-    # if it is in a text file, there are no field names assigned.
-    colnames <- as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations,
-                                               TABLE.NAME == "RHSUMMARY",
-                                               select = FIELD.NAME)))
-    colnames <- colnames$FIELD.NAME
-    IIRH <- IIRH[1:length(colnames)]
-    names(IIRH) <- colnames
+  # if it is in a text file, there are no field names assigned.
+  if (file.type == "txt") {
 
+    # Extract colnames from the terradactyl column file
+    colnames <- terradactyl::nri.data.column.explanations %>%
+      subset(TABLE.NAME == "RHSUMMARY")
+
+    # Make colnames a vector
+    colnames <- colnames$FIELD.NAME
+
+    # Set the IIRH table to the width of the colnames available
+    IIRH <- IIRH[1:length(colnames)]
+
+    # rename the IIRH table based on the colnames
+    names(IIRH) <- colnames
   }
 
-  IIRH_clean <- IIRH %>% dplyr::select(PrimaryKey, DBKey,
-                                       RH_Rills = "RILLS",
-                                       RH_WaterFlowPatterns= "WATER_FLOW_PATTERNS",
-                                       RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
-                                       RH_BareGround = "BARE_GROUND" ,
-                                       RH_Gullies= "GULLIES" ,
-                                       RH_WindScouredAreas= "WIND_SCOURED_AREAS" ,
-                                       RH_LitterMovement = "LITTER_MOVEMENT" ,
-                                       RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
-                                       RH_SoilSurfLossDeg= "SOIL_SURFACE_LOSS_DEG",
-                                       RH_PlantCommunityComp = "INFILTRATION_RUNOFF" ,
-                                       RH_Compaction = "COMPACTION_LAYER"     ,
-                                       RH_FuncSructGroup = "FUNC_STRUCT_GROUPS" ,
-                                       RH_PlantMortalityDec = "PLANT_MORTALITY_DEC" ,
-                                       RH_LitterAmount = "LITTER_AMOUNT",
-                                       RH_AnnualProd = "ANNUAL_PRODUCTION",
-                                       RH_InvasivePlants = "INVASIVE_PLANTS"    ,
-                                       RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
-                                       RH_SoilSiteStability = "SOILSITE_STABILITY"   ,
-                                       RH_BioticIntegrity = "BIOTIC_INTEGRITY"     ,
-                                       RH_HydrologicFunction = "HYDROLOGIC_FUNCTION"
-  )
+  # Clean up the field names so they are human readable and match TerrAdat names
+  IIRH_clean <- IIRH %>%
+    dplyr::select(PrimaryKey, DBKey,
+      RH_Rills = "RILLS",
+      RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
+      RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
+      RH_BareGround = "BARE_GROUND",
+      RH_Gullies = "GULLIES",
+      RH_WindScouredAreas = "WIND_SCOURED_AREAS",
+      RH_LitterMovement = "LITTER_MOVEMENT",
+      RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
+      RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
+      RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
+      RH_Compaction = "COMPACTION_LAYER",
+      RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
+      RH_PlantMortalityDec = "PLANT_MORTALITY_DEC",
+      RH_LitterAmount = "LITTER_AMOUNT",
+      RH_AnnualProd = "ANNUAL_PRODUCTION",
+      RH_InvasivePlants = "INVASIVE_PLANTS",
+      RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
+      RH_SoilSiteStability = "SOILSITE_STABILITY",
+      RH_BioticIntegrity = "BIOTIC_INTEGRITY",
+      RH_HydrologicFunction = "HYDROLOGIC_FUNCTION"
+    )
 
-  return (IIRH_clean)
-
+  return(IIRH_clean)
 }
 
-#' @export gather.rangeland.health
+#' @export gather_rangeland_health
 #' @rdname IIRH
 #'
-gather.rangeland.health <- function (dsn, layer, file.type = "gdb") {
+gather_rangeland_health <- function(dsn, layer, file.type = "gdb") {
 
-  try(if (!toupper(layer) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
+  # Check for a valid layer type
+  try(if (!toupper(layer) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
+    stop("No valid source provided")
+  } )
 
+  # Based on the layer type, use the appropriate gather function
   IIRH <- switch(toupper(layer),
-                 "AIM" = gather.rangeland.health.terradat(dsn = dsn),
-                 "TERRADAT" = gather.rangeland.health.terradat(dsn = dsn),
-                 "DIMA" = gather.rangeland.health.terradat(dsn = dsn),
-                 "LMF" = gather_rangeland_health_lmf(dsn = dsn, file.type = file.type),
-                 "NRI" = gather_rangeland_health_lmf(dsn = dsn, file.type = file.type)
-                 )
+    "AIM" = gather_rangeland_health_terradat(dsn = dsn),
+    "TERRADAT" = gather_rangeland_health_terradat(dsn = dsn),
+    "DIMA" = gather_rangeland_health_terradat(dsn = dsn),
+    "LMF" = gather_rangeland_health_lmf(
+      dsn = dsn,
+      file.type = file.type
+    ),
+    "NRI" = gather_rangeland_health_lmf(
+      dsn = dsn,
+      file.type = file.type
+    )
+  )
 
   return(IIRH)
 }

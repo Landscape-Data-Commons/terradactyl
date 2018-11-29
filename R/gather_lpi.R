@@ -26,12 +26,17 @@ gather.lpi.terradat <- function(dsn) {
 
   # Make a tall data frame with the hit codes by layer and the checkbox designation
 
-  lpi.hits.tall <-  lpi.detail %>% dplyr::mutate_if(is.factor, as.character) %>%
-    dplyr::select(PrimaryKey, PointLoc, PointNbr, RecKey, ShrubShape,
-                  TopCanopy, SoilSurface, dplyr::matches("^Lower")) %>%
-    tidyr::gather(key = layer,
-                  value = code,
-                  TopCanopy, SoilSurface, dplyr::matches("^Lower"))
+  lpi.hits.tall <- lpi.detail %>%
+    dplyr::mutate_if(is.factor, as.character) %>%
+    dplyr::select(
+      PrimaryKey, PointLoc, PointNbr, RecKey, ShrubShape,
+      TopCanopy, SoilSurface, dplyr::matches("^Lower")
+    ) %>%
+    tidyr::gather(
+      key = layer,
+      value = code,
+      TopCanopy, SoilSurface, dplyr::matches("^Lower")
+    )
 
   # Remove all records where no hit was recorded (e.g., "None", "NA"
 
@@ -48,17 +53,23 @@ gather.lpi.terradat <- function(dsn) {
   ## Make a tall data frame the checkbox status by layer
 
   lpi.chkbox.tall <- lpi.detail %>%
-    dplyr::select(PrimaryKey, PointLoc, PointNbr, RecKey,
-                  dplyr::matches("^Chkbox")) %>%
-    tidyr::gather(key = layer, value = "chckbox",
-                  dplyr::matches("^Chkbox"))
+    dplyr::select(
+      PrimaryKey, PointLoc, PointNbr, RecKey,
+      dplyr::matches("^Chkbox")
+    ) %>%
+    tidyr::gather(
+      key = layer, value = "chckbox",
+      dplyr::matches("^Chkbox")
+    )
 
 
 
   # Remove Woody and Herbaceous Checkbox
   lpi.chkbox.tall <- lpi.chkbox.tall[!(lpi.chkbox.tall$chckbox %in%
-                                         c("ChckboxWoody",
-                                           "ChckboxHerbaceous")), ]
+    c(
+      "ChckboxWoody",
+      "ChckboxHerbaceous"
+    )), ]
 
   ## Make the names in the layer variable match
   lpi.chkbox.tall$layer <- gsub(lpi.chkbox.tall$layer,
@@ -98,7 +109,7 @@ gather.lpi.terradat <- function(dsn) {
 #' @rdname gather_lpi
 
 gather.lpi.lmf <- function(dsn,
-                           file.type = "gdb" ) {
+                           file.type = "gdb") {
 
   # Read  PINTERCEPT table in .txt or .gdb
 
@@ -108,9 +119,10 @@ gather.lpi.lmf <- function(dsn,
     },
     "txt" = {
       read.table(paste(dsn, "pintercept.txt", sep = ""),
-                 stringsAsFactors = FALSE,
-                 strip.white = TRUE,
-                 header = FALSE, sep = "|")
+        stringsAsFactors = FALSE,
+        strip.white = TRUE,
+        header = FALSE, sep = "|"
+      )
     }
   )
 
@@ -119,7 +131,8 @@ gather.lpi.lmf <- function(dsn,
     colnames <- as.vector(as.data.frame(subset(
       terradactyl::nri.data.column.explanations,
       TABLE.NAME == "PINTERCEPT",
-      select = FIELD.NAME)))
+      select = FIELD.NAME
+    )))
     colnames <- colnames$FIELD.NAME
     colnames <- colnames[1:ncol(pintercept)] %>% na.omit()
     names(pintercept) <- colnames
@@ -130,11 +143,12 @@ gather.lpi.lmf <- function(dsn,
 
   # We need to establish and/or fix the PrimaryKey so it exists in a single field.
   pintercept$PrimaryKey <- paste(pintercept$SURVEY,
-                                 pintercept$STATE,
-                                 pintercept$COUNTY,
-                                 pintercept$PSU,
-                                 pintercept$POINT,
-                                 sep = "")
+    pintercept$STATE,
+    pintercept$COUNTY,
+    pintercept$PSU,
+    pintercept$POINT,
+    sep = ""
+  )
 
 
   # For line point intercept data (cover calculations--point number 75 is recorded twice—once on each transect.
@@ -197,7 +211,7 @@ gather.lpi.lmf <- function(dsn,
   lpi.hits.tall <- lpi.hits.tall %>% dplyr::mutate_if(is.character, dplyr::funs(factor))
 
   # Convert ShrubShape values to be consistent with DIMA schema,
-  #1==Columnar, 2=Spreading, 3=Mixed, 0 is NA
+  # 1==Columnar, 2=Spreading, 3=Mixed, 0 is NA
   lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape == 1] <- "C"
   lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape == 2] <- "S"
   lpi.hits.tall$ShrubShape[lpi.hits.tall$ShrubShape == 3] <- "M"
@@ -214,8 +228,10 @@ gather.lpi <- function(dsn,
                        file.type = "gdb",
                        source) {
   # Check for a valid source
-  try(!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"),
-    stop("No valid source provided"))
+  try(
+    !toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"),
+    stop("No valid source provided")
+  )
 
   # Gather LPI using the appropriate gather function
   lpi <- switch(toupper(source),
@@ -232,7 +248,7 @@ gather.lpi <- function(dsn,
   # Find date fields & convert to character
   # Find fields that are in a Date structure
   change.vars <- names(lpi)[do.call(rbind, sapply(lpi, class))[, 1] %in%
-                              c("POSIXct", "POSIXt")]
+    c("POSIXct", "POSIXt")]
   # Update fields
   lpi <- dplyr::mutate_at(lpi, dplyr::vars(change.vars), dplyr::funs(as.character))
 

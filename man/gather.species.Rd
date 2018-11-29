@@ -14,7 +14,8 @@ species.join(data, data.code = "code", species.file = "",
   species.code = "SpeciesCode",
   species.growth.habit.code = "GrowthHabitSub",
   species.duration = "Duration", growth.habit.file = "",
-  growth.habit.code = "Code")
+  growth.habit.code = "Code", generic.species.overwrite = FALSE,
+  generic.species.file = "")
 }
 \arguments{
 \item{species.file}{Character string. The full file path (including file extension) to the csv containing the species list. If NULL then the file from the provided geodatabase will be used.}

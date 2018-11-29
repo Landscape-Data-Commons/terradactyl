@@ -88,11 +88,13 @@ gather.soil.stability.lmf <- function(dsn, file.type = "gdb") {
   # We need to establish and/or fix the PLOTKEY so it exists in a single field.
   soildisag$PrimaryKey <- paste(soildisag$SURVEY, soildisag$STATE, soildisag$COUNTY, soildisag$PSU, soildisag$POINT, sep = "")
 
-  #Remove any database management fields
-  soildisag <- soildisag[!names(soildisag) %in% c ("created_user",
-                                                   "created_date",
-                                                   "last_edited_user",
-                                                   "last_edited_date" )]
+  # Remove any database management fields
+  soildisag <- soildisag[!names(soildisag) %in% c(
+    "created_user",
+    "created_date",
+    "last_edited_user",
+    "last_edited_date"
+  )]
   # conver white space to NA
   soildisag[soildisag == ""] <- NA
 
@@ -128,23 +130,22 @@ gather.soil.stability.lmf <- function(dsn, file.type = "gdb") {
 
 #' @export gather.soil.stability
 #' @rdname gather_soilstability
-gather.soil.stability <- function (dsn, source, file.type = "gdb") {
+gather.soil.stability <- function(dsn, source, file.type = "gdb") {
 
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
 
   # Gather soil.stability using the appropriate method
   soil.stability <- switch(toupper(source),
-                              "AIM" = gather.soil.stability.terradat(dsn = dsn),
-                              "TERRADAT" = gather.soil.stability.terradat(dsn = dsn),
-                              "DIMA" = gather.soil.stability.terradat(dsn = dsn),
-                              "LMF" = gather.soil.stability.lmf(dsn = dsn, file.type = file.type),
-                              "NRI" = gather.soil.stability.lmf(dsn = dsn, file.type = file.type)
+    "AIM" = gather.soil.stability.terradat(dsn = dsn),
+    "TERRADAT" = gather.soil.stability.terradat(dsn = dsn),
+    "DIMA" = gather.soil.stability.terradat(dsn = dsn),
+    "LMF" = gather.soil.stability.lmf(dsn = dsn, file.type = file.type),
+    "NRI" = gather.soil.stability.lmf(dsn = dsn, file.type = file.type)
   )
 
   # Add source field so that we know where the data came from
   soil.stability$source <- toupper(source)
 
   return(soil.stability)
-
 }
