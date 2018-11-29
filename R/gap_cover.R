@@ -34,7 +34,8 @@ gap.cover <- function(gap.tall,
     gap.tall$Gap[gap.tall$Measure == 2] <- gap.tall$Gap[gap.tall$Measure == 2] * 2.54
     gap.tall$GapMin[gap.tall$Measure == 2] <- gap.tall$MinGap[gap.tall$Measure == 2] * 2.54
   }
-  ## Note if this is Basal or Canopy Gap by removing gaps from the opposite type. "NA"s in RecType occur when there are no gaps
+  ## Note if this is Basal or Canopy Gap by removing gaps from the opposite type.
+  # "NA"s in RecType occur when there are no gaps
   if (type == "canopy") {
     gap.tall <- subset(gap.tall, RecType %in% "C")
   }
@@ -58,11 +59,15 @@ gap.cover <- function(gap.tall,
   # Find the interval class for each gap
   breaks <- c(breaks, 100000)
   gap.tall$interval <- cut(gap.tall$Gap, breaks = breaks, right = FALSE)
-  gap.tall$interval <- gap.tall$interval %>% as.character() %>% replace(., is.na(.), "NoGap")
+  gap.tall$interval <- gap.tall$interval %>%
+    as.character() %>%
+    replace(., is.na(.), "NoGap")
+
   # Summarize gaps by interval class
   gap.summary <- gap.tall %>%
     dplyr::group_by(!!!level, total.line.length, interval) %>%
-    # calculate number of gaps,total length of gaps, and percent of gaps in each indicator category
+    # calculate number of gaps,total length of gaps, and percent of gaps
+    # in each indicator category
     dplyr::summarize(
       n = length(Gap),
       length = sum(Gap)
@@ -70,16 +75,19 @@ gap.cover <- function(gap.tall,
     dplyr::mutate(., percent = 100 * (length / total.line.length)) %>%
     dplyr::ungroup()
 
-  #Subset the fields we need to output
+  # Subset the fields we need to output
   gap.summary <- gap.summary %>%
     dplyr::select(PrimaryKey, total.line.length, interval, n, length, percent)
 
   # Convert to wide format
-  percent <- gap.summary %>% dplyr::select(., -n, -length) %>%
+  percent <- gap.summary %>%
+    dplyr::select(., -n, -length) %>%
     tidyr::spread(key = interval, value = percent, fill = 0)
-  n <- gap.summary %>% dplyr::select(., -percent, -length) %>%
+  n <- gap.summary %>%
+    dplyr::select(., -percent, -length) %>%
     tidyr::spread(key = interval, value = n, fill = 0)
-  length <- gap.summary %>% dplyr::select(., -n, -percent) %>%
+  length <- gap.summary %>%
+    dplyr::select(., -n, -percent) %>%
     tidyr::spread(key = interval, value = length, fill = 0)
 
 
@@ -87,19 +95,27 @@ gap.cover <- function(gap.tall,
   if (!tall) {
     gap.summary <- list("percent" = percent, "n" = n, "length" = length)
   } else { # Convert back to tall, this adds zeros in needed columns
-    gap.summary <- percent %>% tidyr::gather(key = Gap.Class,
-                                             value = percent,
-                                             -PrimaryKey,
-                                             -total.line.length)
-    gap.summary <- n %>% tidyr::gather(key = Gap.Class,
-                                       value = n,
-                                       -PrimaryKey,
-                                       -total.line.length) %>%
+    gap.summary <- percent %>% tidyr::gather(
+      key = Gap.Class,
+      value = percent,
+      -PrimaryKey,
+      -total.line.length
+    )
+    gap.summary <- n %>%
+      tidyr::gather(
+        key = Gap.Class,
+        value = n,
+        -PrimaryKey,
+        -total.line.length
+      ) %>%
       merge(gap.summary, allow.cartesian = TRUE)
-    gap.summary <- length %>% tidyr::gather(key = Gap.Class,
-                                            value = length,
-                                            -PrimaryKey,
-                                            -total.line.length) %>%
+    gap.summary <- length %>%
+      tidyr::gather(
+        key = Gap.Class,
+        value = length,
+        -PrimaryKey,
+        -total.line.length
+      ) %>%
       merge(gap.summary, allow.cartesian = TRUE)
   }
 

@@ -35,7 +35,7 @@ gather.height.terradat <- function(dsn) {
     RecKey,
     dplyr::matches("Woody$")
   ) %>% dplyr::mutate(type = "woody")
-  #Strip out the extra name stuff so woody and herbaceous variable names match.
+  # Strip out the extra name stuff so woody and herbaceous variable names match.
   names(lpi.height.tall.woody) <- stringr::str_replace_all(
     string = names(lpi.height.tall.woody),
     pattern = "Woody$",
@@ -80,10 +80,13 @@ gather.height.terradat <- function(dsn) {
   lpi.height.tall.lower.herb$GrowthHabit_measured <- "NonWoody"
 
   # Merge all three gather types together
-  lpi.height <- rbind(lpi.height.tall.woody,
-                      lpi.height.tall.herb,
-                      lpi.height.tall.lower.herb)
-  lpi.height <- lpi.height %>% dplyr::full_join(x = ., y = lpi.header) %>%
+  lpi.height <- rbind(
+    lpi.height.tall.woody,
+    lpi.height.tall.herb,
+    lpi.height.tall.lower.herb
+  )
+  lpi.height <- lpi.height %>%
+    dplyr::full_join(x = ., y = lpi.header) %>%
     subset(., !is.na(Height))
 
   # Add NA to fields with no species
@@ -108,23 +111,28 @@ gather.height.lmf <- function(dsn,
   vegheight <- switch(file.type,
     "gdb" = {
       suppressWarnings(sf::st_read(dsn,
-                                   layer = "PASTUREHEIGHTS",
-                                   stringsAsFactors = FALSE))
+        layer = "PASTUREHEIGHTS",
+        stringsAsFactors = FALSE
+      ))
     },
     "txt" = {
       read.table(paste(dsn, "pastureheights.txt", sep = ""),
-                 stringsAsFactors = FALSE,
-                 header = FALSE,
-                 sep = "|",
-                 strip.white = TRUE)
+        stringsAsFactors = FALSE,
+        header = FALSE,
+        sep = "|",
+        strip.white = TRUE
+      )
     }
   )
 
   if (file.type == "txt") {
     # if it is in a text file, there are no field names assigned.
-    colnames <- subset(terradactyl::nri.data.column.explanations,
-                       TABLE.NAME == "PASTUREHEIGHTS") %>%
-      dplyr::pull(FIELD.NAME) %>% unique()
+    colnames <- subset(
+      terradactyl::nri.data.column.explanations,
+      TABLE.NAME == "PASTUREHEIGHTS"
+    ) %>%
+      dplyr::pull(FIELD.NAME) %>%
+      unique()
 
 
 
@@ -133,11 +141,12 @@ gather.height.lmf <- function(dsn,
 
     # We need to establish and/or fix the PLOTKEY so it exists in a single field.
     vegheight$PrimaryKey <- paste(vegheight$SURVEY,
-                                  vegheight$STATE,
-                                  vegheight$COUNTY,
-                                  vegheight$PSU,
-                                  vegheight$POINT,
-                                  sep = "")
+      vegheight$STATE,
+      vegheight$COUNTY,
+      vegheight$PSU,
+      vegheight$POINT,
+      sep = ""
+    )
 
     # Assign DBKey
     vegheight$DBKey <- vegheight$SURVEY
@@ -179,7 +188,8 @@ gather.height.lmf <- function(dsn,
   # The height units are concatenated in the field,
   # separate so that we can convert to metric appopriately
   height <- tidyr::separate(height, "HEIGHT", c("HEIGHT", "UOM"),
-                            sep = " ", extra = "drop", fill = "right")
+    sep = " ", extra = "drop", fill = "right"
+  )
 
   # Convert to metric
   height$HEIGHT <- suppressWarnings(as.numeric(height$HEIGHT))
@@ -208,26 +218,26 @@ gather.height.lmf <- function(dsn,
 #' @export gather.height
 #' @rdname gather.height
 
-gather.height <- function (dsn,
-                           file.type = "gdb",
-                           source) {
+gather.height <- function(dsn,
+                          file.type = "gdb",
+                          source) {
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))
-    stop("No valid source provided"))
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
+    stop("No valid source provided")
+  } )
 
   # Gather gap using the appropriate method
   height <- switch(toupper(source),
-                "AIM" = gather.height.terradat(dsn = dsn),
-                "TERRADAT" = gather.height.terradat(dsn = dsn),
-                "DIMA" = gather.height.terradat(dsn = dsn),
-                "LMF" = gather.height.lmf(dsn = dsn, file.type = file.type),
-                "NRI" = gather.height.lmf(dsn = dsn, file.type = file.type)
+    "AIM" = gather.height.terradat(dsn = dsn),
+    "TERRADAT" = gather.height.terradat(dsn = dsn),
+    "DIMA" = gather.height.terradat(dsn = dsn),
+    "LMF" = gather.height.lmf(dsn = dsn, file.type = file.type),
+    "NRI" = gather.height.lmf(dsn = dsn, file.type = file.type)
   )
 
   # Add source field so that we know where the data came from
   height$source <- toupper(source)
 
-  #Output height
+  # Output height
   return(height)
-
 }
