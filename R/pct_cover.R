@@ -42,6 +42,8 @@ pct.cover <- function(lpi.tall,
     !is.na(code),
     code != "",
     code != "None",
+    code != "N",
+    code != "NONE",
     !is.na(PrimaryKey),
     !is.na(LineKey)
   )
@@ -115,7 +117,7 @@ pct.cover <- function(lpi.tall,
         # Remove records where there are NAs for the grouping variables
         # dplyr::filter(complete.cases(!!!grouping.variables))%>%
         # Strip out all the non-hit codes
-        dplyr::filter(!(code %in% c("", NA, "None"))) %>%
+        dplyr::filter(!(code %in% c("", NA, "None", "N"))) %>%
         dplyr::group_by(PrimaryKey, LineKey, PointNbr, point.count) %>%
         # Get the first hit at a point
         dplyr::summarize(code = dplyr::first(code)) %>%
@@ -140,6 +142,10 @@ pct.cover <- function(lpi.tall,
   summary <- suppressWarnings(expand.grid(PrimaryKey = unique(lpi.tall$PrimaryKey), indicator = unique(summary$indicator)) %>%
     dplyr::left_join(., summary) %>%
     dplyr::mutate_all(dplyr::funs(replace(., is.na(.), 0))))
+
+  # Remove indicators that have incomplete grouping variable combinations
+  summary <- summary %>% subset(!grepl(x = indicator,
+                                       pattern = "^[.]|[.]$|\\.\\.|NA"))
 
   if (!tall) {
     summary <- tidyr::spread(summary, key = indicator, value = percent) %>%

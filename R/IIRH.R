@@ -39,7 +39,7 @@ gather.rangeland.health.terradat <- function(dsn) {
           "\\b14\\b" = "RH_LitterAmount", #
           "\\b15\\b" = "RH_AnnualProd", #
           "\\b16\\b" = "RH_InvasivePlants", #
-          "\\b17\\b" = "RH_ReprodCapbailityPeren"
+          "\\b17\\b" = "RH_ReprodCapabilityPeren"
         )),
       Rating = Rating %>%
         as.character() %>%
@@ -59,12 +59,12 @@ gather.rangeland.health.terradat <- function(dsn) {
 
   # Attributes and then joined to Indicators
   IIRH <- dplyr::select(IIRH.header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
-    RH_HydrologicFunction = HFVxWRatingFinal,
-    RH_BioticIntegrity = BIVxWRatingFinal,
-    RH_SoilSiteStability = SSSVxWRatingFinal,
-    RH_CommentsBI = CommentBI,
-    RH_CommentsHF = CommentHF,
-    RH_CommentsSS = CommentSSS
+                        RH_HydrologicFunction = HFVxWRatingFinal,
+                        RH_BioticIntegrity = BIVxWRatingFinal,
+                        RH_SoilSiteStability = SSSVxWRatingFinal,
+                        RH_CommentsBI = CommentBI,
+                        RH_CommentsHF = CommentHF,
+                        RH_CommentsSS = CommentSSS
   ) %>%
 
     # Add the indicators
@@ -122,7 +122,7 @@ gather_rangeland_health_lmf <- function(dsn, file.type = "gdb") {
                                        RH_LitterAmount = "LITTER_AMOUNT",
                                        RH_AnnualProd = "ANNUAL_PRODUCTION",
                                        RH_InvasivePlants = "INVASIVE_PLANTS"    ,
-                                       RH_ReprodCapbailityPeren = "REPROD_CAPABILITY_PEREN",
+                                       RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
                                        RH_SoilSiteStability = "SOILSITE_STABILITY"   ,
                                        RH_BioticIntegrity = "BIOTIC_INTEGRITY"     ,
                                        RH_HydrologicFunction = "HYDROLOGIC_FUNCTION"

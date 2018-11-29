@@ -37,6 +37,11 @@ gather.gap.terradat <- function(dsn) {
   ## Remove all orphaned records
   gap.tall <- gap.tall[!is.na(gap.tall$PrimaryKey), ]
 
+  #Look for NA values in NoCanopyGaps and NoBasalGaps, we assume they are 0
+  gap.tall <- gap.tall %>%
+    dplyr::mutate(NoCanopyGaps = tidyr::replace_na(NoCanopyGaps, replace = 0),
+                  NoBasalGaps = tidyr::replace_na(NoBasalGaps, replace = 0))
+
   ## Add zero values where there is no canopy gap present on line
   gap.tall[gap.tall$NoCanopyGaps == 1, ] <- gap.tall %>%
     dplyr::filter(NoCanopyGaps == 1) %>%
@@ -116,9 +121,14 @@ gather.gap.lmf <- function(dsn, file.type = "gdb") {
     GapStart = START_GAP, GapEnd = END_GAP, SeqNo = SEQNUM
   )
 
-  gap$Measure <- 1 # units are metric
-  gap$LineLengthAmount <- 150 * 30.48 # line length of an NRI transect
-  gap$GapMin <- 12 * 2.54 # minimum gap size
+  # units are metric
+  gap$Measure <- 1
+
+  # line length of an NRI transect in meters
+  gap$LineLengthAmount <- 150 * 30.48/100
+
+  # minimum gap size
+  gap$GapMin <- 12 * 2.54
 
   # Strip down fields
   gap <- dplyr::select(gap, -c(SURVEY:POINT))

@@ -29,13 +29,14 @@ gather.species.inventory.terradat <- function(dsn) {
 species.count <- function(species.inventory.tall, ...) {
   grouping.variables <- rlang::quos(...)
 
-  if ("DIMAKey" %in% colnames(species.inventory.tall)) {
-    levels <- rlang::quos(DIMAKey, PrimaryKey)
+  if ("DBKey" %in% colnames(species.inventory.tall)) {
+    levels <- rlang::quos(DBKey, PrimaryKey)
   } else {
     levels <- rlang::quos(PrimaryKey)
   }
 
   species.count <- species.inventory.tall %>%
+
     dplyr::count(!!!levels, !!!grouping.variables) %>%
     tidyr::unite(indicator, !!!grouping.variables, sep = ".") %>%
     dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))

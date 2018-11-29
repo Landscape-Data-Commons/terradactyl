@@ -39,9 +39,11 @@ gather.species <- function(species.file, #
     stop("No valid Species Table. Must be .csv or .gdb file")
   }
   # read in the growth habit information
-  growth.habit <- switch(toupper(stringr::str_extract(growth.habit.file, pattern = "[A-z]{3}$")),
+  growth.habit <- switch(toupper(stringr::str_extract(growth.habit.file,
+                                                      pattern = "[A-z]{3}$")),
     GDB = {
-      suppressWarnings(sf::st_read(dsn = growth.habit.file, layer = "tblSpeciesGrowthHabit"))
+      suppressWarnings(sf::st_read(dsn = growth.habit.file,
+                                   layer = "tblSpeciesGrowthHabit"))
     },
     CSV = {
       read.csv(growth.habit.file, stringsAsFactors = FALSE)
@@ -51,11 +53,20 @@ gather.species <- function(species.file, #
   # assigned in the species file.
   if (is.null(growth.habit)) {
     warning("No valid Growth Habit Table. Must be .csv or .gdb file")
+
+    # convert factors to character
+    species <- species %>% dplyr::mutate_if(is.factor, as.character)
+
+    # Remove NA from species
+    species <- species %>% dplyr::filter(!is.na(dplyr::vars(species.code)))
+
     return(species)
   } else {
 
     # rename spcies growth habits
-    growth.habit <- growth.habit %>% dplyr::rename_at(dplyr::vars(growth.habit.code), ~species.growth.habit.code)
+    growth.habit <- growth.habit %>%
+      dplyr::rename_at(dplyr::vars(growth.habit.code),
+                       ~species.growth.habit.code)
 
     # remove PrimaryKey, DBKey, and DateLoadedInDb if they exist
     growth.habit <- growth.habit[, !colnames(growth.habit) %in% c("DBKey", "PrimaryKey", "DateLoadedInDb")]
@@ -65,7 +76,11 @@ gather.species <- function(species.file, #
       x = species[, !colnames(growth.habit) %in% "PrimaryKey"],
       y = growth.habit
     )
+    # convert factors to character
+    species.list <- species.list %>% dplyr::mutate_if(is.factor, as.character)
 
+    # Remove NA from species
+    species.list <- species.list %>% dplyr::filter(!is.na(dplyr::vars(species.code)))
 
     return(species.list)
   }
@@ -94,7 +109,7 @@ generic.growth.habits <- function(data,
     dplyr::filter(stringr::str_detect(SpeciesFixed, "^2|^[A-z]{2}[[:digit:]]|\\b(?=\\w*(^[A|P|S|T])\\1+)\\w+\\b")) %>%
 
     # Identify prefix
-    dplyr::mutate(Code = gsub(SpeciesFixed, pattern = "[[:digit:]]", replacement = "") %>%
+    dplyr::mutate(Prefix = gsub(SpeciesFixed, pattern = "[[:digit:]]", replacement = "") %>%
       gsub(., pattern = "([[:alpha:]])\\1+", replacement = "\\1") %>%
       as.character()) %>%
 
@@ -105,7 +120,8 @@ generic.growth.habits <- function(data,
   # Merge with generic species definitions
   generic.code.df <- dplyr::inner_join(
     terradactyl::generic.species,
-    generic.df
+    generic.df,
+    by = "Prefix"
   )
 
 
@@ -116,6 +132,12 @@ generic.growth.habits <- function(data,
       dplyr::inner_join (., dplyr::select(data, !!!dplyr::vars(data.code),
                                           SpeciesState)
     )
+  }
+# if there are records in generic.code.df
+
+  # Indicate that generic codes are non-noxious
+  if ("Noxious" %in% names(species.list)) {
+    generic.code.df$Noxious <- "No"
   }
 
   # Rename to SpeciesCode in species list
@@ -129,6 +151,8 @@ generic.growth.habits <- function(data,
   species.generic <- species.generic[, !colnames(species.generic) %in%
                                        c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
 
+
+  # Check for a tblSpeciesGeneric value and if it exists, overwrite the automatic assignments
 
   return(species.generic)
 }
@@ -144,7 +168,9 @@ species.join <- function(data, # field data,
                          species.growth.habit.code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
                          species.duration = "Duration", # field name in species file of the Duration assignment
                          growth.habit.file = "", # path to .csv or gdb holding tblSpeciesGrowthHabit
-                         growth.habit.code = "Code") { # field name in growth habit file to link to GrowthHabit data table
+                         growth.habit.code = "Code",
+                         generic.species.overwrite = FALSE,
+                         generic.species.file = "") {
 
   # Print
   print("Gathering species data")
@@ -164,8 +190,8 @@ species.join <- function(data, # field data,
     species.list = species,
     species.code = species.code,
     species.growth.habit.code = species.growth.habit.code, # field name in species file of the species code to link to GrowthHabit
-    species.duration = species.duration
-  ) # field name for duration
+    species.duration = species.duration # field name for duration
+  )
 
 
 
@@ -180,12 +206,88 @@ species.join <- function(data, # field data,
   print("Merging data and species tables")
 
   ## Rename column
-  species.generic <- species.generic %>% dplyr::rename_at(dplyr::vars(species.code), ~data.code)
+  species.generic <- species.generic %>%
+    dplyr::rename_at(dplyr::vars(species.code), ~data.code)
 
-  ## Add species information to LPI table
+  ## Remoe any duplicate values
+  species.generic <- species.generic %>% dplyr::distinct()
+
+  # Set join levels, so that we can flexibly include SpeciesState
+  if ("SpeciesState" %in% names(data)) {
+    join_by <- c(data.code, "SpeciesState")
+  } else {
+    join_by <- data.code
+
+  }
+
+
+  # Add species information to data
   data.species <- dplyr::left_join(
     x = data %>% dplyr::mutate_at(dplyr::vars(data.code), toupper),
-    y = species.generic)
+    y = species.generic,
+    by = join_by)
+
+  data.species <- data.species %>% dplyr::distinct()
+
+
+  # Overwrite generic species assignments with provided table
+  if (generic.species.overwrite) {
+    # Read tblSpeciesGeneric
+   tbl_species_generic <- sf::st_read(dsn = species.file,
+                                      layer = "tblSpeciesGeneric") %>%
+     # Select only the needed fields
+     dplyr::select(SpeciesCode, DBKey, GrowthHabitCode,
+                   Duration, SG_Group, Noxious)
+
+   # Rename SpeciesCode to the data.code value
+
+  tbl_species_generic <- tbl_species_generic %>%
+     dplyr::rename_at("SpeciesCode", ~data.code)
+
+
+   data_species_generic <- dplyr::left_join(x = data.species,
+                                            y = tbl_species_generic,
+                                            by = c(data.code, "DBKey"))
+
+   # Convert GrowthHabitCode to GrowthHabit and GrowthHabitSub
+   data_species_generic <- data_species_generic %>%
+     dplyr::mutate(GrowthHabit = dplyr::recode(as.character(GrowthHabitCode),
+                                               "1" = "Woody",
+                                               "2" = "Woody",
+                                               "3" = "Woody",
+                                               "4" = "Woody",
+                                               "5" = "Non-woody",
+                                               "6" = "Non-woody",
+                                               "7" = "Non-woody",
+                                               .missing = as.character(GrowthHabit)),
+                   GrowthHabitSub = dplyr::recode(as.character(GrowthHabitCode),
+                                                  "1" = "Tree",
+                                                  "2" = "Shrub",
+                                                  "3" = "Sub-shrub",
+                                                  "4" = "Succulent",
+                                                  "5" = "Forb",
+                                                  "6" = "Graminoid",
+                                                  "7" = "Sedge",
+                                                  .missing = as.character(GrowthHabitSub)),
+
+                   # If the Duration assignments are different, overwrite
+                   Duration = ifelse(Duration.x != as.character(Duration.y) & !is.na(Duration.y),
+                                      Duration.y, Duration.x),
+
+                   # If the SG_Group assignments are different, overwrite
+                   SG_Group = ifelse(SG_Group.x != as.character(SG_Group.y) & !is.na(SG_Group.y),
+                                     SG_Group.y, SG_Group.x),
+
+                   # If the Noxious assignments are different, overwrite
+                   Noxious = ifelse(Noxious.x != as.character(Noxious.y) & !is.na(Noxious.y),
+                                     Noxious.y, Noxious.x)
+
+                   )
+
+   # Select only the fields from the original data.species file
+   data.species <- data_species_generic[,colnames(data.species)]
+
+  }
 
   return(data.species)
 }

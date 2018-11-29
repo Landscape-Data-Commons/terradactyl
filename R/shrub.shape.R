@@ -9,7 +9,7 @@
 sagebrush_shape_base <- function(lpi.tall) {
   shrub_shape <- lpi.tall %>%
     # Get the Sagebrush hits
-    subset(GRSG_Group %in% "Sagebrush" & !is.na(ShrubShape)) %>%
+    subset(SG_Group %in% "Sagebrush" & !is.na(ShrubShape)) %>%
     # condense to the unique lpi hits
     dplyr::select(dplyr::one_of(c("PrimaryKey",
                                   "PointNbr",

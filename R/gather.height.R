@@ -60,7 +60,7 @@ gather.height.terradat <- function(dsn) {
     replacement = ""
   )
   # Add observed growth habit field
-  lpi.height.tall.herb$GrowthHabit_measured <- "Non-Woody"
+  lpi.height.tall.herb$GrowthHabit_measured <- "NonWoody"
 
   # Gather lower herbaceous heights
   lpi.height.tall.lower.herb <- dplyr::select(
@@ -77,7 +77,7 @@ gather.height.terradat <- function(dsn) {
     replacement = ""
   )
   # Add observed growth habit field
-  lpi.height.tall.lower.herb$GrowthHabit_measured <- "Non-Woody"
+  lpi.height.tall.lower.herb$GrowthHabit_measured <- "NonWoody"
 
   # Merge all three gather types together
   lpi.height <- rbind(lpi.height.tall.woody,
@@ -87,7 +87,7 @@ gather.height.terradat <- function(dsn) {
     subset(., !is.na(Height))
 
   # Add NA to fields with no species
-  lpi.height$Species[!grepl(pattern = "[[:digit:]]", lpi.height$Species)] <- NA
+  lpi.height$Species[!grepl(pattern = "[[:digit:]]|[[:alpha:]]", lpi.height$Species)] <- NA
 
   # Remove orphaned records and duplicates, if they exist
   lpi.height <- unique(lpi.height)
@@ -120,28 +120,34 @@ gather.height.lmf <- function(dsn,
     }
   )
 
-  # if it is in a text file, there are no field names assigned.
-  colnames <- subset(terradactyl::nri.data.column.explanations,
-                     TABLE.NAME == "PASTUREHEIGHTS") %>%
-    dplyr::pull(FIELD.NAME) %>% unique()
+  if (file.type == "txt") {
+    # if it is in a text file, there are no field names assigned.
+    colnames <- subset(terradactyl::nri.data.column.explanations,
+                       TABLE.NAME == "PASTUREHEIGHTS") %>%
+      dplyr::pull(FIELD.NAME) %>% unique()
 
 
 
-  vegheight <- vegheight[seq_len(length(colnames))]
-  names(vegheight) <- colnames
+    vegheight <- vegheight[seq_len(length(colnames))]
+    names(vegheight) <- colnames
 
-  # We need to establish and/or fix the PLOTKEY so it exists in a single field.
-  vegheight$PrimaryKey <- paste(vegheight$SURVEY,
-                             vegheight$STATE,
-                             vegheight$COUNTY,
-                             vegheight$PSU,
-                             vegheight$POINT,
-                             sep = "")
+    # We need to establish and/or fix the PLOTKEY so it exists in a single field.
+    vegheight$PrimaryKey <- paste(vegheight$SURVEY,
+                                  vegheight$STATE,
+                                  vegheight$COUNTY,
+                                  vegheight$PSU,
+                                  vegheight$POINT,
+                                  sep = "")
+
+    # Assign DBKey
+    vegheight$DBKey <- vegheight$SURVEY
+  }
 
 
   height.woody <- dplyr::select(
     .data = vegheight,
     PrimaryKey,
+    DBKey,
     TRANSECT,
     DISTANCE,
     dplyr::matches("^W")
@@ -156,6 +162,7 @@ gather.height.lmf <- function(dsn,
   height.herbaceous <- dplyr::select(
     .data = vegheight,
     PrimaryKey,
+    DBKey,
     TRANSECT,
     DISTANCE,
     dplyr::matches("^H")
