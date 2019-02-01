@@ -4,7 +4,7 @@
 
 #' @export species_list_check
 #' @rdname species
-species_list_check <- function(dsn_tall, species.list.file, ...) {
+species_list_check <- function(dsn_tall, species_list_file, ...) {
 
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
@@ -40,9 +40,9 @@ species_list_check <- function(dsn_tall, species.list.file, ...) {
 
 
     # Join to species
-    species.join(
-      data = ., data.code = "Species",
-      species.file = species.list.file
+    species_join(
+      data = ., data_code = "Species",
+      species_file = species_list_file
     )
 
 
@@ -81,28 +81,34 @@ species_list_check <- function(dsn_tall, species.list.file, ...) {
       dplyr::any_vars(!is.na(.))
     )
 
-
+  species_hits <- species_issues %>%
+    dplyr::group_by(Species) %>%
+    dplyr::summarise(n_hits = n())
 
   unique_species_issues <- species_issues %>%
     dplyr::select(-PrimaryKey, -PlotID) %>%
-    dplyr::distinct()
+    dplyr::distinct() %>%
+    dplyr::left_join(., species_hits, by = "Species")
 
 
   write.csv(unique_species_issues,
-    file = paste(dirname(species.list.file), "/", unique(unique_species_issues$SpeciesState)[1], "_species_missing_attributes_",
-      Sys.Date(), ".csv",
-      sep = ""
-    )
+            file = paste(dirname(species_list_file), "/",
+                         unique(unique_species_issues$SpeciesState)[1],
+                         "_species_missing_attributes_",
+                         Sys.Date(), ".csv",
+                         sep = ""
+            )
   )
 
 
-  # If the height was missclassified (e.g., herbaceous species in woody height, drop it)
+  # If the height was missclassified (e.g., herbaceous species in woody height,
+  # drop it)
   # convert herbaceous to "non-woody"
   height.mismatched.growth.habit <- height %>%
     dplyr::left_join(header_sub, .) %>%
     species.join(
       data = ., data.code = "Species",
-      species.file = species.list.file
+      species.file = species_list_file
     ) %>%
     dplyr::filter(toupper(GrowthHabit_measured) != toupper(GrowthHabit) | is.na(GrowthHabit)) %>%
 
@@ -121,7 +127,7 @@ species_list_check <- function(dsn_tall, species.list.file, ...) {
 
 
   write.csv(height.mismatched.growth.habit,
-    file = paste(dirname(species.list.file),
+    file = paste(dirname(species_list_file),
       "/",
       unique(unique_species_issues$SpeciesState)[1],
       "_height_mismatched_growth_habit_",
@@ -132,7 +138,7 @@ species_list_check <- function(dsn_tall, species.list.file, ...) {
 
 
   # Evaluate the codes used in the species list
-  species_list <- read.csv(species.list.file)
+  species_list <- read.csv(species_list_file)
 
   species_list <- species_list %>% dplyr::mutate_all(dplyr::funs(toupper))
 

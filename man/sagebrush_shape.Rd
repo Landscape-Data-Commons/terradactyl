@@ -5,13 +5,21 @@
 \alias{sagebrush_shape}
 \title{Sagebrush Shape}
 \usage{
-sagebrush_shape_base(lpi.tall)
+sagebrush_shape_base(lpi_tall)
 
-sagebrush_shape(lpi.tall, live = TRUE)
+sagebrush_shape(lpi_tall, live = TRUE)
+}
+\arguments{
+\item{lpi_tall}{Dataframe. Gathered LPI dataframe in a tall format.}
+
+\item{live}{Logical. Indicate if you want to distinguish live vs dead shrub
+shapes.Default is \code{TRUE}}
 }
 \value{
 Data frame of count and predominants of different sagebrush shapes
 }
 \description{
-Describe the shape characteristics of sagebrush on the plot,including number of sagebrush hits in each shape type and the predominant shape_
+Describe the shape characteristics of sagebrush on the plot,
+including number of sagebrush hits in each shape type and
+the predominant shape_
 }

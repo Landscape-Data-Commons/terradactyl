@@ -35,9 +35,13 @@ pct.cover.species(lpi.tall, tall = TRUE, by.year = FALSE,
 \arguments{
 \item{lpi.tall}{A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.}
 
+\item{tall}{Logical. If \code{TRUE} then output will be in tall format}
+
 \item{by.year}{Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.}
 
 \item{by.line}{Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
+
+\item{hit}{String. If \code{"first"} then only top LPI hits are included. If \code{"any"} then any hit values are included.}
 
 \item{...}{Optional bare variable names. Names of variables to include as part of grouping e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.}
 }

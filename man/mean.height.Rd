@@ -4,7 +4,7 @@
 \alias{mean.height}
 \title{Calculate the vegetation height}
 \usage{
-\method{mean}{height}(height.tall, method = "mean", omit.zero = FALSE,
+\method{mean}{height}(height.tall, method = "mean", omit.zero = TRUE,
   by.line = FALSE, tall = FALSE, ...)
 }
 \arguments{

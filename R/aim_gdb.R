@@ -1,13 +1,7 @@
-####
-# Add NA to NumSpp_NonNox calculations
-# LMF remove chckbox
-
-
 #' Build AIM Indicators Tables and Feature Classes
 #' @param dsn String File path to the TerrADat database.
-#' @param header
-#' @param source
-#' @param layer
+#' @param header Dataframe. Plot header containing plot metadata
+#' @param source String. Specifies data source, \code{"AIM", "LMF"}
 #' @param ... Query in grepl format that subsets plots.
 #' @return A \code{tbl} of indicators of either tall or wide format.
 
@@ -16,19 +10,14 @@
 #' @export header_build_terradat
 #' @rdname aim_gdb
 header_build_terradat <- function(dsn, ...) {
-  ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
+  # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
-
-  # Error check
-  testthat::test_that("dsn ends with .gdb extension", {
-    testthat::expect_equal(grepl(x = dsn, pattern = ".gdb$"), TRUE)
-  })
-
 
   # tblPlots provides the link between species tables
   # (LPI, Height, Species Richness) and tblStateSpecies
-  header <- sf::read_sf(dsn = dsn, layer = "tblPlots") %>%
+  header <- sf::read_sf(dsn = dsn, source = "tblPlots") %>%
     as.data.frame() %>%
+
     # Filter using the filtering expression specified by user
     dplyr::filter(!!!filter_exprs) %>%
 
@@ -42,14 +31,6 @@ header_build_terradat <- function(dsn, ...) {
     # If there are any Sites with no PrimaryKeys, delete them
     subset(!is.na(PrimaryKey))
 
-  # # Add the SiteID from tblSites
-  # header <-  header %>%
-  #   dplyr::left_join(x = .,
-  #                    y = sf::st_read(dsn = dsn, layer = "tblSites") %>%
-  #                      dplyr::select(DBKey, SiteID, SiteKey))
-
-
-
   # Return the header file
   return(header)
 }
@@ -61,15 +42,12 @@ header_build_lmf <- function(dsn, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
-  # Error check
-  testthat::test_that("dsn ends with .gdb extension", {
-    testthat::expect_equal(grepl(x = dsn, pattern = ".gdb$"), TRUE)
-  })
-
-
   # Get the LMF points
-  point <- sf::read_sf(dsn = dsn, layer = "POINT") %>%
+  point <- sf::read_sf(dsn = dsn,
+                       source = "POINT") %>%
+    # remove spatial attributes
     as.data.frame() %>%
+
     # Filter using the filtering expression specified by user
     dplyr::filter(!!!filter_exprs) %>%
     dplyr::select(
@@ -78,14 +56,16 @@ header_build_lmf <- function(dsn, ...) {
     )
 
   # County and State are referred to by number codes, let's use the name
-  point <- sf::st_read(dsn, layer = "COUNTYNM") %>%
+  point <- sf::st_read(dsn, source = "COUNTYNM") %>%
     dplyr::select(COUNTY, COUNTYNM, STATE) %>%
-    dplyr::left_join(point, ., by = c("COUNTY", "STATE")) %>%
+    dplyr::left_join(point, .,
+                     by = c("COUNTY", "STATE")) %>%
     dplyr::distinct() %>%
 
 
     # Add state
-    dplyr::left_join(sf::st_read(dsn, layer = "STATENM"), by = "STATE") %>%
+    dplyr::left_join(sf::st_read(dsn, source = "STATENM"),
+                     by = "STATE") %>%
 
     # pair down to needed fields
     dplyr::select(
@@ -95,26 +75,27 @@ header_build_lmf <- function(dsn, ...) {
       County = COUNTYNM,
       State = STABBR
     ) %>%
+
     dplyr::distinct() %>%
+
     # Populate DateLoadedInDb
     dplyr::mutate(DateLoadedInDb = DBKey)
 
   # Get the field coordinates
-  point_coordinate <- sf::read_sf(dsn = dsn, layer = "POINTCOORDINATES") %>%
+  point_coordinate <- sf::read_sf(dsn = dsn, source = "POINTCOORDINATES") %>%
     as.data.frame() %>%
     dplyr::select(PrimaryKey,
       Latitude = REPORT_LATITUDE,
       Longitude = REPORT_LONGITUDE,
       LocationType
     ) %>%
-    dplyr::left_join(point, ., by = "PrimaryKey")
-
-
+    dplyr::left_join(point, .,
+                     by = "PrimaryKey")
 
   # Add elevation data
   point_elevation <- sf::read_sf(
     dsn = dsn,
-    layer = "GPS"
+    source = "GPS"
   ) %>%
     dplyr::select(PrimaryKey,
       DateVisited = CAPDATE, # The GPS capture date is the best approx
@@ -128,7 +109,7 @@ header_build_lmf <- function(dsn, ...) {
     dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
 
   # Add Ecological Site Id
-  point_ESD <- sf::st_read(dsn, layer = "ESFSG") %>%
+  point_ESD <- sf::st_read(dsn, source = "ESFSG") %>%
     dplyr::left_join(point_elevation, ., by = "PrimaryKey") %>%
 
     # If the ESD coverage !=all, figure what portion of the plot the dominant ESD
@@ -187,10 +168,10 @@ header_build <- function(dsn, source, ...) {
 #' @export lpi_calc
 #' @rdname aim_gdb
 # Calculate the LPI indicators
-lpi_calc <- function(header, dsn, layer) {
+lpi_calc <- function(header, dsn, source) {
 
   # Format the lpi data for calculations ----
-  lpi.tall <- gather.lpi(dsn = dsn, source = layer)
+  lpi_tall <- gather.lpi(dsn = dsn, source = source)
 
   # Join the lpi data to the header PrimaryKeys and add the StateSpecies Key
   lpi_tall_header <- dplyr::left_join(dplyr::select(
@@ -199,15 +180,15 @@ lpi_calc <- function(header, dsn, layer) {
     DBKey,
     SpeciesState
   ),
-  lpi.tall,
+  lpi_tall,
   by = c("PrimaryKey", "DBKey")
   )
 
   # Join to the state species list via the SpeciesState value
-  lpi.species <- species.join(
+  lpi.species <- species_join(
     data = lpi_tall_header,
-    species.file = dsn,
-    generic.species.overwrite = TRUE
+    species_file = dsn,
+    overwrite_generic_species = TRUE
   ) %>%
     dplyr::distinct()
 
@@ -225,13 +206,13 @@ lpi_calc <- function(header, dsn, layer) {
 
   # Calculate Total Foliar Cover ----
   total.foliar <- pct.cover.total.foliar(
-    lpi.tall = lpi.species,
+    lpi_tall = lpi.species,
     tall = TRUE
   )
 
   # Calculate between plant cover (includes bare soil) ----
   between.plant.cover <- pct.cover.between.plant(
-    lpi.tall = lpi.species,
+    lpi_tall = lpi.species,
     by.year = FALSE,
     by.line = FALSE,
     tall = TRUE
@@ -407,7 +388,7 @@ lpi_calc <- function(header, dsn, layer) {
     )
   )
 
-  if (layer %in% c("TerrADat", "Survey123")) {
+  if (source %in% c("TerrADat", "Survey123")) {
     # Sagebrush live or dead
     ah.spp.group.cover <- rbind(
       ah.spp.group.cover,
@@ -526,9 +507,9 @@ lpi_calc <- function(header, dsn, layer) {
 
 
   sagebrush.shape <- sagebrush_shape(
-    lpi.tall = lpi.species,
+    lpi_tall = lpi.species,
     # NRI and LMF don't collect live v. dead
-    live = ifelse(layer %in% c("LMF", "NRI"),
+    live = ifelse(source %in% c("LMF", "NRI"),
       FALSE, TRUE
     )
   )
@@ -540,7 +521,7 @@ lpi_calc <- function(header, dsn, layer) {
 
 
   # For TerrADat only, get the data visited from the first line in LPI
-  if (layer == "TerrADat") {
+  if (source == "TerrADat") {
     lpi_indicators <- lpi.species %>%
       dplyr::select(PrimaryKey, FormDate) %>%
       dplyr::group_by(PrimaryKey) %>%
@@ -560,16 +541,16 @@ lpi_calc <- function(header, dsn, layer) {
 #' @export gap_calc
 #' @rdname aim_gdb
 # Calculate the Gap indicators for AIM
-gap_calc <- function(header, dsn, layer) {
+gap_calc <- function(header, dsn, source) {
   # tidy gap
-  gap.tall <- gather.gap(dsn = dsn, source = layer) %>%
+  gap_tall <- gather_gap(dsn = dsn, source = source) %>%
+
     # Subset to PrimaryKeys in the header
     subset(PrimaryKey %in% header$PrimaryKey)
 
   # Calculate indicators
-  gap.calcs <- gap.cover(
-    gap.tall = gap.tall,
-    by.line = FALSE,
+  gap.calcs <- gap_cover(
+    gap_tall = gap_tall,
     tall = FALSE
   )$percent %>%
     dplyr::rowwise() %>%
@@ -597,19 +578,19 @@ gap_calc <- function(header, dsn, layer) {
 #' @export height_calc
 #' @rdname aim_gdb
 # Calculate the Height indicators for AIM
-height_calc <- function(header, dsn, layer) {
+height_calc <- function(header, dsn, source) {
   # gather tall height
-  height <- gather.height(dsn, source = layer) %>%
+  height <- gather.height(dsn, source = source) %>%
 
     # subset by PK and add the SpeciesState from the header
     dplyr::left_join(dplyr::select(header, PrimaryKey, SpeciesState), .)
 
   # Join to species list
-  height.species <- species.join(
+  height.species <- species_join(
     data = height,
-    data.code = "Species",
-    species.file = dsn,
-    generic.species.overwrite = TRUE
+    data_code = "Species",
+    species_file = dsn,
+    overwrite_generic_species = TRUE
   )
   # # Convert sedge to graminoid
   # dplyr::mutate(GrowthHabitSub = stringr::str_replace(GrowthHabitSub,
@@ -624,7 +605,7 @@ height_calc <- function(header, dsn, layer) {
   # Add a forb and grass category
   height.species$pgpf[height.species$Duration == "Perennial" &
     height.species$GrowthHabitSub %in%
-      c("Forb/herb", "Forb", "Graminoid", "Grass")                      ] <- "PerenForbGrass"
+      c("Forb/herb", "Forb", "Graminoid", "Grass")] <- "PerenForbGrass"
 
   # Height calculations----
   height.calc <- rbind(
@@ -694,7 +675,7 @@ height_calc <- function(header, dsn, layer) {
   )
 
   # For TerrADat only
-  if (layer == "TerrADat") {
+  if (source == "TerrADat") {
     # Live sagebrush heights
     height.calc <- rbind(
       height.calc,
@@ -742,26 +723,26 @@ height_calc <- function(header, dsn, layer) {
 #' @export spp_inventory_calc
 #' @rdname aim_gdb
 # Calculate species inventory
-spp_inventory_calc <- function(header, dsn, layer) {
+spp_inventory_calc <- function(header, dsn, source) {
   # tidy.species
-  spp.inventory.tall <- gather.species.inventory(dsn = dsn, source = layer) %>%
+  spp_inventory.tall <- gather_species_inventory(dsn = dsn, source = source) %>%
     # Join to the header to get the relevant PrimaryKeys and SpeciesSate
     dplyr::left_join(dplyr::select(header, PrimaryKey, SpeciesState), .,
       by = "PrimaryKey"
     )
 
   # Join to State Species List
-  spp.inventory.species <- species.join(
-    data = spp.inventory.tall,
-    data.code = "Species",
-    species.file = dsn,
-    generic.species.overwrite = TRUE
+  spp_inventory.species <- species_join(
+    data = spp_inventory.tall,
+    data_code = "Species",
+    species_file = dsn,
+    overwrite_generic_species = TRUE
   )
 
   # Count the number of species present in each group
-  spp.inventory <- rbind(
+  spp_inventory <- rbind(
     # Noxious & Non-Noxious
-    species.count(spp.inventory.species, Noxious) %>%
+    species_count(spp_inventory.species, Noxious) %>%
       dplyr::mutate(indicator = indicator %>%
         stringr::str_replace_all(c(
           "Yes" = "NoxPlant",
@@ -773,7 +754,7 @@ spp_inventory_calc <- function(header, dsn, layer) {
         )),
 
     # Preferred Forb
-    species.count(spp.inventory.species, SG_Group) %>%
+    species_count(spp_inventory.species, SG_Group) %>%
       # Subset to only Preferred Forb
       subset(indicator == "Preferred Forb") %>%
       dplyr::mutate(indicator = indicator %>%
@@ -783,14 +764,14 @@ spp_inventory_calc <- function(header, dsn, layer) {
     dplyr::mutate(indicator = paste("NumSpp_", indicator, sep = ""))
 
   # Spread to wide
-  spp.inventory.wide <- spp.inventory %>% tidyr::spread(
+  spp_inventory.wide <- spp_inventory %>% tidyr::spread(
     key = indicator,
     value = n,
     fill = 0
   )
 
   # Get the list of species that fall into a category (e.g., Preferred Forb)
-  spp.list.sg <- spp.inventory.species %>%
+  spp.list.sg <- spp_inventory.species %>%
     dplyr::group_by(PrimaryKey, SG_Group) %>%
     dplyr::summarize(list = toString(Species) %>%
       stringr::str_replace_all(
@@ -810,7 +791,7 @@ spp_inventory_calc <- function(header, dsn, layer) {
     # Output in wide format
     tidyr::spread(key = indicator, value = list, fill = NA)
 
-  spp.list.nox <- spp.inventory.species %>%
+  spp.list.nox <- spp_inventory.species %>%
     dplyr::group_by(PrimaryKey, Noxious) %>%
     dplyr::summarize(list = toString(Species) %>%
       stringr::str_replace_all(
@@ -832,25 +813,25 @@ spp_inventory_calc <- function(header, dsn, layer) {
 
   spp.list <- dplyr::full_join(spp.list.sg, spp.list.nox)
 
-  # Join with spp.inventory and return
-  species.calc <- dplyr::full_join(spp.inventory.wide, spp.list)
+  # Join with spp_inventory and return
+  spp_inventory <- dplyr::full_join(spp_inventory.wide, spp.list)
 
-  return(species.calc)
+  return(spp_inventory)
 }
 
 
 #' @export soil_stability_calc
 #' @rdname aim_gdb
 # Calculate soil stability values
-soil_stability_calc <- function(header, dsn, layer) {
+soil_stability_calc <- function(header, dsn, source) {
   # Gather and subset
-  soil.stability.tall <- gather.soil.stability(dsn, source = layer) %>%
+  soil_stability_tall <- gather_soil_stability(dsn, source = source) %>%
     subset(!is.na(Rating)) %>%
     # subset to relevant PrimaryKeys
     subset(PrimaryKey %in% header$PrimaryKey)
 
   # Calculate indicators
-  soil.stability.calcs <- soil.stability(soil.stability.tall,
+  soil_stability_calcs <- soil_stability(soil_stability_tall,
     cover = TRUE
   ) %>%
     # Rename fields
@@ -861,23 +842,23 @@ soil_stability_calc <- function(header, dsn, layer) {
     )
 
   # Return
-  return(soil.stability.calcs)
+  return(soil_stability_calcs)
 }
 
 #' @export build_terradat_indicators
 #' @rdname aim_gdb
 # Build indicators feature class
-build_terradat_indicators <- function(dsn, layer, ...) {
-  # Test that layer is  "TerrADat"
-  if (!layer %in% c("TerrADat")) {
-    stop("Invalid indicator layer specified")
+build_terradat_indicators <- function(dsn, source, ...) {
+  # Test that source is  "TerrADat"
+  if (!source %in% c("TerrADat")) {
+    stop("Invalid indicator source specified")
   }
 
   # Assign filter expressions
   filter_exprs <- rlang::quos(...)
 
   # Read header in
-  header <- header_build(dsn = dsn, source = layer, !!!filter_exprs)
+  header <- header_build(dsn = dsn, source = source, !!!filter_exprs)
 
   # Join all indicator calculations together
   indicators <- list(
@@ -886,35 +867,35 @@ build_terradat_indicators <- function(dsn, layer, ...) {
     lpi_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Gap
     gap_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Height
     height_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Species Inventory
     spp_inventory_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Soil Stability
     soil_stability_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Rangeland Health
     gather_rangeland_health(dsn,
-      layer = layer
+      source = source
     ) %>%
       # Remove RecKey field
       dplyr::select(-RecKey)
@@ -929,12 +910,12 @@ build_terradat_indicators <- function(dsn, layer, ...) {
 #' @export build_lmf_indicators
 #' @rdname aim_gdb
 
-build_lmf_indicators <- function(dsn, layer, ...) {
+build_lmf_indicators <- function(dsn, source, ...) {
 
-  # Test that layer is  "LMF"
+  # Test that source is  "LMF"
   try(
-    !layer %in% c("LMF", "NRI"),
-    stop("Invalid indicator layer specified")
+    !source %in% c("LMF", "NRI"),
+    stop("Invalid indicator source specified")
   )
 
 
@@ -942,43 +923,43 @@ build_lmf_indicators <- function(dsn, layer, ...) {
   filter_exprs <- rlang::quos(...)
 
   # Read header in
-  header <- header_build(dsn, source = layer, !!!filter_exprs)
+  header <- header_build(dsn, source = source, !!!filter_exprs)
 
   # Join all indicator calculations together
   indicators <- list(
     header,
     # LPI
-    test <- lpi_calc(
+    lpi <- lpi_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Gap
     gap_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Height
     height_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Species Inventory
-    spp.inventory <- spp_inventory_calc(
+    spp_inventory <- spp_inventory_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Soil Stability
-    soil.stab <- soil_stability_calc(
+    soil_stab <- soil_stability_calc(
       dsn = dsn,
       header = header,
-      layer = layer
+      source = source
     ),
     # Rangeland Health
-    IIRH <- gather_rangeland_health(dsn, layer = layer)
+    IIRH <- gather_rangeland_health(dsn, source = source)
   )
 
   all_indicators <- Reduce(dplyr::left_join, indicators)
@@ -988,23 +969,23 @@ build_lmf_indicators <- function(dsn, layer, ...) {
 
 
 # Build wrapper
-build_indicators <- function(dsn, layer, ...) {
-  all_indicators <- switch(layer,
+build_indicators <- function(dsn, source, ...) {
+  all_indicators <- switch(source,
     "TerrADat" = build_terradat_indicators(
       dsn = dsn,
-      layer = layer,
+      source = source,
       ...
     ),
     "LMF" = build_lmf_indicators(
       dsn = dsn,
-      layer = layer,
+      source = source,
       ...
     )
   )
 
 
   # Compare indicator field names with the names for a the target feature class
-  feature_class_field_names <- sf::st_read(dsn, layer = layer)
+  feature_class_field_names <- sf::st_read(dsn, source = source)
 
   feature_class_field_names <- feature_class_field_names[,
     !colnames(feature_class_field_names) %in%

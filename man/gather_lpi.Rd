@@ -2,16 +2,16 @@
 % Please edit documentation in R/gather_lpi.R
 \name{gather_lpi}
 \alias{gather_lpi}
-\alias{gather.lpi.terradat}
-\alias{gather.lpi.lmf}
+\alias{gather_lpi_terradat}
+\alias{gather_lpi_lmf}
 \alias{gather.lpi}
 \title{Gather TerrADat LPI data into tall/long data frames}
 \usage{
-gather.lpi.terradat(dsn)
+gather_lpi_terradat(dsn)
 
-gather.lpi.lmf(dsn, file.type = "gdb")
+gather_lpi_lmf(dsn, file_type = "gdb")
 
-gather.lpi(dsn, file.type = "gdb", source)
+gather.lpi(dsn, file_type = "gdb", source)
 }
 \arguments{
 \item{dsn}{Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.}

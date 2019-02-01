@@ -16,24 +16,28 @@ header_build_terradat(dsn, ...)
 
 header_build_lmf(dsn, ...)
 
-lpi_calc(header, dsn, layer)
+lpi_calc(header, dsn, source)
 
-gap_calc(header, dsn, layer)
+gap_calc(header, dsn, source)
 
-height_calc(header, dsn, layer)
+height_calc(header, dsn, source)
 
-spp_inventory_calc(header, dsn, layer)
+spp_inventory_calc(header, dsn, source)
 
-soil_stability_calc(header, dsn, layer)
+soil_stability_calc(header, dsn, source)
 
-build_terradat_indicators(dsn, layer, ...)
+build_terradat_indicators(dsn, source, ...)
 
-build_lmf_indicators(dsn, layer, ...)
+build_lmf_indicators(dsn, source, ...)
 }
 \arguments{
 \item{dsn}{String File path to the TerrADat database.}
 
 \item{...}{Query in grepl format that subsets plots.}
+
+\item{header}{Dataframe. Plot header containing plot metadata}
+
+\item{source}{String. Specifies data source, \code{"AIM", "LMF"}}
 }
 \value{
 A \code{tbl} of indicators of either tall or wide format.

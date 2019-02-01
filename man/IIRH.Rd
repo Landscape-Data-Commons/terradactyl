@@ -10,17 +10,17 @@ gather_rangeland_health_terradat(dsn)
 
 gather_rangeland_health_lmf(dsn, file.type = "gdb")
 
-gather_rangeland_health(dsn, layer, file.type = "gdb")
+gather_rangeland_health(dsn, source, file.type = "gdb")
 }
 \arguments{
 \item{dsn}{String. Data source name to the geodatabase or text file
 containing  interpreting indicators of rangeland health data.}
 
-\item{file.type}{String. Specifies whether the dsn is a text file \code("txt")
-or a geodatabase \code("gdb")}
+\item{file.type}{String. Specifies whether the dsn is a text file \code{"txt"}
+or a geodatabase \code{"gdb"}}
 
-\item{layer}{String. Specifies the original data source layer.
-\code ("LMF", "AIM", "TERRADAT", "NRI") are all valid.}
+\item{source}{String. Specifies the original data source layer.
+\code{"LMF", "AIM", "TERRADAT", "NRI"} are all valid.}
 }
 \description{
 Rangeland Health

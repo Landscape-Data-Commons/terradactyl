@@ -2,10 +2,10 @@
 #' @title Rangeland Health
 #' @param dsn String. Data source name to the geodatabase or text file
 #' containing  interpreting indicators of rangeland health data.
-#' @param file.type String. Specifies whether the dsn is a text file \code("txt")
-#' or a geodatabase \code("gdb")
-#' @param layer String. Specifies the original data source layer.
-#' \code ("LMF", "AIM", "TERRADAT", "NRI") are all valid.
+#' @param file.type String. Specifies whether the dsn is a text file \code{"txt"}
+#' or a geodatabase \code{"gdb"}
+#' @param source String. Specifies the original data source layer.
+#' \code{"LMF", "AIM", "TERRADAT", "NRI"} are all valid.
 #'
 
 #' @export gather_rangeland_health_terradat
@@ -21,7 +21,6 @@ gather_rangeland_health_terradat <- function(dsn) {
 
   # Read in tblQualDetail
   IIRH_detail <- sf::st_read(dsn, layer = "tblQualDetail")
-
 
   # Clean up the Indicators Table
   rangeland_health_indicators <- IIRH_detail %>%
@@ -42,7 +41,7 @@ gather_rangeland_health_terradat <- function(dsn) {
           "\\b10\\b" = "RH_PlantCommunityComp", #
           "\\b11\\b" = "RH_Compaction", #
           "\\b12\\b" = "RH_FuncSructGroup", #
-          "\\b13\\b" = "RH_PlantMortalityDec", #
+          "\\b13\\b" = "RH_DeadDyingPlantParts", #
           "\\b14\\b" = "RH_LitterAmount", #
           "\\b15\\b" = "RH_AnnualProd", #
           "\\b16\\b" = "RH_InvasivePlants", #
@@ -109,18 +108,9 @@ gather_rangeland_health_lmf <- function(dsn, file.type = "gdb") {
   # if it is in a text file, there are no field names assigned.
   if (file.type == "txt") {
 
-    # Extract colnames from the terradactyl column file
-    colnames <- terradactyl::nri.data.column.explanations %>%
-      subset(TABLE.NAME == "RHSUMMARY")
+    IIRH <- name_variables_nri(data = IIRH,
+                                     table_name = "RHSUMMARY")
 
-    # Make colnames a vector
-    colnames <- colnames$FIELD.NAME
-
-    # Set the IIRH table to the width of the colnames available
-    IIRH <- IIRH[1:length(colnames)]
-
-    # rename the IIRH table based on the colnames
-    names(IIRH) <- colnames
   }
 
   # Clean up the field names so they are human readable and match TerrAdat names
@@ -138,7 +128,7 @@ gather_rangeland_health_lmf <- function(dsn, file.type = "gdb") {
       RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
       RH_Compaction = "COMPACTION_LAYER",
       RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
-      RH_PlantMortalityDec = "PLANT_MORTALITY_DEC",
+      RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
       RH_LitterAmount = "LITTER_AMOUNT",
       RH_AnnualProd = "ANNUAL_PRODUCTION",
       RH_InvasivePlants = "INVASIVE_PLANTS",
@@ -154,7 +144,7 @@ gather_rangeland_health_lmf <- function(dsn, file.type = "gdb") {
 #' @export gather_rangeland_health
 #' @rdname IIRH
 #'
-gather_rangeland_health <- function(dsn, layer, file.type = "gdb") {
+gather_rangeland_health <- function(dsn, source, file.type = "gdb") {
 
   # Check for a valid layer type
   try(if (!toupper(layer) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -162,7 +152,7 @@ gather_rangeland_health <- function(dsn, layer, file.type = "gdb") {
   } )
 
   # Based on the layer type, use the appropriate gather function
-  IIRH <- switch(toupper(layer),
+  IIRH <- switch(toupper(source),
     "AIM" = gather_rangeland_health_terradat(dsn = dsn),
     "TERRADAT" = gather_rangeland_health_terradat(dsn = dsn),
     "DIMA" = gather_rangeland_health_terradat(dsn = dsn),

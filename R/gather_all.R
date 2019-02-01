@@ -1,6 +1,6 @@
 #' Build tall tables
 #' @param dsn. String. Filepath to data
-#' @param out
+#' @param out Rdata file of all core methods tables in tall.
 #' @param method String. Methods to append
 #' @param append Logical. Append data to existing table
 #' @name gather.all
@@ -21,8 +21,7 @@
 #
 #   # Future functionality:Subset by PrimaryKey and/or DBKey
 #
-#   arcgisbinding::arc.check_product()
-#
+
 #   # Gather header information
 #   header <- dplyr::bind_rows(
 #     header_build(dsn, source = "AIM",  !is.na(PrimaryKey)),
@@ -52,11 +51,7 @@
 #     #
 #     #   gap <- dplyr::full_join(gap, old.gap)
 #     # }
-#     arcgisbinding::arc.write(
-#       path = paste(out, "/gap_tall", sep = ""),
-#       data = gap,
-#       overwrite = TRUE
-#     )
+#
 #   }
 #
 #   # Gather LPI and write to text file

@@ -9,7 +9,7 @@
 
 mean.height <- function(height.tall,
                         method = "mean",
-                        omit.zero = FALSE,
+                        omit.zero = TRUE,
                         by.line = FALSE,
                         tall = FALSE,
                         ...) {

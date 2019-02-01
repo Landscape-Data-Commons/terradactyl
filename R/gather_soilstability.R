@@ -1,50 +1,67 @@
 #' Gather Soil Stability Data
-#' @param dsn Character string. Full filepath including file extension to the geodatabase that contains the tables tblSoilStabDetail and tblSoilStabHeader.
-#'
-#'
+#' @param dsn Character string. Full filepath including file extension to the
+#' geodatabase that contains soil stability data.
+#' @param source String. Specifies the original data source.
 
-#' @export gather.soil.stability.terradat
-#' @rdname gather_soilstability
-gather.soil.stability.terradat <- function(dsn) {
+#' @export gather_soil_stability_terradat
+#' @rdname gather_soil_stability
 
+gather_soil_stability_terradat <- function(dsn) {
 
   # read in tabular data
-  soil.stability.detail <- suppressWarnings(sf::st_read(dsn, layer = "tblSoilStabDetail")) %>%
-    dplyr::select(-c("created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID"))
-  soil.stability.header <- suppressWarnings(sf::st_read(dsn, layer = "tblSoilStabHeader")) %>%
-    dplyr::select(-c("created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID"))
+  soil_stability_detail <-
+    suppressWarnings(sf::st_read(dsn,
+                                 layer = "tblSoilStabDetail")) %>%
+    dplyr::select(-c("created_user",
+                     "created_date",
+                     "last_edited_user",
+                     "last_edited_date",
+                     "GlobalID"))
+  # tblSoilStabHeader
+  soil_stability_header <-
+    suppressWarnings(sf::st_read(dsn,
+                                 layer = "tblSoilStabHeader")) %>%
+    dplyr::select(-c("created_user",
+                     "created_date",
+                     "last_edited_user",
+                     "last_edited_date",
+                     "GlobalID"))
 
 
   # remove orphaned records
-  soil.stability.detail <- soil.stability.detail[!is.na(soil.stability.detail$PrimaryKey), ]
-  # Morph soil stability detail into a tidy format
+  soil_stability_detail <-
+    soil_stability_detail[!is.na(soil_stability_detail$PrimaryKey), ]
 
   # If DBKey Key exists, remove it
-  if ("DBKey" %in% colnames(soil.stability.detail)) {
-    soil.stability.detail <- dplyr::select(soil.stability.detail, -DBKey)
+  if ("DBKey" %in% colnames(soil_stability_detail)) {
+    soil_stability_detail <- dplyr::select(soil_stability_detail, -DBKey)
   }
 
-  gathered <- soil.stability.detail %>%
+  gathered <- soil_stability_detail %>%
     # Remove standard columns (In and Dip Times and Date Downloaded in DB)
-    dplyr::select(., match = -dplyr::starts_with("In"), -dplyr::starts_with("Dip"), -dplyr::starts_with("DateLoaded")) %>%
+    dplyr::select(., match = -dplyr::starts_with("In"),
+                  -dplyr::starts_with("Dip"),
+                  -dplyr::starts_with("DateLoaded")) %>%
+
     # Convert to tall format
-    tidyr::gather(., key = variable, value = value, -PrimaryKey, -BoxNum, -RecKey, na.rm = TRUE)
+    tidyr::gather(., key = variable, value = value,
+                  -PrimaryKey, -BoxNum, -RecKey, na.rm = TRUE)
 
   # Remove blank values
   gathered <- subset(gathered, value != "")
 
   # Separate numerical suffixes from field type
-  gathered$key <- stringr::str_extract(string = gathered$variable, pattern = "^[A-z]+")
-  gathered$Position <- stringr::str_extract(string = gathered$variable, pattern = "[0-9]+")
+  gathered$key <- stringr::str_extract(string = gathered$variable,
+                                       pattern = "^[A-z]+")
+  gathered$Position <- stringr::str_extract(string = gathered$variable,
+                                            pattern = "[0-9]+")
 
   gathered <- subset(gathered, select = -c(variable, BoxNum))
 
-  # #Remove duplicates
-  # gathered<-unique(gathered)
+  # Spread the gathered data so that Line, Rating, Vegetation,
+  # and Hydro are all different variables
 
-  # Spread the gathered data so that Line, Rating, Vegetation, and Hydro are all different variables
-
-  soil.stability.detail.list <- lapply(
+  soil_stability_detail_list <- lapply(
     X = as.list(unique(gathered$key)),
     FUN = function(k = as.list(unique(gathered$key)), df = gathered) {
       test <- df[df$key == k, ] %>%
@@ -54,39 +71,41 @@ gather.soil.stability.terradat <- function(dsn) {
     }
   )
   # create a single tidy dataframe
-  soil.stability.detail.tidy <- purrr::reduce(soil.stability.detail.list, dplyr::full_join) %>% unique()
+  soil_stability_detail_tidy <- purrr::reduce(soil_stability_detail_list,
+                                              dplyr::full_join) %>% unique()
 
-  soil.stability.detail.tidy$Rating <- as.numeric(soil.stability.detail.tidy$Rating)
+  soil_stability_detail_tidy$Rating <- soil_stability_detail_tidy$Rating %>%
+    as.numeric()
 
   # Merge soil stability detail and header tables
-  soil.stability.tall <- dplyr::left_join(soil.stability.header, soil.stability.detail.tidy)
+  soil_stability_tall <- dplyr::left_join(soil_stability_header,
+                                          soil_stability_detail_tidy)
 
 
   # Return final merged file
-  return(soil.stability.tall)
+  return(soil_stability_tall)
 }
 
-#' @export gather.soil.stability.terradat
-#' @rdname gather_soilstability
+#' @export gather_soil_stability_lmf
+#' @rdname gather_soil_stability
 
-gather.soil.stability.lmf <- function(dsn, file.type = "gdb") {
-  soildisag <- switch(file.type,
+gather_soil_stability_lmf <- function(dsn, file_type = "gdb") {
+  soildisag <- switch(file_type,
     "gdb" = {
       suppressWarnings(sf::st_read(dsn = dsn, layer = "SOILDISAG"))
     },
     "txt" = {
-      read.table(paste(dsn, "soildisag.txt", sep = ""), stringsAsFactors = FALSE, strip.white = TRUE, header = FALSE, sep = "|")
+      read.table(paste(dsn, "soildisag.txt", sep = ""),
+                 stringsAsFactors = FALSE,
+                 strip.white = TRUE, header = FALSE, sep = "|")
     }
   )
+
   # Add column names
-  if (file.type == "txt") {
-    colnames <- as.vector(as.data.frame(subset(terradactyl::nri.data.column.explanations, TABLE.NAME == "SOILDISAG", select = FIELD.NAME)))
-    colnames <- colnames$FIELD.NAME
-    soildisag <- soildisag[1:length(colnames)]
-    names(soildisag) <- colnames
+  if (file_type == "txt") {
+    soildisag <- name_variables_nri(data = soildisag,
+                                    table_name = "SOILDISAG")
   }
-  # We need to establish and/or fix the PLOTKEY so it exists in a single field.
-  soildisag$PrimaryKey <- paste(soildisag$SURVEY, soildisag$STATE, soildisag$COUNTY, soildisag$PSU, soildisag$POINT, sep = "")
 
   # Remove any database management fields
   soildisag <- soildisag[!names(soildisag) %in% c(
@@ -95,22 +114,25 @@ gather.soil.stability.lmf <- function(dsn, file.type = "gdb") {
     "last_edited_user",
     "last_edited_date"
   )]
+
   # conver white space to NA
   soildisag[soildisag == ""] <- NA
 
   # Convert to tall format
-  soil.tall <- dplyr::select(soildisag, VEG1:STABILITY18, PrimaryKey, DBKey) %>%
+  soil_tall <- dplyr::select(soildisag, VEG1:STABILITY18, PrimaryKey, DBKey) %>%
     tidyr::gather(., key = variable, value = value, -PrimaryKey, -DBKey)
 
   # Remove NAs
-  gathered <- soil.tall[!is.na(soil.tall$value), ]
+  gathered <- soil_tall[!is.na(soil_tall$value), ]
 
   # Separate numerical suffixes from field type
-  gathered$variable <- stringr::str_extract(string = gathered$variable, pattern = "^[A-z]+")
+  gathered$variable <- stringr::str_extract(string = gathered$variable,
+                                            pattern = "^[A-z]+")
 
-  # Spread the gathered data so that Line, Rating, Vegetation, and Hydro are all different variables
+  # Spread the gathered data so that Line, Rating, Vegetation,
+  # and Hydro are all different variables
 
-  soil.stability.tidy <- lapply(
+  soil_stability_tidy <- lapply(
     X = as.list(unique(gathered$variable)),
     FUN = function(k = as.list(unique(gathered$variable)), df = gathered) {
       df[df$variable == k, ] %>%
@@ -120,32 +142,38 @@ gather.soil.stability.lmf <- function(dsn, file.type = "gdb") {
     }
   ) %>% Reduce(dplyr::left_join, .)
 
-  soil.stability.tidy <- dplyr::rename(soil.stability.tidy, Veg = VEG, Rating = STABILITY)
-  soil.stability.tidy$Rating <- as.numeric(soil.stability.tidy$Rating)
+  # Rename fields
+  soil_stability_tidy <- dplyr::rename(soil_stability_tidy,
+                                       Veg = VEG,
+                                       Rating = STABILITY)
+
+   # Make sure the rating field is numeric
+  soil_stability_tidy$Rating <- as.numeric(soil_stability_tidy$Rating)
 
   # Return final merged file
-  return(soil.stability.tidy)
+  return(soil_stability_tidy)
 }
 
-
-#' @export gather.soil.stability
-#' @rdname gather_soilstability
-gather.soil.stability <- function(dsn, source, file.type = "gdb") {
+# Wrapper function for all soil stability gather functions
+#' @export gather_soil_stability
+#' @rdname gather_soil_stability
+gather_soil_stability <- function(dsn, source, file_type = "gdb") {
 
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) stop("No valid source provided"))
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))
+    stop("No valid source provided"))
 
-  # Gather soil.stability using the appropriate method
-  soil.stability <- switch(toupper(source),
-    "AIM" = gather.soil.stability.terradat(dsn = dsn),
-    "TERRADAT" = gather.soil.stability.terradat(dsn = dsn),
-    "DIMA" = gather.soil.stability.terradat(dsn = dsn),
-    "LMF" = gather.soil.stability.lmf(dsn = dsn, file.type = file.type),
-    "NRI" = gather.soil.stability.lmf(dsn = dsn, file.type = file.type)
+  # Gather soil_stability using the appropriate method
+  soil_stability <- switch(toupper(source),
+    "AIM" = gather_soil_stability_terradat(dsn = dsn),
+    "TERRADAT" = gather_soil_stability_terradat(dsn = dsn),
+    "DIMA" = gather_soil_stability_terradat(dsn = dsn),
+    "LMF" = gather_soil_stability_lmf(dsn = dsn, file_type = file_type),
+    "NRI" = gather_soil_stability_lmf(dsn = dsn, file_type = file_type)
   )
 
   # Add source field so that we know where the data came from
-  soil.stability$source <- toupper(source)
+  soil_stability$source <- toupper(source)
 
-  return(soil.stability)
+  return(soil_stability)
 }

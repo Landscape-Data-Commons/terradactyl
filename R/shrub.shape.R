@@ -1,13 +1,18 @@
 #' Sagebrush Shape
-#' @description Describe the shape characteristics of sagebrush on the plot,including number of sagebrush hits in each shape type and the predominant shape_
-#' @param lpi.tall
+#' @description Describe the shape characteristics of sagebrush on the plot,
+#' including number of sagebrush hits in each shape type and
+#' the predominant shape_
+#' @param lpi_tall Dataframe. Gathered LPI dataframe in a tall format.
+#' @param live Logical. Indicate if you want to distinguish live vs dead shrub
+#'  shapes.Default is \code{TRUE}
 #' @return Data frame of count and predominants of different sagebrush shapes
+
 
 #' @export sagebrush_shape_base
 #' @rdname sagebrush_shape
 #'
-sagebrush_shape_base <- function(lpi.tall) {
-  shrub_shape <- lpi.tall %>%
+sagebrush_shape_base <- function(lpi_tall) {
+  shrub_shape <- lpi_tall %>%
     # Get the Sagebrush hits
     subset(SG_Group %in% "Sagebrush" & !is.na(ShrubShape)) %>%
     # condense to the unique lpi hits
@@ -41,14 +46,14 @@ sagebrush_shape_base <- function(lpi.tall) {
   }
 
   # Format columnar
-  if ("C" %in% lpi.tall$ShrubShape) {
+  if ("C" %in% lpi_tall$ShrubShape) {
     # Spread
     shrub_shape_column <- shrub_shape_count %>%
       # Filter by C
       dplyr::filter(ShrubShape == "C") %>%
 
       # Rename
-      dplyr::rename("SagebrushShape_All_Column_Count" = n)
+      dplyr::rename("SagebrushShape_All_ColumnCount" = n)
 
     sagebrush_shape_all <- dplyr::full_join(shrub_shape_predominant,
       shrub_shape_column,
@@ -56,17 +61,17 @@ sagebrush_shape_base <- function(lpi.tall) {
     )
   }
   # Format spreading
-  if ("S" %in% lpi.tall$ShrubShape) {
+  if ("S" %in% lpi_tall$ShrubShape) {
     # Spread
     shrub_shape_spread <- shrub_shape_count %>%
       # Filter by C
       dplyr::filter(ShrubShape == "S") %>%
 
       # Rename
-      dplyr::rename("SagebrushShape_All_Spread_Count" = n)
+      dplyr::rename("SagebrushShape_All_SpreadCount" = n)
 
     # Join to rest of indicators
-    if ("C" %in% lpi.tall$ShrubShape) {
+    if ("C" %in% lpi_tall$ShrubShape) {
       sagebrush_shape_all <- sagebrush_shape_all %>%
         dplyr::full_join(shrub_shape_spread, by = "PrimaryKey")
     } else {
@@ -87,11 +92,12 @@ sagebrush_shape_base <- function(lpi.tall) {
 #' @export sagebrush_shape
 #' @rdname sagebrush_shape
 
-sagebrush_shape <- function(lpi.tall, live = TRUE) {
-  shape_all <- sagebrush_shape_base(lpi.tall = lpi.tall)
+sagebrush_shape <- function(lpi_tall, live = TRUE) {
+  shape_all <- sagebrush_shape_base(lpi_tall = lpi_tall)
 
   if (live) {
-    shape_live <- sagebrush_shape_base(lpi.tall = subset(lpi.tall, chckbox == 0))
+    shape_live <- sagebrush_shape_base(lpi_tall = subset(lpi_tall,
+                                                         chckbox == 0))
 
     # rename the fields with "All" to "Live"
 
