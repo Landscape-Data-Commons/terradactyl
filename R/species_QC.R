@@ -106,9 +106,9 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   # convert herbaceous to "non-woody"
   height.mismatched.growth.habit <- height %>%
     dplyr::left_join(header_sub, .) %>%
-    species.join(
-      data = ., data.code = "Species",
-      species.file = species_list_file
+    species_join(
+      data = ., data_code = "Species",
+      species_file = species_list_file
     ) %>%
     dplyr::filter(toupper(GrowthHabit_measured) != toupper(GrowthHabit) | is.na(GrowthHabit)) %>%
 

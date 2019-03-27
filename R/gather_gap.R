@@ -16,12 +16,12 @@ gather_gap_terradat <- function(dsn) {
                                              layer = "tblGapDetail")) %>%
 
     # Remove database management fields that aren't relevant
-    subset(., select = -c(
-      "GlobalID",
-      "created_user",
-      "created_date",
-      "last_edited_user",
-      "last_edited_date"
+   subset(., select = -c(
+     GlobalID,
+     created_user,
+     created_date,
+     last_edited_user,
+     last_edited_date
     ))
 
   # Read tblGapHeader
@@ -30,11 +30,11 @@ gather_gap_terradat <- function(dsn) {
 
     # Remove database management fields that aren't relevant
     subset(., select = -c(
-      "GlobalID",
-      "created_user",
-      "created_date",
-      "last_edited_user",
-      "last_edited_date"
+      GlobalID,
+      created_user,
+      created_date,
+      last_edited_user,
+      last_edited_date
     ))
 
 
@@ -70,6 +70,15 @@ gather_gap_terradat <- function(dsn) {
                            GapEnd = 0,
                            Gap = 0))
 
+  ## Identify which gaps are perennial gaps vs all canopy gaps. Perennial
+  ## gaps are those with only PerennialsCanopy == 1
+  gap_tall <-gap_tall %>% dplyr::mutate(RecType = as.character(RecType))
+
+   gap_tall$RecType[gap_tall$PerennialsCanopyv==1 &
+              gap_tall$AnnualForbsCanopy == 0 &
+              gap_tall$AnnualGrassesCanopy ==0 &
+              gap_tall$OtherCanopy == 0 ]<- "P"
+
   return(gap_tall)
 }
 
@@ -96,6 +105,9 @@ gather_gap_lmf <- function(dsn, file_type = "gdb") {
         stringsAsFactors = FALSE, strip.white = TRUE,
         header = FALSE, sep = "|"
       )
+    },
+    "csv" = {
+      read.csv(dsn)
     }
   )
 
@@ -110,7 +122,7 @@ gather_gap_lmf <- function(dsn, file_type = "gdb") {
   # convert to metric, original data are in decimal feet
   gintercept$START_GAP <- gintercept$START_GAP * 30.48
   gintercept$END_GAP <- gintercept$END_GAP * 30.48
-  gintercept$Gap <- gintercept$END_GAP - gintercept$START_GAP
+  gintercept$Gap <- abs(gintercept$END_GAP - gintercept$START_GAP)
 
 
   # check for negative values and remove
@@ -139,7 +151,13 @@ gather_gap_lmf <- function(dsn, file_type = "gdb") {
   gap$GapMin <- 12 * 2.54
 
   # Strip down fields
-  gap <- dplyr::select(gap, -c(SURVEY:POINT))
+   gap <- gap[,!colnames(gap) %in% c("SURVEY","COUNTY",
+                                                         "PSU","POINT",
+                                                         "created_user",
+                                                         "created_date",
+                                                         "last_edited_user",
+                                                         "last_edited_date",
+                                                         "GlobalID", "X")]
 
   return(gap)
 }

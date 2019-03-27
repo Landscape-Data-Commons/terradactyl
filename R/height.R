@@ -1,23 +1,23 @@
 #' Calculate the vegetation height
-#' @param height.tall A tall/long-format data frame. Use the data frame \code{"height"} from the \code{gather.lpi()} output.
-#' @param omit.zero Logical. If \code{TRUE} the results omit height measurements of \code{0}. Defaults to \code{FALSE}.
+#' @param height_tall A tall/long-format data frame. Use the data frame \code{"height"} from the \code{gather.lpi()} output.
+#' @param omit_zero Logical. If \code{TRUE} the results omit height measurements of \code{0}. Defaults to \code{FALSE}.
 #' @param method Character string. Indicates the type of indicator, \code{"max"}, which yields the average maximum height (of the herbaceous or woody heights) on the plot or \code{"mean"} which yields the mean height by functional group (woody/herbaceous).
-#' @param by.line Logical. If \code{TRUE} then the results will be calculated on a per-line basis. If \code{FALSE} then the results will be calculated on a per-plot basis. Defaults to \code{FALSE}.
+#' @param by_line Logical. If \code{TRUE} then the results will be calculated on a per-line basis. If \code{FALSE} then the results will be calculated on a per-plot basis. Defaults to \code{FALSE}.
 #' @param ... Optional bare variable names. One or more variable name from \code{lpi.tall} to calculate percent cover for, e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
 #' @param tall Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.
-#' @export mean.height
+#' @export mean_height
 
-mean.height <- function(height.tall,
+mean_height <- function(height_tall,
                         method = "mean",
-                        omit.zero = TRUE,
-                        by.line = FALSE,
+                        omit_zero = TRUE,
+                        by_line = FALSE,
                         tall = FALSE,
                         ...) {
   ## Get a list of the variables the user wants to group by.
-  grouping.variables <- rlang::quos(...)
+  grouping_variables <- rlang::quos(...)
 
-  if (!is.data.frame(height.tall)) {
-    stop("lpi.tall must be a data frame.")
+  if (!is.data.frame(height_tall)) {
+    stop("height_tall must be a data frame.")
   }
 
   if (!(method %in% c("mean", "max"))) {
@@ -25,28 +25,28 @@ mean.height <- function(height.tall,
   }
 
   # For grouping by line
-  if (by.line) {
+  if (by_line) {
     level <- rlang::quos(PrimaryKey, LineKey)
   } else {
     level <- rlang::quos(PrimaryKey)
   }
 
   # If height of zer0 is dropped by the calculation, filter out zeros
-  if (omit.zero) {
-    height.tall <- dplyr::filter(height.tall, Height != 0)
+  if (omit_zero) {
+    height_tall <- dplyr::filter(height_tall, Height != 0)
   }
 
   # Calculate mean height by grouping variable, if method == "mean"
   if (method == "mean") {
-    summary <- height.tall %>%
+    summary <- height_tall %>%
       dplyr::filter(!is.na(Height)) %>%
       dplyr::group_by(
         !!!level,
-        !!!grouping.variables
+        !!!grouping_variables
       ) %>%
-      dplyr::summarize(mean.height = mean(as.numeric(Height))) %>%
+      dplyr::summarize(mean_height = mean(as.numeric(Height))) %>%
       tidyr::unite(indicator,
-        !!!grouping.variables,
+        !!!grouping_variables,
         sep = "."
       )
 
@@ -54,24 +54,24 @@ mean.height <- function(height.tall,
   }
   # Calculate the max height by grouping variable, if method =="max"
   if (method == "max") {
-    height.tall.spread <- height.tall %>% tidyr::spread(
+    height_tall_spread <- height_tall %>% tidyr::spread(
       key = type,
       value = Height
     )
-    height.tall.spread$max <- pmax(height.tall.spread$herbaceous,
-      height.tall.spread$woody,
+    height_tall_spread$max <- pmax(height_tall_spread$herbaceous,
+      height_tall_spread$woody,
       na.rm = TRUE
     )
-    summary <- height.tall.spread %>%
-      dplyr::group_by(!!!level, !!!grouping.variables) %>%
-      dplyr::summarize(max.height = mean(max)) %>%
-      dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
+    summary <- height_tall_spread %>%
+      dplyr::group_by(!!!level, !!!grouping_variables) %>%
+      dplyr::summarize(max_height = mean(max)) %>%
+      dplyr::filter(!grepl(max_height, pattern = "^[NA.]{0,100}NA$"))
   }
 
 
   # Convert to wide format
   if (!tall) {
-    summary <- summary %>% tidyr::spread(key = indicator, value = mean.height, fill = 0)
+    summary <- summary %>% tidyr::spread(key = indicator, value = mean_height, fill = 0)
   }
 
   return(summary)

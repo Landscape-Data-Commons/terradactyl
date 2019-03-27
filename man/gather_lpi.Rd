@@ -4,14 +4,13 @@
 \alias{gather_lpi}
 \alias{gather_lpi_terradat}
 \alias{gather_lpi_lmf}
-\alias{gather.lpi}
 \title{Gather TerrADat LPI data into tall/long data frames}
 \usage{
 gather_lpi_terradat(dsn)
 
 gather_lpi_lmf(dsn, file_type = "gdb")
 
-gather.lpi(dsn, file_type = "gdb", source)
+gather_lpi(dsn, file_type = "gdb", source)
 }
 \arguments{
 \item{dsn}{Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.}

@@ -120,7 +120,7 @@ gather_lpi_terradat <- function(dsn) {
 gather_lpi_lmf <- function(dsn,
                            file_type = "gdb") {
 
-  # Read  PINTERCEPT table in .txt or .gdb
+  # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
 
   pintercept <- switch(file_type,
     "gdb" = {
@@ -132,7 +132,11 @@ gather_lpi_lmf <- function(dsn,
         strip.white = TRUE,
         header = FALSE, sep = "|"
       )
-    }
+      },
+      "csv" = {
+        read.csv(file = dsn, header = TRUE)
+      }
+
   )
 
   # if it is in a text file, there are no field names assigned.
@@ -164,6 +168,8 @@ gather_lpi_lmf <- function(dsn,
   levels(pintercept$NONSOIL) <- c(levels(pintercept$NONSOIL), "S")
   pintercept$NONSOIL[pintercept$BASAL == "None" &
                        pintercept$NONSOIL == ""] <- "S"
+  pintercept$NONSOIL[pintercept$BASAL == "None" &
+                      is.na(pintercept$NONSOIL)] <- "S"
 
 
   # Identify the pin drop variables
@@ -174,13 +180,14 @@ gather_lpi_lmf <- function(dsn,
     "NONSOIL"
   )
 
+  # Remove unneeded columns
   pintercept <- pintercept[,!colnames(pintercept) %in% c("SURVEY","COUNTY",
                                                         "PSU","POINT",
                                                         "created_user",
                                                         "created_date",
                                                         "last_edited_user",
                                                         "last_edited_date",
-                                                        "GlobalID")]
+                                                        "GlobalID", "X")]
 
 
 
@@ -203,12 +210,27 @@ gather_lpi_lmf <- function(dsn,
     replacement = "SoilSurface"
   )
 
+  # Remove "None" and NA values from SoilSurface
+  lpi_hits_tall$code[lpi_hits_tall$layer == "SoilSurface" &
+                       lpi_hits_tall$code =="None"] <- NA
+  lpi_hits_tall <- lpi_hits_tall %>% subset(!is.na(code))
 
   # Rename "Hit1" as "TopCanopy"
   lpi_hits_tall$layer <- stringr::str_replace_all(
     string = lpi_hits_tall$layer,
     pattern = "HIT1",
     replacement = "TopCanopy"
+  )
+
+  # rename Hit2-Hit6 as "LowerLayer
+  lpi_hits_tall$layer <- dplyr::recode(
+    lpi_hits_tall$layer,
+    "HIT2" = "Lower1",
+    "HIT3" = "Lower2",
+    "HIT4" = "Lower3",
+    "HIT5" = "Lower4",
+    "HIT6" = "Lower5"
+
   )
 
 
@@ -222,7 +244,7 @@ gather_lpi_lmf <- function(dsn,
 
   # Convert to factor
   lpi_hits_tall <- lpi_hits_tall %>%
-    dplyr::mutate_if(is.character, dplyr::funs(factor))
+    dplyr::mutate_if(is.character, list(factor))
 
   # Convert ShrubShape values to be consistent with DIMA schema,
   # 1==Columnar, 2=Spreading, 3=Mixed, 0 is NA
@@ -234,11 +256,11 @@ gather_lpi_lmf <- function(dsn,
   return(lpi_hits_tall)
 }
 
-#' @export gather.lpi
+#' @export gather_lpi
 #' @rdname gather_lpi
 
 # Wrapper gather.lpi function
-gather.lpi <- function(dsn,
+gather_lpi <- function(dsn,
                        file_type = "gdb",
                        source) {
   # Check for a valid source
@@ -261,12 +283,12 @@ gather.lpi <- function(dsn,
 
   # Find date fields & convert to character
   # Find fields that are in a Date structure
-  change_vars <- names(lpi)[do.call(rbind, sapply(lpi, class))[, 1] %in%
+  change_vars <- names(lpi)[class(lpi) %in%
     c("POSIXct", "POSIXt")]
 
   # Update fields
   lpi <- dplyr::mutate_at(lpi, dplyr::vars(change_vars),
-                          dplyr::funs(as.character))
+                          list(as.character))
 
   return(lpi)
 }

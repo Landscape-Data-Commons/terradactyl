@@ -1,160 +1,139 @@
-#
-#
-#
-# scaled.gap <- function(gap.tall, height.tall, out) {
-#   # Calculate gaps by breaks
-#   gap <- gap.cover(gap.tall,
-#     tall = TRUE,
-#     type = "canopy",
-#     breaks = seq(from = 0, to = 1000, length.out = 400)
-#   )
-#   # Calculate mean maximum height for each plot
-#   height <- mean.height(
-#     lpi.height.tall = height.tall,
-#     method = "max",
-#     omit.zero = TRUE,
-#     by.line = FALSE
-#   )
-#   # Calculate the total number of gaps in each plot
-#   gap.probability <- gap %>%
-#     dplyr::group_by(PrimaryKey) %>%
-#     dplyr::summarise(total.n = sum(n)) %>%
-#     merge(gap, ., allow.cartesian = TRUE) %>%
-#     # Calculate the probability of gaps for each gap interval within each plot
-#     dplyr::group_by(PrimaryKey, Gap.Class) %>%
-#     dplyr::summarise(probability = n / total.n)
-#
-#   # Calculate the scaled gap for each gap interval, this is each gap class divided by the mean maximum height
-#   # Rename gap intervals so they are numeric
-#   gap$interval.value <- gsub(pattern = "\\[|\\,.+$", x = gap$Gap.Class, replacement = "") %>% as.numeric()
-#   scaled.gap <- merge(gap, height, allow.cartesian = TRUE) %>%
-#     dplyr::group_by(PrimaryKey, Gap.Class) %>%
-#     dplyr::summarise(scaled.gap = interval.value / max.height)
-#
-#   # Merge the scaled gap and gap probability
-#   gap.output <- merge(scaled.gap, gap.probability, allow.cartesian = TRUE)
-# }
-#
-# ## If running for field texture soils
-# surface.soil.texture <- function(filepath,
-#                                  gdb, soil.texture.file) {
-#   library(arcgisbinding)
-#   arcgisbinding::arc.check_product()
-#
-#   # read in soil texture by class look up table
-#   texture.lut <- read.csv(soil.texture.file, fileEncoding = "UTF-8-BOM")
-#
-#   # Read in soil pit data
-#   soil.pit.horizons <- read.geodatabase(filepath = filepath, gdb = gdb, feature.name = "tblSoilPitHorizons")
-#
-#   # Remove duplicated soil pit entries
-#   soil.pit.horizons.unique <- unique(soil.pit.horizons[, -c("OBJECTID", "DateLoadedInDb")])
-#
-#   # Subset soil by surface soil horizon and the Primary Key and Texture Class fields only
-#   soil.surface.texture <- soil.pit.horizons.unique[soil.pit.horizons.unique$HorizonDepthUpper == 0, c("PrimaryKey", "Texture")]
-#
-#   # merge soil texture classes with soil texture data
-#   soil.surface.texture <- merge(soil.surface.texture, texture.lut, by.x = "Texture", by.y = "abbreviation")
-#
-#   # Remove duplicates and "Texture" field
-#   soil.surface.texture <- soil.surface.texture[, -"Texture"] %>% unique()
-#
-#
-#   # Return soil texture
-#   return(soil.surface.texture)
-# }
-#
-#
-# aero.coordinates.bare.soil.2 <- function(filepath, gdb) {
-#   library(arcgisbinding)
-#   arcgisbinding::arc.check_product()
-#
-#   # Read in tblPlots
-#   plots <- read.geodatabase(filepath = filepath, gdb = gdb, feature.name = "SV_IND_TERRESTRIALAIM")
-#
-#   coordinates.bare.soil <- plots[, c("PrimaryKey", "Latitude", "Longitude", "BareSoilCover_FH")]
-#
-#   return(coordinates.bare.soil)
-# }
-#
-#
-# # Write out files
-#
-# write.to.aero <- function(out, gap.output, coordinates, bare.soil, soil.surface.texture,
-#                           folder.location = "D:\\NRI\\LMF_20180322\\", # location of files on computer with AERO
-#                           combo.name = "LMF") {
-#
-#   # Find out which plots have gap, bare soil, and surface texture data
-#   common.PK <- Reduce(intersect, (list(
-#     unique(gap.output$PrimaryKey), unique(coordinates$PrimaryKey),
-#     unique(soil.surface.texture$PrimaryKey), unique(bare.soil$PrimaryKey)
-#   )))
-#
-#   # Write Scaled Gap txt files
-#   lapply(
-#     common.PK,
-#     function(X) write.table(gap.output[gap.output$PrimaryKey == X, c("scaled.gap", "probability")],
-#         file = paste(out, X, ".txt", sep = ""),
-#         col.names = F, row.names = F, sep = "\t"
-#       )
-#   )
-#
-#
-#   # Write Ini and Combofiles
-#   combo <- NULL
-#
-#   # Write the ini files out to folder and compile the list of files for the combo .bat files
-#   combo <- lapply(
-#     common.PK,
-#     function(p) {
-#       cat(
-#         file = paste(out, p, ".ini", sep = ""),
-#
-#         "[INPUT_VALUES]",
-#         paste("wind_location:", coordinates$Latitude[coordinates$PrimaryKey == p],
-#           coordinates$Longitude[coordinates$PrimaryKey == p],
-#           sep = " "
-#         ),
-#         paste("soil_sand_fraction: ", soil.surface.texture$sand[soil.surface.texture$PrimaryKey == p], sep = ""),
-#         paste("soil_clay_fraction: ", soil.surface.texture$clay[soil.surface.texture$PrimaryKey == p], sep = ""),
-#         paste("veg_cover_fraction: ", (100 - bare.soil$S[bare.soil$PrimaryKey == p]) / 100, sep = ""),
-#         paste("gap_obsv: ", folder.location, p, ".txt", sep = ""),
-#         "[METHOD_REQUESTS]", "[OUTPUTS]", "horizontal_flux_total", "vertical_flux", "_vflux_bins", "soil_type", "_vflux_psd",
-#         sep = "\n", append = F
-#       )
-#
-#       combo <- c(combo, paste(p, ".ini", " ^", sep = ""))
-#       return(combo)
-#     }
-#   )
-#
-#   # Determine the number of bat files needed
-#   combo.v <- as.vector(combo)
-#   n.bat <- ceiling(length(combo.v) / 40)
-#   # combo.cut<-cut(as.vector(combo.v), n.bat)
-#
-#   # Write out the combo.bat file
-#   lapply(n.bat, function(n) {
-#     cat(
-#       file = paste(out, combo.name, ".bat", sep = ""),
-#       "\n python -m WEME.driver.combo -v ^",
-#       paste("    --combos ", combo[1], sep = ""),
-#       paste("             ", combo[2:length(combo)], sep = ""),
-#       "    --cases blm_case.ini ^",
-#       "    --output blm_terradat.html",
-#       sep = "\n", append = F
-#     )
-#   })
-#
-#
-#
-#   cat(
-#     file = paste(out, combo.name, ".bat", sep = ""),
-#     "\n python -m WEME.driver.combo -v ^",
-#     paste("    --combos ", combo[1], sep = ""),
-#     paste("             ", combo[2:length(combo)], sep = ""),
-#     "    --cases blm_case.ini ^",
-#     "    --output blm_terradat.html",
-#     sep = "\n", append = F
-#   )
-# }
+#' Calculate AERO Inputs
+#' @param gap_tall Table. Gap data in tall format
+#' @param height_tall Table. Height data in tall format
+#'
+#' #' @export aero_gap
+#' #' @rdname AERO
+#' #'
+#' #'
+#' aero_gap <- function(gap_tall) {
+#'   # Calculate gaps by breaks
+#'
+#'
+#'  # Calculate the total number of gaps in each plot
+#'   gap_probability <- gap %>%
+#'     dplyr::group_by(PrimaryKey) %>%
+#'     dplyr::summarise(total_n = sum(n)) %>%
+#'     dplyr::left_join(gap, ., by = "PrimaryKey") %>%
+#'     # Calculate the probability of gaps for each gap interval within each plot
+#'     dplyr::group_by(PrimaryKey, gap_class) %>%
+#'     dplyr::summarise(probability = n / total_n)
+#'
+#'   # Rename gap intervals so they are numeric
+#'   gap$interval_value <- gsub(pattern = "\\[|\\,.+$", x = gap$gap_class, replacement = "") %>% as.numeric()
+#'
+#'   # Merge the gap cover and gap probability
+#'   gap_output <- dplyr::left_join(gap, gap_probability, by = c("PrimaryKey", "gap_class"))
+#' }
+#' #
+
+aero<- function (lpi_tall,
+                 gap_tall,
+                 height_tall,
+                 header,
+                 texture_raster,
+                 folder_location="~/DataCommons/AERO/"){
+
+  # Get the texture info for the plots
+  # Remove NAs from coordinates
+  header <- header %>% subset(!is.na(Longitude) &
+                                !is.na(Latitude))
+  plots<-sp::SpatialPointsDataFrame(data=header,
+                                    coords=cbind(y=header$Longitude,
+                                                 x=header$Latitude),
+                                    proj4string = texture_raster@crs)
+
+
+  #extract soil texture values to plots
+  plots_texture <- raster::extract(y=plots, x=texture_raster, df=T, sp=T)
+
+  # Remove any plots without sand texture
+  plots_texture <- subset(plots_texture,!is.na(sand))
+
+  # Convert texture to fraction
+  plots_texture$sand <- plots_texture$sand/100
+  plots_texture$clay <- plots_texture$clay/100
+
+  #AERO requires WGS8f
+  plots_texture<-sp::spTransform(plots_texture,
+                                 CRSobj=sp::CRS("+proj=longlat +datum=WGS84"))
+
+
+  # Calculate mean maximum height for each plot
+  max_height <- mean_height(
+    height_tall = height_tall,
+    method = "max",
+    omit_zero = TRUE,
+    by_line = FALSE,
+    tall = TRUE
+  ) %>%
+    # convert to meters
+    dplyr::mutate(max_height = max_height/100)
+
+  # Calculate bare soil from LPI data
+  bare_soil<-pct_cover_bare_soil(lpi_tall = lpi_tall,
+                                 tall = FALSE,
+                                 by_year = FALSE,
+                                 by_line = FALSE)
+
+
+  # Find out which plots have bare soil and height data
+  common_PK <- Reduce(intersect, (list(
+    unique(gap_tall$PrimaryKey),
+    unique(plots_texture$PrimaryKey),
+    unique(max_height$PrimaryKey),
+    unique(bare_soil$PrimaryKey)
+  )))
+
+  # Write Gap txt files of the raw gap observations
+  # Create the gap folder location
+  gap_location <- paste(folder_location, "gap/", sep = "")
+  dir.create(gap_location)
+
+  # Convert gaps to meters
+  gap_tall <- gap_tall %>% dplyr::mutate(Gap = Gap/100)
+  # Write files to gap location
+  lapply(
+    common_PK,
+    function(X) write.table(gap_tall[gap_tall$PrimaryKey == X, "Gap"],
+                            file = paste(folder_location, "gap/", X, ".txt", sep = ""),
+                            col.names = F, row.names = F, sep = "\t"
+    )
+  )
+
+
+
+  # Write the ini files out to folder and compile the list of files for the combo .bat files
+  lapply(
+    X = common_PK,
+    function(X) {
+      cat(
+        file = paste(folder_location, X, ".ini", sep = ""),
+        "[INPUT_VALUES]",
+                paste("wind_location:",
+                      plots_texture$Latitude[plots_texture$PrimaryKey == X] %>% unique(),
+                      plots_texture$Longitude[plots_texture$PrimaryKey == X]%>% unique(),
+                  sep = " "
+                ),
+        paste("soil_sand_fraction: ",
+              plots_texture$sand[plots_texture$PrimaryKey == X] %>% unique(),
+              sep = ""),
+        paste("soil_clay_fraction: ",
+              plots_texture$clay[plots_texture$PrimaryKey == X] %>% unique(),
+              sep = ""),
+        paste("veg_cover_fraction: ",
+              (100 - bare_soil$S[bare_soil$PrimaryKey == X]) %>% unique() / 100,
+              sep = ""),
+        paste("veg_mean_height: ",
+              max_height$max_height[max_height$PrimaryKey == X] %>% unique(),
+              sep = ""),
+        paste("gap_obsv: ", "./gap/", X, ".txt", sep = ""),
+        sep = "\n", append = FALSE
+
+      )
+    }
+  )
+
+}
+
+

@@ -15,7 +15,7 @@ header_build_terradat <- function(dsn, ...) {
 
   # tblPlots provides the link between species tables
   # (LPI, Height, Species Richness) and tblStateSpecies
-  header <- sf::read_sf(dsn = dsn, source = "tblPlots") %>%
+  header <- sf::st_read(dsn = dsn, layer = "tblPlots") %>%
     as.data.frame() %>%
 
     # Filter using the filtering expression specified by user
@@ -44,7 +44,7 @@ header_build_lmf <- function(dsn, ...) {
 
   # Get the LMF points
   point <- sf::read_sf(dsn = dsn,
-                       source = "POINT") %>%
+                       layer = "POINT") %>%
     # remove spatial attributes
     as.data.frame() %>%
 
@@ -143,6 +143,9 @@ header_build_lmf <- function(dsn, ...) {
   return(point_ESD)
 }
 
+# Build the header wrapper
+#' @export header_build
+#' @rdname aim_gdb
 # Header build wrapper function
 header_build <- function(dsn, source, ...) {
   # Error check

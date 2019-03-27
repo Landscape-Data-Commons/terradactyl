@@ -3,6 +3,7 @@
 \name{header_build_terradat}
 \alias{header_build_terradat}
 \alias{header_build_lmf}
+\alias{header_build}
 \alias{lpi_calc}
 \alias{gap_calc}
 \alias{height_calc}
@@ -15,6 +16,8 @@
 header_build_terradat(dsn, ...)
 
 header_build_lmf(dsn, ...)
+
+header_build(dsn, source, ...)
 
 lpi_calc(header, dsn, source)
 
@@ -35,9 +38,9 @@ build_lmf_indicators(dsn, source, ...)
 
 \item{...}{Query in grepl format that subsets plots.}
 
-\item{header}{Dataframe. Plot header containing plot metadata}
-
 \item{source}{String. Specifies data source, \code{"AIM", "LMF"}}
+
+\item{header}{Dataframe. Plot header containing plot metadata}
 }
 \value{
 A \code{tbl} of indicators of either tall or wide format.

@@ -1,31 +1,31 @@
 #' Percent Cover Indicators
-#' @description Calculate the percent cover  indicators by plot or line for variables or combinations of variables.This is a family of standard indicator variables to examine total foliar cover, bare soil, litter cover, and other ground cover indicators. To compute cover by species, growth habit and duration, or other custom line-point intercept combinations, see \code{pct.cover()}.
-#' @param lpi.tall A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.
-#' @param by.year Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.
-#' @param by.line Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.
+#' @description Calculate the percent cover  indicators by plot or line for variables or combinations of variables.This is a family of standard indicator variables to examine total foliar cover, bare soil, litter cover, and other ground cover indicators. To compute cover by species, growth habit and duration, or other custom line-point intercept combinations, see \code{pct_cover()}.
+#' @param lpi_tall A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.
+#' @param by_year Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.
+#' @param by_line Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.
 #' @param tall Logical. If \code{TRUE} then output will be in tall format
 #' @param hit String. If \code{"first"} then only top LPI hits are included. If \code{"any"} then any hit values are included.
 #' @param ... Optional bare variable names. Names of variables to include as part of grouping e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
-#' @name cover.indicators
+#' @name cover_indicators
 #' @return A \code{tbl} of either wide or tall format.
 
 
 
 #' @export
-#' @rdname cover.indicators
+#' @rdname cover_indicators
 
 # Percent Cover Between Plants####
 # This function assumes that all non-plant codes are <3 characters long
-pct.cover.between.plant <- function(lpi.tall,
+pct_cover_between_plant <- function(lpi_tall,
                                     tall = FALSE,
-                                    by.year = FALSE,
-                                    by.line = FALSE) {
+                                    by_year = FALSE,
+                                    by_line = FALSE) {
   # Calculate between plant cover
-  summary <- pct.cover(lpi.tall,
+  summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "first",
-    by.year = by.year,
-    by.line = by.line,
+    by_year = by_year,
+    by_line = by_line,
     code
   ) %>%
     # Remove all layer codes that are >=3 codes (i.e., species codes)
@@ -51,20 +51,20 @@ pct.cover.between.plant <- function(lpi.tall,
   return(summary)
 }
 #' @export
-#' @rdname cover.indicators
+#' @rdname cover_indicators
 
 # Percent Ground Cover####
 # This function assumes that all non-plant codes are <3 characters long
-pct.cover.all.ground <- function(lpi.tall,
+pct_cover_all_ground <- function(lpi_tall,
                                  tall = FALSE,
-                                 by.year = FALSE,
-                                 by.line = FALSE) {
+                                 by_year = FALSE,
+                                 by_line = FALSE) {
   # Calculate between plant cover
-  summary <- pct.cover(lpi.tall,
+  summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "basal",
-    by.year = by.year,
-    by.line = by.line,
+    by_year = by_year,
+    by_line = by_line,
     code
   ) %>%
     # Remove all layer codes that are >=3 codes (i.e., species codes)
@@ -78,7 +78,11 @@ pct.cover.all.ground <- function(lpi.tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
+                                                           "PlotKey",
+                                                           "PlotID",
+                                                           "LineKey",
+                                                           "LineID"))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -87,19 +91,19 @@ pct.cover.all.ground <- function(lpi.tall,
 }
 
 #' @export
-#' @rdname cover.indicators
+#' @rdname cover_indicators
 
 # Percent Total Foliar Cover####
-pct.cover.total.foliar <- function(lpi.tall,
+pct_cover_total_foliar <- function(lpi_tall,
                                    tall = FALSE,
-                                   by.year = FALSE,
-                                   by.line = FALSE) {
+                                   by_year = FALSE,
+                                   by_line = FALSE) {
   # Calculate between plant cover
-  summary <- pct.cover(lpi.tall,
+  summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "first",
-    by.year = by.year,
-    by.line = by.line,
+    by_year = by_year,
+    by_line = by_line,
     code
   ) %>%
     # Remove all layer codes that are < 3 codes (i.e., non-species codes)
@@ -120,7 +124,11 @@ pct.cover.total.foliar <- function(lpi.tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
+                                                           "PlotKey",
+                                                           "PlotID",
+                                                           "LineKey",
+                                                           "LineID"))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -128,19 +136,19 @@ pct.cover.total.foliar <- function(lpi.tall,
   return(summary)
 }
 #' @export
-#' @rdname cover.indicators
+#' @rdname cover_indicators
 
 # Percent Bare Soil Cover####
-pct.cover.bare.soil <- function(lpi.tall,
+pct_cover_bare_soil <- function(lpi_tall,
                                 tall = FALSE,
-                                by.year = FALSE,
-                                by.line = FALSE) {
+                                by_year = FALSE,
+                                by_line = FALSE) {
   # Calculate between plant cover
-  summary <- pct.cover(lpi.tall,
+  summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "first",
-    by.year = by.year,
-    by.line = by.line,
+    by_year = by_year,
+    by_line = by_line,
     code
   ) %>%
     # Find all of the first hit "S" codes
@@ -154,7 +162,11 @@ pct.cover.bare.soil <- function(lpi.tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
+                                                           "PlotKey",
+                                                           "PlotID",
+                                                           "LineKey",
+                                                           "LineID"))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -162,19 +174,19 @@ pct.cover.bare.soil <- function(lpi.tall,
   return(summary)
 }
 #' @export
-#' @rdname cover.indicators
+#' @rdname cover_indicators
 
 # Percent Litter Cover####
-pct.cover.litter <- function(lpi.tall,
+pct_cover_litter <- function(lpi_tall,
                              tall = FALSE,
-                             by.year = FALSE,
-                             by.line = FALSE) {
+                             by_year = FALSE,
+                             by_line = FALSE) {
   # Calculate between plant cover
-  summary <- pct.cover(lpi.tall,
+  summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "any",
-    by.year = by.year,
-    by.line = by.line,
+    by_year = by_year,
+    by_line = by_line,
     code
   ) %>%
     # Remove all layer codes that are <3 codes (i.e., non-species codes)
@@ -188,7 +200,11 @@ pct.cover.litter <- function(lpi.tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
+                                                           "PlotKey",
+                                                           "PlotID",
+                                                           "LineKey",
+                                                           "LineID"))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -198,24 +214,24 @@ pct.cover.litter <- function(lpi.tall,
 }
 
 #' @export
-#' @rdname cover.indicators
+#' @rdname cover_indicators
 
 # Percent Cover Live vs Dead
-pct.cover.live <- function(lpi.tall,
+pct_cover_live <- function(lpi_tall,
                            tall = FALSE,
-                           by.year = FALSE,
-                           by.line = FALSE,
+                           by_year = FALSE,
+                           by_line = FALSE,
                            hit = "any",
                            ...) {
-  grouping.variables <- rlang::quos(...)
+  grouping_variables <- rlang::quos(...)
   # summarize by checkbox and pre-assigned grouping variables
-  summary <- pct.cover(lpi.tall,
+  summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = hit,
-    by.year = by.year,
-    by.line = by.line,
+    by_year = by_year,
+    by_line = by_line,
     chckbox,
-    !!!grouping.variables
+    !!!grouping_variables
   )
 
   # remove groupings with NAs
@@ -240,7 +256,11 @@ pct.cover.live <- function(lpi.tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
+                                                           "PlotKey",
+                                                           "PlotID",
+                                                           "LineKey",
+                                                           "LineID"))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -251,26 +271,26 @@ pct.cover.live <- function(lpi.tall,
 }
 
 #' @export
-#' @rdname cover.indicators
+#' @rdname cover_indicators
 
 ## Percent Cover by Species
-pct.cover.species <- function(lpi.tall,
+pct_cover_species <- function(lpi_tall,
                               tall = TRUE,
-                              by.year = FALSE,
-                              by.line = FALSE,
+                              by_year = FALSE,
+                              by_line = FALSE,
                               hit = "any") {
-  summary <- pct.cover(lpi.tall,
+  summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = hit,
-    by.year = by.year,
-    by.line = by.line,
+    by_year = by_year,
+    by_line = by_line,
     code
   )
 
   # Kick out codes of length < 3 because species codes should all be >= 3 characters
   summary <- subset(summary, nchar(indicator) >= 3)
 
-  # pct.cover() used the species as an indicator, but that name makes less sense as an output here
+  # pct_cover() used the species as an indicator, but that name makes less sense as an output here
   summary <- dplyr::rename(summary, Species = indicator)
 
   if (!tall) {
@@ -282,7 +302,11 @@ pct.cover.species <- function(lpi.tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey", "PlotKey", "PlotID", "LineKey", "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
+                                                           "PlotKey",
+                                                           "PlotID",
+                                                           "LineKey",
+                                                           "LineID"))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
