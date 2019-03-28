@@ -1,31 +1,15 @@
 #' Calculate AERO Inputs
+#' @description  Function for creating inputs to the AERO wind erosion model, requires height, line-point intercept, canopy gap, and soil texture observations for each plot.
 #' @param gap_tall Table. Gap data in tall format
 #' @param height_tall Table. Height data in tall format
+#' @param lpi_tall Table. Line-point intercept data in tall format
+#' @param header Table. Contains PrimaryKey, Latitude, and Longitude
+#' @param texture_raster Raster. Soil texture layer with sand and clay percentages
+#' @param folder_location Character. Location for function to save AERO input files
+#' @return AERO input files and an input_summary table which summarizes all input values in a single place.
 #'
-#' #' @export aero_gap
-#' #' @rdname AERO
-#' #'
-#' #'
-#' aero_gap <- function(gap_tall) {
-#'   # Calculate gaps by breaks
-#'
-#'
-#'  # Calculate the total number of gaps in each plot
-#'   gap_probability <- gap %>%
-#'     dplyr::group_by(PrimaryKey) %>%
-#'     dplyr::summarise(total_n = sum(n)) %>%
-#'     dplyr::left_join(gap, ., by = "PrimaryKey") %>%
-#'     # Calculate the probability of gaps for each gap interval within each plot
-#'     dplyr::group_by(PrimaryKey, gap_class) %>%
-#'     dplyr::summarise(probability = n / total_n)
-#'
-#'   # Rename gap intervals so they are numeric
-#'   gap$interval_value <- gsub(pattern = "\\[|\\,.+$", x = gap$gap_class, replacement = "") %>% as.numeric()
-#'
-#'   # Merge the gap cover and gap probability
-#'   gap_output <- dplyr::left_join(gap, gap_probability, by = c("PrimaryKey", "gap_class"))
-#' }
-#' #
+#' @export aero
+#' @rdname AERO
 
 aero<- function (lpi_tall,
                  gap_tall,
@@ -76,11 +60,13 @@ aero<- function (lpi_tall,
                                  by_year = FALSE,
                                  by_line = FALSE)
 
+  # subset gap_tall to only Canopy gaps
+  canopy_gap <- subset(gap_tall, RecType == "C")
 
   # Find out which plots have bare soil and height data
   common_PK <- Reduce(intersect, (list(
-    unique(gap_tall$PrimaryKey),
-    unique(plots_texture$PrimaryKey),
+    unique(canopy_gap$PrimaryKey),
+     unique(plots_texture$PrimaryKey),
     unique(max_height$PrimaryKey),
     unique(bare_soil$PrimaryKey)
   )))
@@ -91,11 +77,11 @@ aero<- function (lpi_tall,
   dir.create(gap_location)
 
   # Convert gaps to meters
-  gap_tall <- gap_tall %>% dplyr::mutate(Gap = Gap/100)
+  canopy_gap <- canopy_gap %>% dplyr::mutate(Gap = Gap/100)
   # Write files to gap location
   lapply(
     common_PK,
-    function(X) write.table(gap_tall[gap_tall$PrimaryKey == X, "Gap"],
+    function(X) write.table(canopy_gap[canopy_gap$PrimaryKey == X, "Gap"],
                             file = paste(folder_location, "gap/", X, ".txt", sep = ""),
                             col.names = F, row.names = F, sep = "\t"
     )
@@ -133,6 +119,12 @@ aero<- function (lpi_tall,
       )
     }
   )
+  ## remove
+  input_data <- dplyr::left_join(bare_soil, canopy_gap) %>%
+    dplyr::left_join(max_height) %>%
+    dplyr::left_join(plots_texture@data)
+
+  write.csv(input_data, file = paste(folder_location, "input_data.csv", sep = ""))
 
 }
 

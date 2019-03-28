@@ -56,7 +56,7 @@ header_build_lmf <- function(dsn, ...) {
     )
 
   # County and State are referred to by number codes, let's use the name
-  point <- sf::st_read(dsn, source = "COUNTYNM") %>%
+  point <- sf::st_read(dsn, layer = "COUNTYNM") %>%
     dplyr::select(COUNTY, COUNTYNM, STATE) %>%
     dplyr::left_join(point, .,
                      by = c("COUNTY", "STATE")) %>%
@@ -64,7 +64,7 @@ header_build_lmf <- function(dsn, ...) {
 
 
     # Add state
-    dplyr::left_join(sf::st_read(dsn, source = "STATENM"),
+    dplyr::left_join(sf::st_read(dsn, layer = "STATENM"),
                      by = "STATE") %>%
 
     # pair down to needed fields
@@ -82,7 +82,7 @@ header_build_lmf <- function(dsn, ...) {
     dplyr::mutate(DateLoadedInDb = DBKey)
 
   # Get the field coordinates
-  point_coordinate <- sf::read_sf(dsn = dsn, source = "POINTCOORDINATES") %>%
+  point_coordinate <- sf::st_read(dsn = dsn, layer = "POINTCOORDINATES") %>%
     as.data.frame() %>%
     dplyr::select(PrimaryKey,
       Latitude = REPORT_LATITUDE,
@@ -95,7 +95,7 @@ header_build_lmf <- function(dsn, ...) {
   # Add elevation data
   point_elevation <- sf::read_sf(
     dsn = dsn,
-    source = "GPS"
+    layer = "GPS"
   ) %>%
     dplyr::select(PrimaryKey,
       DateVisited = CAPDATE, # The GPS capture date is the best approx
@@ -109,7 +109,7 @@ header_build_lmf <- function(dsn, ...) {
     dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
 
   # Add Ecological Site Id
-  point_ESD <- sf::st_read(dsn, source = "ESFSG") %>%
+  point_ESD <- sf::st_read(dsn, layer = "ESFSG") %>%
     dplyr::left_join(point_elevation, ., by = "PrimaryKey") %>%
 
     # If the ESD coverage !=all, figure what portion of the plot the dominant ESD
@@ -163,6 +163,8 @@ header_build <- function(dsn, source, ...) {
     "AIM" = header_build_terradat(dsn = dsn, ...),
     "DIMA" = header_build_terradat(dsn = dsn, ...)
   )
+
+  header$source <- source
 
   return(header)
 }
