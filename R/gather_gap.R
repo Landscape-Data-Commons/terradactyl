@@ -85,7 +85,9 @@ gather_gap_terradat <- function(dsn) {
 #' @export gather_gap_lmf
 #' @rdname gather_gap
 
-gather_gap_lmf <- function(dsn, file_type = "gdb") {
+gather_gap_lmf <- function(dsn,
+                           file_type = "gdb",
+                           point_dsn = "" ) {
   gintercept <- switch(file_type,
     "gdb" = {
       suppressWarnings(sf::st_read(
@@ -111,13 +113,105 @@ gather_gap_lmf <- function(dsn, file_type = "gdb") {
     }
   )
 
+  # Read in point file for other plot level information
+  point <- switch(file_type,
+                  "gdb" = {
+                    suppressWarnings(sf::st_read(
+                      dsn = dsn,
+                      layer = "POINT"
+                    )) %>%
+                      subset(., select = -c(
+                        GlobalID,
+                        created_user,
+                        created_date,
+                        last_edited_user,
+                        last_edited_date
+                      ))
+                  },
+                  "txt" = {
+                    read.table(paste(dsn, "point.txt", sep = ""),
+                               stringsAsFactors = FALSE,
+                               strip.white = TRUE,
+                               header = FALSE, sep = "|"
+                    )
+                  },
+                  "csv" = {
+                    read.csv(dsn)
+                  }
+  )
+
 
   if (file_type == "txt") {
     # Add meaningful column names
     gintercept <- name_variables_nri(data = gintercept,
                                      table_name = "GINTERCEPT")
+    point <- name_variables_nri(data = gintercept,
+                                table_name = "POINT")
   }
 
+  # Look at the point table and add blanks or substitute perennial gap for
+  # canopy gap
+  canopy_infer <- point[point$GAPS_DIFFERENT_NESW == "N"|
+                          point$GAPS_DIFFERENT_NWSE == "N",] %>%
+    dplyr::select("PrimaryKey",
+                  "GAPS_DIFFERENT_NESW",
+                  "GAPS_DIFFERENT_NWSE") %>%
+
+    # Gather so that we can query by lines
+    tidyr::gather(key = "TRANSECT", value = "different", -"PrimaryKey") %>%
+
+    # Select so that only values where canopy gap is not different
+    subset(different == "N") %>%
+
+    # Reduce line key to just line number
+    dplyr::mutate(TRANSECT = stringr::str_replace_all(TRANSECT,
+                                                  pattern = "GAPS_DIFFERENT_",
+                                                  replace = "") %>% tolower)
+
+  # select perennial gaps that are not different to canopy gaps and infer c
+  # canopy gaps
+
+  canopy_infer <- dplyr::full_join(gintercept, canopy_infer,
+                                   by = c("PrimaryKey", "TRANSECT")) %>%
+   dplyr::filter(!is.na(different) & GAP_TYPE == "peren") %>%
+
+    # Code perennial to canopy
+    dplyr::mutate(GAP_TYPE = "canopy")
+
+  # Join canopy data back to gintercept
+
+  gintercept <- rbind(gintercept, dplyr::select(canopy_infer, -different))
+
+  ## Add zeros where no canopy gap data were recorded
+  zero_gap <- point %>% dplyr::select("PrimaryKey",
+                                      "DBKey",
+                                      "BASAL_GAPS_NESW",
+                                      "CANOPY_GAPS_NESW",
+                                      "BASAL_GAPS_NWSE",
+                                      "CANOPY_GAPS_NWSE",
+                                      "PERENNIAL_CANOPY_GAPS_NESW",
+                                      "PERENNIAL_CANOPY_GAPS_NWSE"
+                                      ) %>%
+    tidyr::gather(key = "TRANSECT", value = "zero", -c("PrimaryKey", "DBKey")) %>%
+
+    # Filter for plots and lines where we need to insert zeros
+    dplyr::filter(zero == "N") %>%
+
+    # rework transect name
+    dplyr::mutate(GAP_TYPE = stringr::str_replace(TRANSECT,
+                                                  pattern = "_.*",
+                                                  replacement = "") %>%
+                    # recode GAP_TYPE
+                    dplyr::recode("CANOPY" =  "canopy",
+                                  "PERENNIAL" = "peren",
+                                  "BASAL" = "basal"),
+      TRANSECT = stringr::str_sub(TRANSECT, -4) %>% tolower(),
+      START_GAP = 0,
+      END_GAP = 0)
+
+
+  # Merge back to gintercept
+  gintercept <- dplyr::full_join(gintercept, zero_gap)  %>% dplyr::select(-zero)
 
   # convert to metric, original data are in decimal feet
   gintercept$START_GAP <- gintercept$START_GAP * 30.48
