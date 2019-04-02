@@ -4,6 +4,7 @@
 #' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
 #' @param file_type Character string. Type of file, text or geodatabase, to read from.
 #' @param source Character string. The original source of the data. "TerrAdat", "AIM", "DIMA", "LMF", "NRI" are all valide options.
+#' @param point_file Character string. File path to the point file, required for csv and text file types wher "LMF" or "NRI" are identified as the source.
 #' @return A data frames containing the data from the Gap intercepts data in tall format.
 
 #' @export gather_gap_terradat
@@ -261,10 +262,18 @@ gather_gap_lmf <- function(dsn,
 #' @rdname gather_gap
 gather_gap <- function(dsn,
                        file_type = "gdb",
-                       source) {
+                       source,
+                       point_file = "") {
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
     stop("No valid source provided")
+  } )
+
+  # Check for valid source file if using LMF or NRI from txt or csv
+  try(if(source %in% c("LMF", "NRI") &
+         file_type %in% c("txt", "csv") &
+         point_file == "") {
+    stop("Must specify point_file")
   } )
 
   # Gather gap using the appropriate method
