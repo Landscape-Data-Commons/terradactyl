@@ -140,6 +140,9 @@ generic_growth_habits <- function(data,
     # Rename to data species code field
     dplyr::rename_at(dplyr::vars(SpeciesFixed), ~data_code)
 
+  generic_df <- generic_df[!generic_df[,data_code] %in%
+                             species_list[,species_code],]
+
 
   # Merge with generic species definitions
   generic.code.df <- dplyr::inner_join(
@@ -169,12 +172,19 @@ generic_growth_habits <- function(data,
   generic.code.df <- generic.code.df %>%
     dplyr::rename_at(dplyr::vars(data_code), ~species_code)
 
+  # Subset generic species that are not defined in species list
+  generic.code.df <- generic.code.df %>%
+    dplyr::filter(!dplyr::vars(data_code) %in% dplyr::select(data, data_code))
+
   # Merge with main species list
   species_generic <- dplyr::full_join(species_list, generic.code.df)
 
   # Remove Code, Prefix, and PrimaryKey if they exist
   species_generic <- species_generic[, !colnames(species_generic) %in%
     c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
+
+  # Remove NA in species list
+  species_generic <- species_generic %>% subset(!is.na(SpeciesCode))
 
 
   return(species_generic)

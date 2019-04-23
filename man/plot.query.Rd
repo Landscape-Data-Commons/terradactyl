@@ -4,7 +4,7 @@
 \alias{plot.query}
 \title{Select plots using spatial extent}
 \usage{
-\method{plot}{query}(gathered.data, extent, plots = NULL)
+plot.query(gathered.data, extent, plots = NULL)
 }
 \arguments{
 \item{gathered.data}{Data frame. The plot data containing at minimum a variable called "PrimaryKey" containing values matching those in \code{extent} or \code{plots}.}

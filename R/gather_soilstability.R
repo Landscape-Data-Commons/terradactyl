@@ -65,7 +65,7 @@ gather_soil_stability_terradat <- function(dsn) {
     X = as.list(unique(gathered$key)),
     FUN = function(k = as.list(unique(gathered$key)), df = gathered) {
       test <- df[df$key == k, ] %>%
-        dplyr::mutate(id = 1:n()) %>%
+        dplyr::mutate(id = 1:dplyr::n()) %>%
         tidyr::spread(key = key, value = value) %>%
         dplyr::select(-id)
     }
@@ -136,7 +136,7 @@ gather_soil_stability_lmf <- function(dsn, file_type = "gdb") {
     X = as.list(unique(gathered$variable)),
     FUN = function(k = as.list(unique(gathered$variable)), df = gathered) {
       df[df$variable == k, ] %>%
-        dplyr::mutate(id = 1:n()) %>%
+        dplyr::mutate(id = 1:dplyr::n()) %>%
         tidyr::spread(key = variable, value = value) %>%
         dplyr::select(-id)
     }
