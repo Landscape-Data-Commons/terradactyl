@@ -1,5 +1,5 @@
 # Species Checks--Check that the species list covers all observed species
-#' @param dsn_tall The observed data datasource
+#' @param dsn_tall The observed data data source
 #' @param species_list_file The file path to the species list. If the dsn contains the species list, then specify the layer within the dsn.
 
 #' @export species_list_check
