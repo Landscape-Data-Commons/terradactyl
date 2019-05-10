@@ -3,6 +3,7 @@
 export("%>%")
 export(aero)
 export(build.PK)
+export(build_indicators)
 export(build_lmf_indicators)
 export(build_terradat_indicators)
 export(gap.cover)
