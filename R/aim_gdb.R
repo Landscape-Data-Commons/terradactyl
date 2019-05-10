@@ -979,7 +979,9 @@ build_lmf_indicators <- function(dsn, source,
   return(all_indicators)
 }
 
-
+# Build LMF Indicators
+#' @export build_indicators
+#' @rdname aim_gdb
 # Build wrapper
 build_indicators <- function(dsn, source, lpi_tall,
                              gap_tall,

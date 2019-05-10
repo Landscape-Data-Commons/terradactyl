@@ -11,6 +11,7 @@
 \alias{soil_stability_calc}
 \alias{build_terradat_indicators}
 \alias{build_lmf_indicators}
+\alias{build_indicators}
 \title{Build AIM Indicators Tables and Feature Classes}
 \usage{
 header_build_terradat(dsn, ...)
@@ -33,6 +34,9 @@ build_terradat_indicators(dsn, source, lpi_tall, gap_tall, height_tall,
   spp_inventory_tall, soil_stability_tall, ...)
 
 build_lmf_indicators(dsn, source, lpi_tall, gap_tall, height_tall,
+  spp_inventory_tall, soil_stability_tall, ...)
+
+build_indicators(dsn, source, lpi_tall, gap_tall, height_tall,
   spp_inventory_tall, soil_stability_tall, ...)
 }
 \arguments{
