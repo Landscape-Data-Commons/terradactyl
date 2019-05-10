@@ -47,11 +47,11 @@ gather_lpi_terradat <- function(dsn) {
 
   lpi_hits_tall <- dplyr::filter(
     .data = lpi_hits_tall,
-    !is.na("code"),
-    "code" != "",
-    "code" != "None",
-    !is.na("PrimaryKey"),
-    !is.na("RecKey")
+    !is.na(code),
+    code != "",
+    code != "None",
+    !is.na(PrimaryKey),
+    !is.na(RecKey)
   )
 
 
@@ -70,8 +70,6 @@ gather_lpi_terradat <- function(dsn) {
       value = "chckbox",
       dplyr::matches("^Chkbox")
     )
-
-
 
   # Remove Woody and Herbaceous Checkbox
   lpi_chkbox_tall <- lpi_chkbox_tall[!(lpi_chkbox_tall$chckbox %in%

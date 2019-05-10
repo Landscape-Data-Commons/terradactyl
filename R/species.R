@@ -208,6 +208,13 @@ species_join <- function(data, # field data,
   # Print
   print("Gathering species data")
 
+  # Set join levels, so that we can flexibly include SpeciesState
+  if ("SpeciesState" %in% names(data)) {
+    join_by <- c(data_code, "SpeciesState")
+  } else {
+    join_by <- data_code
+  }
+
   ## Load species data
   species_list <- gather_species(
     species_file = species_file,
@@ -215,6 +222,41 @@ species_join <- function(data, # field data,
     growth_habit_code = growth_habit_code,
     species_growth_habit_code = species_growth_habit_code
   )
+
+  # Look for UpdatedSpecies and Update the Observation codes, if necessary
+  if ("UpdatedSpeciesCode" %in% names(species_list)) {
+    if(any(!is.na(species_list$UpdatedSpeciesCode))){
+
+      ## Rename column
+      species_list <- species_list %>%
+        dplyr::rename_at(dplyr::vars(species_code), ~data_code)
+
+      # Make sure Updated Species Code is a character vector
+      species_list$UpdatedSpeciesCode <- as.character(species_list$UpdatedSpeciesCode)
+
+      # Merge the Updated Species codes to the data
+      data_update <- dplyr::left_join(data,
+                                      dplyr::select(species_list, data_code,
+                                                    UpdatedSpeciesCode, SpeciesState),
+                                      by = join_by)
+
+      # Overwrite the original data code with any updated species codes
+      data_update <- data_update %>%
+        dplyr::mutate_at(data_code,
+                         ~dplyr::coalesce(data_update$UpdatedSpeciesCode,
+                                          data_update[[data_code]]))
+
+      # Overwrite original data with updated data
+      data = data_update %>% dplyr::select(names(data))
+
+      # Rename species_list
+      ## Rename column
+      species_list <- species_list %>%
+        dplyr::rename_at(dplyr::vars(data_code), ~species_code)
+
+
+    }
+  }
 
   ## Merge unknown codes
   species_generic <- generic_growth_habits(
@@ -246,12 +288,7 @@ species_join <- function(data, # field data,
   ## Remoe any duplicate values
   species_generic <- species_generic %>% dplyr::distinct()
 
-  # Set join levels, so that we can flexibly include SpeciesState
-  if ("SpeciesState" %in% names(data)) {
-    join_by <- c(data_code, "SpeciesState")
-  } else {
-    join_by <- data_code
-  }
+
 
 
   # Add species information to data

@@ -8,9 +8,9 @@
 \usage{
 gather_gap_terradat(dsn)
 
-gather_gap_lmf(dsn, file_type = "gdb")
+gather_gap_lmf(dsn, file_type = "gdb", point_dsn = "")
 
-gather_gap(dsn, file_type = "gdb", source)
+gather_gap(dsn, file_type = "gdb", source, point_file = "")
 }
 \arguments{
 \item{dsn}{Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.}
@@ -18,6 +18,8 @@ gather_gap(dsn, file_type = "gdb", source)
 \item{file_type}{Character string. Type of file, text or geodatabase, to read from.}
 
 \item{source}{Character string. The original source of the data. "TerrAdat", "AIM", "DIMA", "LMF", "NRI" are all valide options.}
+
+\item{point_file}{Character string. File path to the point file, required for csv and text file types wher "LMF" or "NRI" are identified as the source.}
 }
 \value{
 A data frames containing the data from the Gap intercepts data in tall format.

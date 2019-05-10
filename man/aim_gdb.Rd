@@ -19,19 +19,21 @@ header_build_lmf(dsn, ...)
 
 header_build(dsn, source, ...)
 
-lpi_calc(header, dsn, source)
+lpi_calc(header, lpi_tall, source)
 
-gap_calc(header, dsn, source)
+gap_calc(header, gap_tall)
 
-height_calc(header, dsn, source)
+height_calc(header, height_tall, source)
 
-spp_inventory_calc(header, dsn, source)
+spp_inventory_calc(header, spp_inventory_tall)
 
-soil_stability_calc(header, dsn, source)
+soil_stability_calc(header, soil_stability_tall)
 
-build_terradat_indicators(dsn, source, ...)
+build_terradat_indicators(dsn, source, lpi_tall, gap_tall, height_tall,
+  spp_inventory_tall, soil_stability_tall, ...)
 
-build_lmf_indicators(dsn, source, ...)
+build_lmf_indicators(dsn, source, lpi_tall, gap_tall, height_tall,
+  spp_inventory_tall, soil_stability_tall, ...)
 }
 \arguments{
 \item{dsn}{String File path to the TerrADat database.}

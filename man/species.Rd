@@ -42,7 +42,7 @@ in the growth habit file. Defaults to \code{"Code"}}
 
 \item{species_duration}{Character. the field name for the Duration field in the species file.}
 
-\item{dsn_tall}{The observed data datasource}
+\item{dsn_tall}{The observed data data source}
 
 \item{species_list_file}{The file path to the species list. If the dsn contains the species list, then specify the layer within the dsn.}
 }
