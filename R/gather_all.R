@@ -12,7 +12,7 @@ gather_all <- function(dsn, folder){
   gap_tall_lmf <- gather_gap(dsn = dsn, source = "LMF")
   gap_tall <- dplyr::full_join(gap_tall_aim, gap_tall_lmf)
   saveRDS(gap_tall,
-          file = paste("gap_tall.Rdata", sep =""))
+          file = paste(folder, "gap_tall.Rdata", sep =""))
 
   # Soil stability
   soil_stability_tall_aim <- gather_soil_stability(dsn = dsn, source = "AIM")
