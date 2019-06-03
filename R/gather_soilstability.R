@@ -115,7 +115,7 @@ gather_soil_stability_lmf <- function(dsn, file_type = "gdb") {
     "last_edited_date"
   )]
 
-  # conver white space to NA
+  # convert white space to NA
   soildisag[soildisag == ""] <- NA
 
   # Convert to tall format
@@ -125,9 +125,14 @@ gather_soil_stability_lmf <- function(dsn, file_type = "gdb") {
   # Remove NAs
   gathered <- soil_tall[!is.na(soil_tall$value), ]
 
-  # Separate numerical suffixes from field type
-  gathered$variable <- stringr::str_extract(string = gathered$variable,
-                                            pattern = "^[A-z]+")
+  gathered <- tidyr::separate(gathered, col = variable,
+                              into = c("type", "Position"),
+                              sep = "[[:alpha:]]+",
+                              remove = FALSE) %>%
+    dplyr::mutate(variable = stringr::str_extract(string = gathered$variable,
+                                                  pattern = "^[A-z]+")) %>%
+    dplyr::select(-type)
+
 
   # Spread the gathered data so that Line, Rating, Vegetation,
   # and Hydro are all different variables
@@ -149,6 +154,9 @@ gather_soil_stability_lmf <- function(dsn, file_type = "gdb") {
 
    # Make sure the rating field is numeric
   soil_stability_tidy$Rating <- as.numeric(soil_stability_tidy$Rating)
+
+  # Remove 0 values
+  soil_stability_tidy <- soil_stability_tidy %>% subset(Rating > 0)
 
   # Return final merged file
   return(soil_stability_tidy)
