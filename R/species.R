@@ -184,7 +184,10 @@ generic_growth_habits <- function(data,
     c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
 
   # Remove NA in species list
-  species_generic <- species_generic %>% subset(!is.na(SpeciesCode))
+  if("SpeciesCode" %in% names(species_generic)) {
+    species_generic <- species_generic %>% subset(!is.na(SpeciesCode))
+
+  }
 
 
   return(species_generic)
@@ -215,6 +218,11 @@ species_join <- function(data, # field data,
     join_by <- data_code
   }
 
+  # Somne projects use "None" to indicate "No species". Convert those to N instead
+  data <- data %>% dplyr::mutate_at(data_code,
+                                    ~stringr::str_replace(pattern = "None",
+                                                         replacement = "N",
+                                                         string = data[[data_code]]))
   ## Load species data
   species_list <- gather_species(
     species_file = species_file,

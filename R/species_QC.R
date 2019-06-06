@@ -1,4 +1,5 @@
 # Species Checks--Check that the species list covers all observed species
+#' @description Quality control species attribute lists prior to running indicator calculations.
 #' @param dsn_tall The observed data data source
 #' @param species_list_file The file path to the species list. If the dsn contains the species list, then specify the layer within the dsn.
 
@@ -162,7 +163,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   growth_habit_sub <- terradactyl::species_attributes$GrowthHabitSub %>%
     unique() %>%
     toupper()
-  sg_group <- terradactyl::species_attributes$SG_GROUP %>%
+  sg_group <- terradactyl::species_attributes$SG_Group %>%
     unique() %>%
     toupper()
 
@@ -219,3 +220,98 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 }
 
 ####
+
+#' @export species_list_compare
+#' @rdname species
+
+species_list_compare <- function(species_file,
+                                 folder) {
+  # Read in species list, either from csv or geodatabase
+  species_list <- switch(toupper(stringr::str_extract(species_file,
+                                                      pattern = "[A-z]{3}$")),
+                         GDB = {
+                           suppressWarnings(sf::st_read(dsn = species_file,
+                                                        layer = "tblStateSpecies"))
+                         },
+                         CSV = {
+                           read.csv(species_file, stringsAsFactors = FALSE, na.strings = c("", " "))
+                         }
+  )
+
+  # Identify the duplicated species lists
+  duplicated_species <- species_list %>%
+    dplyr::group_by(SpeciesCode) %>% dplyr::add_tally() %>%
+    dplyr::filter(n>1) %>%
+    # Select only fields of interest
+    dplyr::select(SpeciesCode, GrowthHabit, GrowthHabitSub,
+                  Duration, SG_Group, Noxious, SpeciesState) %>%
+    # convert to upper to remove unintended errors
+    dplyr::mutate_at(is.character, toupper) %>%
+    # remove any spaces to remove unintended errors
+    dplyr::mutate(SG_Group = SG_Group %>%
+                    stringr::str_replace_all(pattern = " ",
+                                             replacement = ""))
+
+ # Identify the growth habit mismatches
+  growth_habit_mismatch <- duplicated_species %>%
+    dplyr::select(SpeciesCode, GrowthHabit) %>%
+    dplyr::distinct() %>%
+    dplyr::group_by(SpeciesCode) %>% dplyr::add_tally() %>%
+    dplyr::filter(n>1) %>%
+    dplyr::select(SpeciesCode) %>%
+    dplyr::left_join(species_list) %>%
+    dplyr::distinct()
+  write.csv(growth_habit_mismatch,
+            paste(folder, "growth_habit_mismatch.csv", sep = ""))
+
+  growth_habit_sub_mismatch <- duplicated_species %>%
+    dplyr::select(SpeciesCode, GrowthHabitSub) %>%
+    dplyr::distinct() %>%
+    dplyr::group_by(SpeciesCode) %>% dplyr::add_tally() %>%
+    dplyr::filter(n>1) %>%
+    dplyr::select(SpeciesCode) %>%
+    dplyr::left_join(species_list) %>%
+    dplyr::distinct()
+  write.csv(growth_habit_sub_mismatch,
+            paste(folder, "growth_habitsub_mismatch.csv", sep = ""))
+
+  SG_Group_mismatch <- duplicated_species %>%
+    dplyr::select(SpeciesCode, SG_Group) %>%
+    dplyr::distinct() %>%
+    dplyr::group_by(SpeciesCode) %>% dplyr::add_tally() %>%
+    dplyr::filter(n>1) %>%
+    dplyr::select(SpeciesCode) %>%
+    dplyr::left_join(species_list) %>%
+    dplyr::distinct()
+  write.csv(SG_Group_mismatch,
+            paste(folder, "SG_Group_mismatch.csv", sep = ""))
+
+  duration_mismatch <- duplicated_species %>%
+    dplyr::select(SpeciesCode, Duration) %>%
+    dplyr::distinct() %>%
+    dplyr::group_by(SpeciesCode) %>% dplyr::add_tally() %>%
+    dplyr::filter(n>1) %>%
+    dplyr::select(SpeciesCode) %>%
+    dplyr::left_join(species_list) %>%
+    dplyr::distinct()
+  write.csv(duration_mismatch, paste(folder,"duration_mismatch.csv", sep = ""))
+
+  noxious_mismatch <- duplicated_species %>%
+    dplyr::select(SpeciesCode, Noxious) %>%
+    dplyr::distinct() %>%
+    dplyr::group_by(SpeciesCode) %>% dplyr::add_tally() %>%
+    dplyr::filter(n>1) %>%
+    dplyr::select(SpeciesCode) %>%
+    dplyr::left_join(species_list) %>%
+    dplyr::distinct()
+  write.csv(noxious_mismatch, paste(folder, "noxious_mismatch.csv", sep = ""))
+
+  return (list(duration_mismatch,
+               growth_habit_sub_mismatch,
+               growth_habit_mismatch,
+               SG_Group_mismatch,
+               noxious_mismatch,
+               duration_mismatch))
+
+
+}

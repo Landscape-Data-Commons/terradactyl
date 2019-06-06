@@ -40,7 +40,6 @@ pct_cover <- function(lpi_tall,
     code != "",
     code != "None",
     code != "N",
-    code != "NONE",
     !is.na("PrimaryKey"),
     !is.na("LineKey"),
     code != "<NA>"
@@ -69,6 +68,9 @@ pct_cover <- function(lpi_tall,
     y = point_totals,
     by = "PrimaryKey"
   )
+
+  # make sure layer is a character field
+  lpi_tall$layer <- as.character(lpi_tall$layer)
 
   # Get the layers into the correct order
   lpi_tall <- dplyr::mutate(

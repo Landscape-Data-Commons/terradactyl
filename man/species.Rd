@@ -5,6 +5,7 @@
 \alias{generic_growth_habits}
 \alias{species_join}
 \alias{species_list_check}
+\alias{species_list_compare}
 \title{Gather species attribute data}
 \usage{
 gather_species(species_file,
@@ -24,6 +25,8 @@ species_join(data, data_code = "code", species_file = "",
   generic_species_file = "")
 
 species_list_check(dsn_tall, species_list_file, ...)
+
+species_list_compare(species_file, folder)
 }
 \arguments{
 \item{species_file}{Character string. The full file path (including file extension)
@@ -48,4 +51,6 @@ in the growth habit file. Defaults to \code{"Code"}}
 }
 \description{
 Gather species attributes and join to species observations.
+
+Quality control species attribute lists prior to running indicator calculations.
 }

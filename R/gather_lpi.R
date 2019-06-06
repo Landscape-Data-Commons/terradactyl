@@ -158,7 +158,7 @@ gather_lpi_lmf <- function(dsn,
   # remove one of the point 75’s from the data set.
   # Remove the nesw transect—that would be all rows in pintercept
   # where transect == “nesw” AND mark = 75.
-  pintercept <- pintercept %>% subset(!("MARK" == 75 & "TRANSECT" == "nesw"))
+  pintercept <- pintercept[!(pintercept$TRANSECT== "nesw" & pintercept$MARK == 75),]
 
 
   # Where there is a Soil hit, LMF records "None" in BASAL and leaves NONSOIL
