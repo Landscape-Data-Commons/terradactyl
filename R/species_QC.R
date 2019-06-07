@@ -246,7 +246,7 @@ species_list_compare <- function(species_file,
     dplyr::select(SpeciesCode, GrowthHabit, GrowthHabitSub,
                   Duration, SG_Group, Noxious, SpeciesState) %>%
     # convert to upper to remove unintended errors
-    dplyr::mutate_at(is.character, toupper) %>%
+    dplyr::mutate_if(is.character, toupper) %>%
     # remove any spaces to remove unintended errors
     dplyr::mutate(SG_Group = SG_Group %>%
                     stringr::str_replace_all(pattern = " ",
