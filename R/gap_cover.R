@@ -14,17 +14,10 @@
 #' @export
 
 
-# Deprecate gap.cover()
-#' @export
-#' @noRd
-gap.cover <- function(gap_tall,
-                      tall = FALSE,
-                      breaks = c(20, 25, 51, 100, 200),
-                      type = "canopy"){
-  stop("This function is deprecated. Use gap_cover() instead.")
-}
 
 # Percent Gap
+#' @export gap_cover
+#' @rdname gap_cover
 gap_cover <- function(gap_tall,
                       tall = FALSE,
                       breaks = c(20, 25, 51, 100, 200),
