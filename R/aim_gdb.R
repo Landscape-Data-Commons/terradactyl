@@ -175,6 +175,7 @@ header_build <- function(dsn, source, ...) {
 # Calculate the LPI indicators
 lpi_calc <- function(header,
                      lpi_tall,
+                     species_file,
                      source) {
 
   # Join the lpi data to the header PrimaryKeys and add the StateSpecies Key
@@ -192,7 +193,7 @@ lpi_calc <- function(header,
   # Join to the state species list via the SpeciesState value
   lpi_species <- species_join(
     data = lpi_tall_header,
-    species_file = dsn,
+    species_file = species_file,
     overwrite_generic_species = TRUE
   ) %>%
     dplyr::distinct()
@@ -581,7 +582,8 @@ gap_calc <- function(header, gap_tall) {
 #' @export height_calc
 #' @rdname aim_gdb
 # Calculate the Height indicators for AIM
-height_calc <- function(header, height_tall, source) {
+height_calc <- function(header, height_tall,
+                        species_file = species_file, source) {
   # gather tall height
   height <- readRDS(height_tall) %>%
 
@@ -592,7 +594,7 @@ height_calc <- function(header, height_tall, source) {
   height_species <- species_join(
     data = height,
     data_code = "Species",
-    species_file = dsn,
+    species_file = species_file,
     overwrite_generic_species = TRUE
   )
 
@@ -728,7 +730,7 @@ height_calc <- function(header, height_tall, source) {
 #' @export spp_inventory_calc
 #' @rdname aim_gdb
 # Calculate species inventory
-spp_inventory_calc <- function(header, spp_inventory_tall) {
+spp_inventory_calc <- function(header, spp_inventory_tall, species_file) {
   # tidy.species
   spp_inventory_tall <- readRDS(spp_inventory_tall) %>%
     # Join to the header to get the relevant PrimaryKeys and SpeciesSate
@@ -740,7 +742,7 @@ spp_inventory_calc <- function(header, spp_inventory_tall) {
   spp_inventory_species <- species_join(
     data = spp_inventory_tall,
     data_code = "Species",
-    species_file = dsn,
+    species_file = species_file,
     overwrite_generic_species = TRUE
   )
 
@@ -855,6 +857,7 @@ soil_stability_calc <- function(header, soil_stability_tall) {
 # Build indicators feature class
 build_terradat_indicators <- function(dsn,
                                       source,
+                                      species_file,
                                       lpi_tall,
                                       gap_tall,
                                       height_tall,
@@ -879,7 +882,8 @@ build_terradat_indicators <- function(dsn,
     lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
-      source = source
+      source = source,
+      species_file = species_file
     ),
     # Gap
      gap_calc(
@@ -890,12 +894,14 @@ build_terradat_indicators <- function(dsn,
    height_calc(
       height_tall = height_tall,
       header = header,
-      source = source
+      source = source,
+      species_file = species_file
     ),
     # Species Inventory
     spp_inventory_calc(
       spp_inventory_tall = spp_inventory_tall,
-      header = header
+      header = header,
+      species_file = species_file
     ),
     # Soil Stability
     soil_stability_calc(
@@ -920,6 +926,7 @@ build_terradat_indicators <- function(dsn,
 #' @rdname aim_gdb
 
 build_lmf_indicators <- function(dsn, source,
+                                 species_file,
                                  lpi_tall,
                                  gap_tall,
                                  height_tall,
@@ -984,6 +991,7 @@ build_lmf_indicators <- function(dsn, source,
 #' @rdname aim_gdb
 # Build wrapper
 build_indicators <- function(dsn, source, lpi_tall,
+                             species_file,
                              gap_tall,
                              height_tall,
                              spp_inventory_tall,
