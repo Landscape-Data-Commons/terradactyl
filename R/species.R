@@ -165,7 +165,7 @@ generic_growth_habits <- function(data,
 
   # Indicate that generic codes are non-noxious
   if ("Noxious" %in% names(species_list)) {
-    generic.code.df$Noxious <- "No"
+    generic.code.df$Noxious <- "NO"
   }
 
   # Rename to SpeciesCode in species list

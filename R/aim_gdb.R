@@ -583,7 +583,8 @@ gap_calc <- function(header, gap_tall) {
 #' @rdname aim_gdb
 # Calculate the Height indicators for AIM
 height_calc <- function(header, height_tall,
-                        species_file = species_file, source) {
+                        species_file = species_file,
+                        source) {
   # gather tall height
   height <- readRDS(height_tall) %>%
 
@@ -665,8 +666,8 @@ height_calc <- function(header, height_tall,
       tall = TRUE,
       Noxious, Duration, GrowthHabitSub
     ) %>% subset(indicator %in% c(
-      "No.Perennial.Graminoid",
-      "Yes.Perennial.Graminoid"
+      "NO.Perennial.Graminoid",
+      "YES.Perennial.Graminoid"
     )),
 
 
@@ -703,8 +704,8 @@ height_calc <- function(header, height_tall,
       stringr::str_replace_all(c(
         "woody" = "Woody",
         "herbaceous" = "Herbaceous",
-        "\\bYes\\b" = "Nox",
-        "\\bNo\\b" = "NonNox",
+        "\\bYES\\b" = "Nox",
+        "\\bNO\\b" = "NonNox",
         "Forb/herb" = "Forb",
         "Graminoid" = "Grass",
         "0" = "_Live",
@@ -752,8 +753,8 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file) {
     species_count(spp_inventory_species, Noxious) %>%
       dplyr::mutate(indicator = indicator %>%
         stringr::str_replace_all(c(
-          "Yes" = "NoxPlant",
-          "\\bNo\\b" = "NonNoxPlant"
+          "YES" = "NoxPlant",
+          "\\bNO\\b" = "NonNoxPlant"
         )) %>%
         stringr::str_replace_na(
           string = .,
@@ -763,7 +764,7 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file) {
     # Preferred Forb
     species_count(spp_inventory_species, SG_Group) %>%
       # Subset to only Preferred Forb
-      subset(indicator == "Preferred Forb") %>%
+      subset(indicator == "PreferredForb") %>%
       dplyr::mutate(indicator = indicator %>%
         stringr::str_replace_all(c(" " = "")))
   ) %>%
@@ -809,8 +810,8 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file) {
     subset(!is.na(Noxious)) %>%
     dplyr::mutate(indicator = Noxious %>%
       stringr::str_replace_all(c(
-        "No" = "NonNox",
-        "Yes" = "Nox",
+        "NO" = "NonNox",
+        "YES" = "Nox",
         " " = ""
       )) %>%
       paste("Spp_", ., sep = "")) %>%
@@ -886,19 +887,19 @@ build_terradat_indicators <- function(dsn,
       species_file = species_file
     ),
     # Gap
-     gap_calc(
-     gap_tall = gap_tall,
+    gap_calc(
+      gap_tall = gap_tall,
       header = header
     ),
     # Height
-   height_calc(
+    test <- height_calc(
       height_tall = height_tall,
       header = header,
       source = source,
       species_file = species_file
     ),
     # Species Inventory
-    spp_inventory_calc(
+   spp_inventory_calc(
       spp_inventory_tall = spp_inventory_tall,
       header = header,
       species_file = species_file
@@ -954,7 +955,8 @@ build_lmf_indicators <- function(dsn, source,
     lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
-      source = source
+      source = source,
+      species_file = species_file
     ),
     # Gap
     gap_calc(
@@ -965,12 +967,14 @@ build_lmf_indicators <- function(dsn, source,
     height_calc(
       height_tall = height_tall,
       header = header,
-      source = source
+      source = source,
+      species_file = species_file
     ),
     # Species Inventory
     spp_inventory_calc(
       spp_inventory_tall = spp_inventory_tall,
-      header = header
+      header = header,
+      species_file = species_file
     ),
     # Soil Stability
     soil_stability_calc(
@@ -1005,6 +1009,7 @@ build_indicators <- function(dsn, source, lpi_tall,
       height_tall = height_tall,
       spp_inventory_tall = spp_inventory_tall,
       soil_stability_tall = soil_stability_tall,
+      species_file = species_file,
       ...
     ),
     "AIM" = build_terradat_indicators(
@@ -1015,6 +1020,7 @@ build_indicators <- function(dsn, source, lpi_tall,
       height_tall = height_tall,
       spp_inventory_tall = spp_inventory_tall,
       soil_stability_tall = soil_stability_tall,
+      species_file = species_file,
       ...
     ),
     "LMF" = build_lmf_indicators(
@@ -1025,6 +1031,7 @@ build_indicators <- function(dsn, source, lpi_tall,
       height_tall = height_tall,
       spp_inventory_tall = spp_inventory_tall,
       soil_stability_tall = soil_stability_tall,
+      species_file = species_file,
       ...
     )
   )
