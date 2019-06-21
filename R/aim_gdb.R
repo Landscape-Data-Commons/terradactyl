@@ -240,7 +240,7 @@ lpi_calc <- function(header,
     "LC" = "Lichen",
     "\\bM\\b" = "Moss",
     "WL" = "WoodyLitter",
-    "CY" = "Cynobacteria",
+    "CY" = "Cyanobacteria",
     "EL" = "EmbLitter",
     "\\bW\\b" = "Water",
     "WA" = "Water",
@@ -318,7 +318,9 @@ lpi_calc <- function(header,
     "SHORT" = "Short",
     "TALL" = "Tall",
     "0" = "Live",
-    "1" = "Dead"
+    "1" = "Dead",
+    "PREFERRED" = "Preferred"
+
   )
 
 
@@ -880,7 +882,7 @@ build_terradat_indicators <- function(dsn,
   indicators <- list(
     header,
     # LPI
-    lpi_calc(
+  lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
       source = source,
@@ -892,7 +894,7 @@ build_terradat_indicators <- function(dsn,
       header = header
     ),
     # Height
-    test <- height_calc(
+    height_calc(
       height_tall = height_tall,
       header = header,
       source = source,
@@ -964,7 +966,7 @@ build_lmf_indicators <- function(dsn, source,
       header = header
     ),
     # Height
-    height_calc(
+   height_calc(
       height_tall = height_tall,
       header = header,
       source = source,
@@ -1036,6 +1038,11 @@ build_indicators <- function(dsn, source, lpi_tall,
     )
   )
 
+  # DELETE IN 2019!!!! ####
+  # rename two fields that were mis-named in aim.gdb
+  all_indicators <- all_indicators %>%
+    dplyr::rename(AH_PreferredForb = AH_PreferredForbCover,
+                  AH_PerenGrassForbCover = AH_PerenForbGrassCover)
 
   # Compare indicator field names with the names for a the target feature class
   feature_class_field_names <- sf::st_read(dsn, layer = source)

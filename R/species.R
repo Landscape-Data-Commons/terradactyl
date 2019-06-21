@@ -218,7 +218,7 @@ species_join <- function(data, # field data,
     join_by <- data_code
   }
 
-  # Somne projects use "None" to indicate "No species". Convert those to N instead
+  # Some projects use "None" to indicate "No species". Convert those to N instead
   data <- data %>% dplyr::mutate_at(data_code,
                                     ~stringr::str_replace(pattern = "None",
                                                          replacement = "N",
