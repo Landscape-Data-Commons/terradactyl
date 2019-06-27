@@ -58,6 +58,9 @@ gather_soil_stability_terradat <- function(dsn) {
 
   gathered <- subset(gathered, select = -c(variable, BoxNum))
 
+  # Remove Hydro = 0
+  gathered <- gathered %>% subset(!(key == "Hydro" & value != 0))
+
   # Spread the gathered data so that Line, Rating, Vegetation,
   # and Hydro are all different variables
 

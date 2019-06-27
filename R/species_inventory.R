@@ -42,6 +42,13 @@ species_count <- function(species_inventory_tall, ...) {
     levels <- rlang::quos(PrimaryKey)
   }
 
+  # make sure that there are a unique set of species for each grouping level
+  species_inventory_tall <- species_inventory_tall %>%
+    dplyr::select(!!!grouping_variables,
+                  !!!levels,
+                  Species) %>%
+    unique()
+
   species_count <- species_inventory_tall %>%
     dplyr::count(!!!levels, !!!grouping_variables) %>%
     tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
@@ -139,11 +146,4 @@ gather_species_inventory <- function(dsn, source, file_type = "gdb") {
   species_inventory$source <- toupper(source)
 
   return(species_inventory)
-}
-
-#' Deprecate gather.species_inventory
-#' @export gather.species.inventory
-#' @noRd
-gather.species.inventory <- function(dsn, source, file_type = "gdb") {
-  stop("This function is deprecated. Use gather_species_inventory() instead.")
 }

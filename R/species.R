@@ -120,8 +120,8 @@ generic_growth_habits <- function(data,
 
     # Clean up the species codes
     dplyr::mutate(SpeciesFixed = toupper(SpeciesFixed) %>%
-      stringr::str_replace_all(string = .,
-                               pattern = " |-", replacement = "")) %>%
+                    stringr::str_replace_all(string = .,
+                                             pattern = " |-", replacement = "")) %>%
 
     # Get unknown codes and clean them up. Unknown codes beging with a 2 (LMF/NRI)
     # or a 2 letter prefix followed by a number.
@@ -134,8 +134,9 @@ generic_growth_habits <- function(data,
     dplyr::mutate(Prefix = gsub(SpeciesFixed,
                                 pattern = "[[:digit:]]",
                                 replacement = "") %>%
-      gsub(., pattern = "([[:alpha:]])\\1+", replacement = "\\1") %>%
-      as.character()) %>%
+                    gsub(., pattern = "([[:alpha:]])\\1+",
+                         replacement = "\\1") %>%
+                    as.character()) %>%
 
     # Rename to data species code field
     dplyr::rename_at(dplyr::vars(SpeciesFixed), ~data_code)
@@ -166,6 +167,11 @@ generic_growth_habits <- function(data,
   # Indicate that generic codes are non-noxious
   if ("Noxious" %in% names(species_list)) {
     generic.code.df$Noxious <- "NO"
+  }
+
+  # Indicate that generic shrubcodes are SG_Group "NonSagebrushShrub"
+  if ("SG_Group" %in% names(species_list)) {
+    generic.code.df$SG_Group[generic.code.df$Code == "SH"] <- "NonSagebrushShrub"
   }
 
   # Rename to SpeciesCode in species list
@@ -296,9 +302,6 @@ species_join <- function(data, # field data,
   ## Remoe any duplicate values
   species_generic <- species_generic %>% dplyr::distinct()
 
-
-
-
   # Add species information to data
   data_species <- dplyr::left_join(
     x = data %>% dplyr::mutate_at(dplyr::vars(data_code), toupper),
@@ -314,13 +317,15 @@ species_join <- function(data, # field data,
     # Read tblSpeciesGeneric
     tbl_species_generic <- sf::st_read(
       dsn = species_file,
-      layer = "tblSpeciesGeneric"
+      layer = "tblSpeciesGeneric",
     ) %>%
       # Select only the needed fields
       dplyr::select(
         SpeciesCode, DBKey, GrowthHabitCode,
         Duration, SG_Group, Noxious
-      )
+      ) %>%
+      # Convert to character
+      dplyr::mutate_if(is.factor, as.character)
 
     # Rename SpeciesCode to the data_code value
 
@@ -342,15 +347,15 @@ species_join <- function(data, # field data,
           "2" = "Woody",
           "3" = "Woody",
           "4" = "Woody",
-          "5" = "Non-woody",
-          "6" = "Non-woody",
-          "7" = "Non-woody",
+          "5" = "NonWoody",
+          "6" = "NonWoody",
+          "7" = "NonWoody",
           .missing = as.character(GrowthHabit)
         ),
         GrowthHabitSub = dplyr::recode(as.character(GrowthHabitCode),
           "1" = "Tree",
           "2" = "Shrub",
-          "3" = "Sub-shrub",
+          "3" = "Subshrub",
           "4" = "Succulent",
           "5" = "Forb",
           "6" = "Graminoid",

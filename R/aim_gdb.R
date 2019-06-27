@@ -429,7 +429,7 @@ lpi_calc <- function(header,
   # First hit cover ----
   fh_spp_group_cover <- rbind(
     # cover by Noxious, Duration, and GrowthHabitSub combination
-    pct_cover(lpi_species,
+   test <- pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
       by_year = FALSE,
@@ -882,7 +882,7 @@ build_terradat_indicators <- function(dsn,
   indicators <- list(
     header,
     # LPI
-  lpi_calc(
+    test <- lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
       source = source,
@@ -954,7 +954,7 @@ build_lmf_indicators <- function(dsn, source,
     header,
     # LPI
     # LPI
-    lpi_calc(
+    test <- lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
       source = source,

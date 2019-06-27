@@ -147,7 +147,7 @@ gather_rangeland_health_lmf <- function(dsn, file.type = "gdb") {
 gather_rangeland_health <- function(dsn, source, file.type = "gdb") {
 
   # Check for a valid layer type
-  try(if (!toupper(layer) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
     stop("No valid source provided")
   } )
 

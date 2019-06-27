@@ -138,7 +138,9 @@ pct_cover <- function(lpi_tall,
           y = .,
           all.y = TRUE
         ) %>%
-        tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
+        tidyr::unite(indicator,
+                     !!!grouping_variables,
+                     sep = ".") %>%
         dplyr::ungroup() %>%
         dplyr::group_by(!!!level, indicator) %>%
         dplyr::summarize(percent = 100 * dplyr::n() / dplyr::first(point_count)) %>%
@@ -159,7 +161,7 @@ pct_cover <- function(lpi_tall,
   # Remove indicators that have incomplete grouping variable combinations
   summary <- summary %>% subset(!grepl(
     x = indicator,
-    pattern = "^[.]|[.]$|\\.\\.|NA"
+    pattern = "^[.]|[.]$|\\.\\.|\\.NA|NA\\.|\\.NA\\."
   ))
 
   if (!tall) {
