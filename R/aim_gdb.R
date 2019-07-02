@@ -782,6 +782,8 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file) {
 
   # Get the list of species that fall into a category (e.g., Preferred Forb)
   spp_list_sg <- spp_inventory_species %>%
+    dplyr::select(PrimaryKey, Species, SG_Group) %>%
+    dplyr::distinct() %>%
     dplyr::group_by(PrimaryKey, SG_Group) %>%
     dplyr::summarize(list = toString(Species) %>%
       stringr::str_replace_all(
@@ -802,6 +804,8 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file) {
     tidyr::spread(key = indicator, value = list, fill = NA)
 
   spp_list_nox <- spp_inventory_species %>%
+    dplyr::select(PrimaryKey, Species, Noxious) %>%
+    dplyr::distinct() %>%
     dplyr::group_by(PrimaryKey, Noxious) %>%
     dplyr::summarize(list = toString(Species) %>%
       stringr::str_replace_all(
