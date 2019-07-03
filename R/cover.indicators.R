@@ -10,8 +10,7 @@
 #' @return A \code{tbl} of either wide or tall format.
 
 
-
-#' @export
+#' @export pct_cover_between_plant
 #' @rdname cover_indicators
 
 # Percent Cover Between Plants####
@@ -50,7 +49,7 @@ pct_cover_between_plant <- function(lpi_tall,
   }
   return(summary)
 }
-#' @export
+#' @export pct_cover_all_ground
 #' @rdname cover_indicators
 
 # Percent Ground Cover####
@@ -90,7 +89,7 @@ pct_cover_all_ground <- function(lpi_tall,
   return(summary)
 }
 
-#' @export
+#' @export pct_cover_total_foliar
 #' @rdname cover_indicators
 
 # Percent Total Foliar Cover####
@@ -135,7 +134,7 @@ pct_cover_total_foliar <- function(lpi_tall,
   }
   return(summary)
 }
-#' @export
+#' @export pct_cover_bare_soil
 #' @rdname cover_indicators
 
 # Percent Bare Soil Cover####
@@ -173,7 +172,7 @@ pct_cover_bare_soil <- function(lpi_tall,
   }
   return(summary)
 }
-#' @export
+#' @export pct_cover_litter
 #' @rdname cover_indicators
 
 # Percent Litter Cover####
@@ -213,7 +212,7 @@ pct_cover_litter <- function(lpi_tall,
   return(summary)
 }
 
-#' @export
+#' @export pct_cover_live
 #' @rdname cover_indicators
 
 # Percent Cover Live vs Dead
@@ -270,7 +269,7 @@ pct_cover_live <- function(lpi_tall,
   return(summary)
 }
 
-#' @export
+#' @export pct_cover_species
 #' @rdname cover_indicators
 
 ## Percent Cover by Species
