@@ -886,7 +886,7 @@ build_terradat_indicators <- function(dsn,
   indicators <- list(
     header,
     # LPI
-    test <- lpi_calc(
+    lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
       source = source,
@@ -958,7 +958,7 @@ build_lmf_indicators <- function(dsn, source,
     header,
     # LPI
     # LPI
-    test <- lpi_calc(
+   lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
       source = source,
@@ -1042,7 +1042,7 @@ build_indicators <- function(dsn, source, lpi_tall,
     )
   )
 
-  # DELETE IN 2019!!!! ####
+  # TODO DELETE IN 2019!!!! ####
   # rename two fields that were mis-named in aim.gdb
   all_indicators <- all_indicators %>%
     dplyr::rename(AH_PreferredForb = AH_PreferredForbCover,

@@ -2,6 +2,7 @@
 #' @param lpi_tall Source of lpi Rdata file
 #' @param height_tall Source of height Rdata file
 #' @param species_inventory_tall Source of species inventory Rdata file
+#' @param species_file File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.
 #' @param header Source of header Rdata file
 #' @param ... Filtering expression to subset the number of plots
 #' @examples
@@ -12,6 +13,7 @@
 #'                                                       spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.Rdata",
 #'                                                        height_tall = "~/AIM/Data/height_tall.Rdata",
 #'                                                        header = "~/AIM/Data/header.Rdata",
+#'                                                        species_file = "',
 #'                                                        SpeciesState %in% "NM")
 #' # Join to state species list
 #' # Identify the species list. In this case we'll use the state species list
@@ -30,6 +32,7 @@ accumulated_species <- function (lpi_tall,
                                  height_tall,
                                  spp_inventory_tall,
                                  header,
+                                 species_file = "",
                                  ...) {
   # Set the filter expressions
   filter_exprs <- rlang::quos(...)
@@ -41,10 +44,16 @@ accumulated_species <- function (lpi_tall,
   species_cover <- pct_cover_species(lpi_tall = readRDS(lpi_tall) %>%
                                        subset(PrimaryKey %in% header_sub$PrimaryKey))%>%
     # Omit 0 cover species
-    subset(percent >0) %>%
+    subset(percent >0)
 
-    # rename percent field
-    dplyr::rename(CoverPct = percent)
+  # add n of hits
+  species_cover<- readRDS(lpi_tall) %>%
+    subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
+    subset(nchar(code) >= 3 & code != "None") %>%
+    dplyr::count(PrimaryKey, code) %>%
+    dplyr::left_join(species_cover, .,
+                     by = c("PrimaryKey", "Species" = "code"))
+
 
   # calculate height by species
   species_height <- mean_height(height_tall = readRDS(height_tall) %>%
@@ -54,6 +63,18 @@ accumulated_species <- function (lpi_tall,
                                 omit_zero = TRUE,
                                 tall = TRUE,
                                 Species)
+
+  # add n of samples for each calculation
+  species_height <- readRDS(height_tall) %>%
+    subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
+    dplyr::count(PrimaryKey, Species) %>%
+    dplyr::left_join(species_height, .,
+                     by = c("PrimaryKey", "indicator" = "Species")) %>%
+
+    # remove "None" codes
+    subset(indicator != "None")
+
+
 
   # get list of species occurring in species inventory
   species_inventory <- readRDS(spp_inventory_tall) %>%
@@ -74,9 +95,41 @@ accumulated_species <- function (lpi_tall,
 
   # back to header
   all_species_header <-dplyr::full_join(header_sub, all_species,
-                                        by = "PrimaryKey")
+                                        by = "PrimaryKey") %>%
+    # create formal output table
+    dplyr::select (PrimaryKey,
+                   PlotID,
+                   DBKey,
+                   Species,
+                   SpeciesCover = percent,
+                   SpeciesHgt = mean_height,
+                   SpeciesCover_n = n.x,
+                   SpeciesHgt_n = n.y,
+                   SpeciesState,
+                   source)
 
-  return(all_species_header)
+  # if a species list is provided, join to species list
+  if (species_file != "") {
+    all_species_header <- species_join(data = all_species_header,
+                                           data_code = "Species",
+                                           species_file = species_file) %>%
+      dplyr::select(PrimaryKey,
+                    PlotID,
+                    DBKey,
+                    Species,
+                    SpeciesCover,
+                    SpeciesHgt,
+                    SpeciesCover_n,
+                    SpeciesHgt_n,
+                    GrowthHabit,
+                    GrowthHabitSub,
+                    Duration,
+                    Noxious,
+                    SG_Group,
+                    SpeciesState,
+                    source)
+  }
+
 
 }
 
