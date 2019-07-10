@@ -886,7 +886,7 @@ build_terradat_indicators <- function(dsn,
   indicators <- list(
     header,
     # LPI
-    test <- lpi_calc(
+    lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
       source = source,
