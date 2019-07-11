@@ -98,20 +98,28 @@ accumulated_species <- function (lpi_tall,
                                         by = "PrimaryKey") %>%
     # create formal output table
     dplyr::select (PrimaryKey,
+<<<<<<< HEAD
                    PlotID,
+=======
+>>>>>>> 13110811af6e083250d2f46e02645f790d713a21
                    DBKey,
                    Species,
                    SpeciesCover = percent,
                    SpeciesHgt = mean_height,
                    SpeciesCover_n = n.x,
                    SpeciesHgt_n = n.y,
+<<<<<<< HEAD
                    SpeciesState,
                    source)
+=======
+                   SpeciesState)
+>>>>>>> 13110811af6e083250d2f46e02645f790d713a21
 
   # if a species list is provided, join to species list
   if (species_file != "") {
     all_species_header <- species_join(data = all_species_header,
                                            data_code = "Species",
+<<<<<<< HEAD
                                            species_file = species_file) %>%
       dplyr::select(PrimaryKey,
                     PlotID,
@@ -128,6 +136,9 @@ accumulated_species <- function (lpi_tall,
                     SG_Group,
                     SpeciesState,
                     source)
+=======
+                                           species_file = species_file)
+>>>>>>> 13110811af6e083250d2f46e02645f790d713a21
   }
 
 
