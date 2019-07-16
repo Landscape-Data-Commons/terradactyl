@@ -50,6 +50,7 @@ accumulated_species <- function (lpi_tall,
   species_cover<- readRDS(lpi_tall) %>%
     subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
     subset(nchar(code) >= 3 & code != "None") %>%
+    dplyr::distinct(PrimaryKey, LineKey, PointNbr, code) %>%
     dplyr::count(PrimaryKey, code) %>%
     dplyr::left_join(species_cover, .,
                      by = c("PrimaryKey", "Species" = "code"))
@@ -101,10 +102,10 @@ accumulated_species <- function (lpi_tall,
                    PlotID,
                    DBKey,
                    Species,
-                   SpeciesCover = percent,
-                   SpeciesHgt = mean_height,
-                   SpeciesCover_n = n.x,
-                   SpeciesHgt_n = n.y,
+                   AH_SpeciesCover = percent,
+                   Hgt_Species_Avg = mean_height,
+                   AH_SpeciesCover_n = n.x,
+                   Hgt_Species_Avg_n = n.y,
                    SpeciesState,
                    source)
 
@@ -118,10 +119,10 @@ accumulated_species <- function (lpi_tall,
                     PlotID,
                     DBKey,
                     Species,
-                    SpeciesCover,
-                    SpeciesHgt,
-                    SpeciesCover_n,
-                    SpeciesHgt_n,
+                    AH_SpeciesCover,
+                    Hgt_Species_Avg,
+                    AH_SpeciesCover_n,
+                    Hgt_Species_Avg_n,
                     GrowthHabit,
                     GrowthHabitSub,
                     Duration,

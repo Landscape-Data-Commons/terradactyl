@@ -66,8 +66,6 @@ gather_species <- function(species_file, #
   # This is not a stop in case the growth habits were
   # assigned in the species file.
   if (is.null(growth_habit)) {
-    warning("No valid Growth Habit Table. Must be .csv or .gdb file")
-
     # convert factors to character
     species <- species %>% dplyr::mutate_if(is.factor, as.character)
 
