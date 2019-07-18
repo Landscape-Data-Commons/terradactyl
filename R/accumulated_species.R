@@ -15,14 +15,7 @@
 #'                                                        header = "~/AIM/Data/header.Rdata",
 #'                                                        species_file = "',
 #'                                                        SpeciesState %in% "NM")
-#' # Join to state species list
-#' # Identify the species list. In this case we'll use the state species list
-#' # housed in aim.gdb
-#'species_list <-"~/AIM/Data/TerradatCalcs/6-27-19 FullCopyfor2018COIDMTNMCAORWAIngest.gdb/FullCopyfor2018COIDMTNMCAORWAIngest.gdb"
-#'species_attributed <- terradactyl::species_join(data = accumulated_species,
-#'                                                data_code = "Species",
-#'                                                species_code = "SpeciesCode",
-#'                                                species_file = species_list)
+
 
 #'@rdname accumulated_species
 #'@export accumulated_species

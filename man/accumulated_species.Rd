@@ -4,7 +4,8 @@
 \alias{accumulated_species}
 \title{Accumulated species across all methods, by height and cover}
 \usage{
-accumulated_species(lpi_tall, height_tall, spp_inventory_tall, header, ...)
+accumulated_species(lpi_tall, height_tall, spp_inventory_tall, header,
+  species_file = "", ...)
 }
 \arguments{
 \item{lpi_tall}{Source of lpi Rdata file}
@@ -13,27 +14,12 @@ accumulated_species(lpi_tall, height_tall, spp_inventory_tall, header, ...)
 
 \item{header}{Source of header Rdata file}
 
+\item{species_file}{File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.}
+
 \item{...}{Filtering expression to subset the number of plots}
 
 \item{species_inventory_tall}{Source of species inventory Rdata file}
 }
 \description{
 Accumulated species across all methods, by height and cover
-}
-\examples{
-# Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
-# This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
-accumulated_species <- terradactyl::accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.Rdata",
-                                                      spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.Rdata",
-                                                       height_tall = "~/AIM/Data/height_tall.Rdata",
-                                                       header = "~/AIM/Data/header.Rdata",
-                                                       SpeciesState \%in\% "NM")
-# Join to state species list
-# Identify the species list. In this case we'll use the state species list
-# housed in aim.gdb
-species_list <-"~/AIM/Data/TerradatCalcs/6-27-19 FullCopyfor2018COIDMTNMCAORWAIngest.gdb/FullCopyfor2018COIDMTNMCAORWAIngest.gdb"
-species_attributed <- terradactyl::species_join(data = accumulated_species,
-                                               data_code = "Species",
-                                               species_code = "SpeciesCode",
-                                               species_file = species_list)
 }

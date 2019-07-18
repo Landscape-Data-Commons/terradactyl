@@ -76,6 +76,10 @@ header_build_lmf <- function(dsn, ...) {
       State = STABBR
     ) %>%
 
+    # add PLOTKEY
+    # TODO I'm still not convinced we need this
+    dplyr::mutate(PLOTKEY = PrimaryKey) %>%
+
     dplyr::distinct() %>%
 
     # Populate DateLoadedInDb
@@ -958,7 +962,7 @@ build_lmf_indicators <- function(dsn, source,
     header,
     # LPI
     # LPI
-   lpi_calc(
+   test <-lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
       source = source,

@@ -32,7 +32,8 @@ gather_species <- function(species_file, #
                                                  pattern = "[A-z]{3}$")),
     GDB = {
       suppressWarnings(sf::st_read(dsn = species_file,
-                                   layer = "tblStateSpecies"))
+                                   layer = "tblStateSpecies",
+                                   stringsAsFactors = FALSE))
     },
     CSV = {
       read.csv(species_file, stringsAsFactors = FALSE, na.strings = c("", " "))
@@ -55,7 +56,8 @@ gather_species <- function(species_file, #
   GDB = {
     suppressWarnings(sf::st_read(
       dsn = growth_habit_file,
-      layer = "tblSpeciesGrowthHabit"
+      layer = "tblSpeciesGrowthHabit",
+      stringsAsFactors = FALSE
     ))
   },
   CSV = {
@@ -316,6 +318,7 @@ species_join <- function(data, # field data,
     tbl_species_generic <- sf::st_read(
       dsn = species_file,
       layer = "tblSpeciesGeneric",
+      stringsAsFactors = FALSE
     ) %>%
       # Select only the needed fields
       dplyr::select(
