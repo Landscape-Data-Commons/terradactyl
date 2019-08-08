@@ -23,7 +23,7 @@ header_build_terradat <- function(dsn, ...) {
 
     # Select the field names we need in the final feature class
     dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey, DBKey,
-      EcologicalSiteId = EcolSite, Latitude, Longitude, State,
+      EcologicalSiteId = EcolSite, Latitude_NAD83 =Latitude, Longitude_NAD83 = Longitude, State,
       County, DateEstablished = EstablishDate, DateLoadedInDb,
       ProjectName
     ) %>%
@@ -89,8 +89,8 @@ header_build_lmf <- function(dsn, ...) {
   point_coordinate <- sf::st_read(dsn = dsn, layer = "POINTCOORDINATES") %>%
     as.data.frame() %>%
     dplyr::select(PrimaryKey,
-      Latitude = REPORT_LATITUDE,
-      Longitude = REPORT_LONGITUDE,
+                  Latitude_NAD83 = REPORT_LATITUDE,
+                  Longitude_NAD83 = REPORT_LONGITUDE,
       LocationType
     ) %>%
     dplyr::left_join(point, .,
@@ -1045,12 +1045,15 @@ build_indicators <- function(dsn, source, lpi_tall,
       ...
     )
   )
-
+#
   # TODO DELETE IN 2019!!!! ####
-  # rename two fields that were mis-named in aim.gdb
-  all_indicators <- all_indicators %>%
-    dplyr::rename(AH_PreferredForb = AH_PreferredForbCover,
-                  AH_PerenGrassForbCover = AH_PerenForbGrassCover)
+  # rename  fields that were mis-named in aim.gdb
+  if("AH_PreferredForbCover" %in% names(all_indicators)){
+
+    all_indicators <- all_indicators %>%
+      dplyr::rename("AH_PreferredForb" = "AH_PreferredForbCover")
+
+  }
 
   # Compare indicator field names with the names for a the target feature class
   feature_class_field_names <- sf::st_read(dsn, layer = source)
