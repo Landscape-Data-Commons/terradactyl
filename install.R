@@ -1,3 +1,5 @@
 # Packages to install
 #install.packages("tidyverse")
-#install.packages("rmarkdown")
+#install.packages("devtools")
+#install.packages("sf")
+#install.packages("roxygen2")
