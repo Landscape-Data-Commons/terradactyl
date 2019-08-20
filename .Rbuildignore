@@ -1,3 +1,4 @@
+^data-raw$
 ^codemeta\.json$
 ^.*\.Rproj$
 ^\.Rproj\.user$

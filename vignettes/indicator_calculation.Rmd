@@ -1,0 +1,52 @@
+---
+title: "Indicator Calculation"
+author: "Sarah McCord"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## terradactl example
+
+This is an example of how to calculate custom indicators based on data collected using the line-point intercept data. 
+
+The first step is to load terradactyl. 
+
+```{r}
+# Terradactyl 
+library(terradactyl)
+
+# Read in header and lpi data in tall format
+header <- readRDS("~/AIM/Data/header.Rdata") %>% subset(SpeciesState == "CO")
+lpi <- readRDS("~/AIM/Data/lpi_tall.Rdata") %>% subset(PrimaryKey %in% header$PrimaryKey)
+```
+
+## Load data
+
+For efficiency sake, we tend to store the tall formatted data as Rdata files. The header file provides basic plot metadata than can be useful for further queries. 
+Header is produced by the terradactyl::header_build() function. The code below assumes that your Rdata files are stored in the same folder as your current R project. 
+You may need to change this. 
+
+```{r}
+# Not run 
+# aim_header <- terradactyl::header_build(dsn = dsn, source = "AIM")
+# lmf_header <- terradactyl::header_build(dsn = dsn, source = "LMF")
+# header <- dplyr::bind_rows(aim_header, lmf_header)
+
+# Read header
+header <- readRDS("~/data/header.Rdata")
+
+# Explor header file
+head(header)
+
+```
