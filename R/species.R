@@ -30,14 +30,14 @@ gather_species <- function(species_file, #
   # read from .csv or .gdb. If gdb we assume it is of the schema aim.gdb
   species <- switch(toupper(stringr::str_extract(species_file,
                                                  pattern = "[A-z]{3}$")),
-    GDB = {
-      suppressWarnings(sf::st_read(dsn = species_file,
-                                   layer = "tblStateSpecies",
-                                   stringsAsFactors = FALSE))
-    },
-    CSV = {
-      read.csv(species_file, stringsAsFactors = FALSE, na.strings = c("", " "))
-    }
+                    GDB = {
+                      suppressWarnings(sf::st_read(dsn = species_file,
+                                                   layer = "tblStateSpecies",
+                                                   stringsAsFactors = FALSE))
+                    },
+                    CSV = {
+                      read.csv(species_file, stringsAsFactors = FALSE, na.strings = c("", " "))
+                    }
   )
 
   # Remove some of the gdb management variables, as they cause issues later
@@ -51,7 +51,7 @@ gather_species <- function(species_file, #
   }
   # read in the growth habit information
   growth_habit <- switch(toupper(stringr::str_extract(growth_habit_file,
-    pattern = "[A-z]{3}$"
+                                                      pattern = "[A-z]{3}$"
   )),
   GDB = {
     suppressWarnings(sf::st_read(
@@ -140,7 +140,7 @@ generic_growth_habits <- function(data,
 
     # Rename to data species code field
     dplyr::rename_at(dplyr::vars(SpeciesFixed), ~data_code)
-
+  # If there a no unknown species, no need to proceed
   generic_df <- generic_df[!generic_df[,data_code] %in%
                              species_list[,species_code],]
 
@@ -163,15 +163,16 @@ generic_growth_habits <- function(data,
       ))
   }
   # if there are records in generic.code.df
+  if(nrow(generic.code.df)>0) {
+    # Indicate that generic codes are non-noxious
+    if ("Noxious" %in% names(species_list)) {
+      generic.code.df$Noxious <- "NO"
+    }
 
-  # Indicate that generic codes are non-noxious
-  if ("Noxious" %in% names(species_list)) {
-    generic.code.df$Noxious <- "NO"
-  }
-
-  # Indicate that generic shrubcodes are SG_Group "NonSagebrushShrub"
-  if ("SG_Group" %in% names(species_list)) {
-    generic.code.df$SG_Group[generic.code.df$Code == "SH"] <- "NonSagebrushShrub"
+    # Indicate that generic shrubcodes are SG_Group "NonSagebrushShrub"
+    if ("SG_Group" %in% names(species_list)) {
+      generic.code.df$SG_Group[generic.code.df$Code == "SH"] <- "NonSagebrushShrub"
+    }
   }
 
   # Rename to SpeciesCode in species list
@@ -187,16 +188,17 @@ generic_growth_habits <- function(data,
 
   # Remove Code, Prefix, and PrimaryKey if they exist
   species_generic <- species_generic[, !colnames(species_generic) %in%
-    c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
+                                       c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
 
   # Remove NA in species list
   if("SpeciesCode" %in% names(species_generic)) {
     species_generic <- species_generic %>% subset(!is.na(SpeciesCode))
 
-  }
-
+    return(species_generic)
+    }
 
   return(species_generic)
+
 }
 
 #' @export species_join
@@ -227,8 +229,8 @@ species_join <- function(data, # field data,
   # Some projects use "None" to indicate "No species". Convert those to N instead
   data <- data %>% dplyr::mutate_at(data_code,
                                     ~stringr::str_replace(pattern = "None",
-                                                         replacement = "N",
-                                                         string = data[[data_code]]))
+                                                          replacement = "N",
+                                                          string = data[[data_code]]))
   ## Load species data
   species_list <- gather_species(
     species_file = species_file,
@@ -344,39 +346,39 @@ species_join <- function(data, # field data,
     data_species_generic <- data_species_generic %>%
       dplyr::mutate(
         GrowthHabit = dplyr::recode(as.character(GrowthHabitCode),
-          "1" = "Woody",
-          "2" = "Woody",
-          "3" = "Woody",
-          "4" = "Woody",
-          "5" = "NonWoody",
-          "6" = "NonWoody",
-          "7" = "NonWoody",
-          .missing = as.character(GrowthHabit)
+                                    "1" = "Woody",
+                                    "2" = "Woody",
+                                    "3" = "Woody",
+                                    "4" = "Woody",
+                                    "5" = "NonWoody",
+                                    "6" = "NonWoody",
+                                    "7" = "NonWoody",
+                                    .missing = as.character(GrowthHabit)
         ),
         GrowthHabitSub = dplyr::recode(as.character(GrowthHabitCode),
-          "1" = "Tree",
-          "2" = "Shrub",
-          "3" = "Subshrub",
-          "4" = "Succulent",
-          "5" = "Forb",
-          "6" = "Graminoid",
-          "7" = "Sedge",
-          .missing = as.character(GrowthHabitSub)
+                                       "1" = "Tree",
+                                       "2" = "Shrub",
+                                       "3" = "Subshrub",
+                                       "4" = "Succulent",
+                                       "5" = "Forb",
+                                       "6" = "Graminoid",
+                                       "7" = "Sedge",
+                                       .missing = as.character(GrowthHabitSub)
         ),
 
         # If the Duration assignments are different, overwrite
         Duration = ifelse(Duration.x != as.character(Duration.y) & !is.na(Duration.y),
-          Duration.y, Duration.x
+                          Duration.y, Duration.x
         ),
 
         # If the SG_Group assignments are different, overwrite
         SG_Group = ifelse(SG_Group.x != as.character(SG_Group.y) & !is.na(SG_Group.y),
-          SG_Group.y, SG_Group.x
+                          SG_Group.y, SG_Group.x
         ),
 
         # If the Noxious assignments are different, overwrite
         Noxious = ifelse(Noxious.x != as.character(Noxious.y) & !is.na(Noxious.y),
-          Noxious.y, Noxious.x
+                         Noxious.y, Noxious.x
         )
       )
 
