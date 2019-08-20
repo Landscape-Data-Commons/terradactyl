@@ -163,7 +163,8 @@ gather_height_lmf <- function(dsn,
     TRANSECT,
     DISTANCE,
     dplyr::matches("^W")
-  ) %>% dplyr::mutate(type = "woody")
+  ) %>% dplyr::mutate(type = "woody",
+                      GrowthHabit_measured = "Woody")
   # remove the "W" from the names
   names(height_woody) <- stringr::str_replace_all(
     string = names(height_woody),
@@ -178,7 +179,8 @@ gather_height_lmf <- function(dsn,
     TRANSECT,
     DISTANCE,
     dplyr::matches("^H")
-  ) %>% dplyr::mutate(type = "herbaceous")
+  ) %>% dplyr::mutate(type = "herbaceous",
+                      GrowthHabit_measured = "NonWoody")
 
   # remove the "H" from the "HPLANT" field
   names(height_herbaceous)[names(height_herbaceous) == "HPLANT"] <- "PLANT"

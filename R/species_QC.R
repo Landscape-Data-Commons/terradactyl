@@ -73,7 +73,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 
   species_issues <- species_all_problems %>%
     dplyr::select(
-      PrimaryKey, PlotID, Species, GrowthHabit, GrowthHabitSub, Duration,
+      PrimaryKey, Species, GrowthHabit, GrowthHabitSub, Duration,
       Noxious, SpeciesState, source
     ) %>%
     dplyr::filter_at(
@@ -89,7 +89,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
     dplyr::summarise(n_hits = dplyr::n())
 
   unique_species_issues <- species_issues %>%
-    dplyr::select(-PrimaryKey, -PlotID) %>%
+    dplyr::select(-PrimaryKey) %>%
     dplyr::distinct() %>%
     dplyr::left_join(., species_hits, by = c("Species", "source"))
 
@@ -137,7 +137,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 
     # Make the number of columns more manageable
     dplyr::select(
-      PrimaryKey, PlotID, Height, Species, GrowthHabit_measured,
+      PrimaryKey, Height, Species, GrowthHabit_measured,
       GrowthHabit, ScientificName, CommonName, Duration, Noxious, SG_Group
     ) %>% dplyr::distinct()
 

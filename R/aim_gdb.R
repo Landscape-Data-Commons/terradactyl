@@ -506,8 +506,10 @@ lpi_calc <- function(header,
     ah_spp_group_cover,
     fh_spp_group_cover,
     total_foliar,
-    between.plant.cover
-  ) %>%
+    between.plant.cover) %>%
+
+    dplyr::distinct() %>%
+
     # Spread to a wide format
     tidyr::spread(key = indicator, value = percent, fill = 0)
 
