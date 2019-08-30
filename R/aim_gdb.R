@@ -208,6 +208,9 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabit
   )] <- "NonWoody"
 
+  # For the purposes of cover calcs, Non-Woody==Forb & Grass != Sedge, so we need to remove sedges
+  lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
+
   # Correct the Sub-shrub to SubShrub
   lpi_species$GrowthHabitSub[grepl(
     pattern = "Sub-Shrub|subshrub|Sub-shrub|Subshrub",

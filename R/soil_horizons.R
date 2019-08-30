@@ -78,6 +78,10 @@ gather_soil_horizons <- function(dsn, source) {
                     # add source field
                     source = "LMF")
 
+    # TODO Remove when we sort out the errors
+    # Remove all soil pits collected in inches
+    soils_aim <- soil_aim %>% subset(DepthUOM == "cm")
+
   }
 
   if (source %in% c("LMF", "NRI")){
@@ -113,7 +117,7 @@ gather_soil_horizons <- function(dsn, source) {
 
   # combine soil tables
   soil <- dplyr::bind_rows(if(exists("soil_aim")) soil_aim,
-                           if(exists("soil_lmf")) soil_lmf)
+                           if(exists("soil_lmf")) soil_lmf, )
 
   # update units in inches to centimeters
   soil <- soil %>%

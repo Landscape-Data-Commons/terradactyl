@@ -115,6 +115,7 @@ gather_lpi_terradat <- function(dsn) {
 #' @export gather_lpi_lmf
 #' @rdname gather_lpi
 
+# Gather LPI data from the Landscape Monitoring Framework or NRI
 gather_lpi_lmf <- function(dsn,
                            file_type = "gdb") {
 
@@ -252,6 +253,25 @@ gather_lpi_lmf <- function(dsn,
   lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 0] <- NA
 
   return(lpi_hits_tall)
+}
+
+# Gather LPI data from NPS I&M networks
+gather_lpi_nps <- function(dsn) {
+  lpi_raw <- read.csv(dsn)
+
+  # add plot metadata
+  lpi_raw <- lpi_raw %>% dplyr::mutate(PrimaryKey = Unit_Plot,
+                                       DBKey = dsn,
+                                       FormDate = Start_Date,
+                                       LineLengthAmount = 50,
+                                       SpacingIntervalAmount = 0.5,
+                                       SpacingType = "m",
+                                       PointNbr = Point,
+                                       LineKey = Transect,
+                                       RecKey = paste(Unit_Plot,Visit_Year,
+                                                      Transect, sep = "_")
+                                       )
+
 }
 
 #' @export gather_lpi
