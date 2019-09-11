@@ -55,21 +55,17 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   species_all_problems <- species_all %>% dplyr::mutate(
     GrowthHabit =
       dplyr::case_when(
-        is.na(GrowthHabit) ~ "GrowthHabit missing",
-        TRUE ~ GrowthHabit
+        is.na(GrowthHabit) ~ "GrowthHabit missing"
       ),
     GrowthHabitSub = dplyr::case_when(
-      is.na(GrowthHabitSub) ~ "GrowthHabitSub missing",
-      TRUE ~ GrowthHabitSub
+      is.na(GrowthHabitSub) ~ "GrowthHabitSub missing"
     ),
     Duration =
       dplyr::case_when(
-        is.na(Duration) ~ "Duration missing",
-        TRUE ~ Duration
+        is.na(Duration) ~ "Duration missing"
       ),
     Noxious = dplyr::case_when(
-      is.na(Noxious) ~ "Noxious missing",
-      TRUE ~ Noxious
+      is.na(Noxious) ~ "Noxious missing"
     )
   )
 
