@@ -65,8 +65,7 @@ pct_cover <- function(lpi_tall,
   # (it'll be the same for every record associated with a plot)
   lpi_tall <- dplyr::left_join(
     x = lpi_tall,
-    y = point_totals,
-    by = c("PrimaryKey", "LineKey")
+    y = point_totals
   )
 
   # make sure layer is a character field
