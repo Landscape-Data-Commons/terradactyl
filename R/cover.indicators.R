@@ -151,7 +151,7 @@ pct_cover_bare_soil <- function(lpi_tall,
     code
   ) %>%
     # Find all of the first hit "S" codes
-    subset(., indicator == "S")
+    subset(., indicator %in% c("S", "PC", "FG", "AG", "LM"))
   if (!tall) {
     summary <- tidyr::spread(summary,
       key = indicator,

@@ -198,7 +198,9 @@ lpi_calc <- function(header,
   lpi_species <- species_join(
     data = lpi_tall_header,
     species_file = species_file,
-    overwrite_generic_species = TRUE
+    overwrite_generic_species = dplyr::if_else(source == "TerrADat",
+                                               TRUE,
+                                               FALSE)
   ) %>%
     dplyr::distinct()
 
@@ -207,6 +209,12 @@ lpi_calc <- function(header,
     pattern = "Non-woody|Nonwoody|Non-Woody",
     x = lpi_species$GrowthHabit
   )] <- "NonWoody"
+
+  # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
+  lpi_species$GrowthHabit[grepl(
+    pattern = "NonVascular|Nonvascular|Non-vascular|Succulent",
+    x = lpi_species$GrowthHabitSub
+  )] <- "NA"
 
   # For the purposes of cover calcs, Non-Woody==Forb & Grass != Sedge, so we need to remove sedges
   lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
@@ -375,7 +383,7 @@ lpi_calc <- function(header,
     ) %>% dplyr::mutate(indicator = paste(indicator, ".", sep = "")),
 
     # Cover by Noxious, Duration, GrowthHabit status
-    pct_cover(lpi_species,
+   test <- pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
       by_year = FALSE,
@@ -607,7 +615,9 @@ height_calc <- function(header, height_tall,
     data = height,
     data_code = "Species",
     species_file = species_file,
-    overwrite_generic_species = TRUE
+    overwrite_generic_species = dplyr::if_else(source == "TerrADat",
+                                               TRUE,
+                                               FALSE)
   )
 
   # Correct the Non-Woody to NonWoody
@@ -742,7 +752,7 @@ height_calc <- function(header, height_tall,
 #' @export spp_inventory_calc
 #' @rdname aim_gdb
 # Calculate species inventory
-spp_inventory_calc <- function(header, spp_inventory_tall, species_file) {
+spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source) {
   # tidy.species
   spp_inventory_tall <- readRDS(spp_inventory_tall) %>%
     # Join to the header to get the relevant PrimaryKeys and SpeciesSate
@@ -755,7 +765,9 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file) {
     data = spp_inventory_tall,
     data_code = "Species",
     species_file = species_file,
-    overwrite_generic_species = TRUE
+    overwrite_generic_species = dplyr::if_else(source == "TerrADat",
+                                               TRUE,
+                                               FALSE)
   )
 
   # Count the number of species present in each group
@@ -967,7 +979,7 @@ build_lmf_indicators <- function(dsn, source,
     header,
     # LPI
     # LPI
-   test <-lpi_calc(
+   lpi_calc(
       lpi_tall = lpi_tall,
       header = header,
       source = source,
@@ -978,19 +990,19 @@ build_lmf_indicators <- function(dsn, source,
       gap_tall = gap_tall,
       header = header
     ),
-    # Height
+   #  # Height
    height_calc(
       height_tall = height_tall,
       header = header,
       source = source,
       species_file = species_file
     ),
-    # Species Inventory
-    spp_inventory_calc(
-      spp_inventory_tall = spp_inventory_tall,
-      header = header,
-      species_file = species_file
-    ),
+    # # Species Inventory
+    # spp_inventory_calc(
+    #   spp_inventory_tall = spp_inventory_tall,
+    #   header = header,
+    #   species_file = species_file
+    # ),
     # Soil Stability
     soil_stability_calc(
       soil_stability_tall = soil_stability_tall,

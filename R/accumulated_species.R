@@ -42,7 +42,7 @@ accumulated_species <- function (lpi_tall,
   # add n of hits
   species_cover<- readRDS(lpi_tall) %>%
     subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
-    subset(nchar(code) >= 3 & code != "None") %>%
+    subset(nchar(as.character(code)) >= 3 & code != "None") %>%
     dplyr::distinct(PrimaryKey, LineKey, PointNbr, code) %>%
     dplyr::count(PrimaryKey, code) %>%
     dplyr::left_join(species_cover, .,

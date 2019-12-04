@@ -1,12 +1,12 @@
 #' Gather soil horizon data
 #'
 #'
-dsn <- "~/AIM/Data/TerradatCalcs/FullCopyfor2018UTCOIDMTNMCAORWAIngest8-19-19.gdb/FullCopyfor2018UTCOIDMTNMCAORWAIngest.gdb"
-source = "LMF"
 
+#' @export gather_soil_horizons
+#' @rdname gather_soil_horizons
 gather_soil_horizons <- function(dsn, source) {
   # Load soil horizon data
-  if(source %in% c("AIM", "TerrADat")) {
+  if(length(which (source %in% c("AIM", "TerrADat")))) {
 
     soil_aim <- dplyr::left_join(sf::st_read(dsn = dsn, layer="tblSoilPitHorizons"),
                                           sf::st_read(dsn = dsn, layer="tblSoilPits")) %>%
@@ -84,24 +84,27 @@ gather_soil_horizons <- function(dsn, source) {
 
   }
 
-  if (source %in% c("LMF", "NRI")){
-    soil_lmf <- sf::st_read(dsn = dsn, layer="SOILHORIZON") %>%
+  if (length(which (source %in% c("LMF", "NRI")))){
+    soil_lmf <- switch (source,
+      "LMF" =  {sf::st_read(dsn = dsn, layer="SOILHORIZON")},
+      "NRI" = {readRDS(dsn) }
+      ) %>%
     dplyr::select(PrimaryKey, DBKey,
                   HorizonKey = SEQNUM,
                   HorizonDepthLower=DEPTH,
-                  Efferervescence=EFFERVESCENCE_CLASS,
+                  Effervescence=EFFERVESCENCE_CLASS,
                   Texture=HORIZON_TEXTURE,
                   TextureModifier = TEXTURE_MODIFIER,
                   Notes = UNUSUAL_FEATURES
-                  ) %>%
+                  )
 
     # convert to cm
-      dplyr::mutate(DepthUOM = "in",
+   soil_lmf <- soil_lmf %>% dplyr::mutate(DepthUOM = "in",
                     HorizonKey = as.character(HorizonKey),
                     # add source field
                     source = "LMF",
                     # Add upper limits to the horizon
-                    HorizonDepthUpper = sapply(unique(soil_lmf$PrimaryKey),
+                    HorizonDepthUpper = sapply(unique(PrimaryKey),
                                    function(x){
                                      lower <- soil_lmf$HorizonDepthLower[soil_lmf$PrimaryKey == x]
                                      upper <- c(0,lower[1:length(lower)-1])

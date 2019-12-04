@@ -109,7 +109,7 @@ gather_species_lmf <- function(dsn, file_type = "gdb") {
 
   # Get species count
   species_inventory <- plantcensus %>% dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(., SpeciesCount = n()) %>%
+    dplyr::summarize(., SpeciesCount = dplyr::n()) %>%
     merge(., plantcensus)
 
   # rename fields
