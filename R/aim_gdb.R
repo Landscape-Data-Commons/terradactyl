@@ -929,7 +929,8 @@ build_terradat_indicators <- function(dsn,
    spp_inventory_calc(
       spp_inventory_tall = spp_inventory_tall,
       header = header,
-      species_file = species_file
+      species_file = species_file,
+      source = source
     ),
     # Soil Stability
     soil_stability_calc(
@@ -997,12 +998,13 @@ build_lmf_indicators <- function(dsn, source,
       source = source,
       species_file = species_file
     ),
-    # # Species Inventory
-    # spp_inventory_calc(
-    #   spp_inventory_tall = spp_inventory_tall,
-    #   header = header,
-    #   species_file = species_file
-    # ),
+    # Species Inventory
+    spp_inventory_calc(
+      spp_inventory_tall = spp_inventory_tall,
+      header = header,
+      species_file = species_file,
+      source = source
+    ),
     # Soil Stability
     soil_stability_calc(
       soil_stability_tall = soil_stability_tall,
