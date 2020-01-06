@@ -96,6 +96,10 @@ gather_species_lmf <- function(dsn, file_type = "gdb") {
                                      stringsAsFactors = FALSE,
                                      header = FALSE, sep = "|",
                                      strip.white = TRUE)
+                        },
+                        "csv" = {
+                          read.csv(dsn,
+                                   stringsAsFactors = FALSE)
                         }
   )
 

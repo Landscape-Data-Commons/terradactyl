@@ -11,6 +11,7 @@
 #' @export nri_field_names
 #' @rdname ingest_nri
 
+# Add new nri_field_names to terradactyl package
 nri_field_names <- function(dsn) {
 
   # Get a list of all data dump field name files
@@ -24,7 +25,7 @@ nri_field_names <- function(dsn) {
     field_names <- read.csv(X, stringsAsFactors = FALSE)
     field_names$DBKey <- basename(dirname(X))
     return(field_names)
-  }) %>% dplyr::bind_rows() %>% dplyr::select(-X)
+  }) %>% dplyr::bind_rows() %>% dplyr::select_if(!names(.) %in% ("X"))
 
   # We store field names as all upper case
   names(field_names) <- toupper(names(field_names))
@@ -47,7 +48,7 @@ nri_field_names <- function(dsn) {
   nri.data.column.explanations <-
     dplyr::full_join(terradactyl::nri.data.column.explanations,
                                                    field_names) %>%
-    distinct()
+    dplyr::distinct()
 
   # Look for instances where field of the same name may have different data types assigned
   disjointed_data_types <- nri.data.column.explanations %>%
@@ -61,10 +62,10 @@ nri_field_names <- function(dsn) {
   }
 
   # Save the new file
-  devtools::use_data(nri.data.column.explanations,
+  usethis::use_data(nri.data.column.explanations,
                      overwrite = TRUE,
                      internal = TRUE)
-  devtools::use_data(nri.data.column.explanations,
+  usethis::use_data(nri.data.column.explanations,
                      overwrite = TRUE)
 
   # Reload package

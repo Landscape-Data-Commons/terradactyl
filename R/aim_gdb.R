@@ -147,6 +147,116 @@ header_build_lmf <- function(dsn, ...) {
   return(point_ESD)
 }
 
+# Build the header portion of the LMF table
+#' @export header_build_nri
+#' @rdname aim_gdb
+header_build_nri <- function(dsn, ...) {
+  ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
+  filter_exprs <- rlang::quos(...)
+
+  # Get the LMF points
+  point <- read.csv(file.path(dsn, "POINT.csv"), stringsAsFactors = FALSE) %>%
+    # remove spatial attributes
+    as.data.frame() %>%
+
+    # Filter using the filtering expression specified by user
+    dplyr::filter(!!!filter_exprs) %>%
+    dplyr::select(
+      PrimaryKey,
+      COUNTY, STATE, DBKey
+    )
+
+  # County and State are referred to by number codes, let's use the name
+  point <-  read.csv(file.path(dsn, "COUNTYNM.csv"), stringsAsFactors = FALSE) %>%
+    dplyr::select(COUNTY, COUNTYNM, STATE) %>%
+    dplyr::left_join(point, .,
+                     by = c("COUNTY", "STATE")) %>%
+    dplyr::distinct() %>%
+
+
+    # Add state
+    dplyr::left_join(read.csv(file.path(dsn, "STATENM.csv"), stringsAsFactors = FALSE),
+                     by = "STATE") %>%
+
+    # pair down to needed fields
+    dplyr::select(
+      PrimaryKey,
+      DBKey,
+      County = COUNTYNM,
+      State = STABBR
+    ) %>%
+
+   dplyr::distinct() %>%
+
+    # Populate DateLoadedInDb
+    dplyr::mutate(DateLoadedInDb = DBKey)
+
+  # Get the field coordinates
+  point_coordinate <-  read.csv(file.path(dsn, "POINTCOORDINATES.csv"),
+                                stringsAsFactors = FALSE) %>%
+    dplyr::mutate(Latitude_NAD83 = dplyr::coalesce(FIELD_LATITUDE,
+                                                   TARGET_LATITUDE),
+                  Longitude_NAD83 = dplyr::coalesce(FIELD_LONGITUDE,
+                                                    TARGET_LONGITUDE),
+                  LocationType = dplyr::if_else(Latitude_NAD83 == TARGET_LATITUDE, "Target", "Field")) %>%
+    dplyr::select(PrimaryKey,
+                  Latitude_NAD83,
+                  Longitude_NAD83,
+                  LocationType) %>%
+    dplyr::left_join(point, .,
+                     by = "PrimaryKey")
+
+  # Add elevation data
+  point_elevation <- read.csv(file.path(dsn, "GPS.csv"),
+                              stringsAsFactors = FALSE) %>%
+    dplyr::select(PrimaryKey,
+                  DateVisited = CAPDATE, # The GPS capture date is the best approx
+                  ELEVATION,
+                  DBKey
+    ) %>%
+    dplyr::left_join(point_coordinate, .,
+                     by = c("PrimaryKey", "DBKey")
+    ) %>%
+
+    # Convert elevation to meters
+    dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
+
+  # Add Ecological Site Id
+  point_ESD <- read.csv(file.path(dsn, "ESFSG.csv"),
+                        stringsAsFactors = FALSE) %>%
+    dplyr::left_join(point_elevation, ., by = c("PrimaryKey", "DBKey")) %>%
+    dplyr::distinct() %>%
+
+    # If the ESD coverage !=all, figure what portion of the plot the dominant ESD
+    # is ion the plot by taking the End_Mark-Start_Mark and dividng by the line length
+    dplyr::mutate(
+      ESD_coverage =
+        dplyr::if_else(
+          condition = COVERAGE == "all",
+          true = as.integer(300),
+          false = (END_MARK - START_MARK)
+        ),
+      EcologicalSiteId =
+        paste(ESFSG_MLRA, ESFSG_SITE, ESFSG_STATE, sep = "")
+    ) %>%
+
+    # Add up the coverage on each plot and get the percent coverage
+    dplyr::group_by(PrimaryKey, DBKey,EcologicalSiteId) %>%
+    dplyr::summarise(PercentCoveredByEcoSite = 100 * sum(ESD_coverage) / 300) %>%
+
+    # Arrange by ESD_coverage and find the dominant ecological site
+    dplyr::ungroup() %>%
+    dplyr::group_by(PrimaryKey, DBKey) %>%
+    dplyr::arrange(dplyr::desc(PercentCoveredByEcoSite), .by_group = TRUE) %>%
+    dplyr::filter(dplyr::row_number() == 1) %>%
+
+    # Join to point.elevation to build the final header
+    dplyr::left_join(point_elevation, ., by = c("PrimaryKey", "DBKey")) %>% dplyr::distinct()
+
+
+  # Return the point_ESD as the header file
+  return(point_ESD)
+}
 # Build the header wrapper
 #' @export header_build
 #' @rdname aim_gdb
@@ -1064,13 +1174,13 @@ build_indicators <- function(dsn, source, lpi_tall,
       ...
     )
   )
-#
-  # TODO DELETE IN 2019!!!! ####
+
+   # TODO DELETE IN 2019!!!! ####
   # rename  fields that were mis-named in aim.gdb
   if("AH_PreferredForbCover" %in% names(all_indicators)){
 
     all_indicators <- all_indicators %>%
-      dplyr::rename("AH_PreferredForb" = "AH_PreferredForbCover")
+      dplyr::mutate("AH_PreferredForb" = "AH_PreferredForbCover")
 
   }
 
