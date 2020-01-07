@@ -1180,7 +1180,7 @@ build_indicators <- function(dsn, source, lpi_tall,
   if("AH_PreferredForbCover" %in% names(all_indicators)){
 
     all_indicators <- all_indicators %>%
-      dplyr::mutate("AH_PreferredForb" = "AH_PreferredForbCover")
+      dplyr::mutate(AH_PreferredForb = AH_PreferredForbCover)
 
   }
 
