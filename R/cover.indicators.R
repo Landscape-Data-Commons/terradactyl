@@ -215,7 +215,7 @@ pct_cover_litter <- function(lpi_tall,
 #' @export pct_cover_live
 #' @rdname cover_indicators
 
-# Percent Cover Live vs Dead
+# Percent Cover Live vs Dead ####
 pct_cover_live <- function(lpi_tall,
                            tall = FALSE,
                            by_year = FALSE,
@@ -243,8 +243,9 @@ pct_cover_live <- function(lpi_tall,
   #                   !grepl(indicator, pattern = "\\.\\.|NA"))
 
   # replace "0" and "1" with live and dead
-  summary$indicator <- gsub(summary$indicator, pattern = "^0", "Live")
-  summary$indicator <- gsub(summary$indicator, pattern = "^1", "Dead")
+  summary$indicator <- stringr::str_replace_all(summary$indicator,
+                                                c("1\\." = "Dead\\.",
+                                                  "0\\." = "Live\\."))
 
   if (!tall) {
     summary <- tidyr::spread(summary,

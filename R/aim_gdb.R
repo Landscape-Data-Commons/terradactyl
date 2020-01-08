@@ -616,7 +616,7 @@ lpi_calc <- function(header,
     dplyr::mutate(indicator = indicator %>%
       stringr::str_replace_all(., spp.cover.replace)) %>%
 
-    # Add AH to the beginning of the indicator to signify "any hit"
+    # Add FH to the beginning of the indicator to signify "any hit"
     dplyr::mutate(indicator = paste("FH_", indicator, "Cover", sep = ""))
 
 
