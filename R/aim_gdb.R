@@ -144,6 +144,7 @@ header_build_lmf <- function(dsn, ...) {
 
 
   # Return the point_ESD as the header file
+  point_ESD <- point_ESD %>% dplyr::mutate(PlotID = PrimaryKey)
   return(point_ESD)
 }
 
