@@ -305,6 +305,23 @@ lpi_calc <- function(header,
     by = c("PrimaryKey", "DBKey")
     )
 
+  # check for generic species in Species list
+  species_list <- sf::st_read(dsn = dsn,
+                              layer = "tblStateSpecies") %>%
+    # Get unknown codes and clean them up. Unknown codes beging with a 2 (LMF/NRI)
+    # or a 2 letter prefix followed by a number.
+    # Older projects also used "AAFF" etc. to identify unknown and dead
+    # beyond recognition codes. So we'll need to detect those too
+    dplyr::filter(stringr::str_detect(string = SpeciesCode,
+                                      pattern = "^2[[:alpha:]]|^[A-z]{2}[[:digit:]]") &
+                    is.na(Notes))
+
+  try(if(nrow(species_list)>0) stop(
+       "Invalid generic species codes present in species list.
+       Please resolve before calculating indicators."))
+
+
+
   # Join to the state species list via the SpeciesState value
   lpi_species <- species_join(
     data = lpi_tall_header,
@@ -1140,6 +1157,8 @@ build_indicators <- function(dsn, source, lpi_tall,
                              height_tall,
                              spp_inventory_tall,
                              soil_stability_tall,...) {
+
+
   all_indicators <- switch(source,
     "TerrADat" = build_terradat_indicators(
       dsn = dsn,

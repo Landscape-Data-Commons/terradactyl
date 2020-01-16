@@ -74,7 +74,6 @@ gather_species <- function(species_file, #
     # Remove NA from species
     species <- species %>% dplyr::filter(!is.na(dplyr::vars(species_code)))
 
-    return(species)
   } else {
 
     # rename spcies growth habits
@@ -99,7 +98,6 @@ gather_species <- function(species_file, #
     # Remove NA from species
     species_list <- species_list %>% dplyr::filter(!is.na(dplyr::vars(species_code)))
 
-    return(species_list)
   }
 }
 
@@ -159,7 +157,7 @@ generic_growth_habits <- function(data,
       subset(!is.na(species_code)) %>%
       dplyr::inner_join(., dplyr::select(
         data, !!!dplyr::vars(data_code),
-        SpeciesState
+        "SpeciesState"
       ))
   }
   # if there are records in generic.code.df
