@@ -69,7 +69,9 @@ gather_species <- function(species_file, #
   # assigned in the species file.
   if (is.null(growth_habit)) {
     # convert factors to character
-    species <- species %>% dplyr::mutate_if(is.factor, as.character)
+    species <- species %>% dplyr::mutate_if(is.factor, as.character) %>%
+      # remove white space
+      dplyr::mutate_if(is.character, stringr::str_trim)
 
     # Remove NA from species
     species <- species %>% dplyr::filter(!is.na(dplyr::vars(species_code)))
@@ -93,9 +95,11 @@ gather_species <- function(species_file, #
       y = growth_habit
     )
     # convert factors to character
-    species_list <- species_list %>% dplyr::mutate_if(is.factor, as.character)
+    species_list <- species_list %>% dplyr::mutate_if(is.factor, as.character) %>%
+      # remove white space
+      dplyr::mutate_if(is.character, stringr::str_trim)
 
-    # Remove NA from species
+        # Remove NA from species
     species_list <- species_list %>% dplyr::filter(!is.na(dplyr::vars(species_code)))
 
   }
