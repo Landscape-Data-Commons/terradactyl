@@ -69,17 +69,24 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
     )
   )
 
+  # Identify missing non-sagebrush shrub
+  species_all_problems$SG_Group[species_all$GrowthHabitSub %in% c("Subshrub",
+                                                                  "Shrub",
+                                                                  "SubShrub",
+                                                                  "Sub-Shrub",
+                                                                  "Sub-shrub") & is.na(species_all$SG_Group)] <- "SG Shrub group missing"
 
+  species_all_problems$SG_Group[!species_all_problems$SG_Group %in% "SG Shrub group missing" ] <- NA
 
   species_issues <- species_all_problems %>%
     dplyr::select(
       PrimaryKey, Species, GrowthHabit, GrowthHabitSub, Duration,
-      Noxious, SpeciesState, source
+      Noxious, SG_Group, SpeciesState, source
     ) %>%
     dplyr::filter_at(
       dplyr::vars(
         GrowthHabit, GrowthHabitSub, Duration,
-        Noxious
+        Noxious, SG_Group
       ),
       dplyr::any_vars(!is.na(.))
     )
