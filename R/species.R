@@ -136,7 +136,14 @@ generic_growth_habits <- function(data,
     dplyr::mutate(Prefix = gsub(SpeciesFixed,
                                 pattern = "[[:digit:]]",
                                 replacement = "") %>%
-                        as.character()) %>%
+                        as.character() %>%
+                    # reduce AAFF etc to two letter prefix
+                    stringr::str_replace(
+                         pattern = "([A-z])(?=\\1)",
+                         replacement = "") %>%
+                    stringr::str_replace(
+                      pattern = "([A-z])(?=\\1)",
+                      replacement = "")) %>%
 
     # Rename to data species code field
     dplyr::rename_at(dplyr::vars(SpeciesFixed), ~data_code)
