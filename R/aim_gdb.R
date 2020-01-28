@@ -338,6 +338,9 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabit
   )] <- "NonWoody"
 
+ lpi_species$GrowthHabit[lpi_species$GrowthHabitSub %in%
+                        c("Forb/herb", "Forb", "Graminoid", "Grass")] <- "ForbGrass"
+
   # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
   lpi_species$GrowthHabit[grepl(
     pattern = "NonVascular|Nonvascular|Non-vascular|Succulent",
@@ -439,7 +442,7 @@ lpi_calc <- function(header,
   # Species Group Cover ----
   # Set the replacement values for valid indicator names ----
   spp.cover.replace <- c(
-    "NONWOODY" = "ForbGrass",
+   # "NONWOODY" = "ForbGrass",
     "NON" = "Non",
     "^NO\\." = "NonNox",
     "NO$" = "NonNox",
@@ -511,7 +514,7 @@ lpi_calc <- function(header,
     ) %>% dplyr::mutate(indicator = paste(indicator, ".", sep = "")),
 
     # Cover by Noxious, Duration, GrowthHabit status
-   test <- pct_cover(lpi_species,
+   pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
       by_year = FALSE,
