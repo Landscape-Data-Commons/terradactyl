@@ -17,11 +17,13 @@ gather_lpi_terradat <- function(dsn) {
   # Read LPI information from TerrADat
   lpi_detail <- suppressWarnings(sf::st_read(
     dsn = dsn,
-    layer = "tblLPIDetail"
+    layer = "tblLPIDetail",
+    stringsAsFactors = FALSE
   ))
   lpi_header <- suppressWarnings(sf::st_read(
     dsn = dsn,
-    layer = "tblLPIHeader"
+    layer = "tblLPIHeader",
+    stringsAsFactors = FALSE
   ))
 
   # Make a tall data frame with the hit codes by layer and the checkbox designation
@@ -123,7 +125,8 @@ gather_lpi_lmf <- function(dsn,
 
   pintercept <- switch(file_type,
     "gdb" = {
-      suppressWarnings(sf::st_read(dsn = dsn, layer = "PINTERCEPT"))
+      suppressWarnings(sf::st_read(dsn = dsn, layer = "PINTERCEPT",
+                                   stringsAsFactors = FALSE))
     },
     "txt" = {
       utils::read.table(paste(dsn, "pintercept.txt", sep = ""),

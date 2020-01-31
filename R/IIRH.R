@@ -17,7 +17,8 @@ gather_rangeland_health_terradat <- function(dsn) {
   }
 
   # Read in tblQualHeader
-  IIRH_header <- sf::st_read(dsn, layer = "tblQualHeader")
+  IIRH_header <- sf::st_read(dsn, layer = "tblQualHeader",
+                             stringsAsFactors = FALSE)
 
   # Read in tblQualDetail
   IIRH_detail <- sf::st_read(dsn, layer = "tblQualDetail")

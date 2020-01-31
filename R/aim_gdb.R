@@ -15,7 +15,8 @@ header_build_terradat <- function(dsn, ...) {
 
   # tblPlots provides the link between species tables
   # (LPI, Height, Species Richness) and tblStateSpecies
-  header <- sf::st_read(dsn = dsn, layer = "tblPlots") %>%
+  header <- sf::st_read(dsn = dsn, layer = "tblPlots",
+                        stringsAsFactors = FALSE) %>%
     as.data.frame() %>%
 
     # Filter using the filtering expression specified by user

@@ -4,7 +4,8 @@
 coordinates <- function(dsn) {
   # Read in the coordinates
   coordinates <- sf::st_read(dsn,
-    layer = "POINTCOORDINATES"
+    layer = "POINTCOORDINATES",
+    stringsAsFactors = FALSE
   )
 
   # Rename the variables

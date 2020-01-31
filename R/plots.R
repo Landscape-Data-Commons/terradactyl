@@ -6,7 +6,8 @@ gather.coordinates <- function(dsn) {
   try(plots <- sf::st_read(
     dsn = dsn,
     layer = "tblPlots",
-    quiet = TRUE
+    quiet = TRUE,
+    stringsAsFactors = FALSE
   ),
   silent = TRUE
   )
@@ -14,7 +15,8 @@ gather.coordinates <- function(dsn) {
   if (!exists("plots")) {
     try(plots <- sf::st_read(
       dsn = dsn,
-      layer = "POINTCOORDINATES"
+      layer = "POINTCOORDINATES",
+      stringsAsFactors = FALSE
     ),
     silent = TRUE
     )

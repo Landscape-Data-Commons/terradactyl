@@ -11,7 +11,8 @@ gather_soil_stability_terradat <- function(dsn) {
   # read in tabular data
   soil_stability_detail <-
     suppressWarnings(sf::st_read(dsn,
-                                 layer = "tblSoilStabDetail")) %>%
+                                 layer = "tblSoilStabDetail",
+                                 stringsAsFactors = FALSE)) %>%
     dplyr::select(-c("created_user",
                      "created_date",
                      "last_edited_user",
@@ -20,7 +21,8 @@ gather_soil_stability_terradat <- function(dsn) {
   # tblSoilStabHeader
   soil_stability_header <-
     suppressWarnings(sf::st_read(dsn,
-                                 layer = "tblSoilStabHeader")) %>%
+                                 layer = "tblSoilStabHeader",
+                                 stringsAsFactors = FALSE)) %>%
     dplyr::select(-c("created_user",
                      "created_date",
                      "last_edited_user",
@@ -95,7 +97,8 @@ gather_soil_stability_terradat <- function(dsn) {
 gather_soil_stability_lmf <- function(dsn, file_type = "gdb") {
   soildisag <- switch(file_type,
     "gdb" = {
-      suppressWarnings(sf::st_read(dsn = dsn, layer = "SOILDISAG"))
+      suppressWarnings(sf::st_read(dsn = dsn, layer = "SOILDISAG",
+                                   stringsAsFactors = FALSE))
     },
     "txt" = {
       read.table(paste(dsn, "soildisag.txt", sep = ""),

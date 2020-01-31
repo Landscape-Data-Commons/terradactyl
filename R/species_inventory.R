@@ -16,9 +16,11 @@
 gather_species_inventory_terradat <- function(dsn) {
   # load raw tables
   species_inventory_detail <- suppressWarnings(sf::st_read(dsn,
-                                                           layer = "tblSpecRichDetail"))
+                                                           layer = "tblSpecRichDetail",
+                                                           stringsAsFactors = FALSE))
   species_inventory_header <- suppressWarnings(sf::st_read(dsn,
-                                                           layer = "tblSpecRichHeader"))
+                                                           layer = "tblSpecRichHeader",
+                                                           stringsAsFactors = FALSE))
 
   # Make Species Inventory Detail  a tall dataframe
   species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)

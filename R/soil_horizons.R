@@ -8,8 +8,10 @@ gather_soil_horizons <- function(dsn, source) {
   # Load soil horizon data
   if(length(which (source %in% c("AIM", "TerrADat")))) {
 
-    soil_aim <- dplyr::left_join(sf::st_read(dsn = dsn, layer="tblSoilPitHorizons"),
-                                          sf::st_read(dsn = dsn, layer="tblSoilPits")) %>%
+    soil_aim <- dplyr::left_join(sf::st_read(dsn = dsn, layer="tblSoilPitHorizons",
+                                             stringsAsFactors = FALSE),
+                                          sf::st_read(dsn = dsn, layer="tblSoilPits",
+                                                      stringsAsFactors = FALSE)) %>%
       dplyr::select(PrimaryKey, DBKey, DateLoadedInDb,
                     HorizonKey, DepthUOM = DepthMeasure, HorizonDepthUpper,
                     HorizonDepthLower,
@@ -86,7 +88,8 @@ gather_soil_horizons <- function(dsn, source) {
 
   if (length(which (source %in% c("LMF", "NRI")))){
     soil_lmf <- switch (source,
-      "LMF" =  {sf::st_read(dsn = dsn, layer="SOILHORIZON")},
+      "LMF" =  {sf::st_read(dsn = dsn, layer="SOILHORIZON",
+                            stringsAsFactors = FALSE)},
       "NRI" = {readRDS(dsn) }
       ) %>%
     dplyr::select(PrimaryKey, DBKey,

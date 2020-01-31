@@ -162,7 +162,8 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 
   # Evaluate the codes used in the species list
   species_list <- switch(stringr::str_sub(species_list_file, start = -3),
-    "gdb" = sf::st_read(dsn = species_list_file, layer="tblStateSpecies"),
+    "gdb" = sf::st_read(dsn = species_list_file, layer="tblStateSpecies",
+                        stringsAsFactors = FALSE),
     "csv" = read.csv(species_list_file))
 
   species_list <- species_list %>% dplyr::mutate_all(list(toupper))
@@ -244,7 +245,8 @@ species_list_compare <- function(species_file,
                                                       pattern = "[A-z]{3}$")),
                          GDB = {
                            suppressWarnings(sf::st_read(dsn = species_file,
-                                                        layer = "tblStateSpecies"))
+                                                        layer = "tblStateSpecies",
+                                                        stringsAsFactors = FALSE))
                          },
                          CSV = {
                            read.csv(species_file, stringsAsFactors = FALSE, na.strings = c("", " "))
