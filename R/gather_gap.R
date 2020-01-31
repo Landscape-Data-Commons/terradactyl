@@ -14,7 +14,8 @@
 gather_gap_terradat <- function(dsn) {
   # Read tblGapDetail
   gap_detail <- suppressWarnings(sf::st_read(dsn =dsn,
-                                             layer = "tblGapDetail")) %>%
+                                             layer = "tblGapDetail",
+                                             stringsAsFactors = FALSE)) %>%
 
     # Remove database management fields that aren't relevant
    subset(., select = -c(
@@ -27,7 +28,8 @@ gather_gap_terradat <- function(dsn) {
 
   # Read tblGapHeader
   gap_header <- suppressWarnings(sf::st_read(dsn = dsn,
-                                             layer = "tblGapHeader")) %>%
+                                             layer = "tblGapHeader",
+                                             stringsAsFactors = FALSE)) %>%
 
     # Remove database management fields that aren't relevant
     subset(., select = -c(
@@ -93,7 +95,8 @@ gather_gap_lmf <- function(dsn,
     "gdb" = {
       suppressWarnings(sf::st_read(
         dsn = dsn,
-        layer = "GINTERCEPT"
+        layer = "GINTERCEPT",
+        stringsAsFactors = FALSE
       )) %>%
         subset(., select = -c(
           GlobalID,
@@ -119,7 +122,8 @@ gather_gap_lmf <- function(dsn,
                   "gdb" = {
                     suppressWarnings(sf::st_read(
                       dsn = dsn,
-                      layer = "POINT"
+                      layer = "POINT",
+                      stringsAsFactors = FALSE
                     )) %>%
                       subset(., select = -c(
                         GlobalID,
