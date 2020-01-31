@@ -51,6 +51,11 @@ mean_height <- function(height_tall,
       )
 
     summary <- summary[!grepl(summary$indicator, pattern = "NA.|.NA"), ]
+
+    # Convert to wide format
+    if (!tall) {
+      summary <- summary %>% tidyr::spread(key = indicator, value = mean_height, fill = 0)
+    }
   }
   # Calculate the max height by grouping variable, if method =="max"
   if (method == "max") {
@@ -66,12 +71,11 @@ mean_height <- function(height_tall,
       dplyr::group_by(!!!level, !!!grouping_variables) %>%
       dplyr::summarize(max_height = mean(max)) %>%
       dplyr::filter(!grepl(max_height, pattern = "^[NA.]{0,100}NA$"))
-  }
 
-
-  # Convert to wide format
-  if (!tall) {
-    summary <- summary %>% tidyr::spread(key = indicator, value = mean_height, fill = 0)
+    # Convert to wide format
+    if (!tall) {
+      summary <- summary %>% tidyr::spread(key = max, value = max_height, fill = 0)
+    }
   }
 
   return(summary)
