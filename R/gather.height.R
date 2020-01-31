@@ -15,8 +15,10 @@ gather_height_terradat <- function(dsn) {
   }
 
   # Read in the LPI tables from the geodatabase
-  lpi_detail <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblLPIDetail"))
-  lpi_header <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblLPIHeader"))
+  lpi_detail <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblLPIDetail",
+                                             stringsAsFactors = FALSE))
+  lpi_header <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblLPIHeader",
+                                             stringsAsFactors = FALSE))
 
   ## Make this an else statement
   if (any(colnames(lpi_header) %in% "DBKey")) {

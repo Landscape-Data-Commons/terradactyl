@@ -57,7 +57,8 @@ header_build_lmf <- function(dsn, ...) {
     )
 
   # County and State are referred to by number codes, let's use the name
-  point <- sf::st_read(dsn, layer = "COUNTYNM") %>%
+  point <- sf::st_read(dsn, layer = "COUNTYNM",
+                       stringsAsFactors = FALSE) %>%
     dplyr::select(COUNTY, COUNTYNM, STATE) %>%
     dplyr::left_join(point, .,
                      by = c("COUNTY", "STATE")) %>%
@@ -65,7 +66,8 @@ header_build_lmf <- function(dsn, ...) {
 
 
     # Add state
-    dplyr::left_join(sf::st_read(dsn, layer = "STATENM"),
+    dplyr::left_join(sf::st_read(dsn, layer = "STATENM",
+                                 stringsAsFactors = FALSE),
                      by = "STATE") %>%
 
     # pair down to needed fields
@@ -87,7 +89,8 @@ header_build_lmf <- function(dsn, ...) {
     dplyr::mutate(DateLoadedInDb = DBKey)
 
   # Get the field coordinates
-  point_coordinate <- sf::st_read(dsn = dsn, layer = "POINTCOORDINATES") %>%
+  point_coordinate <- sf::st_read(dsn = dsn, layer = "POINTCOORDINATES",
+                                  stringsAsFactors = FALSE) %>%
     as.data.frame() %>%
     dplyr::select(PrimaryKey,
                   Latitude_NAD83 = REPORT_LATITUDE,
@@ -114,7 +117,8 @@ header_build_lmf <- function(dsn, ...) {
     dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
 
   # Add Ecological Site Id
-  point_ESD <- sf::st_read(dsn, layer = "ESFSG") %>%
+  point_ESD <- sf::st_read(dsn, layer = "ESFSG",
+                           stringsAsFactors = FALSE) %>%
     dplyr::left_join(point_elevation, ., by = "PrimaryKey") %>%
 
     # If the ESD coverage !=all, figure what portion of the plot the dominant ESD
@@ -308,7 +312,8 @@ lpi_calc <- function(header,
 
   # check for generic species in Species list
   species_list <- sf::st_read(dsn = dsn,
-                              layer = "tblStateSpecies") %>%
+                              layer = "tblStateSpecies",
+                              stringsAsFactors = FALSE) %>%
     # Get unknown codes and clean them up. Unknown codes beging with a 2 (LMF/NRI)
     # or a 2 letter prefix followed by a number.
     # Older projects also used "AAFF" etc. to identify unknown and dead
