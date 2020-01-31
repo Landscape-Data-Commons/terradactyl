@@ -77,8 +77,13 @@ pct_cover <- function(lpi_tall,
     layer = factor(layer,
       levels = c(
         "TopCanopy",
-        unique(lpi_tall$layer)[grepl(unique(lpi_tall$layer),
-                                     pattern = "^Lower[1-7]")],
+        "Lower1",
+        "Lower2",
+        "Lower3",
+        "Lower4",
+        "Lower5",
+        "Lower6",
+        "Lower7",
         "SoilSurface"
       )
     )
