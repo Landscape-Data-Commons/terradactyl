@@ -390,5 +390,8 @@ species_join <- function(data, # field data,
     data_species <- data_species_generic[, colnames(data_species)]
   }
 
+  # make sure all blanks and NAs are actually treated as NA
+  data_species[data_species == "" |data_species == "NA"] <- NA
+
   return(data_species)
 }
