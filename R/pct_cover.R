@@ -124,8 +124,7 @@ pct_cover <- function(lpi_tall,
     },
     "first" = {
       summary <- lpi_tall %>%
-        # Remove records where there are NAs for the grouping variables
-        # dplyr::filter(complete.cases(!!!grouping_variables))%>%
+
         # Strip out all the non-hit codes
         dplyr::filter(!(code %in% c("", NA, "None", "N"))) %>%
         dplyr::group_by(PrimaryKey, LineKey, PointNbr, point_count) %>%

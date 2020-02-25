@@ -118,7 +118,8 @@ generic_growth_habits <- function(data,
                                   species_duration = "Duration" # field name for duration
 
 ) {
-  generic_df <- data.frame(SpeciesFixed = unique(data[, colnames(data) == data_code])) %>%
+  generic_df <- data.frame(SpeciesFixed = unique(data[, colnames(data) == data_code]),
+                           SpeciesOriginal = unique(data[, colnames(data) == data_code])) %>%
 
     # Clean up the species codes, remove white space
     dplyr::mutate(SpeciesFixed = toupper(SpeciesFixed) %>%
@@ -136,14 +137,20 @@ generic_growth_habits <- function(data,
     dplyr::mutate(Prefix = gsub(SpeciesFixed,
                                 pattern = "[[:digit:]]",
                                 replacement = "") %>%
-                    as.character() %>%
-
-                    # reduce AAFF etc to two letter prefix
-                    gsub(pattern = "([[:alpha:]])\\1",
-                         replacement = "\\1")) %>%
+                    as.character()) %>%
+    # reduce AAFF etc to two letter prefix
+    dplyr::mutate(Prefix = dplyr::if_else(stringr::str_detect(string = SpeciesOriginal,
+                                                              pattern = "^[[:alpha:]]"),
+      stringr::str_replace(
+        string = Prefix,
+        pattern = "([[:alpha:]])\\1",
+                           replacement = "\\1"),
+      Prefix
+    )) %>%
 
     # Rename to data species code field
-    dplyr::rename_at(dplyr::vars(SpeciesFixed), ~data_code)
+    dplyr::rename_at(dplyr::vars(SpeciesOriginal), ~data_code)
+
   # If there a no unknown species, no need to proceed
   generic_df <- generic_df[!generic_df[,data_code] %in%
                              species_list[,species_code],]
@@ -242,6 +249,12 @@ species_join <- function(data, # field data,
     growth_habit_code = growth_habit_code,
     species_growth_habit_code = species_growth_habit_code
   )
+
+  # clean up NA values in species list
+  species_list <- species_list %>%
+    dplyr::mutate_if(is.character, list(~dplyr::na_if(., ""))) %>%
+    dplyr::mutate_if(is.character, list(~dplyr::na_if(., "NA")))
+
 
   # Look for UpdatedSpecies and Update the Observation codes, if necessary
   if ("UpdatedSpeciesCode" %in% names(species_list)) {
@@ -390,8 +403,5 @@ species_join <- function(data, # field data,
     data_species <- data_species_generic[, colnames(data_species)]
   }
 
-  # make sure all blanks and NAs are actually treated as NA
-  data_species[data_species == "" |data_species == "NA"] <- NA
-
-  return(data_species)
+   return(data_species)
 }
