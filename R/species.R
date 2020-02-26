@@ -182,7 +182,7 @@ generic_growth_habits <- function(data,
 
     # Indicate that generic shrubcodes are SG_Group "NonSagebrushShrub"
     if ("SG_Group" %in% names(species_list)) {
-      generic.code.df$SG_Group[generic.code.df$Code == "SH"] <- "NonSagebrushShrub"
+      generic.code.df$SG_Group[generic.code.df$Code == "SH"|gneric.code.df$Code == "2SHRUB"] <- "NonSagebrushShrub"
     }
   }
 
