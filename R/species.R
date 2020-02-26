@@ -49,6 +49,7 @@ gather_species <- function(species_file, #
   if (is.null(species)) {
     stop("No valid Species Table. Must be .csv or .gdb file")
   }
+  # TODO Consider removing growth habit info
   # read in the growth habit information
   growth_habit <- switch(toupper(stringr::str_extract(growth_habit_file,
                                                       pattern = "[A-z]{3}$"
