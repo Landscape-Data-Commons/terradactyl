@@ -142,7 +142,7 @@ generic_growth_habits <- function(data,
     # reduce AAFF etc to two letter prefix
     dplyr::mutate(Prefix = dplyr::if_else(stringr::str_detect(string = SpeciesOriginal,
                                                               pattern = "^[[:alpha:]]"),
-      stringr::str_replace(
+      stringr::str_replace_all(
         string = Prefix,
         pattern = "([[:alpha:]])\\1",
                            replacement = "\\1"),
