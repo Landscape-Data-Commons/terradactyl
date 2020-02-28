@@ -167,7 +167,6 @@ gather_lpi_lmf <- function(dsn,
 
   # Where there is a Soil hit, LMF records "None" in BASAL and leaves NONSOIL
   # blank. Let's fill in an "S" to indicate soil
-  levels(pintercept$NONSOIL) <- c(levels(pintercept$NONSOIL), "S")
   pintercept$NONSOIL[pintercept$BASAL == "None" &
                        pintercept$NONSOIL == ""] <- "S"
   pintercept$NONSOIL[pintercept$BASAL == "None" &
@@ -203,7 +202,7 @@ gather_lpi_lmf <- function(dsn,
 
 
   # Remove blank fields with no data
-  lpi_hits_tall <- lpi_hits_tall %>% subset("code" != "")
+  lpi_hits_tall <- lpi_hits_tall %>% subset(code != "")
 
   # Rename "BASAL" and "NONSOIL" to "SoilSurface"
   lpi_hits_tall$layer <- stringr::str_replace_all(
@@ -244,9 +243,9 @@ gather_lpi_lmf <- function(dsn,
                                  "PointNbr" = "MARK",
                                  "ShrubShape" = "SAGEBRUSH_SHAPE")
 
-  # Convert to factor
-  lpi_hits_tall <- lpi_hits_tall %>%
-    dplyr::mutate_if(is.character, list(factor))
+  # # Convert to factor
+  # lpi_hits_tall <- lpi_hits_tall %>%
+  #   dplyr::mutate_if(is.character, list(factor))
 
   # Convert ShrubShape values to be consistent with DIMA schema,
   # 1==Columnar, 2=Spreading, 3=Mixed, 0 is NA
