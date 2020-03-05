@@ -1020,7 +1020,7 @@ soil_stability_calc <- function(header, soil_stability_tall) {
 #' @export build_terradat_indicators
 #' @rdname aim_gdb
 # Build indicators feature class
-build_terradat_indicators <- function(dsn,
+build_terradat_indicators <- function(header,
                                       source,
                                       species_file,
                                       lpi_tall,
@@ -1038,7 +1038,10 @@ build_terradat_indicators <- function(dsn,
   filter_exprs <- rlang::quos(...)
 
   # Read header in
-  header <- header_build(dsn = dsn, source = source, !!!filter_exprs)
+  header <- readRDS(header) %>%
+    # Filter using the filtering expression specified by user
+    dplyr::filter(!!!filter_exprs) %>%
+    dplyr::filter(source == source)
 
   # Join all indicator calculations together
   indicators <- list(
@@ -1091,7 +1094,7 @@ build_terradat_indicators <- function(dsn,
 #' @export build_lmf_indicators
 #' @rdname aim_gdb
 
-build_lmf_indicators <- function(dsn, source,
+build_lmf_indicators <- function(header, source,
                                  species_file,
                                  lpi_tall,
                                  gap_tall,
@@ -1110,7 +1113,10 @@ build_lmf_indicators <- function(dsn, source,
   filter_exprs <- rlang::quos(...)
 
   # Read header in
-  header <- header_build(dsn, source = source, !!!filter_exprs)
+  header <- readRDS(header) %>%
+    # Filter using the filtering expression specified by user
+    dplyr::filter(!!!filter_exprs)  %>%
+    dplyr::filter(source == source)
 
   # Join all indicator calculations together
   indicators <- list(
@@ -1160,7 +1166,7 @@ build_lmf_indicators <- function(dsn, source,
 #' @export build_indicators
 #' @rdname aim_gdb
 # Build wrapper
-build_indicators <- function(dsn, source, lpi_tall,
+build_indicators <- function(header, source, lpi_tall,
                              species_file,
                              gap_tall,
                              height_tall,
@@ -1170,7 +1176,7 @@ build_indicators <- function(dsn, source, lpi_tall,
 
   all_indicators <- switch(source,
     "TerrADat" = build_terradat_indicators(
-      dsn = dsn,
+      header = header,
       source = source,
       lpi_tall = lpi_tall,
       gap_tall = gap_tall,
@@ -1181,7 +1187,7 @@ build_indicators <- function(dsn, source, lpi_tall,
       ...
     ),
     "AIM" = build_terradat_indicators(
-      dsn = dsn,
+      header = header,
       source = source,
       lpi_tall = lpi_tall,
       gap_tall = gap_tall,
@@ -1192,7 +1198,7 @@ build_indicators <- function(dsn, source, lpi_tall,
       ...
     ),
     "LMF" = build_lmf_indicators(
-      dsn = dsn,
+      header = header,
       source = source,
       lpi_tall = lpi_tall,
       gap_tall = gap_tall,
