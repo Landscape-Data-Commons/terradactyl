@@ -1027,7 +1027,7 @@ build_terradat_indicators <- function(header,
                                       gap_tall,
                                       height_tall,
                                       spp_inventory_tall,
-                                      soil_stability_tall,
+                                      soil_stability_tall,dsn,
                                       ...) {
   # Test that source is  "TerrADat"
   if (!source %in% c("TerrADat")) {
@@ -1094,7 +1094,7 @@ build_terradat_indicators <- function(header,
 #' @export build_lmf_indicators
 #' @rdname aim_gdb
 
-build_lmf_indicators <- function(header, source,
+build_lmf_indicators <- function(header, source, dsn,
                                  species_file,
                                  lpi_tall,
                                  gap_tall,
@@ -1166,7 +1166,7 @@ build_lmf_indicators <- function(header, source,
 #' @export build_indicators
 #' @rdname aim_gdb
 # Build wrapper
-build_indicators <- function(header, source, lpi_tall,
+build_indicators <- function(header, source, dsn, lpi_tall,
                              species_file,
                              gap_tall,
                              height_tall,
@@ -1188,6 +1188,7 @@ build_indicators <- function(header, source, lpi_tall,
     ),
     "AIM" = build_terradat_indicators(
       header = header,
+      dsn = dsn,
       source = source,
       lpi_tall = lpi_tall,
       gap_tall = gap_tall,
@@ -1199,6 +1200,19 @@ build_indicators <- function(header, source, lpi_tall,
     ),
     "LMF" = build_lmf_indicators(
       header = header,
+      dsn = dsn,
+      source = source,
+      lpi_tall = lpi_tall,
+      gap_tall = gap_tall,
+      height_tall = height_tall,
+      spp_inventory_tall = spp_inventory_tall,
+      soil_stability_tall = soil_stability_tall,
+      species_file = species_file,
+      ...
+    ),
+    "NRI" = build_lmf_indicators(
+      header = header,
+      dsn = dsn,
       source = source,
       lpi_tall = lpi_tall,
       gap_tall = gap_tall,

@@ -29,7 +29,7 @@ aero<- function (lpi_tall,
 
 
   #extract soil texture values to plots
-  plots_texture <- raster::extract(y=plots, x=texture_raster, df=T, sp=T)
+  plots_texture <- raster::extract(y=plots, x=readRDS(texture_raster), df=T, sp=T)
 
   # Remove any plots without sand texture
   plots_texture <- subset(plots_texture,!is.na(sand))
