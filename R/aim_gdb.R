@@ -407,7 +407,7 @@ lpi_calc <- function(header,
     "CM" = "BareSoil",
     "LM" = "BareSoil",
     "FG" = "BareSoil",
-    "BR" = "Bedrock",
+    "BR" = "Rock",
     "\\bS\\b" = "BareSoil",
     "[[:punct:]]" = ""
   )
