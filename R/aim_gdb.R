@@ -1030,7 +1030,7 @@ build_terradat_indicators <- function(header,
                                       soil_stability_tall,dsn,
                                       ...) {
   # Test that source is  "TerrADat"
-  if (!source %in% c("TerrADat")) {
+  if (!source %in% c("TerrADat", "AIM")) {
     stop("Invalid indicator source specified")
   }
 
