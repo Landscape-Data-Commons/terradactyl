@@ -200,7 +200,6 @@ gather_height_lmf <- function(dsn,
 
   # Convert to metric
   height$HEIGHT <- suppressWarnings(as.numeric(height$HEIGHT))
-  height$UOM <- "cm"
 
   # convert to centimeters
   height$HEIGHT <- height$HEIGHT * 2.54
