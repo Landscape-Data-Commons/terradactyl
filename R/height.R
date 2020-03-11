@@ -59,15 +59,10 @@ mean_height <- function(height_tall,
   }
   # Calculate the max height by grouping variable, if method =="max"
   if (method == "max") {
-    height_tall_spread <- height_tall %>% tidyr::spread(
-      key = type,
-      value = Height
-    )
-    height_tall_spread$max <- pmax(height_tall_spread$herbaceous,
-      height_tall_spread$woody,
-      na.rm = TRUE
-    )
-    summary <- height_tall_spread %>%
+    height_tall<- height_tall %>% dplyr::group_by(PrimaryKey, LineKey, PointNbr) %>%
+      dplyr::summarise(max = max(Height))
+
+    summary <- height_tall %>%
       dplyr::group_by(!!!level, !!!grouping_variables) %>%
       dplyr::summarize(max_height = mean(max)) %>%
       dplyr::filter(!grepl(max_height, pattern = "^[NA.]{0,100}NA$"))

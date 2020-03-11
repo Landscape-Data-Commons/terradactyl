@@ -20,16 +20,16 @@ aero<- function (lpi_tall,
 
   # Get the texture info for the plots
   # Remove NAs from coordinates
-  header <- header %>% subset(!is.na(Longitude) &
-                                !is.na(Latitude))
+  header <- header %>% subset(!is.na(Longitude_NAD83) &
+                                !is.na(Latitude_NAD83))
   plots<-sp::SpatialPointsDataFrame(data=header,
-                                    coords=cbind(y=header$Longitude,
-                                                 x=header$Latitude),
+                                    coords=cbind(y=header$Longitude_NAD83,
+                                                 x=header$Latitude_NAD83),
                                     proj4string = texture_raster@crs)
 
 
   #extract soil texture values to plots
-  plots_texture <- raster::extract(y=plots, x=readRDS(texture_raster), df=T, sp=T)
+  plots_texture <- raster::extract(y=plots, x=texture_raster, df=T, sp=T)
 
   # Remove any plots without sand texture
   plots_texture <- subset(plots_texture,!is.na(sand))
