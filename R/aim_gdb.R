@@ -1235,7 +1235,8 @@ build_indicators <- function(header, source, dsn, lpi_tall,
   }
 
   # Compare indicator field names with the names for a the target feature class
-  feature_class_field_names <- sf::st_read(dsn, layer = source)
+  feature_class_field_names <- sf::st_read(dsn,
+                                           layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source))
 
   feature_class_field_names <- feature_class_field_names[,
     !colnames(feature_class_field_names) %in%
