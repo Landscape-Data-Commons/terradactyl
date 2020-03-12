@@ -35,7 +35,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   species_all <- dplyr::bind_rows(
     lpi,
     height %>%
-      dplyr::select(PrimaryKey, Species, SpeciesState) ,
+      dplyr::select(PrimaryKey, Species, SpeciesState, source) ,
     spp_inventory) %>%
     subset(nchar(Species) >= 3 & Species != "None") %>%
     dplyr::distinct() %>%
