@@ -33,7 +33,8 @@ mean_height <- function(height_tall,
 
   # If height of zer0 is dropped by the calculation, filter out zeros
   if (omit_zero) {
-    height_tall <- dplyr::filter(height_tall, Height != 0)
+    height_tall <- dplyr::filter(height_tall,
+                                 !(Height == 0 & Species %in% c("", "None", "N", NA)))
   }
 
   # Calculate mean height by grouping variable, if method == "mean"
