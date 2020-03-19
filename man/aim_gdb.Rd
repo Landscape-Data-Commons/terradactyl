@@ -3,6 +3,7 @@
 \name{header_build_terradat}
 \alias{header_build_terradat}
 \alias{header_build_lmf}
+\alias{header_build_nri}
 \alias{header_build}
 \alias{lpi_calc}
 \alias{gap_calc}
@@ -18,6 +19,8 @@ header_build_terradat(dsn, ...)
 
 header_build_lmf(dsn, ...)
 
+header_build_nri(dsn, ...)
+
 header_build(dsn, source, ...)
 
 lpi_calc(header, lpi_tall, species_file, source)
@@ -26,17 +29,17 @@ gap_calc(header, gap_tall)
 
 height_calc(header, height_tall, species_file = species_file, source)
 
-spp_inventory_calc(header, spp_inventory_tall, species_file)
+spp_inventory_calc(header, spp_inventory_tall, species_file, source)
 
 soil_stability_calc(header, soil_stability_tall)
 
-build_terradat_indicators(dsn, source, species_file, lpi_tall, gap_tall,
+build_terradat_indicators(header, source, species_file, lpi_tall, gap_tall,
+  height_tall, spp_inventory_tall, soil_stability_tall, dsn, ...)
+
+build_lmf_indicators(header, source, dsn, species_file, lpi_tall, gap_tall,
   height_tall, spp_inventory_tall, soil_stability_tall, ...)
 
-build_lmf_indicators(dsn, source, species_file, lpi_tall, gap_tall,
-  height_tall, spp_inventory_tall, soil_stability_tall, ...)
-
-build_indicators(dsn, source, lpi_tall, species_file, gap_tall,
+build_indicators(header, source, dsn, lpi_tall, species_file, gap_tall,
   height_tall, spp_inventory_tall, soil_stability_tall, ...)
 }
 \arguments{

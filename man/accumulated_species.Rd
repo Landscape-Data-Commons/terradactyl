@@ -5,7 +5,7 @@
 \title{Accumulated species across all methods, by height and cover}
 \usage{
 accumulated_species(lpi_tall, height_tall, spp_inventory_tall, header,
-  species_file = "", ...)
+  species_file = "", dead = TRUE, ...)
 }
 \arguments{
 \item{lpi_tall}{Source of lpi Rdata file}
