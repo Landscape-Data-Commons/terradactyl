@@ -104,6 +104,9 @@ gather_soil_stability_lmf <- function(dsn, file_type = "gdb") {
       read.table(paste(dsn, "soildisag.txt", sep = ""),
                  stringsAsFactors = FALSE,
                  strip.white = TRUE, header = FALSE, sep = "|")
+    },
+    "csv" = {
+      read.csv(dsn)
     }
   )
 
