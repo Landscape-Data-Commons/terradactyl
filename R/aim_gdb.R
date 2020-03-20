@@ -766,8 +766,7 @@ height_calc <- function(header, height_tall,
 
   # For any unresolved height errors, change height to "0" so
   # they are omitted from the calculations
-  height_species$Height[toupper(height_species$GrowthHabit_measured)
-                        != toupper(height_species$GrowthHabit)] <- 0
+  height_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
 
   # Add a forb and grass category
   height_species$pgpf[height_species$Duration == "Perennial" &
