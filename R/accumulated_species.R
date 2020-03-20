@@ -111,6 +111,17 @@ accumulated_species <- function (lpi_tall,
                                                FALSE)
   )
 
+  # Correct the Non-Woody to NonWoody
+  height_species$GrowthHabit[grepl(
+    pattern = "Non-woody|Nonwoody|Non-Woody",
+    x = height_species$GrowthHabit
+  )] <- "NonWoody"
+
+  # For any unresolved height errors, change height to "0" so
+  # they are omitted from the calculations
+  height_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
+
+
   # calculate height by species
   species_height <- mean_height(height_tall = height_species,
                                 method = "mean",
