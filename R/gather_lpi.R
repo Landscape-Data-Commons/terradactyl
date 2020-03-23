@@ -136,7 +136,7 @@ gather_lpi_lmf <- function(dsn,
       )
       },
       "csv" = {
-        read.csv(file = dsn, header = TRUE)
+        read.csv(file = dsn, header = TRUE, stringsAsFactors = FALSE)
       }
 
   )
