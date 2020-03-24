@@ -51,7 +51,7 @@ mean_height <- function(height_tall,
         sep = "."
       )
 
-    summary <- summary[!grepl(summary$indicator, pattern = "NA.|.NA"), ]
+    summary <- summary[!grepl(summary$indicator, pattern = "^NA\\.|\\.NA$|\\.NA\\."), ]
 
     # Convert to wide format
     if (!tall) {
