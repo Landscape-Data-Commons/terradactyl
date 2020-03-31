@@ -765,11 +765,11 @@ height_calc <- function(header, height_tall,
   )] <- "NonWoody"
 
   # For any unresolved height errors, change height to "0" so
-  # they are omitted from the calculations
+  # they are omitted from the calculations, but keep heights with no species assigned
   height_no_species <- height_species %>% dplyr::filter(is.na(Species) & !is.na(Height))
   height_bad_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
 
-  height_species_test<- dplyr::bind_rows(height_no_species, height_bad_species)
+  height_species<- dplyr::bind_rows(height_no_species, height_bad_species)
 
   # Add a forb and grass category
   height_species$pgpf[height_species$Duration == "Perennial" &
