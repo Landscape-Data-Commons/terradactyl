@@ -158,6 +158,16 @@ gather_height_lmf <- function(dsn,
     vegheight$DBKey <- vegheight$SURVEY
   }
 
+  #For height data
+  # point number 75 is recorded twice—once on each transect.
+  # We only want to use it once in the calculations.
+  # Prior to doing these calculations, it would be beneficial to
+  # remove one of the point 75’s from the data set.
+  # Remove the nesw transect—that would be all rows in pintercept
+  # where transect == “nesw” AND mark = 75.
+  vegheight <- vegheight[!(vegheight$TRANSECT== "nesw" & vegheight$DISTANCE == 75),]
+
+
   height_woody <- dplyr::select(
     .data = vegheight,
     PrimaryKey,
