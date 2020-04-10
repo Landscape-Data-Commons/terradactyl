@@ -20,11 +20,11 @@ aero<- function (lpi_tall,
 
   # Get the texture info for the plots
   # Remove NAs from coordinates
-  header <- header %>% subset(!is.na(Longitude) &
-                                !is.na(Latitude))
+  header <- header %>% subset(!is.na(Longitude_NAD83) &
+                                !is.na(Latitude_NAD83))
   plots<-sp::SpatialPointsDataFrame(data=header,
-                                    coords=cbind(y=header$Longitude,
-                                                 x=header$Latitude),
+                                    coords=cbind(y=header$Longitude_NAD83,
+                                                 x=header$Latitude_NAD83),
                                     proj4string = texture_raster@crs)
 
 

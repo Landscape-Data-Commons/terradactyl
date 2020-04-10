@@ -27,6 +27,7 @@ accumulated_species <- function (lpi_tall,
                                  header,
                                  species_file = "",
                                  dead = TRUE,
+                                 source = c("TerrADat", "AIM", "LMF", "NRI"),
                                  ...) {
   # Set the filter expressions
   filter_exprs <- rlang::quos(...)
@@ -35,9 +36,28 @@ accumulated_species <- function (lpi_tall,
   header_sub <- readRDS(header) %>% dplyr::filter(!!!filter_exprs) %>%
     dplyr::select(PrimaryKey, PlotID, DBKey, SpeciesState,source)
 
+  # read in LPI and join to species table
+  lpi_tall_header <- readRDS(lpi_tall) %>%
+    dplyr::left_join(dplyr::select(
+      header_sub,
+      "PrimaryKey",
+      "DBKey",
+      "SpeciesState"
+    ),
+    .,
+    by = c("PrimaryKey", "DBKey")
+    )
+
+  lpi_species <- species_join(
+    data = lpi_tall_header,
+    species_file = species_file,
+    overwrite_generic_species = dplyr::if_else("TerrADat" %in% source,
+                                               TRUE,
+                                               FALSE)
+  ) %>% dplyr::distinct()
+
   # calculate cover by species
-  species_cover <- pct_cover_species(lpi_tall = readRDS(lpi_tall) %>%
-                                       subset(PrimaryKey %in% header_sub$PrimaryKey))%>%
+  species_cover <- pct_cover_species(lpi_tall = lpi_species)%>%
     # Omit 0 cover species
     subset(percent > 0)
 
@@ -65,7 +85,7 @@ accumulated_species <- function (lpi_tall,
   }
 
   # add n of hits
-  species_cover <- readRDS(lpi_tall) %>%
+  species_cover <- lpi_species %>%
     subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
     subset(nchar(as.character(code)) >= 3 & code != "None") %>%
     dplyr::distinct(PrimaryKey, LineKey, PointNbr, code) %>%
@@ -74,9 +94,36 @@ accumulated_species <- function (lpi_tall,
                      by = c("PrimaryKey", "Species" = "code"))
 
 
+
+  # Read in height and join species
+  height <- readRDS(height_tall) %>%
+
+    # subset by PK and add the SpeciesState from the header
+    dplyr::left_join(dplyr::select(header_sub, PrimaryKey, SpeciesState), .)
+
+  # Join to species list
+  height_species <- species_join(
+    data = height,
+    data_code = "Species",
+    species_file = species_file,
+    overwrite_generic_species = dplyr::if_else("TerrADat" %in% source,
+                                               TRUE,
+                                               FALSE)
+  )
+
+  # Correct the Non-Woody to NonWoody
+  height_species$GrowthHabit[grepl(
+    pattern = "Non-woody|Nonwoody|Non-Woody",
+    x = height_species$GrowthHabit
+  )] <- "NonWoody"
+
+  # For any unresolved height errors, change height to "0" so
+  # they are omitted from the calculations
+  height_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
+
+
   # calculate height by species
-  species_height <- mean_height(height_tall = readRDS(height_tall) %>%
-                                  subset(PrimaryKey %in% header_sub$PrimaryKey),
+  species_height <- mean_height(height_tall = height_species,
                                 method = "mean",
                                 by_line = FALSE,
                                 omit_zero = TRUE,
@@ -84,7 +131,7 @@ accumulated_species <- function (lpi_tall,
                                 Species)
 
   # add n of samples for each calculation
-  species_height <- readRDS(height_tall) %>%
+  species_height <- height_species %>%
     subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
     dplyr::count(PrimaryKey, Species) %>%
     dplyr::left_join(., species_height,
@@ -123,9 +170,25 @@ accumulated_species <- function (lpi_tall,
   }
 
 
-  # get list of species occurring in species inventory
+  # read species inventory data and join species list
   species_inventory <- readRDS(spp_inventory_tall) %>%
-    subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
+    # Join to the header to get the relevant PrimaryKeys and SpeciesSate
+    dplyr::left_join(dplyr::select(header_sub, PrimaryKey, SpeciesState), .,
+                     by = "PrimaryKey"
+    )
+
+  # Join to State Species List
+  spp_inventory_species <- species_join(
+    data = species_inventory,
+    data_code = "Species",
+    species_file = species_file,
+    overwrite_generic_species = dplyr::if_else("TerrADat" %in% source,
+                                               TRUE,
+                                               FALSE)
+  )
+
+  # get list of species occurring in species inventory
+  species_inventory <- spp_inventory_species %>%
     dplyr::select(PrimaryKey, Species) %>%
     dplyr::distinct()
 

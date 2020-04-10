@@ -141,7 +141,7 @@ gather_gap_lmf <- function(dsn,
                     )
                   },
                   "csv" = {
-                    read.csv(dsn)
+                    read.csv(point_dsn)
                   }
   )
 

@@ -103,6 +103,9 @@ gather_rangeland_health_lmf <- function(dsn, file.type = "gdb") {
         sep = "|",
         strip.white = TRUE
       )
+    },
+    "csv" = {
+      read.csv(dsn)
     }
   )
 

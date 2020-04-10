@@ -33,7 +33,8 @@ mean_height <- function(height_tall,
 
   # If height of zer0 is dropped by the calculation, filter out zeros
   if (omit_zero) {
-    height_tall <- dplyr::filter(height_tall, Height != 0)
+    height_tall <- dplyr::filter(height_tall,
+                                 !(Height == 0 & Species %in% c("", "None", "N", NA)))
   }
 
   # Calculate mean height by grouping variable, if method == "mean"
@@ -50,7 +51,7 @@ mean_height <- function(height_tall,
         sep = "."
       )
 
-    summary <- summary[!grepl(summary$indicator, pattern = "NA.|.NA"), ]
+    summary <- summary[!grepl(summary$indicator, pattern = "^NA\\.|\\.NA$|\\.NA\\."), ]
 
     # Convert to wide format
     if (!tall) {
@@ -59,15 +60,10 @@ mean_height <- function(height_tall,
   }
   # Calculate the max height by grouping variable, if method =="max"
   if (method == "max") {
-    height_tall_spread <- height_tall %>% tidyr::spread(
-      key = type,
-      value = Height
-    )
-    height_tall_spread$max <- pmax(height_tall_spread$herbaceous,
-      height_tall_spread$woody,
-      na.rm = TRUE
-    )
-    summary <- height_tall_spread %>%
+    height_tall<- height_tall %>% dplyr::group_by(PrimaryKey, LineKey, PointNbr) %>%
+      dplyr::summarise(max = max(Height))
+
+    summary <- height_tall %>%
       dplyr::group_by(!!!level, !!!grouping_variables) %>%
       dplyr::summarize(max_height = mean(max)) %>%
       dplyr::filter(!grepl(max_height, pattern = "^[NA.]{0,100}NA$"))

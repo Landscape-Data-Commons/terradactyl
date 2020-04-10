@@ -49,6 +49,7 @@ gather_species <- function(species_file, #
   if (is.null(species)) {
     stop("No valid Species Table. Must be .csv or .gdb file")
   }
+  # TODO Consider removing growth habit info
   # read in the growth habit information
   growth_habit <- switch(toupper(stringr::str_extract(growth_habit_file,
                                                       pattern = "[A-z]{3}$"
@@ -141,7 +142,7 @@ generic_growth_habits <- function(data,
     # reduce AAFF etc to two letter prefix
     dplyr::mutate(Prefix = dplyr::if_else(stringr::str_detect(string = SpeciesOriginal,
                                                               pattern = "^[[:alpha:]]"),
-      stringr::str_replace(
+      stringr::str_replace_all(
         string = Prefix,
         pattern = "([[:alpha:]])\\1",
                            replacement = "\\1"),

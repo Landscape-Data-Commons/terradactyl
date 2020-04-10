@@ -35,7 +35,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   species_all <- dplyr::bind_rows(
     lpi,
     height %>%
-      dplyr::select(PrimaryKey, Species) ,
+      dplyr::select(PrimaryKey, Species, SpeciesState, source) ,
     spp_inventory) %>%
     subset(nchar(Species) >= 3 & Species != "None") %>%
     dplyr::distinct() %>%
@@ -89,7 +89,8 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
         Noxious, SG_Group
       ),
       dplyr::any_vars(!is.na(.))
-    )
+    ) %>%
+    dplyr::left_join(species_all %>% dplyr::select(Species, SpeciesState, Notes))
 
   species_hits <- species_issues %>%
     dplyr::group_by(Species, source) %>%
