@@ -28,16 +28,24 @@ sagebrush_shape_base <- function(lpi_tall) {
   shrub_shape_predominant <- shrub_shape %>%
     # Count the number of its for each ShrubShape type (C or M)
     dplyr::count(PrimaryKey, ShrubShape) %>%
+    # pivot wider so each shape type is a column
+    tidyr::pivot_wider(names_from = ShrubShape,
+                       values_from = n) %>%
     # Determine which ShrubShape is predominant on the plot
     # (e_g_, the max occurrences)
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarise(SagebrushShape_All_Predominant = ShrubShape[which.max(n)])
+    dplyr::mutate(SagebrushShape_All_Predominant = dplyr::case_when(C > S ~ "C",
+                                                                    C < S ~ "S",
+                                                                    C == S ~ "C/S")) %>%
+    # Rename fields
+    dplyr::select(SagebrushShape_All_Column_Count = C,
+                  SagebrushShape_All_Spread_Count = S,
+                  SagebrushShape_All_Predominant,
+                  PrimaryKey)
 
-  # Count the number of instances in C or S
-  shrub_shape_count <- shrub_shape %>% dplyr::count(PrimaryKey, ShrubShape)
+
 
   # Rename for indicator tables
-  if (nrow(shrub_shape_count) == 0) {
+  if (nrow(shrub_shape_predominant) == 0) {
     sagebrush_shape_all <- shrub_shape_predominant %>%
       dplyr::mutate(
         SagebrushShape_All_Column_Count = NA,
@@ -45,47 +53,47 @@ sagebrush_shape_base <- function(lpi_tall) {
       )
   }
 
-  # Format columnar
-  if ("C" %in% lpi_tall$ShrubShape) {
-    # Spread
-    shrub_shape_column <- shrub_shape_count %>%
-      # Filter by C
-      dplyr::filter(ShrubShape == "C") %>%
+  # # Format columnar
+  # if ("C" %in% lpi_tall$ShrubShape) {
+  #   # Spread
+  #   shrub_shape_column <- shrub_shape_count %>%
+  #     # Filter by C
+  #     dplyr::filter(ShrubShape == "C") %>%
+  #
+  #     # Rename
+  #     dplyr::rename("SagebrushShape_All_ColumnCount" = n)
+  #
+  #   sagebrush_shape_all <- dplyr::full_join(shrub_shape_predominant,
+  #     shrub_shape_column,
+  #     by = "PrimaryKey"
+  #   )
+  # }
+  # # Format spreading
+  # if ("S" %in% lpi_tall$ShrubShape) {
+  #   # Spread
+  #   shrub_shape_spread <- shrub_shape_count %>%
+  #     # Filter by C
+  #     dplyr::filter(ShrubShape == "S") %>%
+  #
+  #     # Rename
+  #     dplyr::rename("SagebrushShape_All_SpreadCount" = n)
+  #
+  #   # Join to rest of indicators
+  #   if ("C" %in% lpi_tall$ShrubShape) {
+  #     sagebrush_shape_all <- sagebrush_shape_all %>%
+  #       dplyr::full_join(shrub_shape_spread, by = "PrimaryKey")
+  #   } else {
+  #     sagebrush_shape_all <- shrub_shape_predominant %>%
+  #       dplyr::full_join(shrub_shape_spread, by = "PrimaryKey")
+  #   }
+  # }
 
-      # Rename
-      dplyr::rename("SagebrushShape_All_ColumnCount" = n)
-
-    sagebrush_shape_all <- dplyr::full_join(shrub_shape_predominant,
-      shrub_shape_column,
-      by = "PrimaryKey"
-    )
-  }
-  # Format spreading
-  if ("S" %in% lpi_tall$ShrubShape) {
-    # Spread
-    shrub_shape_spread <- shrub_shape_count %>%
-      # Filter by C
-      dplyr::filter(ShrubShape == "S") %>%
-
-      # Rename
-      dplyr::rename("SagebrushShape_All_SpreadCount" = n)
-
-    # Join to rest of indicators
-    if ("C" %in% lpi_tall$ShrubShape) {
-      sagebrush_shape_all <- sagebrush_shape_all %>%
-        dplyr::full_join(shrub_shape_spread, by = "PrimaryKey")
-    } else {
-      sagebrush_shape_all <- shrub_shape_predominant %>%
-        dplyr::full_join(shrub_shape_spread, by = "PrimaryKey")
-    }
-  }
-
-  # Clean up fields
-  sagebrush_shape_all <- sagebrush_shape_all %>%
-    dplyr::select(-dplyr::matches("ShrubShape|^n$"))
+  # # Clean up fields
+  # sagebrush_shape_all <- sagebrush_shape_all %>%
+  #   dplyr::select(-dplyr::matches("ShrubShape|^n$"))
 
 
-  return(sagebrush_shape_all)
+  return(shrub_shape_predominant)
 }
 
 
