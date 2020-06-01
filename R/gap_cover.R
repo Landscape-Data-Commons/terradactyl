@@ -20,7 +20,7 @@
 #' @rdname gap_cover
 gap_cover <- function(gap_tall,
                       tall = FALSE,
-                      breaks = c(20, 25, 51, 100, 200),
+                      breaks = c(20, 25, 51, 101, 201),
                       type = "canopy",
                       by_line = FALSE){
 

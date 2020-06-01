@@ -8,10 +8,8 @@
 
 gather_all <- function(dsn, folder){
   # Gap
-  gap_tall_aim <- tryCatch(gather_gap(dsn = dsn, source = "AIM"),
-                           error = function(c) NA)
-  gap_tall_lmf <- tryCatch(gather_gap(dsn = dsn, source = "LMF"),
-                           error = function(c) NA)
+  gap_tall_aim <- gather_gap(dsn = dsn, source = "AIM")
+  gap_tall_lmf <- gather_gap(dsn = dsn, source = "LMF")
   gap_tall <- dplyr::full_join(gap_tall_aim, gap_tall_lmf)
   saveRDS(gap_tall,
           file = paste(folder, "gap_tall.Rdata", sep =""))
