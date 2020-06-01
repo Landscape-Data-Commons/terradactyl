@@ -683,8 +683,8 @@ lpi_calc <- function(header,
   # For TerrADat only, get the data visited from the first line in LPI
   if (source %in% c("TerrADat", "AIM")) {
     lpi_indicators <- lpi_species %>%
-      dplyr::select(PrimaryKey, FormDate) %>%
-      dplyr::group_by(PrimaryKey) %>%
+      dplyr::select(PrimaryKey, FormDate, DBKey) %>%
+      dplyr::group_by(PrimaryKey, DBKey) %>%
       dplyr::summarize(DateVisited = dplyr::first(FormDate,
                                                   order_by = FormDate
       ) %>%
@@ -717,9 +717,9 @@ gap_calc <- function(header, gap_tall) {
     dplyr::rowwise() %>%
     dplyr::select(PrimaryKey,
                   GapCover_25_50 = "[25,51)",
-                  GapCover_51_100 = "[51,100)",
-                  GapCover_101_200 = "[100,200)",
-                  GapCover_200_plus = "[200,1e+05)"
+                  GapCover_51_100 = "[51,101)",
+                  GapCover_101_200 = "[101,201)",
+                  GapCover_200_plus = "[201,1e+05)"
     ) %>%
 
     # Calculate the summation indicator

@@ -3,7 +3,7 @@ Type: Package
 Title: Tools for Creating and Using TerrADat
 Version: 0.1.5
 Author: c(person(given="Sarah", family="McCord", role=c("aut", "cre"), email="sarah.mccord@ars.usda.gov"), person(given="Nelson", family="Stauffer", role="aut"))
-Maintainer: Sarah McCord <sarah.mccord@ars.usda.gov>
+Maintainer: Sarah McCord <sarah.mccord@usda.gov>
 Description: Access, tidy, and calculate standard indicators for data from the BLM AIM program, the BLM LMF program, and the NRCS NRI monitoring programs.
 License: GPL-3
 Encoding: UTF-8
@@ -15,10 +15,22 @@ Imports:
     tidyr, 
     sf, 
     magrittr, 
-    rlang
+    rlang,
+    utils,
+    stats
 Suggests: 
     testthat,
     knitr,
-    rmarkdown
+    rmarkdown, 
+    RODBC, 
+    devtools,
+    odbc,
+    purrr,
+    raster,
+    readr,
+    rlist,
+    rstudioapi,
+    sp,
+    usethis
 Depends: R (>= 2.10)
 VignetteBuilder: knitr

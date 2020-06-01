@@ -30,12 +30,16 @@ sagebrush_shape_base <- function(lpi_tall) {
     dplyr::count(PrimaryKey, ShrubShape) %>%
     # pivot wider so each shape type is a column
     tidyr::pivot_wider(names_from = ShrubShape,
-                       values_from = n) %>%
+                       values_from = n,
+                       values_fill = list(n =0)
+                        ) %>%
+    dplyr::mutate(C = if ("C" %in% names(.)){C}else{0},
+                  S = if ("S" %in% names(.)){S}else{0}) %>%
     # Determine which ShrubShape is predominant on the plot
     # (e_g_, the max occurrences)
     dplyr::mutate(SagebrushShape_All_Predominant = dplyr::case_when(C > S ~ "C",
                                                                     C < S ~ "S",
-                                                                    C == S ~ "C/S")) %>%
+                                                                    C == S ~ "CS")) %>%
     # Rename fields
     dplyr::select(SagebrushShape_All_Column_Count = C,
                   SagebrushShape_All_Spread_Count = S,
