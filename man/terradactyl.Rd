@@ -11,5 +11,5 @@ data, calculating standard variables and indicators, and producing
 standard outputs for data repositories and models.
 }
 \author{
-Sarah McCord \email{sarah.mccord@ars.usda.gov}
+Sarah McCord \email{sarah.mccord@usda.gov}
 }
