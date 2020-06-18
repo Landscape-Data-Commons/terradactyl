@@ -4,7 +4,7 @@
 \alias{gap_cover}
 \title{Calculate the number, length, and percent of gaps}
 \usage{
-gap_cover(gap_tall, tall = FALSE, breaks = c(20, 25, 51, 100, 200),
+gap_cover(gap_tall, tall = FALSE, breaks = c(20, 25, 51, 101, 201),
   type = "canopy", by_line = FALSE)
 }
 \arguments{

@@ -51,6 +51,7 @@ gather_lpi_terradat <- function(dsn) {
     .data = lpi_hits_tall,
     !is.na(code),
     code != "",
+    code != "N",
     code != "None",
     !is.na(PrimaryKey),
     !is.na(RecKey)
