@@ -11,7 +11,7 @@
 #' @param species_code Character. The field name for the species codes in the species file.
 #' @param species_duration Character. the field name for the Duration field in the species file.
 #'
-#' @export gather_species
+#' @export species_join
 #' @rdname species
 
 # Function to gather species information

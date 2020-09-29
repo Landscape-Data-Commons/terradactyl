@@ -6,7 +6,7 @@
 \alias{gather_lpi_lmf}
 \title{Gather TerrADat LPI data into tall/long data frames}
 \usage{
-gather_lpi_terradat(dsn)
+gather_lpi_terradat(dsn = "", detail = "", header = "")
 
 gather_lpi_lmf(dsn, file_type = "gdb")
 

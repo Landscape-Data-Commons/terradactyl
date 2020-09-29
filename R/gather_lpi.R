@@ -12,19 +12,27 @@
 #' @export gather_lpi_terradat
 #' @rdname gather_lpi
 ## Function to make tall format of LPI data from TerrADat
-gather_lpi_terradat <- function(dsn) {
+gather_lpi_terradat <- function(dsn = "",
+                                detail = "",
+                                header = "") {
 
   # Read LPI information from TerrADat
-  lpi_detail <- suppressWarnings(sf::st_read(
-    dsn = dsn,
-    layer = "tblLPIDetail",
-    stringsAsFactors = FALSE
-  ))
-  lpi_header <- suppressWarnings(sf::st_read(
-    dsn = dsn,
-    layer = "tblLPIHeader",
-    stringsAsFactors = FALSE
-  ))
+  if (dsn != "") {
+    lpi_detail <- suppressWarnings(sf::st_read(
+      dsn = dsn,
+      layer = "tblLPIDetail",
+      stringsAsFactors = FALSE
+    ))
+    lpi_header <- suppressWarnings(sf::st_read(
+      dsn = dsn,
+      layer = "tblLPIHeader",
+      stringsAsFactors = FALSE
+    ))
+
+  } else {
+    lpi_detail <- detail
+    lpi_header <- header
+  }
 
   # Make a tall data frame with the hit codes by layer and the checkbox designation
   lpi_hits_tall <- lpi_detail %>%
@@ -172,6 +180,10 @@ gather_lpi_lmf <- function(dsn,
                        pintercept$NONSOIL == ""] <- "S"
   pintercept$NONSOIL[pintercept$BASAL == "None" &
                       is.na(pintercept$NONSOIL)] <- "S"
+
+  # where there is a soil code over BR, retain only the BR
+  pintercept$BASAL[pintercept$BASAL != "None" &
+                       pintercept$NONSOIL == "BR"] <- "None"
 
 
   # Identify the pin drop variables

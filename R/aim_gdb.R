@@ -166,7 +166,7 @@ header_build_nri <- function(dsn, ...) {
     as.data.frame() %>%
 
     # Filter using the filtering expression specified by user
-    dplyr::filter(!!!filter_exprs) %>%
+    #dplyr::filter(!!!filter_exprs) %>%
     dplyr::select(
       PrimaryKey,
       COUNTY, STATE, DBKey
@@ -182,7 +182,7 @@ header_build_nri <- function(dsn, ...) {
 
     # Add state
     dplyr::left_join(read.csv(file.path(dsn, "STATENM.csv"), stringsAsFactors = FALSE),
-                     by = "STATE") %>%
+                     by = c("STATE", "DBKey")) %>%
 
     # pair down to needed fields
     dplyr::select(
