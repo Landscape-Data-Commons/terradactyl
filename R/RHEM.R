@@ -33,71 +33,9 @@ RHEM <- function(
     tidyr::pivot_wider(names_from = "indicator", values_from = "percent")
 
 
-  # # add litter and Biological Crucs category ####
-  # lpi_crust <- lpi_species %>% dplyr::mutate(Crust =
-  #                                      dplyr::case_when(code %in% c("M",  "LC")~ "BioCrust"))
-  #
-  # crust_cover <- pct_cover(lpi_tall = lpi_crust,
-  #                                       hit = "any",
-  #                                       by_year = FALSE,
-  #                                       by_line = FALSE,
-  #                                       tall = TRUE,
-  #                                       Crust)
-  #
-  # crusts_clean <- crust_cover %>% dplyr::mutate(indicator =  indicator %>% snakecase::to_upper_camel_case() %>%
-  #                                                 stringr::str_c("AH_", ., "Cover")) %>%
-  #   tidyr::pivot_wider(names_from = "indicator", values_from = "percent")
 
-  # Total Basal Cover
-  basal_cover <- pct_cover(lpi_tall = lpi_species,
-                                        hit = "basal",
-                                        by_year = FALSE,
-                                        by_line = FALSE,
-                                        tall = TRUE, code
-  )
-  basal_cover_sum <- basal_cover %>% dplyr::filter(nchar(indicator) >=3) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarise(BasalCover = sum(percent))
-
-
-  # Total Foliar Cover
-  total_foliar <- pct_cover_total_foliar(lpi_tall = lpi_species,
-                                                      tall=TRUE)
-
-  total_foliar <- total_foliar %>% dplyr::select(PrimaryKey, FH_TotalFoliarCover = percent)
-
-  # Rock cover ####
-  lpi_rock <- lpi_species %>% dplyr::mutate(Rock =
-                                      dplyr::case_when(code %in% c("RF",
-                                                                   "R",
-                                                                   "GR",
-                                                                   "CB",
-                                                                   "ST",
-                                                                   "BY",
-                                                                   "BR") ~ "Rock"))
-  # rock cover ####
-  rock_cover <- pct_cover(lpi_tall = lpi_rock,
-                                       hit = "any",
-                                       by_year = FALSE,
-                                       by_line = FALSE,
-                                       tall = TRUE,
-                                       Rock)
-
-  rock_cover <- rock_cover %>% dplyr::mutate(indicator =  indicator %>% snakecase::to_upper_camel_case() %>%
-                                               stringr::str_c("AH_", ., "Cover")) %>%
-    tidyr::pivot_wider(names_from = "indicator", values_from = "percent")
-
-  # Soil cover
-  soil_cover <- pct_cover(lpi_tall = lpi_species, tall = TRUE, hit = "any", by_year = FALSE, by_line = FALSE, code)
-
-  soil_cover <- soil_cover %>% dplyr::filter (indicator == "S") %>%
-    dplyr::select(PrimaryKey, AH_SoilCover = percent)
-
-  total_groundcover <- soil_cover %>% dplyr::mutate(AH_TotalGroundCover = 100 - AH_SoilCover) %>%
-    dplyr::select(-AH_SoilCover)
-
-  # Litter above soil
-  lpi_surface_litter <- lpi_species %>% dplyr::mutate(
+  # Identify Litter above soil
+  lpi_species <- lpi_species %>% dplyr::mutate(
     layer = factor(layer,
                    levels = c(
                      "TopCanopy",
@@ -113,27 +51,69 @@ RHEM <- function(
     )
   ) %>% dplyr::arrange(layer)
 
-  # remove soil surface
-  lpi_surface_litter <- lpi_surface_litter %>% dplyr::filter(layer != "SoilSurface")
-
-  lpi_surface_litter <- lpi_surface_litter %>%
+  lpi_species <- lpi_species %>%
+    # remove soil surface
+    dplyr::filter(layer != "SoilSurface") %>%
 
     # Strip out all the non-hit codes
     dplyr::filter(!(code %in% c("", NA, "None", "N"))) %>%
     dplyr::group_by(PrimaryKey, LineKey, PointNbr) %>%
+
     # Get the first hit at a point
     dplyr::summarize(LowestCanopy = dplyr::last(code)) %>%
-    dplyr::left_join(lpi_surface_litter, .)
 
-  surface_litter <- pct_cover(lpi_tall = lpi_surface_litter,
-                                           hit = "any",
-                                           tall = TRUE,
-                                           by_year = FALSE,
-                                           by_line = FALSE,
-                                           LowestCanopy) %>% subset(indicator %in% c("L","HL", "WL", "EL", "AL", "NL"))
+    # Identify Litter
+    dplyr::mutate(LowestCanopy = dplyr::case_when(
+      LowestCanopy %in% c("L","HL", "WL", "EL") ~"SurfaceLitter"),
+      layer = "SoilSurface") %>% dplyr::filter(!is.na(LowestCanopy)) %>%
+    dplyr::left_join(lpi_species, .) %>%
 
-  surface_litter_sum <- surface_litter %>% dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarise(AH_SurfaceLitterCover = sum(percent))
+    # Identify instance of Litter of surface code
+    dplyr::mutate(code = dplyr::case_when(LowestCanopy=="SurfaceLitter" & nchar(code)<3 ~"SurfaceLitter", TRUE ~ code)) %>%
+
+    # remove Lowest canopy field
+    dplyr::select(-LowestCanopy) %>%
+
+    # Condense Rock codes
+    dplyr::mutate(code =
+                    dplyr::case_when(code %in% c("RF",
+                                                 "R",
+                                                 "GR",
+                                                 "CB",
+                                                 "ST",
+                                                 "BY",
+                                                 "BR") ~ "Rock",
+                                     code %in% "S" ~ "Soil",
+                                     TRUE ~ code))
+
+  # Total Basal Cover
+  basal_cover <- pct_cover(lpi_tall = lpi_species,
+                                        hit = "basal",
+                                        by_year = FALSE,
+                                        by_line = FALSE,
+                                        tall = TRUE, code
+  )
+
+  litter_rock_soil <- basal_cover %>%
+    dplyr::filter(indicator %in% c("ROCK", "SOIL", "SURFACELITTER")) %>%
+    dplyr::mutate(indicator =  indicator %>% snakecase::to_upper_camel_case() %>%
+                                                       stringr::str_c("AH_", ., "Cover")) %>%
+        tidyr::pivot_wider(names_from = indicator, values_from = percent) %>%
+    # add total ground cover
+    dplyr::mutate(AH_TotalGroundCover = 100-AH_SoilCover) %>%
+    # rename Surface Litter
+    dplyr::rename("AH_SurfaceLitterCover" = "AH_SurfacelitterCover")
+
+  basal_cover_sum <- basal_cover %>% dplyr::filter(!indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN")) %>%
+    dplyr::group_by(PrimaryKey) %>%
+    dplyr::summarise(BasalCover = sum(percent))
+
+
+  # Total Foliar Cover
+  total_foliar <- pct_cover_total_foliar(lpi_tall = lpi_species,
+                                                      tall=TRUE)
+
+  total_foliar <- total_foliar %>% dplyr::select(PrimaryKey, FH_TotalFoliarCover = percent)
 
 
   # Slope Shape
@@ -144,12 +124,8 @@ RHEM <- function(
                                                    ))
   # join all indicators together
   rhem_indicators <- dplyr::left_join(ah_cover_rhem_clean,fh_cover_rhem_clean, by = "PrimaryKey") %>%
-
-    dplyr::left_join(crusts_clean) %>%
-    dplyr::left_join(surface_litter_sum) %>%
-    dplyr::left_join(basal_cover_sum) %>% dplyr::left_join(rock_cover) %>%
-    dplyr::left_join(soil_cover) %>%
+    dplyr::left_join(litter_rock_soil) %>%
+    dplyr::left_join(basal_cover_sum) %>%
     dplyr::left_join(total_foliar) %>%
-    dplyr::left_join(total_groundcover) %>%
     dplyr::left_join(slope_shape)
 }

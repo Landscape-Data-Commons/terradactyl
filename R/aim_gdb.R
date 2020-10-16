@@ -296,7 +296,8 @@ header_build <- function(dsn, source, ...) {
 lpi_calc <- function(header,
                      lpi_tall,
                      species_file,
-                     source) {
+                     source,
+                     dsn) {
 
   # Join the lpi data to the header PrimaryKeys and add the StateSpecies Key
   lpi_tall_header <- readRDS(lpi_tall) %>%
@@ -379,7 +380,7 @@ lpi_calc <- function(header,
 
   # Clean up indicator names so they are compatible with the AIM.gdb schema
 
-  # Assign string replacements
+   # Assign string replacements
   between.plant.replace <- c(
     "\\bL\\b" = "HerbLitter",
     "HL" = "HerbLitter",
@@ -444,6 +445,44 @@ lpi_calc <- function(header,
     ) %>%
     # Add back to the rest of the between plant cover indicators
     dplyr::bind_rows(between.plant.cover, .)
+
+  # Any hit litter ####
+  lpi_species_litter <- lpi_species %>%
+    dplyr::mutate(
+      Litter = dplyr::case_when(
+        code %in% c("HL", "L", "DN", "ER", "AM")~ "HerbLitter",
+        code %in% "WL" ~ "WoodyLitter"),
+      TotalLitter = dplyr::case_when(
+        code %in% c("HL",
+                    "L",
+                    "DN",
+                    "ER",
+                    "AM",
+                    "WL",
+                    "NL",
+                    "EL",
+                    "HT") ~"TotalLitter"))
+
+  litter <- pct_cover(lpi_species_litter,
+                      tall = TRUE,
+                      hit = "any",
+                      by_year = FALSE,
+                      by_line = FALSE,
+                      Litter) %>%
+    dplyr::mutate(indicator = dplyr::case_when(
+      indicator == "HERBLITTER" ~ "HerbLitter",
+      indicator == "WOODYLITTER" ~ "WoodyLitter"))
+
+  total_litter <- pct_cover(lpi_species_litter,
+                            tall = TRUE,
+                            hit = "any",
+                            by_year = FALSE,
+                            by_line = FALSE,
+                            TotalLitter) %>%
+    dplyr::mutate(indicator = indicator %>% dplyr::recode("TOTALLITTER" = "TotalLitter"))
+
+  litter <- dplyr::bind_rows(litter, total_litter) %>%
+    dplyr::mutate(indicator = paste("AH_", indicator, "Cover", sep = ""))
 
 
   # Species Group Cover ----
@@ -655,7 +694,8 @@ lpi_calc <- function(header,
     ah_spp_group_cover,
     fh_spp_group_cover,
     total_foliar,
-    between.plant.cover) %>%
+    between.plant.cover,
+    litter) %>%
 
     dplyr::distinct() %>%
 
@@ -1055,7 +1095,8 @@ build_terradat_indicators <- function(header, source, dsn,
       lpi_tall = lpi_tall,
       header = header,
       source = source,
-      species_file = species_file
+      species_file = species_file,
+      dsn = dsn
     ),
     # Gap
     gap_calc(
@@ -1130,7 +1171,8 @@ build_lmf_indicators <- function(header, source, dsn,
       lpi_tall = lpi_tall,
       header = header,
       source = source,
-      species_file = species_file
+      species_file = species_file,
+      dsn = dsn
     ),
     # Gap
     gap_calc(
@@ -1227,16 +1269,6 @@ build_indicators <- function(header, source, dsn, lpi_tall,
                              ...
                            )
   )
-
-  # TODO DELETE IN 2019!!!! ####
-  # rename  fields that were mis-named in aim.gdb
-  if("AH_PreferredForbCover" %in% names(all_indicators)){
-
-    all_indicators <- all_indicators %>%
-      dplyr::mutate(AH_PreferredForb = AH_PreferredForbCover,
-                    AH_PerenGrassForbCover = AH_PerenForbGrassCover)
-
-  }
 
   # Compare indicator field names with the names for a the target feature class
   feature_class_field_names <- sf::st_read(dsn,

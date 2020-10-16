@@ -42,7 +42,8 @@ accumulated_species <- function (lpi_tall,
       header_sub,
       "PrimaryKey",
       "DBKey",
-      "SpeciesState"
+      "SpeciesState",
+      "State"
     ),
     .,
     by = c("PrimaryKey", "DBKey")
