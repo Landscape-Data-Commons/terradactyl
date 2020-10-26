@@ -113,7 +113,7 @@ pct_cover <- function(lpi_tall,
         # so we'll write in 1 if any of the layers within that indicator
         # has a non-NA and non-"" value
         dplyr::summarize(present = dplyr::if_else(any(!is.na(code) &
-                                                        code != ""), 1, 0)) %>%
+          code != ""), 1, 0)) %>%
         tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
         dplyr::ungroup() %>%
         dplyr::group_by(!!!level, indicator) %>%
@@ -132,18 +132,21 @@ pct_cover <- function(lpi_tall,
         dplyr::summarize(code = dplyr::first(code)) %>%
         # Get all the other fields back
         merge(
-          x = dplyr::distinct(dplyr::select(lpi_tall,
-                                            "PrimaryKey",
-                                            "LineKey",
-                                            "PointNbr",
-                                            "code",
-                                            !!!grouping_variables)),
+          x = dplyr::distinct(dplyr::select(
+            lpi_tall,
+            "PrimaryKey",
+            "LineKey",
+            "PointNbr",
+            "code",
+            !!!grouping_variables
+          )),
           y = .,
           all.y = TRUE
         ) %>%
         tidyr::unite(indicator,
-                     !!!grouping_variables,
-                     sep = ".") %>%
+          !!!grouping_variables,
+          sep = "."
+        ) %>%
         dplyr::ungroup() %>%
         dplyr::group_by(!!!level, indicator) %>%
         dplyr::summarize(percent = 100 * dplyr::n() / dplyr::first(point_count)) %>%
@@ -156,10 +159,13 @@ pct_cover <- function(lpi_tall,
 
   # add zeros where no cover occurred
   summary <- suppressWarnings(
-    expand.grid(PrimaryKey = unique(lpi_tall$PrimaryKey),
-                indicator = unique(summary$indicator)) %>%
-    dplyr::left_join(., summary) %>%
-    dplyr::mutate_all(dplyr::funs(replace(., is.na(.), 0))))
+    expand.grid(
+      PrimaryKey = unique(lpi_tall$PrimaryKey),
+      indicator = unique(summary$indicator)
+    ) %>%
+      dplyr::left_join(., summary) %>%
+      dplyr::mutate_all(dplyr::funs(replace(., is.na(.), 0)))
+  )
 
   # Remove indicators that have incomplete grouping variable combinations
   summary <- summary %>% subset(!grepl(
@@ -173,11 +179,13 @@ pct_cover <- function(lpi_tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
-                                                           "PlotKey",
-                                                           "PlotID",
-                                                           "LineKey",
-                                                           "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c(
+            "PrimaryKey",
+            "PlotKey",
+            "PlotID",
+            "LineKey",
+            "LineID"
+          ))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))

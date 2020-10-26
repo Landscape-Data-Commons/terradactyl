@@ -3,14 +3,13 @@
 
 #' @export qc_data_inventory
 #' @rdname qc_data_inventory
-qc_data_inventory <- function (header,
-                               lpi_tall,
-                               gap_tall,
-                               height_tall,
-                               spp_inventory_tall,
-                               soil_stability_tall,
-                               dsn
-) {
+qc_data_inventory <- function(header,
+                              lpi_tall,
+                              gap_tall,
+                              height_tall,
+                              spp_inventory_tall,
+                              soil_stability_tall,
+                              dsn) {
   header <- readRDS(header) %>% dplyr::select(-DateVisited)
   lpi <- readRDS(lpi_tall) %>%
     dplyr::group_by(PrimaryKey, RecKey) %>%
@@ -38,13 +37,13 @@ qc_data_inventory <- function (header,
     dplyr::group_by(PrimaryKey, n_height_lines) %>%
     dplyr::summarise(n_height_hits = sum(n_height_hits))
 
-  spp_inventory <- readRDS(spp_inventory_tall)%>%
+  spp_inventory <- readRDS(spp_inventory_tall) %>%
     dplyr::select(PrimaryKey, RecKey) %>%
     dplyr::distinct() %>%
     dplyr::group_by(PrimaryKey) %>%
     dplyr::tally(name = "n_species_inventory_lines")
 
-  soil_stability <- readRDS(soil_stability_tall)%>%
+  soil_stability <- readRDS(soil_stability_tall) %>%
     dplyr::select(PrimaryKey, RecKey) %>%
     dplyr::distinct() %>%
     dplyr::group_by(PrimaryKey) %>%
@@ -56,5 +55,5 @@ qc_data_inventory <- function (header,
 
   # Merge it all together
   data_inventory <- list(header, lpi, height, gap, spp_inventory, soil_stability, rangehealth) %>%
-    Reduce(function(dtf1,dtf2) dplyr::full_join(dtf1,dtf2,by="PrimaryKey"), .)
+    Reduce(function(dtf1, dtf2) dplyr::full_join(dtf1, dtf2, by = "PrimaryKey"), .)
 }

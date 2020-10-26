@@ -33,8 +33,10 @@ mean_height <- function(height_tall,
 
   # If height of zer0 is dropped by the calculation, filter out zeros
   if (omit_zero) {
-    height_tall <- dplyr::filter(height_tall,
-                                 !(Height == 0 & Species %in% c("", "None", "N", NA)))
+    height_tall <- dplyr::filter(
+      height_tall,
+      !(Height == 0 & Species %in% c("", "None", "N", NA))
+    )
   }
 
   # Calculate mean height by grouping variable, if method == "mean"
@@ -60,7 +62,8 @@ mean_height <- function(height_tall,
   }
   # Calculate the max height by grouping variable, if method =="max"
   if (method == "max") {
-    height_tall<- height_tall %>% dplyr::group_by(PrimaryKey, LineKey, PointNbr) %>%
+    height_tall <- height_tall %>%
+      dplyr::group_by(PrimaryKey, LineKey, PointNbr) %>%
       dplyr::summarise(max = max(Height))
 
     summary <- height_tall %>%

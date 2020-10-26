@@ -4,8 +4,15 @@
 \alias{qc_data_inventory}
 \title{QC Data Inventory}
 \usage{
-qc_data_inventory(header, lpi_tall, gap_tall, height_tall,
-  spp_inventory_tall, soil_stability_tall, dsn)
+qc_data_inventory(
+  header,
+  lpi_tall,
+  gap_tall,
+  height_tall,
+  spp_inventory_tall,
+  soil_stability_tall,
+  dsn
+)
 }
 \description{
 QC Data Inventory

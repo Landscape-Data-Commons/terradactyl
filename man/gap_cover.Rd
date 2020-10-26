@@ -4,8 +4,13 @@
 \alias{gap_cover}
 \title{Calculate the number, length, and percent of gaps}
 \usage{
-gap_cover(gap_tall, tall = FALSE, breaks = c(20, 25, 51, 101, 201),
-  type = "canopy", by_line = FALSE)
+gap_cover(
+  gap_tall,
+  tall = FALSE,
+  breaks = c(20, 25, 51, 101, 201),
+  type = "canopy",
+  by_line = FALSE
+)
 }
 \arguments{
 \item{gap_tall}{Raw tables as imported from TerrADat use gather_gap .}

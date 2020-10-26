@@ -29,22 +29,37 @@ sagebrush_shape_base <- function(lpi_tall) {
     # Count the number of its for each ShrubShape type (C or M)
     dplyr::count(PrimaryKey, ShrubShape) %>%
     # pivot wider so each shape type is a column
-    tidyr::pivot_wider(names_from = ShrubShape,
-                       values_from = n,
-                       values_fill = list(n =0)
-                        ) %>%
-    dplyr::mutate(C = if ("C" %in% names(.)){C}else{0},
-                  S = if ("S" %in% names(.)){S}else{0}) %>%
+    tidyr::pivot_wider(
+      names_from = ShrubShape,
+      values_from = n,
+      values_fill = list(n = 0)
+    ) %>%
+    dplyr::mutate(
+      C = if ("C" %in% names(.)) {
+        C
+      } else {
+        0
+      },
+      S = if ("S" %in% names(.)) {
+        S
+      } else {
+        0
+      }
+    ) %>%
     # Determine which ShrubShape is predominant on the plot
     # (e_g_, the max occurrences)
-    dplyr::mutate(SagebrushShape_All_Predominant = dplyr::case_when(C > S ~ "C",
-                                                                    C < S ~ "S",
-                                                                    C == S ~ "CS")) %>%
+    dplyr::mutate(SagebrushShape_All_Predominant = dplyr::case_when(
+      C > S ~ "C",
+      C < S ~ "S",
+      C == S ~ "CS"
+    )) %>%
     # Rename fields
-    dplyr::select(SagebrushShape_All_Column_Count = C,
-                  SagebrushShape_All_Spread_Count = S,
-                  SagebrushShape_All_Predominant,
-                  PrimaryKey)
+    dplyr::select(
+      SagebrushShape_All_Column_Count = C,
+      SagebrushShape_All_Spread_Count = S,
+      SagebrushShape_All_Predominant,
+      PrimaryKey
+    )
 
 
 
@@ -108,8 +123,10 @@ sagebrush_shape <- function(lpi_tall, live = TRUE) {
   shape_all <- sagebrush_shape_base(lpi_tall = lpi_tall)
 
   if (live) {
-    shape_live <- sagebrush_shape_base(lpi_tall = subset(lpi_tall,
-                                                         chckbox == 0))
+    shape_live <- sagebrush_shape_base(lpi_tall = subset(
+      lpi_tall,
+      chckbox == 0
+    ))
 
     # rename the fields with "All" to "Live"
 

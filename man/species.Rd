@@ -8,21 +8,34 @@
 \alias{species_list_compare}
 \title{Gather species attribute data}
 \usage{
-gather_species(species_file,
-  species_growth_habit_code = "GrowthHabitSub", growth_habit_file = "",
-  growth_habit_code = "Code")
+gather_species(
+  species_file,
+  species_growth_habit_code = "GrowthHabitSub",
+  growth_habit_file = "",
+  growth_habit_code = "Code"
+)
 
-generic_growth_habits(data, data_code = "code", species_list,
+generic_growth_habits(
+  data,
+  data_code = "code",
+  species_list,
   species_code = "SpeciesCode",
   species_growth_habit_code = "GrowthHabitSub",
-  species_duration = "Duration")
+  species_duration = "Duration"
+)
 
-species_join(data, data_code = "code", species_file = "",
+species_join(
+  data,
+  data_code = "code",
+  species_file = "",
   species_code = "SpeciesCode",
   species_growth_habit_code = "GrowthHabitSub",
-  species_duration = "Duration", growth_habit_file = "",
-  growth_habit_code = "Code", overwrite_generic_species = FALSE,
-  generic_species_file = "")
+  species_duration = "Duration",
+  growth_habit_file = "",
+  growth_habit_code = "Code",
+  overwrite_generic_species = FALSE,
+  generic_species_file = ""
+)
 
 species_list_check(dsn_tall, species_list_file, ...)
 

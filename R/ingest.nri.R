@@ -25,7 +25,9 @@ nri_field_names <- function(dsn) {
     field_names <- read.csv(X, stringsAsFactors = FALSE)
     field_names$DBKey <- basename(dirname(X))
     return(field_names)
-  }) %>% dplyr::bind_rows() %>% dplyr::select_if(!names(.) %in% ("X"))
+  }) %>%
+    dplyr::bind_rows() %>%
+    dplyr::select_if(!names(.) %in% ("X"))
 
   # We store field names as all upper case
   names(field_names) <- toupper(names(field_names))
@@ -41,13 +43,16 @@ nri_field_names <- function(dsn) {
   )
 
   # Reformat DBKEY to DBKey
-  field_names <- field_names %>% dplyr::mutate(DBKey = DBKEY) %>%
+  field_names <- field_names %>%
+    dplyr::mutate(DBKey = DBKEY) %>%
     dplyr::select(-DBKEY)
 
   # Merge the original nri.data.column.explataions table saved in the package
   nri.data.column.explanations <-
-    dplyr::full_join(terradactyl::nri.data.column.explanations,
-                                                   field_names) %>%
+    dplyr::full_join(
+      terradactyl::nri.data.column.explanations,
+      field_names
+    ) %>%
     dplyr::distinct()
 
   # Look for instances where field of the same name may have different data types assigned
@@ -63,10 +68,12 @@ nri_field_names <- function(dsn) {
 
   # Save the new file
   usethis::use_data(nri.data.column.explanations,
-                     overwrite = TRUE,
-                     internal = TRUE)
+    overwrite = TRUE,
+    internal = TRUE
+  )
   usethis::use_data(nri.data.column.explanations,
-                     overwrite = TRUE)
+    overwrite = TRUE
+  )
 
   # Reload package
   devtools::load_all()
@@ -91,14 +98,14 @@ read_nri_text <- function(table_name, dsn, DBKey = "auto") {
       # if the dsn doesn't exist
       warning(paste("Table", tolower(table_name)), " does not exist in ", X)
       return(data.frame())
-
     } else {
 
       # Read the table from the dsn
       # Set the colClasses, which is the in nri.column.explanations
       colClasses <- terradactyl::nri.data.column.explanations %>%
         subset(TABLE.NAME == toupper(table_name) & DBKey == file.DBKey,
-               select = DATA.TYPE) %>%
+          select = DATA.TYPE
+        ) %>%
         unlist() %>%
         as.vector()
 
@@ -113,8 +120,10 @@ read_nri_text <- function(table_name, dsn, DBKey = "auto") {
       # Adjust accordingly by adding NA columns if there are more fields in the
       # file than expected or subsetting if fewer
       if (field.count < base_length) {
-        warning("Table ", X,
-                " cannot be read in because it does not have the expected number of fields")
+        warning(
+          "Table ", X,
+          " cannot be read in because it does not have the expected number of fields"
+        )
         return(data.frame())
       } else {
         colClasses <- c(
@@ -305,22 +314,24 @@ ingest_nri <- function(dsn,
 
     # Write all tables to Access
     sapply(
-      X = names(all_tables[table_names])[!names(all_tables[table_names]) %in% c("PINTERCEPT", "RHSUMMARY",
-                                                                                "CONCERN",
-                                                                                "COUNTYNM",
-                                                                                "DISTURBANCE",
-                                                                                "ESFSG",
-                                                                                "GINTERCEPT",
-                                                                                "GPS" ,
-                                                                                "PASTUREHEIGHTS",
-                                                                                "PLANTCENSUS",
-                                                                                "POINT",
-                                                                                "PRACTICE",
-                                                                                "PTNOTE", "RANGEHEALTH",
-                                                                                "SOILDISAG",
-                                                                                "SOILHORIZON",
-                                                                                "STATENM",
-                                                                                "POINTCOORDINATES","POINTWEIGHT")],
+      X = names(all_tables[table_names])[!names(all_tables[table_names]) %in% c(
+        "PINTERCEPT", "RHSUMMARY",
+        "CONCERN",
+        "COUNTYNM",
+        "DISTURBANCE",
+        "ESFSG",
+        "GINTERCEPT",
+        "GPS",
+        "PASTUREHEIGHTS",
+        "PLANTCENSUS",
+        "POINT",
+        "PRACTICE",
+        "PTNOTE", "RANGEHEALTH",
+        "SOILDISAG",
+        "SOILHORIZON",
+        "STATENM",
+        "POINTCOORDINATES", "POINTWEIGHT"
+      )],
       function(X) {
         print(X)
         dat <- as.data.frame(all_tables[[X]])
@@ -382,11 +393,13 @@ nri_subset <- function(data, PK_subset, out) {
   if (grepl(out, ".gdb")) {
     lapply(
       X = names(subset_data),
-      function(X) arcgisbinding::arc.write(
+      function(X) {
+        arcgisbinding::arc.write(
           path = paste(out, X, sep = "/"),
           data = subset_data[[X]],
           overwrite = TRUE
         )
+      }
     )
   }
 
@@ -394,10 +407,10 @@ nri_subset <- function(data, PK_subset, out) {
 }
 
 # Assign the correct column names
-#'@export name_variables_nri
-#'@noRd
+#' @export name_variables_nri
+#' @noRd
 
-name_variables_nri <- function(data, table_name){
+name_variables_nri <- function(data, table_name) {
   # Add meaningful variable names from lookup table
   variable_names <- terradactyl::nri.data.column.explanations %>%
     subset(TABLE.NAME == table_name)

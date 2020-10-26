@@ -29,21 +29,26 @@ gather_species <- function(species_file, #
 
   # read from .csv or .gdb. If gdb we assume it is of the schema aim.gdb
   species <- switch(toupper(stringr::str_extract(species_file,
-                                                 pattern = "[A-z]{3}$")),
-                    GDB = {
-                      suppressWarnings(sf::st_read(dsn = species_file,
-                                                   layer = "tblStateSpecies",
-                                                   stringsAsFactors = FALSE))
-                    },
-                    CSV = {
-                      read.csv(species_file, stringsAsFactors = FALSE, na.strings = c("", " "))
-                    }
+    pattern = "[A-z]{3}$"
+  )),
+  GDB = {
+    suppressWarnings(sf::st_read(
+      dsn = species_file,
+      layer = "tblStateSpecies",
+      stringsAsFactors = FALSE
+    ))
+  },
+  CSV = {
+    read.csv(species_file, stringsAsFactors = FALSE, na.strings = c("", " "))
+  }
   )
 
   # Remove some of the gdb management variables, as they cause issues later
   species <- species[, !colnames(species) %in%
-                       c("created_user", "created_date",
-                         "last_edited_user", "last_edited_date", "GlobalID")]
+    c(
+      "created_user", "created_date",
+      "last_edited_user", "last_edited_date", "GlobalID"
+    )]
 
   # stop if there is no species .csv or .gdb file assigned
   if (is.null(species)) {
@@ -52,7 +57,7 @@ gather_species <- function(species_file, #
   # TODO Consider removing growth habit info
   # read in the growth habit information
   growth_habit <- switch(toupper(stringr::str_extract(growth_habit_file,
-                                                      pattern = "[A-z]{3}$"
+    pattern = "[A-z]{3}$"
   )),
   GDB = {
     suppressWarnings(sf::st_read(
@@ -76,7 +81,6 @@ gather_species <- function(species_file, #
 
     # Remove NA from species
     species <- species %>% dplyr::filter(!is.na(dplyr::vars(species_code)))
-
   } else {
 
     # rename spcies growth habits
@@ -88,7 +92,7 @@ gather_species <- function(species_file, #
 
     # remove PrimaryKey, DBKey, and DateLoadedInDb if they exist
     growth_habit <- growth_habit[, !colnames(growth_habit) %in%
-                                   c("DBKey", "PrimaryKey", "DateLoadedInDb")]
+      c("DBKey", "PrimaryKey", "DateLoadedInDb")]
 
     # Merge species list and growth habit
     species_list <- dplyr::left_join(
@@ -100,9 +104,8 @@ gather_species <- function(species_file, #
       # remove white space
       dplyr::mutate_if(is.character, stringr::str_trim)
 
-        # Remove NA from species
+    # Remove NA from species
     species_list <- species_list %>% dplyr::filter(!is.na(dplyr::vars(species_code)))
-
   }
 }
 
@@ -119,33 +122,44 @@ generic_growth_habits <- function(data,
                                   species_duration = "Duration" # field name for duration
 
 ) {
-  generic_df <- data.frame(SpeciesFixed = unique(data[, colnames(data) == data_code]),
-                           SpeciesOriginal = unique(data[, colnames(data) == data_code])) %>%
+  generic_df <- data.frame(
+    SpeciesFixed = unique(data[, colnames(data) == data_code]),
+    SpeciesOriginal = unique(data[, colnames(data) == data_code])
+  ) %>%
 
     # Clean up the species codes, remove white space
     dplyr::mutate(SpeciesFixed = toupper(SpeciesFixed) %>%
-                    stringr::str_replace_all(string = .,
-                                             pattern = " |-", replacement = "")) %>%
+      stringr::str_replace_all(
+        string = .,
+        pattern = " |-", replacement = ""
+      )) %>%
 
     # Get unknown codes and clean them up. Unknown codes beging with a 2 (LMF/NRI)
     # or a 2 letter prefix followed by a number.
     # Older projects also used "AAFF" etc. to identify unknown and dead
     # beyond recognition codes. So we'll need to detect those too
-    dplyr::filter(stringr::str_detect(string = SpeciesFixed,
-                                      pattern = "^2|^[A-z]{2}[[:digit:]]|\\b(?=\\w*(^[A|P|S|T])\\1+)\\w+\\b")) %>%
+    dplyr::filter(stringr::str_detect(
+      string = SpeciesFixed,
+      pattern = "^2|^[A-z]{2}[[:digit:]]|\\b(?=\\w*(^[A|P|S|T])\\1+)\\w+\\b"
+    )) %>%
 
     # Identify prefix
     dplyr::mutate(Prefix = gsub(SpeciesFixed,
-                                pattern = "[[:digit:]]",
-                                replacement = "") %>%
-                    as.character()) %>%
+      pattern = "[[:digit:]]",
+      replacement = ""
+    ) %>%
+      as.character()) %>%
     # reduce AAFF etc to two letter prefix
-    dplyr::mutate(Prefix = dplyr::if_else(stringr::str_detect(string = SpeciesOriginal,
-                                                              pattern = "^[[:alpha:]]"),
+    dplyr::mutate(Prefix = dplyr::if_else(
+      stringr::str_detect(
+        string = SpeciesOriginal,
+        pattern = "^[[:alpha:]]"
+      ),
       stringr::str_replace_all(
         string = Prefix,
         pattern = "([[:alpha:]])\\1",
-                           replacement = "\\1"),
+        replacement = "\\1"
+      ),
       Prefix
     )) %>%
 
@@ -153,8 +167,8 @@ generic_growth_habits <- function(data,
     dplyr::rename_at(dplyr::vars(SpeciesOriginal), ~data_code)
 
   # If there a no unknown species, no need to proceed
-  generic_df <- generic_df[!generic_df[,data_code] %in%
-                             species_list[,species_code],]
+  generic_df <- generic_df[!generic_df[, data_code] %in%
+    species_list[, species_code], ]
 
 
   # Merge with generic species definitions
@@ -175,7 +189,7 @@ generic_growth_habits <- function(data,
       ))
   }
   # if there are records in generic.code.df
-  if(nrow(generic.code.df)>0) {
+  if (nrow(generic.code.df) > 0) {
     # Indicate that generic codes are non-noxious
     if ("Noxious" %in% names(species_list)) {
       generic.code.df$Noxious <- "NO"
@@ -183,7 +197,7 @@ generic_growth_habits <- function(data,
 
     # Indicate that generic shrubcodes are SG_Group "NonSagebrushShrub"
     if ("SG_Group" %in% names(species_list)) {
-      generic.code.df$SG_Group[generic.code.df$Code == "SH"|generic.code.df$Code == "2SHRUB"] <- "NonSagebrushShrub"
+      generic.code.df$SG_Group[generic.code.df$Code == "SH" | generic.code.df$Code == "2SHRUB"] <- "NonSagebrushShrub"
     }
   }
 
@@ -200,17 +214,16 @@ generic_growth_habits <- function(data,
 
   # Remove Code, Prefix, and PrimaryKey if they exist
   species_generic <- species_generic[, !colnames(species_generic) %in%
-                                       c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
+    c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
 
   # Remove NA in species list
-  if("SpeciesCode" %in% names(species_generic)) {
+  if ("SpeciesCode" %in% names(species_generic)) {
     species_generic <- species_generic %>% subset(!is.na(SpeciesCode))
 
     return(species_generic)
-    }
+  }
 
   return(species_generic)
-
 }
 
 #' @export species_join
@@ -239,10 +252,14 @@ species_join <- function(data, # field data,
   }
 
   # Some projects use "None" to indicate "No species". Convert those to N instead
-  data <- data %>% dplyr::mutate_at(data_code,
-                                    ~stringr::str_replace(pattern = "None",
-                                                          replacement = "N",
-                                                          string = data[[data_code]]))
+  data <- data %>% dplyr::mutate_at(
+    data_code,
+    ~ stringr::str_replace(
+      pattern = "None",
+      replacement = "N",
+      string = data[[data_code]]
+    )
+  )
   ## Load species data
   species_list <- gather_species(
     species_file = species_file,
@@ -253,13 +270,13 @@ species_join <- function(data, # field data,
 
   # clean up NA values in species list
   species_list <- species_list %>%
-    dplyr::mutate_if(is.character, list(~dplyr::na_if(., ""))) %>%
-    dplyr::mutate_if(is.character, list(~dplyr::na_if(., "NA")))
+    dplyr::mutate_if(is.character, list(~ dplyr::na_if(., ""))) %>%
+    dplyr::mutate_if(is.character, list(~ dplyr::na_if(., "NA")))
 
 
   # Look for UpdatedSpecies and Update the Observation codes, if necessary
   if ("UpdatedSpeciesCode" %in% names(species_list)) {
-    if(any(!is.na(species_list$UpdatedSpeciesCode))){
+    if (any(!is.na(species_list$UpdatedSpeciesCode))) {
 
       ## Rename column
       species_list <- species_list %>%
@@ -270,25 +287,30 @@ species_join <- function(data, # field data,
 
       # Merge the Updated Species codes to the data
       data_update <- dplyr::left_join(data,
-                                      dplyr::select(species_list, data_code,
-                                                    UpdatedSpeciesCode, SpeciesState),
-                                      by = join_by)
+        dplyr::select(
+          species_list, data_code,
+          UpdatedSpeciesCode, SpeciesState
+        ),
+        by = join_by
+      )
 
       # Overwrite the original data code with any updated species codes
       data_update <- data_update %>%
-        dplyr::mutate_at(data_code,
-                         ~dplyr::coalesce(data_update$UpdatedSpeciesCode,
-                                          data_update[[data_code]]))
+        dplyr::mutate_at(
+          data_code,
+          ~ dplyr::coalesce(
+            data_update$UpdatedSpeciesCode,
+            data_update[[data_code]]
+          )
+        )
 
       # Overwrite original data with updated data
-      data = data_update %>% dplyr::select(names(data))
+      data <- data_update %>% dplyr::select(names(data))
 
       # Rename species_list
       ## Rename column
       species_list <- species_list %>%
         dplyr::rename_at(dplyr::vars(data_code), ~species_code)
-
-
     }
   }
 
@@ -364,39 +386,39 @@ species_join <- function(data, # field data,
     data_species_generic <- data_species_generic %>%
       dplyr::mutate(
         GrowthHabit = dplyr::recode(as.character(GrowthHabitCode),
-                                    "1" = "Woody",
-                                    "2" = "Woody",
-                                    "3" = "Woody",
-                                    "4" = "Woody",
-                                    "5" = "NonWoody",
-                                    "6" = "NonWoody",
-                                    "7" = "NonWoody",
-                                    .missing = as.character(GrowthHabit)
+          "1" = "Woody",
+          "2" = "Woody",
+          "3" = "Woody",
+          "4" = "Woody",
+          "5" = "NonWoody",
+          "6" = "NonWoody",
+          "7" = "NonWoody",
+          .missing = as.character(GrowthHabit)
         ),
         GrowthHabitSub = dplyr::recode(as.character(GrowthHabitCode),
-                                       "1" = "Tree",
-                                       "2" = "Shrub",
-                                       "3" = "Subshrub",
-                                       "4" = "Succulent",
-                                       "5" = "Forb",
-                                       "6" = "Graminoid",
-                                       "7" = "Sedge",
-                                       .missing = as.character(GrowthHabitSub)
+          "1" = "Tree",
+          "2" = "Shrub",
+          "3" = "Subshrub",
+          "4" = "Succulent",
+          "5" = "Forb",
+          "6" = "Graminoid",
+          "7" = "Sedge",
+          .missing = as.character(GrowthHabitSub)
         ),
 
         # If the Duration assignments are different, overwrite
         Duration = ifelse(Duration.x != as.character(Duration.y) & !is.na(Duration.y),
-                          Duration.y, Duration.x
+          Duration.y, Duration.x
         ),
 
         # If the SG_Group assignments are different, overwrite
         SG_Group = ifelse(SG_Group.x != as.character(SG_Group.y) & !is.na(SG_Group.y),
-                          SG_Group.y, SG_Group.x
+          SG_Group.y, SG_Group.x
         ),
 
         # If the Noxious assignments are different, overwrite
         Noxious = ifelse(Noxious.x != as.character(Noxious.y) & !is.na(Noxious.y),
-                         Noxious.y, Noxious.x
+          Noxious.y, Noxious.x
         )
       )
 
@@ -404,5 +426,5 @@ species_join <- function(data, # field data,
     data_species <- data_species_generic[, colnames(data_species)]
   }
 
-   return(data_species)
+  return(data_species)
 }
