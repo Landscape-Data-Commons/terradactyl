@@ -4,8 +4,14 @@
 \alias{aero}
 \title{Calculate AERO Inputs}
 \usage{
-aero(lpi_tall, gap_tall, height_tall, header, texture_raster,
-  folder_location = "~/DataCommons/AERO/")
+aero(
+  lpi_tall,
+  gap_tall,
+  height_tall,
+  header,
+  texture_raster,
+  folder_location = "~/DataCommons/AERO/"
+)
 }
 \arguments{
 \item{lpi_tall}{Table. Line-point intercept data in tall format}

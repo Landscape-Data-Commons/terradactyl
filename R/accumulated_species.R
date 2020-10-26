@@ -1,5 +1,5 @@
 #' Accumulated species across all methods, by height and cover
-#' @param lpi_tall Source of lpi Rdata file
+#' @param lpi_tall Source of LPI Rdata file
 #' @param height_tall Source of height Rdata file
 #' @param species_inventory_tall Source of species inventory Rdata file
 #' @param species_file File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.
@@ -9,11 +9,11 @@
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 #' # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
 
-#'accumulated_species <- terradactyl::accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.Rdata",
+#'accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.Rdata",
 #'                                                       spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.Rdata",
 #'                                                        height_tall = "~/AIM/Data/height_tall.Rdata",
 #'                                                        header = "~/AIM/Data/header.Rdata",
-#'                                                        species_file = "',
+#'                                                        species_file = ",
 #'                                                        SpeciesState %in% "NM")
 
 
@@ -34,7 +34,7 @@ accumulated_species <- function (lpi_tall,
 
   # Subset the header by the filter expressions
   header_sub <- readRDS(header) %>% dplyr::filter(!!!filter_exprs) %>%
-    dplyr::select(PrimaryKey, PlotID, DBKey, SpeciesState,source)
+    dplyr::select("PrimaryKey", "PlotID", "DBKey", "State", "SpeciesState","source")
 
   # read in LPI and join to species table
   lpi_tall_header <- readRDS(lpi_tall) %>%
@@ -42,7 +42,8 @@ accumulated_species <- function (lpi_tall,
       header_sub,
       "PrimaryKey",
       "DBKey",
-      "SpeciesState"
+      "SpeciesState",
+      "State"
     ),
     .,
     by = c("PrimaryKey", "DBKey")

@@ -23,7 +23,7 @@ header_build_nri(dsn, ...)
 
 header_build(dsn, source, ...)
 
-lpi_calc(header, lpi_tall, species_file, source)
+lpi_calc(header, lpi_tall, species_file, source, dsn)
 
 gap_calc(header, gap_tall)
 
@@ -33,14 +33,44 @@ spp_inventory_calc(header, spp_inventory_tall, species_file, source)
 
 soil_stability_calc(header, soil_stability_tall)
 
-build_terradat_indicators(header, source, dsn, species_file, lpi_tall,
-  gap_tall, height_tall, spp_inventory_tall, soil_stability_tall, ...)
+build_terradat_indicators(
+  header,
+  source,
+  dsn,
+  species_file,
+  lpi_tall,
+  gap_tall,
+  height_tall,
+  spp_inventory_tall,
+  soil_stability_tall,
+  ...
+)
 
-build_lmf_indicators(header, source, dsn, species_file, lpi_tall, gap_tall,
-  height_tall, spp_inventory_tall, soil_stability_tall, ...)
+build_lmf_indicators(
+  header,
+  source,
+  dsn,
+  species_file,
+  lpi_tall,
+  gap_tall,
+  height_tall,
+  spp_inventory_tall,
+  soil_stability_tall,
+  ...
+)
 
-build_indicators(header, source, dsn, lpi_tall, species_file, gap_tall,
-  height_tall, spp_inventory_tall, soil_stability_tall, ...)
+build_indicators(
+  header,
+  source,
+  dsn,
+  lpi_tall,
+  species_file,
+  gap_tall,
+  height_tall,
+  spp_inventory_tall,
+  soil_stability_tall,
+  ...
+)
 }
 \arguments{
 \item{dsn}{String File path to the TerrADat database.}

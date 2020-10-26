@@ -22,7 +22,7 @@ gap_cover <- function(gap_tall,
                       tall = FALSE,
                       breaks = c(20, 25, 51, 101, 201),
                       type = "canopy",
-                      by_line = FALSE){
+                      by_line = FALSE) {
 
   # For how deep to group. Always by plot, sometimes by line
   if (by_line) {
@@ -44,12 +44,12 @@ gap_cover <- function(gap_tall,
     gap_tall$LineLengthAmount[gap_tall$Measure == 2] <-
       gap_tall$LineLengthAmount[gap_tall$Measure == 2] * 2.54 * 12
 
-     # Convert Gap from inches to centimeters
-     gap_tall$Gap[gap_tall$Measure == 2] <-
+    # Convert Gap from inches to centimeters
+    gap_tall$Gap[gap_tall$Measure == 2] <-
       gap_tall$Gap[gap_tall$Measure == 2] * 2.54
 
-      # Convert GapMin from inches to centimeters
-     gap_tall$GapMin[gap_tall$Measure == 2] <-
+    # Convert GapMin from inches to centimeters
+    gap_tall$GapMin[gap_tall$Measure == 2] <-
       gap_tall$MinGap[gap_tall$Measure == 2] * 2.54
   }
   ## Note if this is Basal or Canopy Gap by removing gaps from the opposite type.
@@ -140,5 +140,3 @@ gap_cover <- function(gap_tall,
 
   return(gap_summary)
 }
-
-

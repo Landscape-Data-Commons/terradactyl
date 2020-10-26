@@ -77,11 +77,13 @@ pct_cover_all_ground <- function(lpi_tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
-                                                           "PlotKey",
-                                                           "PlotID",
-                                                           "LineKey",
-                                                           "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c(
+            "PrimaryKey",
+            "PlotKey",
+            "PlotID",
+            "LineKey",
+            "LineID"
+          ))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -123,11 +125,13 @@ pct_cover_total_foliar <- function(lpi_tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
-                                                           "PlotKey",
-                                                           "PlotID",
-                                                           "LineKey",
-                                                           "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c(
+            "PrimaryKey",
+            "PlotKey",
+            "PlotID",
+            "LineKey",
+            "LineID"
+          ))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -161,11 +165,13 @@ pct_cover_bare_soil <- function(lpi_tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
-                                                           "PlotKey",
-                                                           "PlotID",
-                                                           "LineKey",
-                                                           "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c(
+            "PrimaryKey",
+            "PlotKey",
+            "PlotID",
+            "LineKey",
+            "LineID"
+          ))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -199,11 +205,13 @@ pct_cover_litter <- function(lpi_tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
-                                                           "PlotKey",
-                                                           "PlotID",
-                                                           "LineKey",
-                                                           "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c(
+            "PrimaryKey",
+            "PlotKey",
+            "PlotID",
+            "LineKey",
+            "LineID"
+          ))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -243,9 +251,13 @@ pct_cover_live <- function(lpi_tall,
   #                   !grepl(indicator, pattern = "\\.\\.|NA"))
 
   # replace "0" and "1" with live and dead
-  summary$indicator <- stringr::str_replace_all(summary$indicator,
-                                                c("1\\." = "Dead\\.",
-                                                  "0\\." = "Live\\."))
+  summary$indicator <- stringr::str_replace_all(
+    summary$indicator,
+    c(
+      "1\\." = "Dead\\.",
+      "0\\." = "Live\\."
+    )
+  )
 
   if (!tall) {
     summary <- tidyr::spread(summary,
@@ -256,11 +268,13 @@ pct_cover_live <- function(lpi_tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
-                                                           "PlotKey",
-                                                           "PlotID",
-                                                           "LineKey",
-                                                           "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c(
+            "PrimaryKey",
+            "PlotKey",
+            "PlotID",
+            "LineKey",
+            "LineID"
+          ))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
@@ -302,11 +316,13 @@ pct_cover_species <- function(lpi_tall,
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
           # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c("PrimaryKey",
-                                                           "PlotKey",
-                                                           "PlotID",
-                                                           "LineKey",
-                                                           "LineID"))]))
+          times = length(unique(names(.)[!(names(.) %in% c(
+            "PrimaryKey",
+            "PlotKey",
+            "PlotID",
+            "LineKey",
+            "LineID"
+          ))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))

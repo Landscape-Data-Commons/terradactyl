@@ -17,8 +17,10 @@ gather_rangeland_health_terradat <- function(dsn) {
   }
 
   # Read in tblQualHeader
-  IIRH_header <- sf::st_read(dsn, layer = "tblQualHeader",
-                             stringsAsFactors = FALSE)
+  IIRH_header <- sf::st_read(dsn,
+    layer = "tblQualHeader",
+    stringsAsFactors = FALSE
+  )
 
   # Read in tblQualDetail
   IIRH_detail <- sf::st_read(dsn, layer = "tblQualDetail")
@@ -111,10 +113,10 @@ gather_rangeland_health_lmf <- function(dsn, file.type = "gdb") {
 
   # if it is in a text file, there are no field names assigned.
   if (file.type == "txt") {
-
-    IIRH <- name_variables_nri(data = IIRH,
-                                     table_name = "RHSUMMARY")
-
+    IIRH <- name_variables_nri(
+      data = IIRH,
+      table_name = "RHSUMMARY"
+    )
   }
 
   # Clean up the field names so they are human readable and match TerrAdat names
@@ -153,7 +155,7 @@ gather_rangeland_health <- function(dsn, source, file.type = "gdb") {
   # Check for a valid layer type
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
     stop("No valid source provided")
-  } )
+  })
 
   # Based on the layer type, use the appropriate gather function
   IIRH <- switch(toupper(source),

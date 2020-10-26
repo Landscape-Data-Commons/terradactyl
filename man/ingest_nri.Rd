@@ -11,8 +11,15 @@ nri_field_names(dsn)
 
 read_nri_text(table_name, dsn, DBKey = "auto")
 
-ingest_nri(dsn, out, dsn_type = "gdb", rda = TRUE, uid = "",
-  pwd = "", connection = "")
+ingest_nri(
+  dsn,
+  out,
+  dsn_type = "gdb",
+  rda = TRUE,
+  uid = "",
+  pwd = "",
+  connection = ""
+)
 
 nri_subset(data, PK_subset, out)
 }

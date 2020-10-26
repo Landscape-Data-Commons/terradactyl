@@ -10,5 +10,3 @@
 #' @importFrom stats C complete.cases na.omit setNames
 #' @importFrom utils data read.csv read.delim read.table str write.csv write.table
 "_PACKAGE"
-
-

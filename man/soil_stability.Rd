@@ -4,8 +4,14 @@
 \alias{soil_stability}
 \title{Soil Stability Indicator Calculations}
 \usage{
-soil_stability(soil_stability_tall, all = TRUE, cover = TRUE,
-  uncovered = TRUE, all_cover_types = FALSE, tall = FALSE)
+soil_stability(
+  soil_stability_tall,
+  all = TRUE,
+  cover = TRUE,
+  uncovered = TRUE,
+  all_cover_types = FALSE,
+  tall = FALSE
+)
 }
 \arguments{
 \item{soil_stability_tall}{Dataframe Gathered soil stability data}

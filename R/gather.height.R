@@ -15,10 +15,14 @@ gather_height_terradat <- function(dsn) {
   }
 
   # Read in the LPI tables from the geodatabase
-  lpi_detail <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblLPIDetail",
-                                             stringsAsFactors = FALSE))
-  lpi_header <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblLPIHeader",
-                                             stringsAsFactors = FALSE))
+  lpi_detail <- suppressWarnings(sf::st_read(
+    dsn = dsn, layer = "tblLPIDetail",
+    stringsAsFactors = FALSE
+  ))
+  lpi_header <- suppressWarnings(sf::st_read(
+    dsn = dsn, layer = "tblLPIHeader",
+    stringsAsFactors = FALSE
+  ))
 
   ## Make this an else statement
   if (any(colnames(lpi_header) %in% "DBKey")) {
@@ -158,14 +162,14 @@ gather_height_lmf <- function(dsn,
     vegheight$DBKey <- vegheight$SURVEY
   }
 
-  #For height data
+  # For height data
   # point number 75 is recorded twice—once on each transect.
   # We only want to use it once in the calculations.
   # Prior to doing these calculations, it would be beneficial to
   # remove one of the point 75’s from the data set.
   # Remove the nesw transect—that would be all rows in pintercept
   # where transect == “nesw” AND mark = 75.
-  vegheight <- vegheight[!(vegheight$TRANSECT== "nesw" & vegheight$DISTANCE == 75),]
+  vegheight <- vegheight[!(vegheight$TRANSECT == "nesw" & vegheight$DISTANCE == 75), ]
 
 
   height_woody <- dplyr::select(
@@ -175,8 +179,10 @@ gather_height_lmf <- function(dsn,
     TRANSECT,
     DISTANCE,
     dplyr::matches("^W")
-  ) %>% dplyr::mutate(type = "woody",
-                      GrowthHabit_measured = "Woody")
+  ) %>% dplyr::mutate(
+    type = "woody",
+    GrowthHabit_measured = "Woody"
+  )
   # remove the "W" from the names
   names(height_woody) <- stringr::str_replace_all(
     string = names(height_woody),
@@ -191,8 +197,10 @@ gather_height_lmf <- function(dsn,
     TRANSECT,
     DISTANCE,
     dplyr::matches("^H")
-  ) %>% dplyr::mutate(type = "herbaceous",
-                      GrowthHabit_measured = "NonWoody")
+  ) %>% dplyr::mutate(
+    type = "herbaceous",
+    GrowthHabit_measured = "NonWoody"
+  )
 
   # remove the "H" from the "HPLANT" field
   names(height_herbaceous)[names(height_herbaceous) == "HPLANT"] <- "PLANT"
@@ -240,7 +248,7 @@ gather_height <- function(dsn,
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
     stop("No valid source provided")
-  } )
+  })
 
   # Gather gap using the appropriate method
   height <- switch(toupper(source),
