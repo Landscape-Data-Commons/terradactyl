@@ -54,9 +54,17 @@ to the file containing the growth habit list. If NULL we assume the species list
 \item{growth_habit_code}{Character. The field name for the growth habit codes
 in the growth habit file. Defaults to \code{"Code"}}
 
+\item{data}{Dataframe containing species data}
+
+\item{data_code}{Character. The field name with the species codes in the data.}
+
+\item{species_list}{Dataframe. Species list output from \code{}}
+
 \item{species_code}{Character. The field name for the species codes in the species file.}
 
 \item{species_duration}{Character. the field name for the Duration field in the species file.}
+
+\item{generic_species_file}{Character. The full file path (including file extension)to the file containing the species list.}
 
 \item{dsn_tall}{The observed data data source}
 

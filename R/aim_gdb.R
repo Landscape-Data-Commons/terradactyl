@@ -7,9 +7,9 @@
 
 
 # Build the header portion of the terradat table
-#' @export header_build_terradat
+#' @export gather_header_terradat
 #' @rdname aim_gdb
-header_build_terradat <- function(dsn, ...) {
+gather_header_terradat <- function(dsn, ...) {
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -39,9 +39,9 @@ header_build_terradat <- function(dsn, ...) {
 }
 
 # Build the header portion of the LMF table
-#' @export header_build_lmf
+#' @export gather_header_lmf
 #' @rdname aim_gdb
-header_build_lmf <- function(dsn, ...) {
+gather_header_lmf <- function(dsn, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -168,9 +168,9 @@ header_build_lmf <- function(dsn, ...) {
 }
 
 # Build the header portion of the LMF table
-#' @export header_build_nri
+#' @export gather_header_nri
 #' @rdname aim_gdb
-header_build_nri <- function(dsn, ...) {
+gather_header_nri <- function(dsn, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -292,10 +292,10 @@ header_build_nri <- function(dsn, ...) {
   return(point_ESD)
 }
 # Build the header wrapper
-#' @export header_build
+#' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-header_build <- function(dsn, source, ...) {
+gather_header <- function(dsn, source, ...) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -305,11 +305,11 @@ header_build <- function(dsn, source, ...) {
   # Apply appropriate header function
 
   header <- switch(toupper(source),
-    "LMF" = header_build_lmf(dsn = dsn, ...),
-    "NRI" = header_build_lmf(dsn = dsn, ...),
-    "TERRADAT" = header_build_terradat(dsn = dsn, ...),
-    "AIM" = header_build_terradat(dsn = dsn, ...),
-    "DIMA" = header_build_terradat(dsn = dsn, ...)
+    "LMF" = gather_header_lmf(dsn = dsn, ...),
+    "NRI" = gather_header_lmf(dsn = dsn, ...),
+    "TERRADAT" = gather_header_terradat(dsn = dsn, ...),
+    "AIM" = gather_header_terradat(dsn = dsn, ...),
+    "DIMA" = gather_header_terradat(dsn = dsn, ...)
   )
 
   header$source <- source
@@ -410,7 +410,6 @@ lpi_calc <- function(header,
   # Calculate between plant cover (includes bare soil) ----
   between.plant.cover <- pct_cover_between_plant(
     lpi_tall = lpi_species,
-    by_year = FALSE,
     by_line = FALSE,
     tall = TRUE
   )
@@ -508,8 +507,6 @@ lpi_calc <- function(header,
   litter <- pct_cover(lpi_species_litter,
     tall = TRUE,
     hit = "any",
-    by_year = FALSE,
-    by_line = FALSE,
     Litter
   ) %>%
     dplyr::mutate(indicator = dplyr::case_when(
@@ -520,7 +517,6 @@ lpi_calc <- function(header,
   total_litter <- pct_cover(lpi_species_litter,
     tall = TRUE,
     hit = "any",
-    by_year = FALSE,
     by_line = FALSE,
     TotalLitter
   ) %>%
@@ -566,7 +562,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
-      by_year = FALSE,
       by_line = FALSE,
       Noxious, Duration, GrowthHabitSub
     ),
@@ -574,7 +569,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
-      by_year = FALSE,
       by_line = FALSE,
       Duration, GrowthHabitSub
     ),
@@ -582,7 +576,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
-      by_year = FALSE,
       by_line = FALSE,
       GrowthHabitSub
     ),
@@ -590,7 +583,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
-      by_year = FALSE,
       by_line = FALSE,
       Noxious, GrowthHabitSub
     ),
@@ -598,7 +590,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
-      by_year = FALSE,
       by_line = FALSE,
       Noxious
     ) %>% dplyr::mutate(indicator = paste(indicator, ".", sep = "")),
@@ -607,7 +598,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
-      by_year = FALSE,
       by_line = FALSE,
       Noxious, Duration, GrowthHabit
     ),
@@ -616,7 +606,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
-      by_year = FALSE,
       by_line = FALSE,
       SG_Group
     ),
@@ -625,7 +614,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "any",
-      by_year = FALSE,
       by_line = FALSE,
       Duration, GrowthHabit
     )
@@ -639,7 +627,6 @@ lpi_calc <- function(header,
       pct_cover(lpi_species,
         tall = TRUE,
         hit = "any",
-        by_year = FALSE,
         by_line = FALSE,
         SG_Group, chckbox
       )
@@ -669,7 +656,6 @@ lpi_calc <- function(header,
     test <- pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
-      by_year = FALSE,
       by_line = FALSE,
       Noxious, Duration, GrowthHabitSub
     ),
@@ -677,7 +663,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
-      by_year = FALSE,
       by_line = FALSE,
       Duration, GrowthHabitSub
     ),
@@ -685,7 +670,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
-      by_year = FALSE,
       by_line = FALSE,
       GrowthHabitSub
     ),
@@ -693,7 +677,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
-      by_year = FALSE,
       by_line = FALSE,
       Noxious, GrowthHabitSub
     ),
@@ -701,7 +684,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
-      by_year = FALSE,
       by_line = FALSE,
       Noxious
     ),
@@ -709,7 +691,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
-      by_year = FALSE,
       by_line = FALSE,
       Noxious, Duration, GrowthHabit
     ),
@@ -717,7 +698,6 @@ lpi_calc <- function(header,
     pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
-      by_year = FALSE,
       by_line = FALSE,
       SG_Group
     )

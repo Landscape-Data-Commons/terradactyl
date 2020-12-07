@@ -48,8 +48,8 @@ gather_all <- function(dsn, folder) {
   )
 
   # header
-  header_aim <- header_build(dsn = dsn, source = "AIM")
-  header_lmf <- header_build(dsn = dsn, source = "LMF")
+  header_aim <- gather_header(dsn = dsn, source = "AIM")
+  header_lmf <- gather_header(dsn = dsn, source = "LMF")
   header <- dplyr::bind_rows(header_aim, header_lmf)
   saveRDS(header,
     file = paste(folder, "header.Rdata", sep = "")

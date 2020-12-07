@@ -2,7 +2,7 @@
 % Please edit documentation in R/accumulated_species.R
 \name{accumulated_species}
 \alias{accumulated_species}
-\title{Accumulated species across all methods, by height and cover}
+\title{Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.}
 \usage{
 accumulated_species(
   lpi_tall,
@@ -16,18 +16,28 @@ accumulated_species(
 )
 }
 \arguments{
-\item{lpi_tall}{Source of LPI Rdata file}
+\item{lpi_tall}{File path to LPI Rdata file}
 
-\item{height_tall}{Source of height Rdata file}
+\item{height_tall}{File path to height Rdata file}
 
-\item{header}{Source of header Rdata file}
+\item{header}{File path to header Rdata file}
 
 \item{species_file}{File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.}
 
-\item{...}{Filtering expression to subset the number of plots}
+\item{...}{Optional filtering expression to subset the number of plots}
 
-\item{species_inventory_tall}{Source of species inventory Rdata file}
+\item{species_inventory_tall}{File path to species inventory Rdata file}
 }
 \description{
-Accumulated species across all methods, by height and cover
+Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.
+}
+\examples{
+# Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
+# This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
+accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.Rdata",
+                                                      spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.Rdata",
+                                                       height_tall = "~/AIM/Data/height_tall.Rdata",
+                                                       header = "~/AIM/Data/header.Rdata",
+                                                       species_file = "species_file.csv",
+                                                       SpeciesState \%in\% "NM")
 }

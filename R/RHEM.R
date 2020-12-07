@@ -1,13 +1,28 @@
 #' RHEM Input Calculations
-#' @param lpi_species Dataframe of lpi tall table joined with RHEM species attributes in the field "RHEM_Habit"
-#' @param slope_shape Dataframe of slope tall table with field SlopeShape = Vertical Slope Shape
+#' @param lpi_species Dataframe of lpi tall table joined with RHEM species attributes in the field "RHEM_Habit".
+#' @param slope_shape Dataframe of slope tall table with field SlopeShape = Vertical Slope Shape.
+#' @param header Dataframe of header with PrimaryKey, Latitude, and Longitude fields.
 #'
+#' @examples
+#' RHEM(lpi_species = lpi_species,
+#' header = header,
+#' slope_shape = slope_shape)
+
 #' @export RHEM
 #' @rdname RHEM
 RHEM <- function(
                  lpi_species,
                  header,
                  slope_shape) {
+
+  # Total Foliar Cover
+  total_foliar <- pct_cover_total_foliar(
+    lpi_tall = lpi_species,
+    tall = TRUE
+  )
+
+  total_foliar <- total_foliar %>% dplyr::select(PrimaryKey, FH_TotalFoliarCover = percent)
+
   # RHEM functional group cover ####
   ah_cover_rhem <- pct_cover(
     lpi_tall = lpi_species,
@@ -112,6 +127,7 @@ RHEM <- function(
     tall = TRUE, code
   )
 
+  # Litter, Rock, Soil Cover
   litter_rock_soil <- basal_cover %>%
     dplyr::filter(indicator %in% c("ROCK", "SOIL", "SURFACELITTER")) %>%
     dplyr::mutate(indicator = indicator %>% snakecase::to_upper_camel_case() %>%
@@ -120,22 +136,13 @@ RHEM <- function(
     # add total ground cover
     dplyr::mutate(AH_TotalGroundCover = 100 - AH_SoilCover) %>%
     # rename Surface Litter
-    dplyr::rename("AH_SurfaceLitterCover" = "AH_SurfacelitterCover")
+    dplyr::rename("AH_SurfaceLitterCover" = "AH_SurfacelitterCover",
+                  "AH_BareSoilCover" = "AH_SoilCover")
 
   basal_cover_sum <- basal_cover %>%
     dplyr::filter(!indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN")) %>%
     dplyr::group_by(PrimaryKey) %>%
     dplyr::summarise(BasalCover = sum(percent))
-
-
-  # Total Foliar Cover
-  total_foliar <- pct_cover_total_foliar(
-    lpi_tall = lpi_species,
-    tall = TRUE
-  )
-
-  total_foliar <- total_foliar %>% dplyr::select(PrimaryKey, FH_TotalFoliarCover = percent)
-
 
   # Slope Shape
   slope_shape <- slope_shape %>% dplyr::mutate(SlopeShape = SlopeShape %>%

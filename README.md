@@ -15,17 +15,5 @@ data.
 ## Installation
 
 ``` r
-devtools::install_github('LandscapeDataCommons/terradactyl')
+devtools::install_github('Landscape-Data-Commons/terradactyl')
 ```
-
-## Example
-
-This is a basic example which shows you how to solve a common problem:
-
-``` r
-library(terradactyl)
-## basic example code
-```
-
-<img src ='man/figures/data-flow.png' />
-<img src ='man/figures/functions.png' />
