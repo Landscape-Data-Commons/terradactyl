@@ -7,10 +7,17 @@
 RHEM(lpi_species, header, slope_shape)
 }
 \arguments{
-\item{lpi_species}{Dataframe of lpi tall table joined with RHEM species attributes in the field "RHEM_Habit"}
+\item{lpi_species}{Dataframe of lpi tall table joined with RHEM species attributes in the field "RHEM_Habit".}
 
-\item{slope_shape}{Dataframe of slope tall table with field SlopeShape = Vertical Slope Shape}
+\item{header}{Dataframe of header with PrimaryKey, Latitude, and Longitude fields.}
+
+\item{slope_shape}{Dataframe of slope tall table with field SlopeShape = Vertical Slope Shape.}
 }
 \description{
 RHEM Input Calculations
+}
+\examples{
+RHEM(lpi_species = lpi_species,
+header = header,
+slope_shape = slope_shape)
 }

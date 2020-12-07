@@ -1,7 +1,6 @@
 #' Percent Cover Indicators
 #' @description Calculate the percent cover  indicators by plot or line for variables or combinations of variables.This is a family of standard indicator variables to examine total foliar cover, bare soil, litter cover, and other ground cover indicators. To compute cover by species, growth habit and duration, or other custom line-point intercept combinations, see \code{pct_cover()}.
 #' @param lpi_tall A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.
-#' @param by_year Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.
 #' @param by_line Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.
 #' @param tall Logical. If \code{TRUE} then output will be in tall format
 #' @param hit String. If \code{"first"} then only top LPI hits are included. If \code{"any"} then any hit values are included.
@@ -17,13 +16,11 @@
 # This function assumes that all non-plant codes are <3 characters long
 pct_cover_between_plant <- function(lpi_tall,
                                     tall = FALSE,
-                                    by_year = FALSE,
                                     by_line = FALSE) {
   # Calculate between plant cover
   summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "first",
-    by_year = by_year,
     by_line = by_line,
     code
   ) %>%
@@ -144,13 +141,11 @@ pct_cover_total_foliar <- function(lpi_tall,
 # Percent Bare Soil Cover####
 pct_cover_bare_soil <- function(lpi_tall,
                                 tall = FALSE,
-                                by_year = FALSE,
                                 by_line = FALSE) {
   # Calculate between plant cover
   summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "first",
-    by_year = by_year,
     by_line = by_line,
     code
   ) %>%
@@ -184,17 +179,15 @@ pct_cover_bare_soil <- function(lpi_tall,
 # Percent Litter Cover####
 pct_cover_litter <- function(lpi_tall,
                              tall = FALSE,
-                             by_year = FALSE,
                              by_line = FALSE) {
   # Calculate between plant cover
   summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "any",
-    by_year = by_year,
     by_line = by_line,
     code
   ) %>%
-    # Remove all layer codes that are <3 codes (i.e., non-species codes)
+    # Select only litter codes
     subset(., indicator %in% c("L", "WL", "NL", "HL", "AM", "DN", "ER"))
   if (!tall) {
     summary <- tidyr::spread(summary,
@@ -226,7 +219,6 @@ pct_cover_litter <- function(lpi_tall,
 # Percent Cover Live vs Dead ####
 pct_cover_live <- function(lpi_tall,
                            tall = FALSE,
-                           by_year = FALSE,
                            by_line = FALSE,
                            hit = "any",
                            ...) {
@@ -235,7 +227,6 @@ pct_cover_live <- function(lpi_tall,
   summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = hit,
-    by_year = by_year,
     by_line = by_line,
     chckbox,
     !!!grouping_variables
@@ -255,7 +246,9 @@ pct_cover_live <- function(lpi_tall,
     summary$indicator,
     c(
       "1\\." = "Dead\\.",
-      "0\\." = "Live\\."
+      "0\\." = "Live\\.",
+      "0" = "Live",
+      "1" = "Dead"
     )
   )
 
@@ -290,13 +283,11 @@ pct_cover_live <- function(lpi_tall,
 ## Percent Cover by Species
 pct_cover_species <- function(lpi_tall,
                               tall = TRUE,
-                              by_year = FALSE,
                               by_line = FALSE,
                               hit = "any") {
   summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = hit,
-    by_year = by_year,
     by_line = by_line,
     code
   )

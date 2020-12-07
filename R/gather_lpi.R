@@ -1,8 +1,11 @@
 #' Gather TerrADat LPI data into tall/long data frames
 #'
-#' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.
+#' @description Given a Line-point intercept data, create a tall format data frame that can be used in \code{pct_cover()} functions.
 #' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
-#' @param source Character string. The data source format.
+#' @param source Character string. The data source format, can be LPI, .
+#' @param header Dataframe of the data structure tblLPIHeader from the DIMA database with the addition of PrimaryKey and DBKey fields.
+#' @param detail Dataframe of the data structure tblLPIDetail from the DIMA database with the addition of PrimaryKey and DBKey fields.
+#' @param file_type Character string that denotes the source file type, \code{"gdb"}, \code{"txt"}, \code{"csv"}
 #' @importFrom magrittr %>%
 #' @name gather_lpi
 #' @family <gather>

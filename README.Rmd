@@ -23,7 +23,7 @@ The goal of terradactyl is to provide tools for tidying rangeland core methods m
 ## Installation
 
 ``` r
-devtools::install_github('LandscapeDataCommons/terradactyl')
+devtools::install_github('Landscape-Data-Commons/terradactyl')
 ```
 
 ## Example
