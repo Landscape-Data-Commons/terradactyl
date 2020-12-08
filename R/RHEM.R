@@ -27,7 +27,6 @@ RHEM <- function(
   ah_cover_rhem <- pct_cover(
     lpi_tall = lpi_species,
     hit = "any",
-    by_year = FALSE,
     by_line = FALSE,
     tall = TRUE,
     RHEM_Habit
@@ -41,7 +40,6 @@ RHEM <- function(
   fh_cover_rhem <- pct_cover(
     lpi_tall = lpi_species,
     hit = "first",
-    by_year = FALSE,
     by_line = FALSE,
     tall = TRUE,
     RHEM_Habit
@@ -122,7 +120,6 @@ RHEM <- function(
   basal_cover <- pct_cover(
     lpi_tall = lpi_species,
     hit = "basal",
-    by_year = FALSE,
     by_line = FALSE,
     tall = TRUE, code
   )

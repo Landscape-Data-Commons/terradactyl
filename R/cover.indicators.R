@@ -53,13 +53,12 @@ pct_cover_between_plant <- function(lpi_tall,
 # This function assumes that all non-plant codes are <3 characters long
 pct_cover_all_ground <- function(lpi_tall,
                                  tall = FALSE,
-                                 by_year = FALSE,
                                  by_line = FALSE) {
   # Calculate between plant cover
   summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "basal",
-    by_year = by_year,
+
     by_line = by_line,
     code
   ) %>%
@@ -94,13 +93,12 @@ pct_cover_all_ground <- function(lpi_tall,
 # Percent Total Foliar Cover####
 pct_cover_total_foliar <- function(lpi_tall,
                                    tall = FALSE,
-                                   by_year = FALSE,
                                    by_line = FALSE) {
-  # Calculate between plant cover
+  # Calculate total foliar cover cover
   summary <- pct_cover(lpi_tall,
     tall = TRUE,
     hit = "first",
-    by_year = by_year,
+
     by_line = by_line,
     code
   ) %>%

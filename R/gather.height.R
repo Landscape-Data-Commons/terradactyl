@@ -231,7 +231,8 @@ gather_height_lmf <- function(dsn,
     LineKey = TRANSECT,
     PointNbr = DISTANCE,
     Height = HEIGHT,
-    Species = PLANT
+    Species = PLANT,
+    HeightUOM = UOM
   )
 
   # return height

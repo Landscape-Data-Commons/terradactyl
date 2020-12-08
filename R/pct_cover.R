@@ -10,7 +10,6 @@
 pct_cover <- function(lpi_tall,
                       tall = FALSE,
                       hit = "any",
-                      by_year = FALSE,
                       by_line = FALSE,
                       ...) {
   ## Get a list of the variables the user wants to group by.
