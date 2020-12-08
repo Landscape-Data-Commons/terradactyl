@@ -4,14 +4,7 @@
 \alias{pct_cover}
 \title{Percent cover}
 \usage{
-pct_cover(
-  lpi_tall,
-  tall = FALSE,
-  hit = "any",
-  by_year = FALSE,
-  by_line = FALSE,
-  ...
-)
+pct_cover(lpi_tall, tall = FALSE, hit = "any", by_line = FALSE, ...)
 }
 \arguments{
 \item{lpi_tall}{A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.}

@@ -13,14 +13,9 @@
 \usage{
 pct_cover_between_plant(lpi_tall, tall = FALSE, by_line = FALSE)
 
-pct_cover_all_ground(lpi_tall, tall = FALSE, by_year = FALSE, by_line = FALSE)
+pct_cover_all_ground(lpi_tall, tall = FALSE, by_line = FALSE)
 
-pct_cover_total_foliar(
-  lpi_tall,
-  tall = FALSE,
-  by_year = FALSE,
-  by_line = FALSE
-)
+pct_cover_total_foliar(lpi_tall, tall = FALSE, by_line = FALSE)
 
 pct_cover_bare_soil(lpi_tall, tall = FALSE, by_line = FALSE)
 
