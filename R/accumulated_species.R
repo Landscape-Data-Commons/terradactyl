@@ -1,10 +1,10 @@
-#' Accumulated species across all methods, by height and cover
-#' @param lpi_tall Source of LPI Rdata file
-#' @param height_tall Source of height Rdata file
-#' @param species_inventory_tall Source of species inventory Rdata file
+#' Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.
+#' @param lpi_tall File path to LPI Rdata file
+#' @param height_tall File path to height Rdata file
+#' @param species_inventory_tall File path to species inventory Rdata file
 #' @param species_file File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.
-#' @param header Source of header Rdata file
-#' @param ... Filtering expression to subset the number of plots
+#' @param header File path to header Rdata file
+#' @param ... Optional filtering expression to subset the number of plots
 #' @examples
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 #' # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
@@ -13,7 +13,7 @@
 #'                                                       spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.Rdata",
 #'                                                        height_tall = "~/AIM/Data/height_tall.Rdata",
 #'                                                        header = "~/AIM/Data/header.Rdata",
-#'                                                        species_file = ",
+#'                                                        species_file = "species_file.csv",
 #'                                                        SpeciesState %in% "NM")
 
 
@@ -68,7 +68,6 @@ accumulated_species <- function (lpi_tall,
                                            subset(PrimaryKey %in% header_sub$PrimaryKey),
                                          hit = "any",
                                          tall = TRUE,
-                                         by_year = FALSE,
                                          by_line = FALSE,
                                          code) %>% subset(percent > 0)
     species_cover_live_dead_split <- species_cover_live_dead  %>%

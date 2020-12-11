@@ -4,14 +4,7 @@
 \alias{pct_cover}
 \title{Percent cover}
 \usage{
-pct_cover(
-  lpi_tall,
-  tall = FALSE,
-  hit = "any",
-  by_year = FALSE,
-  by_line = FALSE,
-  ...
-)
+pct_cover(lpi_tall, tall = FALSE, hit = "any", by_line = FALSE, ...)
 }
 \arguments{
 \item{lpi_tall}{A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.}
@@ -19,8 +12,6 @@ pct_cover(
 \item{tall}{Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.}
 
 \item{hit}{Character string. If \code{"any"} then percent cover will be calculated using any hit in the canopy column (so a single pin drop record may be counted more than once if it had hits that corresponded to different groups). If \code{"first"} then only the first canopy hit at a pin drop will be used to calculate cover.  If \code{"basal"}, then only the soil surfacy hit will be used to calculate cover. Defaults to \code{"any"}.}
-
-\item{by_year}{Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.}
 
 \item{by_line}{Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
 

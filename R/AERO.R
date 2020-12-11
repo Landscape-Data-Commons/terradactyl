@@ -63,7 +63,6 @@ aero <- function(lpi_tall,
   bare_soil <- pct_cover_bare_soil(
     lpi_tall = lpi_tall,
     tall = FALSE,
-    by_year = FALSE,
     by_line = FALSE
   )
 

@@ -11,49 +11,24 @@
 \alias{pct_cover_species}
 \title{Percent Cover Indicators}
 \usage{
-pct_cover_between_plant(
-  lpi_tall,
-  tall = FALSE,
-  by_year = FALSE,
-  by_line = FALSE
-)
+pct_cover_between_plant(lpi_tall, tall = FALSE, by_line = FALSE)
 
-pct_cover_all_ground(lpi_tall, tall = FALSE, by_year = FALSE, by_line = FALSE)
+pct_cover_all_ground(lpi_tall, tall = FALSE, by_line = FALSE)
 
-pct_cover_total_foliar(
-  lpi_tall,
-  tall = FALSE,
-  by_year = FALSE,
-  by_line = FALSE
-)
+pct_cover_total_foliar(lpi_tall, tall = FALSE, by_line = FALSE)
 
-pct_cover_bare_soil(lpi_tall, tall = FALSE, by_year = FALSE, by_line = FALSE)
+pct_cover_bare_soil(lpi_tall, tall = FALSE, by_line = FALSE)
 
-pct_cover_litter(lpi_tall, tall = FALSE, by_year = FALSE, by_line = FALSE)
+pct_cover_litter(lpi_tall, tall = FALSE, by_line = FALSE)
 
-pct_cover_live(
-  lpi_tall,
-  tall = FALSE,
-  by_year = FALSE,
-  by_line = FALSE,
-  hit = "any",
-  ...
-)
+pct_cover_live(lpi_tall, tall = FALSE, by_line = FALSE, hit = "any", ...)
 
-pct_cover_species(
-  lpi_tall,
-  tall = TRUE,
-  by_year = FALSE,
-  by_line = FALSE,
-  hit = "any"
-)
+pct_cover_species(lpi_tall, tall = TRUE, by_line = FALSE, hit = "any")
 }
 \arguments{
 \item{lpi_tall}{A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.}
 
 \item{tall}{Logical. If \code{TRUE} then output will be in tall format}
-
-\item{by_year}{Logical. If \code{TRUE} then results will be reported further grouped by year using the \code{DateModified} field from the data forms. Defaults to \code{FALSE}.}
 
 \item{by_line}{Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
 

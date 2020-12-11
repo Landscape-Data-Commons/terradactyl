@@ -10,7 +10,12 @@
 #' in the growth habit file. Defaults to \code{"Code"}
 #' @param species_code Character. The field name for the species codes in the species file.
 #' @param species_duration Character. the field name for the Duration field in the species file.
-#'
+#' @param data Dataframe containing species data
+#' @param data_code Character. The field name with the species codes in the data.
+#' @param species_list Dataframe. Species list output from \code{}
+#' @param generic_species_file Character. The full file path (including file extension)to the file containing the species list.
+
+
 #' @export gather_species
 #' @rdname species
 
