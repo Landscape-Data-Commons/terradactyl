@@ -18,6 +18,7 @@ RHEM <- function(
   # Total Foliar Cover
   total_foliar <- pct_cover_total_foliar(
     lpi_tall = lpi_species,
+    by_line = FALSE,
     tall = TRUE
   )
 

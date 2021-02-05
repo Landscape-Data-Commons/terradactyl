@@ -346,7 +346,7 @@ species_join <- function(data, # field data,
   species_generic <- species_generic %>%
     dplyr::rename_at(dplyr::vars(species_code), ~data_code)
 
-  ## Remoe any duplicate values
+  ## Remove any duplicate values
   species_generic <- species_generic %>% dplyr::distinct()
 
   # Add species information to data
