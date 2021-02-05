@@ -404,7 +404,8 @@ lpi_calc <- function(header,
   # Calculate Total Foliar Cover ----
   total_foliar <- pct_cover_total_foliar(
     lpi_tall = lpi_species,
-    tall = TRUE
+    tall = TRUE,
+    by_line = FALSE
   )
 
   # Calculate between plant cover (includes bare soil) ----
@@ -506,6 +507,7 @@ lpi_calc <- function(header,
 
   litter <- pct_cover(lpi_species_litter,
     tall = TRUE,
+    by_line = FALSE,
     hit = "any",
     Litter
   ) %>%
