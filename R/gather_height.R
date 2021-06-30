@@ -8,32 +8,41 @@
 ## Gather Height Data
 #' @export gather_height_terradat
 #' @rdname gather_height
-gather_height_terradat <- function(dsn) {
-  # Make sure the geodatabse exists
-  if (!file.exists(dsn)) {
-    stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+gather_height_terradat <- function(dsn = NULL,
+                                           tblLPIDetail= NULL, 
+                                           tblLPIHeader = NULL) {
+  
+  if(!is.null(tblLPIDetail) & !is.null(tblLPIHeader)){
+    lpi_detail <- tblLPIDetail
+    lpi_header <- tblLPIHeader
+  } else if(!is.null(dsn)){
+    if (!file.exists(dsn)) {
+      stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+    }
+    
+    # Read in the LPI tables from the geodatabase
+    lpi_detail <- suppressWarnings(sf::st_read(
+      dsn = dsn, layer = "tblLPIDetail",
+      stringsAsFactors = FALSE, quiet = T
+    ))
+    lpi_header <- suppressWarnings(sf::st_read(
+      dsn = dsn, layer = "tblLPIHeader",
+      stringsAsFactors = FALSE, quiet = T
+    ))
+  } else {
+    stop("Supply either ")
   }
-
-  # Read in the LPI tables from the geodatabase
-  lpi_detail <- suppressWarnings(sf::st_read(
-    dsn = dsn, layer = "tblLPIDetail",
-    stringsAsFactors = FALSE
-  ))
-  lpi_header <- suppressWarnings(sf::st_read(
-    dsn = dsn, layer = "tblLPIHeader",
-    stringsAsFactors = FALSE
-  ))
-
+  
   ## Make this an else statement
   if (any(colnames(lpi_header) %in% "DBKey")) {
     levels <- rlang::quos(PrimaryKey, "DBKey")
   } else {
     levels <- rlang::quos(PrimaryKey)
   }
-
+  
   # we only want to carry a subset of the lpi_header fields forward
   lpi_header <- dplyr::select(lpi_header, !!!levels, LineKey:CheckboxLabel)
-
+  
   lpi_height_tall_woody <- dplyr::select(
     .data = lpi_detail,
     !!!levels,
@@ -50,8 +59,8 @@ gather_height_terradat <- function(dsn) {
   )
   # Add observed growth habit field
   lpi_height_tall_woody$GrowthHabit_measured <- "Woody"
-
-
+  
+  
   # Herbaceous height
   lpi_height_tall_herb <- dplyr::select(
     .data = lpi_detail,
@@ -68,7 +77,7 @@ gather_height_terradat <- function(dsn) {
   )
   # Add observed growth habit field
   lpi_height_tall_herb$GrowthHabit_measured <- "NonWoody"
-
+  
   # Gather lower herbaceous heights
   lpi_height_tall_lower_herb <- dplyr::select(
     .data = lpi_detail,
@@ -85,7 +94,7 @@ gather_height_terradat <- function(dsn) {
   )
   # Add observed growth habit field
   lpi_height_tall_lower_herb$GrowthHabit_measured <- "NonWoody"
-
+  
   # Merge all three gather types together
   lpi_height <- rbind(
     lpi_height_tall_woody,
@@ -93,16 +102,19 @@ gather_height_terradat <- function(dsn) {
     lpi_height_tall_lower_herb
   )
   lpi_height <- lpi_height %>%
-    dplyr::full_join(x = ., y = lpi_header) %>%
+    dplyr::full_join(x = ., y = lpi_header, by = c("PrimaryKey", "DBKey", "RecKey")) %>%
     subset(., !is.na(Height))
-
+  
   # Add NA to fields with no species
   lpi_height$Species[!grepl(pattern = "[[:digit:]]|[[:alpha:]]", lpi_height$Species)] <- NA
-
+  
   # Remove orphaned records and duplicates, if they exist
   lpi_height <- unique(lpi_height)
   lpi_height <- lpi_height[!is.na(lpi_height$PrimaryKey), ]
-
+  
+  # Make sure height is a numeric field
+  lpi_height$Height <- suppressWarnings(as.numeric(lpi_height$Height))
+  
   # Output the woody/herbaceous level data
   return(lpi_height)
 }
@@ -111,57 +123,70 @@ gather_height_terradat <- function(dsn) {
 #' @rdname gather_height
 
 # Gather Height for LMF/NRI
-gather_height_lmf <- function(dsn,
-                              file_type = "gdb") {
-
-  # Read in the data as .txt or .gdb
-  vegheight <- switch(file_type,
-    "gdb" = {
-      suppressWarnings(sf::st_read(dsn,
-        layer = "PASTUREHEIGHTS",
-        stringsAsFactors = FALSE
-      ))
-    },
-    "txt" = {
-      read.table(paste(dsn, "pastureheights.txt", sep = ""),
-        stringsAsFactors = FALSE,
-        header = FALSE,
-        sep = "|",
-        strip.white = TRUE
-      )
-    },
-    "csv" = {
-      read.csv(dsn)
+gather_height_lmf <- function(dsn = NULL,
+                                      file_type = "gdb",
+                                      PASTUREHEIGHTS = NULL) {
+  
+  if(!is.null(PASTUREHEIGHTS)){
+    vegheight <- PASTUREHEIGHTS
+  } else if (!is.null(dsn)) {
+    if (!file.exists(dsn)) {
+      stop("dsn must be a valid filepath to a geodatabase containing PASTUREHEIGHTS")
     }
-  )
-
-  if (file_type == "txt") {
-    # if it is in a text file, there are no field names assigned.
-    colnames <- subset(
-      terradactyl::nri.data.column.explanations,
-      TABLE.NAME == "PASTUREHEIGHTS"
-    ) %>%
-      dplyr::pull(FIELD.NAME) %>%
-      unique()
-
-
-
-    vegheight <- vegheight[seq_len(length(colnames))]
-    names(vegheight) <- colnames
-
-    # We need to establish and/or fix the PLOTKEY so it exists in a single field.
-    vegheight$PrimaryKey <- paste(vegheight$SURVEY,
-      vegheight$STATE,
-      vegheight$COUNTY,
-      vegheight$PSU,
-      vegheight$POINT,
-      sep = ""
+    
+    # Read in the data as .txt or .gdb
+    vegheight <- switch(file_type,
+                        "gdb" = {
+                          suppressWarnings(sf::st_read(dsn,
+                                                       layer = "PASTUREHEIGHTS",
+                                                       stringsAsFactors = FALSE,
+                                                       quiet = T
+                          ))
+                        },
+                        "txt" = {
+                          read.table(paste(dsn, "pastureheights.txt", sep = ""),
+                                     stringsAsFactors = FALSE,
+                                     header = FALSE,
+                                     sep = "|",
+                                     strip.white = TRUE
+                          )
+                        },
+                        "csv" = {
+                          read.csv(dsn)
+                        }
     )
-
-    # Assign DBKey
-    vegheight$DBKey <- vegheight$SURVEY
+    
+    if (file_type == "txt") {
+      # if it is in a text file, there are no field names assigned.
+      colnames <- subset(
+        terradactyl::nri.data.column.explanations,
+        TABLE.NAME == "PASTUREHEIGHTS"
+      ) %>%
+        dplyr::pull(FIELD.NAME) %>%
+        unique()
+      
+      vegheight <- vegheight[seq_len(length(colnames))]
+      names(vegheight) <- colnames
+      
+      # We need to establish and/or fix the PLOTKEY so it exists in a single field.
+      vegheight$PrimaryKey <- paste(vegheight$SURVEY,
+                                    vegheight$STATE,
+                                    vegheight$COUNTY,
+                                    vegheight$PSU,
+                                    vegheight$POINT,
+                                    sep = ""
+      )
+      
+      # Assign DBKey
+      vegheight$DBKey <- vegheight$SURVEY
+    }
+    
+    
+    
+  } else {
+    stop("Supply either PASTUREHEIGHTS or a path to a gdb containing that table")
   }
-
+  
   # For height data
   # point number 75 is recorded twice—once on each transect.
   # We only want to use it once in the calculations.
@@ -170,8 +195,8 @@ gather_height_lmf <- function(dsn,
   # Remove the nesw transect—that would be all rows in pintercept
   # where transect == “nesw” AND mark = 75.
   vegheight <- vegheight[!(vegheight$TRANSECT == "nesw" & vegheight$DISTANCE == 75), ]
-
-
+  
+  
   height_woody <- dplyr::select(
     .data = vegheight,
     PrimaryKey,
@@ -189,7 +214,7 @@ gather_height_lmf <- function(dsn,
     pattern = "W",
     replacement = ""
   )
-
+  
   height_herbaceous <- dplyr::select(
     .data = vegheight,
     PrimaryKey,
@@ -201,40 +226,44 @@ gather_height_lmf <- function(dsn,
     type = "herbaceous",
     GrowthHabit_measured = "NonWoody"
   )
-
+  
   # remove the "H" from the "HPLANT" field
   names(height_herbaceous)[names(height_herbaceous) == "HPLANT"] <- "PLANT"
   height <- rbind(height_woody, height_herbaceous)
-
+  
   # remove NA values
   height <- subset(height, !is.na(HEIGHT))
-
-
+  
+  
   # The height units are concatenated in the field,
   # separate so that we can convert to metric appopriately
   height <- tidyr::separate(height, "HEIGHT", c("HEIGHT", "UOM"),
-    sep = " ", extra = "drop", fill = "right"
+                            sep = " ", extra = "drop", fill = "right"
   )
-
+  
   # Convert to metric
   height$HEIGHT <- suppressWarnings(as.numeric(height$HEIGHT))
-
+  
   # convert to centimeters
   height$HEIGHT <- height$HEIGHT * 2.54
   height$UOM[is.na(height$UOM) | height$UOM == "in"] <- "cm"
   height$HEIGHT[height$UOM == "ft"] <- height$HEIGHT[height$UOM == "ft"] * 12
   height$UOM <- "cm"
-
-
+  
+  
   # rename field names
   height <- dplyr::rename(height,
-    LineKey = TRANSECT,
-    PointNbr = DISTANCE,
-    Height = HEIGHT,
-    Species = PLANT,
-    HeightUOM = UOM
+                          LineKey = TRANSECT,
+                          PointNbr = DISTANCE,
+                          Height = HEIGHT,
+                          Species = PLANT,
+                          HeightUOM = UOM
   )
-
+  
+  # Make sure height is a numeric field
+  height$Height <- suppressWarnings(as.numeric(height$Height))
+  
+  
   # return height
   return(height)
 }
@@ -243,29 +272,29 @@ gather_height_lmf <- function(dsn,
 #' @export gather_height
 #' @rdname gather_height
 
-gather_height <- function(dsn,
-                          file_type = "gdb",
-                          source) {
-  # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
+gather_height <- function(dsn = NULL,
+                                  file_type = "gdb",
+                                  source,
+                                  tblLPIDetail = NULL,
+                                  tblLPIHeader = NULL,
+                                  PASTUREHEIGHTS = NULL) {
+  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+    height <- gather_height_terradat(
+      dsn = dsn, 
+      tblLPIHeader = tblLPIHeader, 
+      tblLPIDetail = tblLPIDetail
+    )
+  } else if(toupper(source) %in% c("LMF", "NRI")){
+    height <- gather_height_lmf(
+      dsn = dsn, file_type = file_type,
+      PASTUREHEIGHTS = PASTUREHEIGHTS
+    )
+  } else {
     stop("No valid source provided")
-  })
-
-  # Gather gap using the appropriate method
-  height <- switch(toupper(source),
-    "AIM" = gather_height_terradat(dsn = dsn),
-    "TERRADAT" = gather_height_terradat(dsn = dsn),
-    "DIMA" = gather_height_terradat(dsn = dsn),
-    "LMF" = gather_height_lmf(dsn = dsn, file_type = file_type),
-    "NRI" = gather_height_lmf(dsn = dsn, file_type = file_type)
-  )
-
-  # Add source field so that we know where the data came from
-  height$source <- toupper(source)
-
-  # Make sure height is a numeric field
-  height$Height <- as.numeric(height$Height)
-
+  }
+  
+  height$Source <- toupper(source)
+  
   # Output height
   return(height)
 }
