@@ -15,6 +15,10 @@ RHEM <- function(
                  header,
                  slope_shape) {
 
+  #check we have header info for all data
+  lpi_species <-lpi_species %>% subset(PrimaryKey %in% header$PrimaryKey)
+  slope_shape <- slope_shape %>%  subset(PrimaryKey %in% header$PrimaryKey)
+
   # Total Foliar Cover
   total_foliar <- pct_cover_total_foliar(
     lpi_tall = lpi_species,
@@ -112,7 +116,7 @@ RHEM <- function(
             "BY",
             "BR"
           ) ~ "Rock",
-          code %in% "S" ~ "Soil",
+          code %in% c("S", "CY") ~ "Soil",
           TRUE ~ code
         )
     )
