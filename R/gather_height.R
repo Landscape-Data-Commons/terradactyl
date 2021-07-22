@@ -1,9 +1,30 @@
-#' Convert wide-format TerrADat height data to a tall, tidy format
-#' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for canopy data from LPI and one for heights from the specialized height fields.
-#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
-#' @param source Character string. Identify the source data ("TerrADat", "LMF", "NRI") for gathering
-#' @param file_type Charater string. Identifies the original source file type ("gdb", "txt")
-#' @return A data frames containing the data from the height measurements.
+#' Convert height data into a tall, tidy data frame
+#' 
+#' @description Given wide format line-point intercept data, create a tall 
+#' format data frame usable by other terradactyl functions.
+#' @param dsn Character string. The full filepath and filename (including file 
+#' extension) of the geodatabase or text file containing the table of interest.  
+#' This field is unnecessary if you provide either both of tblLPIDetail and 
+#' tblLPIHeader (AIM/DIMA/TerrADat) or PASTUREHEIGHTS (LMF/NRI).
+#' @param source Character string. The data source format, 
+#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' @param tblLPIHeader Dataframe of the data structure tblLPIHeader from the 
+#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+#' tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide 
+#' dsn.
+#' @param tblLPIDetail Dataframe of the data structure tblLPIDetail from the 
+#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+#' tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide 
+#' dsn.
+#' @param PASTUREHEIGHTS Dataframe of the data structure PASTUREHEIGHTS from the
+#' LMF/NRI database; alternately provide dsn.
+#' @param file_type Character string that denotes the source file type of the 
+#' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+#' AIM/DIMA/TerrADat, or if PASTUREHEIGHTS is provided.
+#' @importFrom magrittr %>%
+#' @name gather_height
+#' @family <gather>
+#' @return A tall data frame containing the data from the height measurements.
 
 ## Gather Height Data
 #' @export gather_height_terradat
@@ -30,10 +51,8 @@ gather_height_terradat <- function(dsn = NULL,
       stringsAsFactors = FALSE, quiet = T
     ))
   } else {
-    stop("Supply either ")
-  }
+    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing those tables")  }
   
-  ## Make this an else statement
   if (any(colnames(lpi_header) %in% "DBKey")) {
     levels <- rlang::quos(PrimaryKey, "DBKey")
   } else {
@@ -59,7 +78,6 @@ gather_height_terradat <- function(dsn = NULL,
   )
   # Add observed growth habit field
   lpi_height_tall_woody$GrowthHabit_measured <- "Woody"
-  
   
   # Herbaceous height
   lpi_height_tall_herb <- dplyr::select(
@@ -263,7 +281,6 @@ gather_height_lmf <- function(dsn = NULL,
   # Make sure height is a numeric field
   height$Height <- suppressWarnings(as.numeric(height$Height))
   
-  
   # return height
   return(height)
 }
@@ -290,10 +307,12 @@ gather_height <- function(dsn = NULL,
       PASTUREHEIGHTS = PASTUREHEIGHTS
     )
   } else {
-    stop("No valid source provided")
+    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
   height$Source <- toupper(source)
+  
+  if("sf" %in% class(height)) height <- sf::st_drop_geometry(height)
   
   # Output height
   return(height)

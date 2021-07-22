@@ -1,18 +1,31 @@
-#' Species Inventory
-#' @description Create a tall species inventory data frame.
-#' @param dsn Character string. The full filepath and filename (including file extension)
-#' of the geodatabase containing the table of interest.
-#' @param source Character string. Data format source,
-#' \code{"AIM", "TerrADat", "LMF", "NRI"} are all valid options.
-#' @param ... Grouping variables for species counts
-#' @return A data frames containing the data from the species inventory data in tall format.
-
+#' Convert species inventory data into tall, tidy data frame
+#' 
+#' @description Given species inventory data create a tall format data frame 
+#' usable by other terradactyl functions.
+#' @param dsn Character string. The full filepath and filename (including file 
+#' extension) of the geodatabase containing the table of interest. This field 
+#' is unnecessary if you supply either both of tblSpecRichDetail and 
+#' tblSpecRichHeader (AIM/DIMA/TerrADat) or PLANTCENSUS (LMF/NRI).
+#' @param source Character string. The data source format, 
+#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' @param tblSpecRichDetail Dataframe of the data structure tblSpecRichDetail 
+#' from the DIMA database with the addition of PrimaryKey and DBKey fields. 
+#' Use with tblSpecRichHeader when data source is AIM, DIMA, or TerrADat; 
+#' alternately provide dsn.
+#' @param tblSpecRichHeader Dataframe of the data structure tblSpecRichHeader 
+#' from the DIMA database with the addition of PrimaryKey and DBKey fields. 
+#' Use with tblSpecRichDetail when data source is AIM, DIMA, or TerrADat; 
+#' alternately provide dsn.
+#' @param PLANTCENSUS Dataframe of the data structure PLANTCENSUS from LMF/NRI 
+#' database with the addition of PrimaryKey and DBKey fields. Use when data 
+#' source is LMF or NRI; alternately provide dsn. 
+#' @importFrom magrittr %>%
+#' @name gather_species_inventory
+#' @family <gather>
+#' @return A tall data frame containing species inventory data.
 
 #' @export gather_species_inventory_terradat
-#' @rdname species_inventory
-
-
-
+#' @rdname gather_species_inventory
 gather_species_inventory_terradat <- function(dsn = NULL, 
                                               tblSpecRichDetail = NULL, 
                                               tblSpecRichHeader = NULL) {
@@ -21,6 +34,11 @@ gather_species_inventory_terradat <- function(dsn = NULL,
     species_inventory_detail <- tblSpecRichDetail
     species_inventory_header <- tblSpecRichHeader
   } else if (!is.null(dsn)){
+    if(!file.exists(dsn)){
+      stop("dsn must be a valid filepath to a geodatabase containing tblSpecRichDetail and tblSpecRichHeader")
+    }
+    
+    
     # load raw tables
     species_inventory_detail <- suppressWarnings(sf::st_read(dsn,
                                                              layer = "tblSpecRichDetail",
@@ -51,7 +69,7 @@ gather_species_inventory_terradat <- function(dsn = NULL,
 }
 
 #' @export species_count
-#' @rdname species_inventory
+#' @rdname gather_species_inventory
 species_count <- function(species_inventory_tall, ...) {
   grouping_variables <- rlang::quos(...)
   
@@ -106,7 +124,7 @@ tall_species <- function(species_inventory_detail) {
 
 # Gather LMF data
 #' @export gather_species_lmf
-#' @rdname species_inventory
+#' @rdname gather_species_inventory
 gather_species_lmf <- function(dsn = NULL, 
                                file_type = "gdb", 
                                PLANTCENSUS = NULL) {
@@ -150,7 +168,7 @@ gather_species_lmf <- function(dsn = NULL,
   # Get species count
   species_inventory <- plantcensus %>%
     dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(., SpeciesCount = dplyr::n()) %>%
+    dplyr::summarize(., SpeciesCount = dplyr::n(), .groups = "drop") %>%
     merge(., plantcensus)
   
   # rename fields
@@ -164,7 +182,7 @@ gather_species_lmf <- function(dsn = NULL,
 
 #' Species Inventory Gather wrapper
 #' @export gather_species_inventory
-#' @rdname species_inventory
+#' @rdname gather_species_inventory
 
 gather_species_inventory <- function(dsn = NULL, 
                                      source, 
@@ -185,11 +203,13 @@ gather_species_inventory <- function(dsn = NULL,
       PLANTCENSUS = PLANTCENSUS
     )
   } else {
-    stop("No valid source provided")
+    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
   # Add source field so that we know where the data came from
   species_inventory$Source <- toupper(source)
+  
+  if("sf" %in% class(species_inventory)) species_inventory <- sf::st_drop_geometry(species_inventory)
   
   return(species_inventory)
 }

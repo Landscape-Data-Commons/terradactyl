@@ -1,22 +1,36 @@
-#' Gather TerrADat LPI data into tall/long data frames
+#' Convert line-point intercept (LPI) data into a tall, tidy data frame
 #'
-#' @description Given a Line-point intercept data, create a tall format data frame that can be used in \code{pct_cover()} functions.
-#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
-#' @param source Character string. The data source format, can be LPI, .
-#' @param header Dataframe of the data structure tblLPIHeader from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' @param detail Dataframe of the data structure tblLPIDetail from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' @param file_type Character string that denotes the source file type, \code{"gdb"}, \code{"txt"}, \code{"csv"}
+#' @description Given wide format line-point intercept data, create a tall 
+#' format data frame usable by other terradactyl functions.
+#' @param dsn Character string. The full filepath and filename (including file 
+#' extension) of the geodatabase or text file containing the table of interest. 
+#' This field is unnecessary if you provide either both of tblLPIDetail and 
+#' tblLPIHeader (AIM/DIMA/TerrADat) or PINTERCEPT (LMF/NRI).
+#' @param source Character string. The data source format, 
+#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' @param tblLPIHeader Dataframe of the data structure tblLPIHeader from the 
+#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+#' tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide 
+#' dsn.
+#' @param tblLPIDetail Dataframe of the data structure tblLPIDetail from the 
+#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+#' tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide 
+#' dsn.
+#' @param PINTERCEPT Dataframe of the data structure PINTERCEPT from the LMF/NRI 
+#' database with the addition of PrimaryKey and DBKey fields. Use when source 
+#' is LMF or NRI; alternately provide dsn.
+#' @param file_type Character string that denotes the source file type of the 
+#' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+#' AIM/DIMA/TerrADat, or if PINTERCEPT is provided.
 #' @importFrom magrittr %>%
 #' @name gather_lpi
 #' @family <gather>
-#' @return A data frames containing the data from the LPI pin intercepts
+#' @return A tall data frame containing the data from the LPI pin intercepts
 
-
+## Function to make tall format of LPI data from TerrADat
 #' @export gather_lpi_terradat
 #' @rdname gather_lpi
-## Function to make tall format of LPI data from TerrADat
 gather_lpi_terradat <- function(dsn = NULL,
-                                source = "AIM",
                                 tblLPIDetail = NULL,
                                 tblLPIHeader = NULL) {
   
@@ -25,6 +39,11 @@ gather_lpi_terradat <- function(dsn = NULL,
     lpi_detail <- tblLPIDetail
     lpi_header <- tblLPIHeader
   } else if(!is.null(dsn)){
+    
+    if(!file.exists(dsn)){
+      stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+    }
+    
     lpi_detail <- suppressWarnings(sf::st_read(
       dsn = dsn,
       layer = "tblLPIDetail",
@@ -36,7 +55,7 @@ gather_lpi_terradat <- function(dsn = NULL,
       stringsAsFactors = FALSE, quiet = T
     ))
   } else {
-    stop("One or more necessary inputs missing")
+    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing those tables")
   }
   
   # Make a tall data frame with the hit codes by layer and the checkbox designation
@@ -121,17 +140,7 @@ gather_lpi_terradat <- function(dsn = NULL,
       ),
       y = .,
       by = c("PrimaryKey", "RecKey")
-    )) %>%
-    # rename for consistency 
-    dplyr::mutate(
-      Source = toupper(source),
-      Code = code,
-      Layer = layer,
-      Checkbox = chckbox
-    ) %>%
-    dplyr::select(
-      -code, -layer, -chckbox
-    )
+    ))
   
   # Find date fields & convert to character
   # Find fields that are in a Date structure
@@ -154,13 +163,15 @@ gather_lpi_terradat <- function(dsn = NULL,
 # Gather LPI data from the Landscape Monitoring Framework or NRI
 gather_lpi_lmf <- function(dsn = NULL,
                            file_type = "gdb",
-                           source = "LMF",
                            PINTERCEPT = NULL) {
   
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(PINTERCEPT)) {
     pintercept <- PINTERCEPT
   } else if(!is.null(dsn)){
+    if(!file.exists(dsn)){
+      stop("dsn must be a valid filepath to a database containing PINTERCEPT")
+    }
     # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
     pintercept <- switch(file_type,
                          "gdb" = {
@@ -191,7 +202,7 @@ gather_lpi_lmf <- function(dsn = NULL,
       names(pintercept) <- colnames
     }
   } else {
-    stop("One or more necessary inputs missing")
+    stop("Supply either PINTERCEPT or the path to a GDB containing that table")
   }
   
   # remove any NA field names that may have been introduced
@@ -306,17 +317,18 @@ gather_lpi_lmf <- function(dsn = NULL,
   lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 0] <- NA
   
   # rename for consistency
-  lpi_hits_tall <- lpi_hits_tall %>%
-    dplyr::mutate(
-      #State = STATE, # dropping state in lmf data, as it returns only a number
-      SagebrushSpp = SAGEBRUSH_SPP,
-      PlotKey = PLOTKEY,
-      Layer = layer,
-      Code = code
-    ) %>%
-    dplyr::select(
-      -STATE, -SAGEBRUSH_SPP, -PLOTKEY, -layer, -code
-    )
+  ## REVERT FOR NOT BREAKING EVERYTHING
+  # lpi_hits_tall <- lpi_hits_tall %>%
+  #   dplyr::mutate(
+  #     State = STATE, # dropping state in lmf data, as it returns only a number
+  #     SagebrushSpp = SAGEBRUSH_SPP,
+  #     PlotKey = PLOTKEY,
+  #     Layer = layer,
+  #     Code = code
+  #   ) %>%
+  #   dplyr::select(
+  #     -STATE, -SAGEBRUSH_SPP, -PLOTKEY, -layer, -code
+  #   )
   
   # Find date fields & convert to character
   # Find fields that are in a Date structure
@@ -325,7 +337,7 @@ gather_lpi_lmf <- function(dsn = NULL,
   
   # Update fields
   lpi_hits_tall <- dplyr::mutate_at(
-    lpi_hits_tall, all_of(dplyr::vars(change_vars)),
+    lpi_hits_tall, all_of(dplyr::vars(all_of(change_vars))),
     list(as.character)
   )
   
@@ -333,6 +345,7 @@ gather_lpi_lmf <- function(dsn = NULL,
 }
 
 # Gather LPI data from NPS I&M networks
+# currently not used
 gather_lpi_nps <- function(dsn) {
   lpi_raw <- read.csv(dsn)
   
@@ -373,11 +386,13 @@ gather_lpi <- function(dsn = NULL,
                           file_type = file_type,
                           PINTERCEPT = PINTERCEPT)
   } else {
-    stop("No valid source provided")
+    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
   # Add source field 
   lpi$Source <- toupper(source)
+  
+  if("sf" %in% class(lpi)) lpi <- sf::st_drop_geometry(lpi)
   
   return(lpi)
 }

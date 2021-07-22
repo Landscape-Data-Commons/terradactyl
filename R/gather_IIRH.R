@@ -1,12 +1,38 @@
-### Interpreting Indicators of Rangeland Health ###
-#' @title Rangeland Health
-#' @param dsn String. Data source name to the geodatabase or text file
-#' containing  interpreting indicators of rangeland health data.
-#' @param file.type String. Specifies whether the dsn is a text file \code{"txt"}
-#' or a geodatabase \code{"gdb"}
-#' @param source String. Specifies the original data source layer.
-#' \code{"LMF", "AIM", "TERRADAT", "NRI"} are all valid.
+#' Convert Interpreting Indicators of Rangeland Health (IIRH) data into a tall, 
+#' tidy data frame
 #'
+#' @description Given wide format IIRH data, create a tall format data frame
+#' usable by other terradactyl functions.
+#' @param dsn Character string. The full filepath and filename (including file 
+#' extension) of the geodatabase or text file containing the table of interest.
+#' This field is unnecessary if you provide either both of tblQualHeader and
+#' tblQualDetail (AIM/DIMA/TerrADat) or RANGEHEALTH (LMF/NRI).
+#' @param source Character string. The data source format, 
+#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' @param tblQualHeader Dataframe of the data structure tblQualHeader from the 
+#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+#' tblQualDetail when data source is AIM, DIMA, or TerrADat; alternately provide 
+#' dsn.
+#' @param tblQualDetail Dataframe of the data structure tblQualDetail from the 
+#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+#' tblQualHeader when data source is AIM, DIMA, or TerrADat; alternately provide 
+#' dsn.
+#' @param RANGEHEALTH Dataframe of the data structure RANGEHEALTH from the 
+#' LMF/NRI database. Use when data source if LMF or NRI; alternately provide 
+#' dsn.
+#' @param file_type Character string that denotes the source file type of the 
+#' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+#' AIM/DIMA/TerrADat, or if RANGEHEALT is provided.
+#' @importFrom magrittr %>%
+#' @name gather_rangeland_health
+#' @family <gather>
+#' @return A tall data frame containing the data from the rangeland health 
+#' measurements.
+
+
+
+
+
 
 #' @export gather_rangeland_health_terradat
 #' @rdname IIRH
@@ -20,7 +46,7 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
   } else if(!is.null(dsn)) {
     # check file
     if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath")
+      stop("dsn must be a valid filepath to a geodatabase containing tblQualDetail and tblQualHeader")    
     }
     
     # Read in tblQualHeader
@@ -102,7 +128,7 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
     
     
     if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing RHSUMMARY")
+      stop("dsn must be a valid filepath to a geodatabase containing RHSUMMARY or the filepath to a text file containing RHSUMMARY") 
     }
     
     # Read in the data as .txt or .gdb
@@ -134,7 +160,7 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
       )
     }
   } else {
-    stop("Provide either RANGEHEALTH or a path to a geodatabase containing that table")
+    stop("Provide RANGEHEALTH or a path to a geodatabase containing that table")
   }
   
   # Clean up the field names so they are human readable and match TerrAdat names
@@ -185,10 +211,12 @@ gather_rangeland_health <- function(dsn = NULL,
                                         file_type = file_type,
                                         RANGEHEALTH = RANGEHEALTH)
   } else {
-    stop("No valid source provided")
+    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
   IIRH$Source <- toupper(source)  
+  
+  if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)
   
   return(IIRH)
 }

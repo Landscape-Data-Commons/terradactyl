@@ -1,19 +1,38 @@
-#' Gather TerrADat Gap data into tall/long data frame
+#' Convert gap data into a tall, tidy data frame
 #'
-#' @description Given a list of data frames containing tblSites, tblPlots, tblLines, tblLPIHeader, and tblLPIDetail, create a tall format data frame for Gap.
-#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
-#' @param file_type Character string. Type of file, text or geodatabase, to read from.
-#' @param source Character string. The original source of the data. "TerrAdat", "AIM", "DIMA", "LMF", "NRI" are all valide options.
-#' @param point_file Character string. File path to the point file, required for csv and text file types wher "LMF" or "NRI" are identified as the source.
-#' @return A data frames containing the data from the Gap intercepts data in tall format.
+#' @description Given wide format gap data, create a tall format data frame 
+#' usable by other terradactyl functions.
+#' @param dsn Character string. The full filepath and filename (including file 
+#' extension) of the geodatabase or text file containing the table of interest.
+#' This field is unnecessary if you provide either both of tblGapDetail and 
+#' tblGapHeader (AIM/DIMA/TerrADat) or both of GINTERCEPT and POINT (LMF/NRI).
+#' @param source Character string. The data source format,
+#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' @param tblGapHeader Dataframe of the data structure tblGapHeader from the 
+#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+#' tblGapDetail when data source is AIM, DIMA, or TerrADat; alternately provide 
+#' dsn.
+#' @param tblGapDetail Dataframe of the data structure tblGapDetail from the 
+#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+#' tblGapHeader when data source is AIM, DIMA, or TerrADat; alternately provide 
+#' dsn.
+#' @param GINTERCEPT Dataframe of the data structure GINTERCEPT from the LMF/NRI
+#' database. Use with POINT when data source is LMF or NRI; alternately provide 
+#' dsn.
+#' @param POINT Dataframe of the data structure POINT from the LMF database. 
+#' Use with GINTERCEPT when data source if LMF or NRI; alternately provide dsn.
+#' @param file_type Character string that denotes the source file type of the 
+#' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+#' AIM/DIMA/TerrADat, or if GINTERCEPT and POINT are provided.
+#' @importFrom magrittr %>%
+#' @name gather_gap
+#' @family <gather>
+#' @return A tall data frame containing the data from the gap measurements.
 
+## gather gap data
 #' @export gather_gap_terradat
 #' @rdname gather_gap
-
-
-gather_gap_terradat <- function(dsn = NULL,
-                                tblGapDetail = NULL,
-                                tblGapHeader = NULL) {
+gather_gap_terradat <- function(dsn = NULL, tblGapDetail = NULL, tblGapHeader = NULL) {
   
   ### switch by input types
   if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
@@ -66,7 +85,7 @@ gather_gap_terradat <- function(dsn = NULL,
         created_user,
         created_date,
         last_edited_user,
-        last_edited_date,
+        last_edited_date
         
       ))
     
@@ -126,17 +145,14 @@ gather_gap_terradat <- function(dsn = NULL,
 #' @export gather_gap_lmf
 #' @rdname gather_gap
 
-gather_gap_lmf <- function(dsn = NULL,
-                           file_type = "gdb",
-                           GINTERCEPT = NULL,
-                           POINT = NULL) {
+gather_gap_lmf <- function(dsn = NULL, file_type = "gdb", GINTERCEPT = NULL, POINT = NULL) {
   
   if(!is.null(GINTERCEPT) & !is.null(POINT)){
     gintercept <- GINTERCEPT
     point <- POINT
   } else if(!is.null(dsn) & file_type %in% c("gdb", "csv", "txt")){
     if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing GINTERCEPT and POINT")
+      stop("dsn must be a valid filepath to a database containing GINTERCEPT and POINT")
     }
     gintercept <- switch(file_type,
                          "gdb" = {
@@ -189,6 +205,7 @@ gather_gap_lmf <- function(dsn = NULL,
                       )
                     },
                     "csv" = {
+                      stop("csv not currently supported for gap data")
                       read.csv(point_dsn)
                     }
     )
@@ -205,6 +222,9 @@ gather_gap_lmf <- function(dsn = NULL,
         table_name = "POINT"
       )
     }
+  }
+  else {
+    stop("Supply either GINTERCEPT and POINT, or the path to a GDB containing those tables")
   }
   
   
@@ -331,7 +351,6 @@ gather_gap_lmf <- function(dsn = NULL,
   return(gap)
 }
 
-### Wrapper function for flexibility
 #' @export gather_gap
 #' @rdname gather_gap
 gather_gap <- function(dsn = NULL,
@@ -354,10 +373,12 @@ gather_gap <- function(dsn = NULL,
                           POINT = POINT,
                           GINTERCEPT = GINTERCEPT)
   } else {
-    stop("No valid source provided")
+    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
   gap$Source <- toupper(source)  
+  
+  if("sf" %in% class(gap)) gap <- sf::st_drop_geometry(gap)
   
   return(gap)
 }

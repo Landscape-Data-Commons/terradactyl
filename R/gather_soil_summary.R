@@ -1,29 +1,30 @@
 #' Gather TerrADat and LMF Soil data into a summary data frame
 #'
 #' @description Given soil horizon and pit data, create a tall format data frame
-#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
-#' @param source Character string. The data source format, can be AIM, TerrADat, NRI, or LMF. (Case independent)
-
-#' @param tblSoilPitHorizons Dataframe of the data structure tblSoilPitHorizons from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' @param tblSoilPits Dataframe of the data structure tblSoilPits from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from LMF/NRI data with the addition of PrimaryKey and DBKey fields.
-
+#' usable by other terradactyl functions.
+#' @param dsn Character string. The full filepath and filename (including file 
+#' extension) of the geodatabase containing the table of interest. This field 
+#' is unnecessary if you supply either both of tblSoilPitHorizons and 
+#' tblSoilPits (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).
+#' @param source Character string. The data source format, 
+#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' @param tblSoilPitHorizons Dataframe of the data structure tblSoilPitHorizons 
+#' from the DIMA database with the addition of PrimaryKey and DBKey fields. 
+#' Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.
+#' @param tblSoilPits Dataframe of the data structure tblSoilPits from the DIMA 
+#' database with the addition of PrimaryKey and DBKey fields. Use when data 
+#' source is AIM, DIMA, or TerrADat; alternately provide dsn.
+#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from LMF/NRI 
+#' database with the addition of PrimaryKey and DBKey fields. Use when data 
+#' source is LMF or NRI; alternately provide dsn. 
 #' @importFrom magrittr %>%
 #' @name gather_soil_summary
 #' @family <gather>
-#' @return A data frame summarizing horizon data to the soil pit
+#' @return A tall data frame summarizing horizon data to the soil pit
 
 #' @export gather_soil_summary_lmf
-#' @export gather_soil_summary_aim
-#' @export gather_soil_summary
-
-## To do:
-# last checks on data output format
-# do we need more data input support for NRI?
-# are the '@ sections above correct?
-
-
-gather_soil_summary_lmf <- function(dsn = NULL, source = "LMF", SOILHORIZON = NULL){
+#' @rdname gather_soil_summary
+gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
   ### input ####
   if (!is.null(SOILHORIZON)){
     hz_lmf_raw <- SOILHORIZON
@@ -130,7 +131,9 @@ gather_soil_summary_lmf <- function(dsn = NULL, source = "LMF", SOILHORIZON = NU
   
 }
 
-gather_soil_summary_aim <- function(dsn = NULL, source = "AIM", tblSoilPitHorizons = NULL, tblSoilPits = NULL){
+#' @export gather_soil_summary_terradat
+#' @rdname gather_soil_summary
+gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, tblSoilPits = NULL){
   
   if (!is.null(tblSoilPits) & !is.null(tblSoilPitHorizons)) {
     hz_aim_raw <- tblSoilPitHorizons
@@ -300,25 +303,28 @@ gather_soil_summary_aim <- function(dsn = NULL, source = "AIM", tblSoilPitHorizo
   return(soil_aim)
 }
 
+#' @export gather_soil_summary
+#' @rdname gather_soil_summary
 gather_soil_summary <- function(dsn = NULL, source,
                                 tblSoilPitHorizons = NULL, tblSoilPits = NULL,
                                 SOILHORIZON = NULL){
   
-  source <- toupper(source)
-  
-  if(source %in% c("AIM", "TERRADAT")) {
+ 
+  if(toupper(source) %in% c("AIM", "TERRADAT")) {
     if(is.null(dsn) & (is.null(tblSoilPits) | is.null(tblSoilPitHorizons))){
       stop("If source is AIM or TerrADat, you must provide either a geodatabase or tblSoilPits and tblSoilPitHorizons")}
-    soil <- gather_soil_summary_aim(dsn = dsn, source = source, tblSoilPits = tblSoilPits,
+    soil <- gather_soil_summary_terradat(dsn = dsn, tblSoilPits = tblSoilPits,
                                     tblSoilPitHorizons = tblSoilPitHorizons)}
   
-  if(source %in% c("LMF", "NRI")){
+  if(toupper(source) %in% c("LMF", "NRI")){
     if(is.null(dsn) & is.null(SOILHORIZON)){
       stop("If source is LMF or NRI, you must provide either a geodatabase or table SOILHORIZON")}
-    soil <- gather_soil_summary_lmf(dsn = dsn, source = source, SOILHORIZON = SOILHORIZON)
+    soil <- gather_soil_summary_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
   }
   
   soil$Source <- source
+  
+  if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
   
   return(soil)
 }

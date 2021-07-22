@@ -1,49 +1,41 @@
-#' Gather TerrADat and LMF horizon data into a tall data frame
+#' Convert horizon data into a tall, tidy data frame
 #'
-#' @description Given soil horizon and pit data, create a tall format data frame
-#' @param dsn Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.
-#' @param source Character string. The data source format, can be AIM, TerrADat, NRI, or LMF. (Case independent)
-
-#' @param tblSoilPitHorizons Dataframe of the data structure tblSoilPitHorizons from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from LMF/NRI data with the addition of PrimaryKey and DBKey fields.
-
+#' @description Given wide format soil horizon data, create a tall 
+#' format data frame usable by other terradactyl functions.
+#' @param dsn Character string. The full filepath and filename (including file 
+#' extension) of the geodatabase or text file containing the table of interest.
+#' This field is unnecessary if you provide either tblSoilPitHorizons
+#' (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).
+#' @param source Character string. The data source format, 
+#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' @param tblSoilPitHorizons Dataframe of the data structure tblSoilPitHorizons 
+#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
+#' Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.
+#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from the 
+#' LMF/NRI database with the addition of PrimaryKey and DBKey fields;
+#' alternately provide dsn.
 #' @importFrom magrittr %>%
 #' @name gather_soil_horizon
 #' @family <gather>
-#' @return A data frame of horizon data in tall format
+#' @return A tall data frame containing soil horzon data.
 
-#' @export gather_soil_horizon_lmf
-#' @export gather_soil_horizon_aim
-#' @export gather_soil_horizon
+#' @export gather_soil_horizon_terradat
+#' @rdname gather_soil_horizon
 
-gather_soil_horizon <- function(dsn = NULL, source, SOILHORIZON = NULL, tblSoilPitHorizons = NULL) {
-  
-  source <- toupper(source)
-  
-  if(source %in% c("AIM", "TERRADAT")) {
-    if(is.null(dsn) & is.null(tblSoilPitHorizons)){
-      stop("If source is AIM or TerrADat, you must provide either a geodatabase or tblSoilPitHorizons")}
-    soil <- gather_soil_horizon_aim(dsn = dsn, source = source, tblSoilPitHorizons = tblSoilPitHorizons)}
-  
-  if(source %in% c("LMF", "NRI")){
-    if(is.null(dsn) & is.null(SOILHORIZON)){
-      stop("If source is LMF or NRI, you must provide either a geodatabase or table SOILHORIZON")}
-    soil <- gather_soil_horizon_lmf(dsn = dsn, source = source, SOILHORIZON = SOILHORIZON)}
-  
-  soil$Source <- source
-  return(soil)
-}
-
-gather_soil_horizon_aim <- function(dsn = NULL, source = "AIM", tblSoilPitHorizons = NULL){
+gather_soil_horizon_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL){
   
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(tblSoilPitHorizons)) {
     hz_aim_raw <- tblSoilPitHorizons
   } else if(!is.null(dsn)){
+    if(!file.exists(dsn)){
+      stop("dsn must be a valid filepath to a geodatabase containing tblSoilPitHorizons")
+    }
+    
     hz_aim_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblSoilPitHorizons",
                                                stringsAsFactors = FALSE, quiet = T))
   } else {
-    stop("One or more necessary inputs missing")
+    stop("Supply either tblSoilPitHorizons, or the path to a GDB containing those tables")
   }
   
   horizons_aim <- hz_aim_raw %>%
@@ -239,7 +231,7 @@ gather_soil_horizon_aim <- function(dsn = NULL, source = "AIM", tblSoilPitHorizo
     )  %>% group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
       PrimaryKey
     ) %>%
-    mutate(HorizonNumber = row_number(),
+    mutate(HorizonNumber = as.character(row_number()),
            across(c(#caco3,gypsum #  data seems to not be used, disabled
              RockFragments), ~ suppressWarnings(as.integer(.x))),
            across(c(#sar, sandvf,
@@ -257,20 +249,26 @@ gather_soil_horizon_aim <- function(dsn = NULL, source = "AIM", tblSoilPitHorizo
   return(horizons_aim)
 }
 
-gather_soil_horizon_lmf <- function(dsn = NULL, source = "LMF", SOILHORIZON = NULL){
+#' @export gather_soil_horizon_lmf
+#' @rdname gather_soil_horizon
+gather_soil_horizon_lmf <- function(dsn = NULL,  SOILHORIZON = NULL){
   
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(SOILHORIZON)){
     hz_lmf_raw <- SOILHORIZON
   } else if(!is.null(dsn)){
+    
+    if(!file.exists(dsn)){
+      stop("dsn must be a valid filepath to a geodatabase containing SOILHORIZON")
+    }
+    
     hz_lmf_raw <- switch(source, LMF = {
       suppressWarnings(sf::st_read(dsn = dsn, layer = "SOILHORIZON", stringsAsFactors = FALSE, quiet = T))
-      
     }, NRI = {
       readRDS(dsn)
     })
   } else{
-    stop("One or more necessary inputs missing")
+    stop("Supply either SOILHORIZON or the path to a GDB containing that table")
   }
   
   horizons_lmf <- hz_lmf_raw %>% 
@@ -289,8 +287,7 @@ gather_soil_horizon_lmf <- function(dsn = NULL, source = "LMF", SOILHORIZON = NU
         lower <- horizons_lmf$HorizonDepthLower[horizons_lmf$PrimaryKey == x]
         upper <- c(0, lower[1:length(lower) - 1])
         return(upper)}
-      ) %>% unlist(),
-      Source = source,    
+      ) %>% unlist()   
       ### ARE THEY ALWAYS INCHES? No measure type recorded, though they may use decifeet sometimes
       HorizonDepthLower = suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
       HorizonDepthUpper = suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54
@@ -299,3 +296,21 @@ gather_soil_horizon_lmf <- function(dsn = NULL, source = "LMF", SOILHORIZON = NU
   return(horizons_lmf)
 }
 
+#' @export gather_soil_horizon
+#' @rdname gather_soil_horizon
+gather_soil_horizon <- function(dsn = NULL, source, SOILHORIZON = NULL, tblSoilPitHorizons = NULL) {
+  
+  if( toupper(source) %in% c("AIM", "TERRADAT")) {
+    soil <- gather_soil_horizon_terradat(dsn = dsn, tblSoilPitHorizons = tblSoilPitHorizons)
+  } else if( toupper(source) %in% c("LMF", "NRI")){
+    soil <- gather_soil_horizon_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
+  } else {
+    stop("source must be AIM, TerraDat, DIMA, LMF, or NRI (all case independent)")
+  }
+  
+  soil$Source <- source
+  
+  if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
+  
+  return(soil)
+}
