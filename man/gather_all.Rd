@@ -5,7 +5,7 @@
 \title{Gather tall tables for gap, vegetation height, LPI, plot characterization, 
 IIRH, soil horizon, soil pit summary, soil stability, and species inventory.}
 \usage{
-gather_all(dsn = NULL, dflist = NULL, outfolder)
+gather_all(dsn = NULL, dflist = NULL, outfolder, verbose = T)
 }
 \arguments{
 \item{dsn}{Character string. The full filepath and filename (including file 
@@ -17,6 +17,9 @@ must be named as expected by the individual gather_functions.}
 
 \item{outfolder}{Character string. Name of a folder to save all output to.
 If the specified folder does not exist, the function will create it.}
+
+\item{verbose}{True/False. When true, displays progress information, and 
+reports missing input data.}
 }
 \value{
 A list of tall data frames containing reformatted input data.
