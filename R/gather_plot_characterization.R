@@ -14,14 +14,41 @@
 #' @param POINT Dataframe of the data structure PINTERCEPT from the LMF/NRI 
 #' database with the addition of PrimaryKey and DBKey fields. Use when source 
 #' is LMF or NRI; alternately provide dsn.
+#' @param POINTCOORDINATES Dataframe of the data structure POINTCOORDINATES from the LMF/NRI 
+#' database with the addition of PrimaryKey and DBKey fields. Use when source 
+#' is LMF or NRI; alternately provide dsn.
+#' @param GPS Dataframe of the data structure GPS from the LMF/NRI 
+#' database with the addition of PrimaryKey and DBKey fields. Use when source 
+#' is LMF or NRI; alternately provide dsn.
+#' #' @param file_type Character string that denotes the source file type of the 
+#' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+#' AIM/DIMA/TerrADat, or if POINT, POINTCOORDINATES, and GPS are provided.
 #' @importFrom magrittr %>%
 #' @name gather_plot_characterization
 #' @family <gather>
 #' @return A tall data frame containing plot characterization data
+#' @examples
+#' gather_plot_characterization(dsn = "Path/To/AIM_Geodatabase.gdb", 
+#'                              source = "AIM")
+#' gather_plot_characterization(dsn = "Path/To/LMF_Geodatabase.gdb", 
+#'                              source = "LMF")
+#' 
+#' aim_plots <- read.csv("Path/To/tblPlots.csv")
+#' gather_plot_characterization(source = "AIM", 
+#'                              tblPlots = aim_plots)
+#' 
+#' lmf_pintercept <- read.csv("Path/To/PINTERCEPT.csv")
+#' lmf_pointcoords <- read.csv("Path/To/POINTCOORDINATES.csv")
+#' lmf_gps <- read.csv("Path/To/GPS.csv")
+#' gather_plot_characterization(source = "LMF", 
+#'                              PINTERCEPT = lmf_pintercept,
+#'                              POINTCOORDINATES = lmf_pointcoords,
+#'                              GPS = lmf_gps)
 
 #' @export gather_plot_characterization_terradat
 #' @rdname gather_plot_characterization
-gather_plot_characterization_terradat <- function(dsn = NULL, tblPlots = NULL){
+gather_plot_characterization_terradat <- function(dsn = NULL, 
+                                                  tblPlots = NULL){
   if(!is.null(tblPlots)){
     plot_raw <- tblPlots
   } else if(!is.null(dsn)){
@@ -33,10 +60,13 @@ gather_plot_characterization_terradat <- function(dsn = NULL, tblPlots = NULL){
   plot_tall <- plot_raw %>%
     dplyr::select(
       PrimaryKey, DBKey,
+      SpeciesState, 
+      Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, Zone, Datum,
+      State, County,
       EcolSite, ParentMaterial, Slope, Aspect, SlopeShape = ESD_SlopeShape,
       LandscapeType, LandscapeTypeSecondary, HillslopeType, 
       SoilSeries = ESD_Series,
-      EstablishDate, State, County,
+      EstablishDate
     ) %>% mutate(
       SlopeShapeVertical = case_when(
         SlopeShape %in% c("CC", "CV", "CL", "concave concave", "concave convex", "concave linear") ~ "concave",
@@ -54,29 +84,40 @@ gather_plot_characterization_terradat <- function(dsn = NULL, tblPlots = NULL){
   return(plot_tall)
 }
 
+
 #' @export gather_plot_characterization_lmf
 #' @rdname gather_plot_characterization
 gather_plot_characterization_lmf <-   function(dsn = NULL, 
                                                POINT = NULL,  
+                                               POINTCOORDINATES = NULL,
+                                               GPS = NULL,
                                                file_type = file_type
                                                ) {
   ### input ####
-  if (!is.null(POINT)){
+  ## update to have coord and gps
+  if (!is.null(POINT) & !is.null(POINTCOORDINATES) & !is.null(GPS)){
     point_lmf_raw <- POINT
+    coord_lmf_raw <- POINTCOORDINATES
+    gps_lmf_raw   <- GPS
   } else if(!is.null(dsn)){
     point_lmf_raw <-
-      switch(source, LMF = {
         sf::st_read(dsn = dsn, layer = "POINT", stringsAsFactors = FALSE, quiet = T)
-      }, NRI = {
-        readRDS(dsn)
-      })
+
+    coord_lmf_raw <-
+        sf::st_read(dsn = dsn, layer = "POINTCOORDINATES", stringsAsFactors = FALSE, quiet = T)
+
+    gps_lmf_raw <-
+        sf::st_read(dsn = dsn, layer = "GPS", stringsAsFactors = FALSE, quiet = T)
+
   } else{
-    stop("One or more necessary inputs missing")
+    stop("Supply either POINT, POINTCOORDINATES, and GPS, or the path to a GDB containing those tables")
   }  
 
   # get slope shape from POINT
   point_lmf <- point_lmf_raw %>% dplyr::select(
-    DBKey, PrimaryKey, PlotKey = PLOTKEY, SlopeShapeVertical = VERTICAL_SLOPE_SHAPE, 
+    DBKey, PrimaryKey, 
+    CountyNo = COUNTY, StateNo = STATE,
+    SlopeShapeVertical = VERTICAL_SLOPE_SHAPE, 
     SlopeShapeHorizontal = HORIZONTAL_SLOPE_SHAPE,
     Slope = SLOPE_PERCENT, Aspect = SLOPE_ASPECT
   ) %>% dplyr::mutate(
@@ -84,7 +125,32 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
     Aspect = suppressWarnings(as.numeric(recode(Aspect,
                                                 "0" = "N", "45" = "NE","90" = "E", "135" = "SE", 
                                                 "180" = "S", "225" = "SW", "270" = "W","315" = "NW"))))
-  return(soil_lmf)
+  
+  # get gis data from POINTCOORDINATES
+  coord_lmf <- coord_lmf_raw %>% dplyr::select(
+   PrimaryKey, DBKey,
+   Latitude_NAD83 = REPORT_LATITUDE, # is this the datum?
+   Longitude_NAD83 = REPORT_LONGITUDE, # is this the datum?
+  )
+  
+  # get gis from GPS
+  gps_lmf <- gps_lmf_raw %>% dplyr::select(
+    PrimaryKey, DBKey,
+    Elevation = ELEVATION
+  )
+  
+  # join GIS
+  gis_lmf  <- full_join(coord_lmf, gps_lmf, by = c("PrimaryKey", "DBKey"))
+  
+  # join gis and plot data
+  plot_lmf <- left_join(point_lmf, gis_lmf, by = c("PrimaryKey", "DBKey"))
+  
+  # last drop
+  plot_lmf <- plot_lmf %>% dplyr::select(
+    -c(Shape)
+  )
+  
+  return(plot_lmf)
 }
 
 #' @export gather_plot_characterization
@@ -93,16 +159,19 @@ gather_plot_characterization <- function(dsn = NULL,
                                          source,
                                          tblPlots = NULL,
                                          POINT = NULL,
+                                         POINTCOORDINATES = NULL,
+                                         GPS = NULL,
                                          file_type = "gdb"){
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     plotchar <- gather_plot_characterization_terradat(dsn = dsn,
-                                                      tblPlots = tblPlots
-    )
+                                                      tblPlots = tblPlots)
   } else if(toupper(source) %in% c("LMF", "NRI")){
     plotchar <- gather_plot_characterization_lmf(dsn = dsn,
                                                  #file_type = file_type,
-                                                 POINT = POINT)
+                                                 POINT = POINT,
+                                                 POINTCOORDINATES = POINTCOORDINATES,
+                                                 GPS = GPS)
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
@@ -113,4 +182,3 @@ gather_plot_characterization <- function(dsn = NULL,
   
   return(plotchar)
 }
-

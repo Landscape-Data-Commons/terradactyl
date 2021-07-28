@@ -26,6 +26,21 @@
 #' @name gather_lpi
 #' @family <gather>
 #' @return A tall data frame containing the data from the LPI pin intercepts
+#' @examples
+#' gather_lpi(dsn = "Path/To/AIM_Geodatabase.gdb", 
+#'            source = "AIM")
+#' gather_lpi(dsn = "Path/To/LMF_Geodatabase.gdb", 
+#'            source = "LMF")
+#' 
+#' aim_lpidetail <- read.csv("Path/To/tblLPIDetail.csv")
+#' aim_lpiheader <- read.csv("Path/To/tblLPIHeader.csv")
+#' gather_lpi(source = "AIM", 
+#'            tblLPIDetail = aim_lpidetail, 
+#'            tblLPIHeader = aim_lpiheader)
+#' 
+#' lmf_pintercept <- read.csv("Path/To/PINTERCEPT.csv")
+#' gather_lpi(source = "LMF", 
+#'            RANGEHEALTH = lmf_pintercept)
 
 ## Function to make tall format of LPI data from TerrADat
 #' @export gather_lpi_terradat
@@ -152,6 +167,14 @@ gather_lpi_terradat <- function(dsn = NULL,
     lpi_tall, all_of(dplyr::vars(all_of(change_vars))),
     list(as.character)
   )
+  
+  
+  ## drops
+  lpi_tall <- lpi_tall %>% dplyr::select(
+    -c("LineKey", "DateModified", "FormType", "RecKey", "FormType",
+       "Observer", "Recorder", "DataEntry", "DataErrorChecking")
+  )
+  
   
   return(lpi_tall)
   ## Output the list
@@ -339,6 +362,10 @@ gather_lpi_lmf <- function(dsn = NULL,
   lpi_hits_tall <- dplyr::mutate_at(
     lpi_hits_tall, all_of(dplyr::vars(all_of(change_vars))),
     list(as.character)
+  )
+
+  lpi_hits_tall <- lpi_hits_tall %>% dplyr::select(
+    -c(STATE, LineKey, PLOTKEY)
   )
   
   return(lpi_hits_tall)

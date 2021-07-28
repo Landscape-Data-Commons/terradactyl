@@ -28,29 +28,50 @@
 #' @name gather_gap
 #' @family <gather>
 #' @return A tall data frame containing the data from the gap measurements.
+#' @examples
+#' gather_gap(dsn = "Path/To/AIM_Geodatabase.gdb", 
+#'            source = "AIM")
+#' gather_gap(dsn = "Path/To/LMF_Geodatabase.gdb", 
+#'            source = "LMF")
+#' 
+#' aim_gapdetail <- read.csv("Path/To/tblGapDetail.csv")
+#' aim_gapheader <- read.csv("Path/To/tblGapHeader.csv")
+#' gather_gap(source = "AIM", 
+#'            tblGapDetail = aim_gapdetail, 
+#'            tblGapHeader = aim_gapheader)
+#' 
+#' lmf_gintercept <- read.csv("Path/To/GINTERCEPT.csv")
+#' lmf_point <- read.csv("Path/To/POINT.csv")
+#' gather_gap(source = "LMF", 
+#'            GINTERCEPT = gintercept, 
+#'            POINT = lmf_point)
 
 ## gather gap data
 #' @export gather_gap_terradat
 #' @rdname gather_gap
-gather_gap_terradat <- function(dsn = NULL, tblGapDetail = NULL, tblGapHeader = NULL) {
+gather_gap_terradat <- function(dsn = NULL, 
+                                tblGapDetail = NULL, 
+                                tblGapHeader = NULL) {
   
   ### switch by input types
   if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
     gap_detail <- tblGapDetail %>%
-      subset(., select = -c(
-        GlobalID,
-        created_user,
-        created_date,
-        last_edited_user,
-        last_edited_date
+      select_if(!names(.) %in% c(
+        'GlobalID',
+        'created_user',
+        'created_date',
+        'last_edited_user',
+        'last_edited_date',
+        'DateLoadedInDb'
       ))
     gap_header <- tblGapHeader %>%
-      subset(., select = -c(
-        GlobalID,
-        created_user,
-        created_date,
-        last_edited_user,
-        last_edited_date
+      select_if(!names(.) %in% c(
+        'GlobalID',
+        'created_user',
+        'created_date',
+        'last_edited_user',
+        'last_edited_date',
+        'DateLoadedInDb'
       ))
   } else if(!is.null(dsn)){
     if (!file.exists(dsn)) {
@@ -64,12 +85,13 @@ gather_gap_terradat <- function(dsn = NULL, tblGapDetail = NULL, tblGapHeader = 
     )) %>%
       
       # Remove database management fields that aren't relevant
-      subset(., select = -c(
-        GlobalID,
-        created_user,
-        created_date,
-        last_edited_user,
-        last_edited_date
+      select_if(!names(.) %in% c(
+        'GlobalID',
+        'created_user',
+        'created_date',
+        'last_edited_user',
+        'last_edited_date',
+        'DateLoadedInDb'
       ))
     
     # Read tblGapHeader
@@ -80,13 +102,13 @@ gather_gap_terradat <- function(dsn = NULL, tblGapDetail = NULL, tblGapHeader = 
     )) %>%
       
       # Remove database management fields that aren't relevant
-      subset(., select = -c(
-        GlobalID,
-        created_user,
-        created_date,
-        last_edited_user,
-        last_edited_date
-        
+      select_if(!names(.) %in% c(
+        'GlobalID',
+        'created_user',
+        'created_date',
+        'last_edited_user',
+        'last_edited_date',
+        'DateLoadedInDb'
       ))
     
   } else {
@@ -97,7 +119,7 @@ gather_gap_terradat <- function(dsn = NULL, tblGapDetail = NULL, tblGapHeader = 
   gap_tall <- dplyr::left_join(
     x = gap_header,
     y = gap_detail,
-    by = c("RecKey", "DateLoadedInDb", "PrimaryKey", "DBKey")
+    by = c("RecKey", "PrimaryKey", "DBKey")
   )
   
   ## Remove all orphaned records
@@ -139,13 +161,22 @@ gather_gap_terradat <- function(dsn = NULL, tblGapDetail = NULL, tblGapHeader = 
                      gap_tall$AnnualGrassesCanopy == 0 &
                      gap_tall$OtherCanopy == 0] <- "P"
   
+  ## last round drop
+  gap_tall <- gap_tall %>% select_if(!names(.) %in%
+                                       c('DateLoadedInDb', 'DataErrorChecking', 'DataEntry', 'Recorder', 'Observer', 
+                                         'DateModified', 'LineKey', 'RecKey', 'FormType')
+  )
+  
+  
   return(gap_tall)
 }
 
 #' @export gather_gap_lmf
 #' @rdname gather_gap
-
-gather_gap_lmf <- function(dsn = NULL, file_type = "gdb", GINTERCEPT = NULL, POINT = NULL) {
+gather_gap_lmf <- function(dsn = NULL, 
+                           file_type = "gdb", 
+                           GINTERCEPT = NULL, 
+                           POINT = NULL) {
   
   if(!is.null(GINTERCEPT) & !is.null(POINT)){
     gintercept <- GINTERCEPT
@@ -162,12 +193,12 @@ gather_gap_lmf <- function(dsn = NULL, file_type = "gdb", GINTERCEPT = NULL, POI
                              stringsAsFactors = FALSE,
                              quiet = T
                            )) %>%
-                             subset(., select = -c(
-                               GlobalID,
-                               created_user,
-                               created_date,
-                               last_edited_user,
-                               last_edited_date
+                             select_if(!names(.) %in% c(
+                               'GlobalID',
+                               'created_user',
+                               'created_date',
+                               'last_edited_user',
+                               'last_edited_date'
                              ))
                          },
                          "txt" = {
@@ -189,12 +220,12 @@ gather_gap_lmf <- function(dsn = NULL, file_type = "gdb", GINTERCEPT = NULL, POI
                         stringsAsFactors = FALSE,
                         quiet = T
                       )) %>%
-                        subset(., select = -c(
-                          GlobalID,
-                          created_user,
-                          created_date,
-                          last_edited_user,
-                          last_edited_date
+                        select_if(!names(.) %in% c(
+                          'GlobalID',
+                          'created_user',
+                          'created_date',
+                          'last_edited_user',
+                          'last_edited_date'
                         ))
                     },
                     "txt" = {
@@ -338,15 +369,17 @@ gather_gap_lmf <- function(dsn = NULL, file_type = "gdb", GINTERCEPT = NULL, POI
   gap$GapMin <- 12 * 2.54
   
   # Strip down fields
-  gap <- gap[, !colnames(gap) %in% c(
-    "SURVEY", "COUNTY", "STATE", "PLOTKEY",
-    "PSU", "POINT",
-    "created_user",
-    "created_date",
-    "last_edited_user",
-    "last_edited_date",
-    "GlobalID", "X"
-  )]
+  gap <- gap %>%
+    select_if(!names(.) %in% c(
+      'SURVEY', 'COUNTY', 'STATE', 'PLOTKEY',
+      'PSU', 'POINT',
+      'created_user',
+      'created_date',
+      'last_edited_user',
+      'last_edited_date',
+      'GlobalID', 
+      'X'
+    ))
   
   return(gap)
 }
@@ -359,8 +392,7 @@ gather_gap <- function(dsn = NULL,
                        tblGapHeader = NULL,
                        tblGapDetail = NULL,
                        POINT = NULL,
-                       GINTERCEPT = NULL
-) {
+                       GINTERCEPT = NULL) {
   
   # Gather gap using the appropriate method
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){

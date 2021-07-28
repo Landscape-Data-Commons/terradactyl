@@ -21,13 +21,27 @@
 #' @name gather_soil_stability
 #' @family <gather>
 #' @return A tall data frame containing soil horizon data.
+#' @examples 
+#' gather_soil_stability(dsn = "Path/To/AIM_Geodatabase.gdb", 
+#'                       source = "AIM")
+#' gather_soil_stability(dsn = "Path/To/LMF_Geodatabase.gdb", 
+#'                       source = "LMF")
+#' 
+#' aim_soilstabdetail <- read.csv("Path/To/tblSoilStabDetail.csv")
+#' aim_soilstabheader <- read.csv("Path/To/tblSoilStabHeader.csv")
+#' gather_soil_stability(source = "AIM", 
+#'                       tblSoilStabDetail = aim_soilstabdetail, 
+#'                       tblSoilStabHeader = aim_soilstabheader)
+#' 
+#' lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
+#' gather_soil_stability(source = "LMF", 
+#'                       SOILHORIZON = lmf_horizons)
 
 #' @export gather_soil_stability_terradat
 #' @rdname gather_soil_stability
-
 gather_soil_stability_terradat <- function(dsn = NULL,
-                                                   tblSoilStabDetail = NULL,
-                                                   tblSoilStabHeader = NULL) {
+                                           tblSoilStabDetail = NULL,
+                                           tblSoilStabHeader = NULL) {
   
   
   if(!is.null(tblSoilStabDetail) & !is.null(tblSoilStabHeader)){
@@ -137,6 +151,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   soil_stability_tall <- dplyr::left_join(
     soil_stability_header,
     soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
+  ) %>% dplyr::select(
+    -c(PlotKey, DateModified, FormType, LineKey, Observer, Recorder, DataEntry, DataErrorChecking, DateLoadedInDb, RecKey)
   )
   
   # Return final merged file
@@ -147,8 +163,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
 #' @rdname gather_soil_stability
 
 gather_soil_stability_lmf <- function(dsn = NULL, 
-                                              file_type = "gdb",
-                                              SOILDISAG = NULL
+                                      file_type = "gdb",
+                                      SOILDISAG = NULL
 ) {
   
   
@@ -256,11 +272,11 @@ gather_soil_stability_lmf <- function(dsn = NULL,
 #' @export gather_soil_stability
 #' @rdname gather_soil_stability
 gather_soil_stability <- function(dsn = NULL, 
-                                          source, 
-                                          file_type = "gdb",
-                                          tblSoilStabDetail = NULL,
-                                          tblSoilStabHeader = NULL,
-                                          SOILDISAG = NULL
+                                  source, 
+                                  file_type = "gdb",
+                                  tblSoilStabDetail = NULL,
+                                  tblSoilStabHeader = NULL,
+                                  SOILDISAG = NULL
 ) {
   
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){

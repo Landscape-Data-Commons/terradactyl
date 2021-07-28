@@ -1,48 +1,51 @@
-#' Build tall tables for all AIM methods
-#' @param dsn String. Filepath to data
-#' @param outfolder Folder location for tall Rdata files
-#' @name gather_all
+#' Gather tall tables for gap, vegetation height, LPI, plot characterization, 
+#' IIRH, soil horizon, soil pit summary, soil stability, and species inventory.
 #'
-#' @export
-#' @rdname gather_all
-# 
-### testing params
+#' @description Given wide format AIM/LMF data, gather gap, 
+#' vegetation height, LPI, plot characterization, IIRH, soil horizon, 
+#' soil pit summary, soil stability, and species inventory data. Missing
+#' tables will be skipped. AIM-type and LMF-type data will both be processed.
+#' @param dsn Character string. The full filepath and filename (including file 
+#' extension) of the geodatabase or text file containing thes table of interest. 
+#' This field is unnecessary if you provide dflist.
+#' @param dflist Named list of data frames containing monitoring data. Tables 
+#' must be named as expected by the individual gather_functions.
+#' @param outfolder Character string. Name of a folder to save all output to.
+#' If the specified folder does not exist, the function will create it.
+#' @importFrom magrittr %>%
+#' @name gather_all
+#' @family <gather>
+#' @return A list of tall data frames containing reformatted input data.
+#' @examples
+#' gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", outfolder = "output")
+#' 
+#' names <- sf::st_layers(dsn = "Path/To/AIM-LMF_Geodatabase.gdb")$name
+#' all_data <- sapply(names, function(n){
+#'   sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", 
+#'   layer = n, quiet = T)
+#' })
+#' gather_all(dflist = all_data, outfolder = "output")
 
-load("../Data/subset_aim.rda")
-load("../Data/subset_lmf.rda")
-dsn = "../Data/AIMLMFSubset.gdb"
-
-## get input from last test file
-testtype = "all"
-
-if(testtype == "r"){
-  dsn = NULL
-  rdaobj = c(subset_aim, subset_lmf)
-}
-if(testtype == "gdb"){
-  dsn = "../Data/AIMLMFSubset.gdb"
-  rdaobj = NULL
-}
-outfolder = "testout"
-
-gather_all <- function(dsn = NULL, rdaobj = NULL, outfolder) {
+gather_all <- function(dsn = NULL, dflist = NULL, outfolder) {
   # prep ####
   # most people wouldnt put the trailing f-slash on a folder name so add it in
   if(substr(outfolder, nchar(outfolder), nchar(outfolder)) != "/") {
     outfolder <- paste0(outfolder, "/")
   }
   
-  # if both dsn and rdaobj are provided, drop dsn
-  if(!is.null(rdaobj) & !is.null(dsn)){
+  if(!dir.exists(outfolder)) dir.create(outfolder)
+  
+  # if both dsn and dflist are provided, drop dsn
+  if(!is.null(dflist) & !is.null(dsn)){
     dsn <- NULL
-    print("Both dsn and rdaobj were provided. Dsn will be ignored")
+    print("Both dsn and dflist were provided. Dsn will be ignored")
   }
   
   # extract names, check against these before trying to load data
-  if(is.null(rdaobj)){
+  if(is.null(dflist)){
     names_rda <- NULL
   } else {
-    names_rda <- names(rdaobj)
+    names_rda <- names(dflist)
   }
   if(is.null(dsn)){
     names_gdb <-NULL
@@ -50,35 +53,39 @@ gather_all <- function(dsn = NULL, rdaobj = NULL, outfolder) {
     names_gdb <- sf::st_layers(dsn) %>% unlist()
   }
   
-  # pull tables out of rdaobj if supplied, so the lack of NULL inputs dont mess up the functions
-  # if rdaobj is NULL, all of these should be NULL
-  tblGapDetail <- rdaobj[["tblGapDetail"]]
-  tblGapHeader <- rdaobj[["tblGapHeader"]]
-  tblLPIDetail <- rdaobj[["tblLPIDetail"]]
-  tblLPIHeader <- rdaobj[["tblLPIHeader"]]
-  tblSoilStabDetail <- rdaobj[["tblSoilStabDetail"]]
-  tblSoilStabHeader <- rdaobj[["tblSoilStabHeader"]]
-  tblQualDetail <- rdaobj[["tblQualDetail"]]
-  tblQualHeader <- rdaobj[["tblQualHeader"]]
-  tblSoilPitHorizons <- rdaobj[["tblSoilPitHorizons"]]
-  tblSoilPits <- rdaobj[["tblSoilPits"]]
-  tblSpecRichDetail <- rdaobj[["tblSpecRichDetail"]]
-  tblSpecRichHeader <- rdaobj[["tblSpecRichHeader"]]
+  # pull tables out of dflist if supplied, so the lack of NULL inputs dont mess up the functions
+  # if dflist is NULL, all of these should be NULL
+  tblGapDetail <- dflist[["tblGapDetail"]]
+  tblGapHeader <- dflist[["tblGapHeader"]]
+  tblLPIDetail <- dflist[["tblLPIDetail"]]
+  tblLPIHeader <- dflist[["tblLPIHeader"]]
+  tblSoilStabDetail <- dflist[["tblSoilStabDetail"]]
+  tblSoilStabHeader <- dflist[["tblSoilStabHeader"]]
+  tblQualDetail <- dflist[["tblQualDetail"]]
+  tblQualHeader <- dflist[["tblQualHeader"]]
+  tblSoilPitHorizons <- dflist[["tblSoilPitHorizons"]]
+  tblSoilPits <- dflist[["tblSoilPits"]]
+  tblSpecRichDetail <- dflist[["tblSpecRichDetail"]]
+  tblSpecRichHeader <- dflist[["tblSpecRichHeader"]]
+  tblPlots <- dflist[["tblPlots"]]
   
-  GINTERCEPT <- rdaobj[["GINTERCEPT"]]
-  POINT <- rdaobj[["POINT"]]
-  PASTUREHEIGHTS <- rdaobj[["PASTUREHEIGHTS"]]
-  RANGEHEALTH <- rdaobj[["RANGEHEALTH"]]
-  PINTERCEPT <- rdaobj[["PINTERCEPT"]]
-  SOILDISAG <- rdaobj[["SOILDISAG"]]
-  PLANTCENSUS <- rdaobj[["PLANTCENSUS"]]
-  SOILHORIZON <- rdaobj[["SOILHORIZON"]]
+  GINTERCEPT <- dflist[["GINTERCEPT"]]
+  POINT <- dflist[["POINT"]]
+  PASTUREHEIGHTS <- dflist[["PASTUREHEIGHTS"]]
+  RANGEHEALTH <- dflist[["RANGEHEALTH"]]
+  PINTERCEPT <- dflist[["PINTERCEPT"]]
+  SOILDISAG <- dflist[["SOILDISAG"]]
+  PLANTCENSUS <- dflist[["PLANTCENSUS"]]
+  SOILHORIZON <- dflist[["SOILHORIZON"]]
+  POINTCOORDINATES <- dflist[["POINTCOORDINATES"]]
+  GPS <- dflist[["GPS"]]
   
   # Gap ####
   print("Preparing Gap data")
   if(("tblGapDetail" %in% names_rda & "tblGapHeader" %in% names_rda) |
      ("tblGapDetail" %in% names_gdb & "tblGapHeader" %in% names_gdb)){
-    gap_aim <- gather_gap(dsn = dsn, source = "AIM", tblGapDetail = tblGapDetail,
+    gap_aim <- gather_gap(dsn = dsn, source = "AIM", 
+                          tblGapDetail = tblGapDetail,
                           tblGapHeader = tblGapHeader)
   } else {
     gap_aim <- NULL
@@ -298,24 +305,30 @@ gather_all <- function(dsn = NULL, rdaobj = NULL, outfolder) {
   #         file = paste(outfolder, "header.Rdata", sep = "")
   # )
   # 
-  # plot characterization (placeholder) ####
+  # plot characterization ####
   print("Preparing Plot Characterization data")
   if(("tblPlots" %in% names_rda) |
      ("tblPlots" %in% names_gdb)){
     
-    plotchar_aim <- data.frame()
+    plotchar_aim <- gather_plot_characterization(dsn = dsn,
+                                                 source = "AIM",
+                                                 tblPlots = tblPlots)
     
   } else {
     plotchar_aim <- NULL
     print("tblPlots not found. AIM Plot Characterization will not be prepared.")
   }
-  if(("POINT" %in% names_rda) |
-     ("POINT" %in% names_gdb)){
+  if(("POINT" %in% names_rda & "POINTCOORDINATES" %in% names_rda & "GPS" %in% names_rda) |
+     ("POINT" %in% names_gdb & "POINTCOORDINATES" %in% names_gdb & "GPS" %in% names_gdb)){
     
-    plotchar_lmf <- data.frame()
+    plotchar_lmf <- gather_plot_characterization(dsn = dsn,
+                                                 source = "LMF",
+                                                 POINT = POINT,
+                                                 POINTCOORDINATES = POINTCOORDINATES,
+                                                 GPS = GPS)
   } else {
     plotchar_lmf <- NULL
-    print("POINT not found. LMF Plot Characterization will not be prepared.")
+    print("POINT and/or GPS and/or POINTCOORDINATES not found. LMF Plot Characterization will not be prepared.")
   }
   plotchar_tall <- dplyr::bind_rows(plotchar_aim, plotchar_lmf)
   saveRDS(plotchar_tall, file = paste0(outfolder, "plot_characterization.Rdata"))
@@ -335,11 +348,3 @@ gather_all <- function(dsn = NULL, rdaobj = NULL, outfolder) {
   return(list_out)
   #####
 }
-#  ####
-# test_dsn_alldata <- gather_all(dsn = "../Data/AIMLMFSubset.gdb", rdaobj = NULL,
-#                        outfolder = outfolder)
-test_rda_alldata <- gather_all(dsn = NULL, rdaobj = c(subset_aim, subset_lmf),
-                       outfolder = outfolder)
-
-test_rda_lmf <- gather_all(dsn = NULL, rdaobj = subset_lmf, outfolder = outfolder)
-test_rda_aim <- gather_all(dsn = NULL, rdaobj = subset_aim, outfolder = outfolder)

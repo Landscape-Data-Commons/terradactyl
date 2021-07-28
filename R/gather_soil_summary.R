@@ -21,23 +21,34 @@
 #' @name gather_soil_summary
 #' @family <gather>
 #' @return A tall data frame summarizing horizon data to the soil pit
+#' @examples
+#' gather_soil_summary(dsn = "Path/To/AIM_Geodatabase.gdb", 
+#'                     source = "AIM")
+#' gather_soil_summary(dsn = "Path/To/LMF_Geodatabase.gdb", 
+#'                     source = "LMF")
+#' 
+#' aim_horizons <- read.csv("Path/To/tblSoilPitHorizons.csv")
+#' aim_pits <- read.csv("Path/To/tblSoilPits.csv")
+#' gather_soil_summary(source = "AIM", 
+#'                     tblSoilPitHorizons = aim_horizons,
+#'                     tblSoilPits = aim_pits)
+#' 
+#' lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
+#' gather_soil_summary(source = "LMF", 
+#'                     SOILHORIZON = lmf_horizons)
 
 #' @export gather_soil_summary_lmf
 #' @rdname gather_soil_summary
 gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
   ### input ####
+  # print("a")
   if (!is.null(SOILHORIZON)){
     hz_lmf_raw <- SOILHORIZON
   } else if(!is.null(dsn)){
-    hz_lmf_raw <- switch(source, LMF = {
-      suppressWarnings(sf::st_read(dsn = dsn, layer = "SOILHORIZON", stringsAsFactors = FALSE, quiet = T))
-    }, NRI = {
-      readRDS(dsn)
-    })
+    hz_lmf_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "SOILHORIZON", stringsAsFactors = FALSE, quiet = T))
   } else{
     stop("One or more necessary inputs missing")
   }
-  
   
   ### prepare hz data ####
   hz_lmf <- hz_lmf_raw  %>%
@@ -325,6 +336,8 @@ gather_soil_summary <- function(dsn = NULL, source,
   soil$Source <- source
   
   if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
+  if(length(class(soil) > 1)) soil <- as.data.frame(soil)
   
   return(soil)
 }
+

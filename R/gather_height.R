@@ -25,13 +25,28 @@
 #' @name gather_height
 #' @family <gather>
 #' @return A tall data frame containing the data from the height measurements.
+#' @examples
+#' gather_height(dsn = "Path/To/AIM_Geodatabase.gdb", 
+#'               source = "AIM")
+#' gather_height(dsn = "Path/To/LMF_Geodatabase.gdb", 
+#'               source = "LMF")
+#' 
+#' aim_lpidetail <- read.csv("Path/To/tblLPIDetail.csv")
+#' aim_lpiheader <- read.csv("Path/To/tblLPIHeader.csv")
+#' gather_height(source = "AIM", 
+#'               tblLPIDetail = aim_lpidetail, 
+#'               tblLPIHeader = aim_lpiheader)
+#' 
+#' lmf_heights <- read.csv("Path/To/PASTUREHEIGHTS.csv")
+#' gather_height(source = "LMF", 
+#'               PASTUREHEIGHTS = lmf_heights)
 
 ## Gather Height Data
 #' @export gather_height_terradat
 #' @rdname gather_height
 gather_height_terradat <- function(dsn = NULL,
-                                           tblLPIDetail= NULL, 
-                                           tblLPIHeader = NULL) {
+                                   tblLPIDetail= NULL, 
+                                   tblLPIHeader = NULL) {
   
   if(!is.null(tblLPIDetail) & !is.null(tblLPIHeader)){
     lpi_detail <- tblLPIDetail
@@ -133,6 +148,13 @@ gather_height_terradat <- function(dsn = NULL,
   # Make sure height is a numeric field
   lpi_height$Height <- suppressWarnings(as.numeric(lpi_height$Height))
   
+  # final drop
+  lpi_height <- lpi_height %>% dplyr::select(
+    -c(DataErrorChecking, DataEntry, Recorder, Observer, 
+       DateModified, LineKey, RecKey, FormType)
+  )
+  
+  
   # Output the woody/herbaceous level data
   return(lpi_height)
 }
@@ -142,8 +164,8 @@ gather_height_terradat <- function(dsn = NULL,
 
 # Gather Height for LMF/NRI
 gather_height_lmf <- function(dsn = NULL,
-                                      file_type = "gdb",
-                                      PASTUREHEIGHTS = NULL) {
+                              file_type = "gdb",
+                              PASTUREHEIGHTS = NULL) {
   
   if(!is.null(PASTUREHEIGHTS)){
     vegheight <- PASTUREHEIGHTS
@@ -198,6 +220,7 @@ gather_height_lmf <- function(dsn = NULL,
       # Assign DBKey
       vegheight$DBKey <- vegheight$SURVEY
     }
+    
     
     
     
@@ -281,6 +304,11 @@ gather_height_lmf <- function(dsn = NULL,
   # Make sure height is a numeric field
   height$Height <- suppressWarnings(as.numeric(height$Height))
   
+  # last drop
+  height <- height %>% dplyr::select(
+    -c(LineKey)
+  )
+  
   # return height
   return(height)
 }
@@ -290,11 +318,11 @@ gather_height_lmf <- function(dsn = NULL,
 #' @rdname gather_height
 
 gather_height <- function(dsn = NULL,
-                                  file_type = "gdb",
-                                  source,
-                                  tblLPIDetail = NULL,
-                                  tblLPIHeader = NULL,
-                                  PASTUREHEIGHTS = NULL) {
+                          file_type = "gdb",
+                          source,
+                          tblLPIDetail = NULL,
+                          tblLPIHeader = NULL,
+                          PASTUREHEIGHTS = NULL) {
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     height <- gather_height_terradat(
       dsn = dsn, 

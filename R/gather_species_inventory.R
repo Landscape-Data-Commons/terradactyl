@@ -23,6 +23,21 @@
 #' @name gather_species_inventory
 #' @family <gather>
 #' @return A tall data frame containing species inventory data.
+#' @examples 
+#' gather_species_inventory(dsn = "Path/To/AIM_Geodatabase.gdb", 
+#'                          source = "AIM")
+#' gather_species_inventory(dsn = "Path/To/LMF_Geodatabase.gdb", 
+#'                          source = "LMF")
+#' 
+#' aim_specrichdetail <- read.csv("Path/To/tblSpecRichDetail.csv")
+#' aim_specrichheader <- read.csv("Path/To/tblSpecRichHeader.csv")
+#' gather_species_inventory(source = "AIM", 
+#'                          tblSpecRichDetail = aim_specrichdetail, 
+#'                          tblSpecRichHeader = aim_specrichheader)
+#' 
+#' lmf_census <- read.csv("Path/To/PLANTCENSUS.csv")
+#' gather_species_inventory(source = "LMF", 
+#'                          PLANTCENSUS = lmf_census)
 
 #' @export gather_species_inventory_terradat
 #' @rdname gather_species_inventory
@@ -63,11 +78,14 @@ gather_species_inventory_terradat <- function(dsn = NULL,
     y = species_detail_tall,
     by = c("RecKey", "PrimaryKey")
   ) %>%
-    subset(!is.na(Species))
+    subset(!is.na(Species)) %>% 
+    dplyr::select(
+    -c(LineKey, RecKey, DateModified, FormType, Observer, Recorder, DataEntry, 
+       DataErrorChecking, DateLoadedInDb, created_user, created_date, last_edited_user, last_edited_date, GlobalID)
+  )
   
   return(species_inventory_tall)
 }
-
 #' @export species_count
 #' @rdname gather_species_inventory
 species_count <- function(species_inventory_tall, ...) {
@@ -99,7 +117,7 @@ species_count <- function(species_inventory_tall, ...) {
 }
 
 #' @export tall_species
-#' @rdname species_inventory
+#' @rdname gather_species_inventory
 tall_species <- function(species_inventory_detail) {
   tall_list <- lapply(1:nrow(species_inventory_detail), FUN = function(X, df) {
     # split species strings concatenated in a single field
@@ -123,9 +141,9 @@ tall_species <- function(species_inventory_detail) {
 }
 
 # Gather LMF data
-#' @export gather_species_lmf
+#' @export gather_species_inventory_lmf
 #' @rdname gather_species_inventory
-gather_species_lmf <- function(dsn = NULL, 
+gather_species_inventory_lmf <- function(dsn = NULL, 
                                file_type = "gdb", 
                                PLANTCENSUS = NULL) {
   if(!is.null(PLANTCENSUS)){
@@ -174,11 +192,11 @@ gather_species_lmf <- function(dsn = NULL,
   # rename fields
   species_inventory <- dplyr::rename(species_inventory,
                                      Species = CPLANT
-  ) %>% dplyr::select(., -c(SURVEY:SEQNUM))
+  ) %>% dplyr::select(., -c(SURVEY:SEQNUM, GlobalID, created_user,
+                            created_date, last_edited_user, last_edited_date))
   
   return(species_inventory)
 }
-
 
 #' Species Inventory Gather wrapper
 #' @export gather_species_inventory
@@ -198,7 +216,7 @@ gather_species_inventory <- function(dsn = NULL,
       tblSpecRichHeader = tblSpecRichHeader
     )
   } else if(toupper(source) %in% c("LMF", "NRI")){
-    species_inventory <- gather_species_lmf(
+    species_inventory <- gather_species_inventory_lmf(
       dsn = dsn, file_type = file_type,
       PLANTCENSUS = PLANTCENSUS
     )
