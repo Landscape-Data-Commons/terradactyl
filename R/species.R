@@ -178,7 +178,8 @@ generic_growth_habits <- function(data,
 
   # Merge with generic species definitions
   generic.code.df <- dplyr::inner_join(
-    terradactyl::generic.species,
+    terradactyl::generic.species %>% dplyr::select(-c(Source, CommonName)) %>%
+      dplyr::distinct(),
     generic_df,
     by = "Prefix"
   )

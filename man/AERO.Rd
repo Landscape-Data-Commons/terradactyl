@@ -9,7 +9,7 @@ aero(
   gap_tall,
   height_tall,
   header,
-  texture_raster,
+  texture_raster = "",
   folder_location = "~/DataCommons/AERO/"
 )
 }

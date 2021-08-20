@@ -90,7 +90,7 @@ RHEM <- function(
     # Identify Litter
     dplyr::mutate(
       LowestCanopy = dplyr::case_when(
-        LowestCanopy %in% c("L", "HL", "WL", "EL") ~ "SurfaceLitter"
+        LowestCanopy %in% c("L", "HL", "WL", "EL", "D", "AL", "OM", "AL", "NL") ~ "SurfaceLitter"
       ),
       layer = "SoilSurface"
     ) %>%
@@ -98,7 +98,10 @@ RHEM <- function(
     dplyr::left_join(lpi_species, .) %>%
 
     # Identify instance of Litter of surface code
-    dplyr::mutate(code = dplyr::case_when(LowestCanopy == "SurfaceLitter" & nchar(code) < 3 ~ "SurfaceLitter", TRUE ~ code)) %>%
+    dplyr::mutate(code = dplyr::case_when(LowestCanopy == "SurfaceLitter" & (nchar(code) < 3 & !code %in% c("M", "LC")) ~ "SurfaceLitter",
+                                          #Duff can be a SoilSurface code but is included as SurfaceLitter
+                                          code == "D" ~ "SurfaceLitter",
+                                          TRUE ~ code)) %>%
 
     # remove Lowest canopy field
     dplyr::select(-LowestCanopy) %>%
@@ -116,7 +119,7 @@ RHEM <- function(
             "BY",
             "BR"
           ) ~ "Rock",
-          code %in% c("S", "CY") ~ "Soil",
+          code %in% c("S", "CY", "PC", "LM", "FG") ~ "Soil",
           TRUE ~ code
         )
     )
@@ -142,7 +145,7 @@ RHEM <- function(
                   "AH_BareSoilCover" = "AH_SoilCover")
 
   basal_cover_sum <- basal_cover %>%
-    dplyr::filter(!indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN")) %>%
+    dplyr::filter(!indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN", "M", "LC")) %>%
     dplyr::group_by(PrimaryKey) %>%
     dplyr::summarise(BasalCover = sum(percent))
 
