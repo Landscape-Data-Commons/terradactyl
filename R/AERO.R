@@ -11,41 +11,35 @@
 #' @export aero
 #' @rdname AERO
 
-aero <- function(lpi_tall,
+aero<- function (lpi_tall,
                  gap_tall,
                  height_tall,
                  header,
-                 texture_raster,
-                 folder_location = "~/DataCommons/AERO/") {
+                 texture_raster = "",
+                 folder_location="~/DataCommons/AERO/"){
 
-  # Get the texture info for the plots
   # Remove NAs from coordinates
   header <- header %>% subset(!is.na(Longitude_NAD83) &
-    !is.na(Latitude_NAD83))
-  plots <- sp::SpatialPointsDataFrame(
-    data = header,
-    coords = cbind(
-      y = header$Longitude_NAD83,
-      x = header$Latitude_NAD83
-    ),
-    proj4string = texture_raster@crs
-  )
+                                !is.na(Latitude_NAD83))
+  plots<-sp::SpatialPointsDataFrame(data=header,
+                                    coords=cbind(y=header$Longitude_NAD83,
+                                                 x=header$Latitude_NAD83),
+                                    proj4string = texture_raster@crs)
 
 
-  # extract soil texture values to plots
-  plots_texture <- raster::extract(y = plots, x = texture_raster, df = T, sp = T)
+  #extract soil texture values to plots
+  plots_texture <- raster::extract(y=plots, x=texture_raster, df=T, sp=T)
 
   # Remove any plots without sand texture
-  plots_texture <- subset(plots_texture, !is.na(sand))
+  plots_texture <- subset(plots_texture,!is.na(sand))
 
   # Convert texture to fraction
-  plots_texture$sand <- plots_texture$sand / 100
-  plots_texture$clay <- plots_texture$clay / 100
+  plots_texture$sand <- plots_texture$sand/100
+  plots_texture$clay <- plots_texture$clay/100
 
-  # AERO requires WGS8f
-  plots_texture <- sp::spTransform(plots_texture,
-    CRSobj = sp::CRS("+proj=longlat +datum=WGS84")
-  )
+  #AERO requires WGS84
+  plots_texture<-sp::spTransform(plots_texture,
+                                 CRSobj=sp::CRS("+proj=longlat +datum=WGS84"))
 
 
   # Calculate mean maximum height for each plot
@@ -57,14 +51,13 @@ aero <- function(lpi_tall,
     tall = TRUE
   ) %>%
     # convert to meters
-    dplyr::mutate(max_height = max_height / 100)
+    dplyr::mutate(max_height = max_height/100)
 
   # Calculate bare soil from LPI data
-  bare_soil <- pct_cover_bare_soil(
-    lpi_tall = lpi_tall,
-    tall = FALSE,
-    by_line = FALSE
-  )
+  bare_soil<-pct_cover_bare_soil(lpi_tall = lpi_tall,
+                                 tall = FALSE,
+                                 by_year = FALSE,
+                                 by_line = FALSE)
 
   # subset gap_tall to only Canopy gaps
   canopy_gap <- subset(gap_tall, RecType == "C")
@@ -72,7 +65,7 @@ aero <- function(lpi_tall,
   # Find out which plots have bare soil and height data
   common_PK <- Reduce(intersect, (list(
     unique(canopy_gap$PrimaryKey),
-    unique(plots_texture$PrimaryKey),
+     unique(plots_texture$PrimaryKey),
     unique(max_height$PrimaryKey),
     unique(bare_soil$PrimaryKey)
   )))
@@ -83,16 +76,14 @@ aero <- function(lpi_tall,
   dir.create(gap_location)
 
   # Convert gaps to meters
-  canopy_gap <- canopy_gap %>% dplyr::mutate(Gap = Gap / 100)
+  canopy_gap <- canopy_gap %>% dplyr::mutate(Gap = Gap/100)
   # Write files to gap location
   lapply(
     common_PK,
-    function(X) {
-      write.table(canopy_gap[canopy_gap$PrimaryKey == X, "Gap"],
-        file = paste(folder_location, "gap/", X, ".txt", sep = ""),
-        col.names = F, row.names = F, sep = "\t"
-      )
-    }
+    function(X) write.table(canopy_gap[canopy_gap$PrimaryKey == X, "Gap"],
+                            file = paste(folder_location, "gap/", X, ".txt", sep = ""),
+                            col.names = F, row.names = F, sep = "\t"
+    )
   )
 
 
@@ -104,29 +95,26 @@ aero <- function(lpi_tall,
       cat(
         file = paste(folder_location, X, ".ini", sep = ""),
         "[INPUT_VALUES]",
-        paste("wind_location:",
-          plots_texture$Latitude_NAD83[plots_texture$PrimaryKey == X] %>% unique(),
-          plots_texture$Longitude_NAD83[plots_texture$PrimaryKey == X] %>% unique(),
-          sep = " "
-        ),
+                paste("wind_location:",
+                      plots_texture$Latitude[plots_texture$PrimaryKey == X] %>% unique(),
+                      plots_texture$Longitude[plots_texture$PrimaryKey == X]%>% unique(),
+                  sep = " "
+                ),
         paste("soil_sand_fraction: ",
-          plots_texture$sand[plots_texture$PrimaryKey == X] %>% unique(),
-          sep = ""
-        ),
+              plots_texture$sand[plots_texture$PrimaryKey == X] %>% unique(),
+              sep = ""),
         paste("soil_clay_fraction: ",
-          plots_texture$clay[plots_texture$PrimaryKey == X] %>% unique(),
-          sep = ""
-        ),
+              plots_texture$clay[plots_texture$PrimaryKey == X] %>% unique(),
+              sep = ""),
         paste("veg_cover_fraction: ",
-          (100 - bare_soil$S[bare_soil$PrimaryKey == X]) %>% unique() / 100,
-          sep = ""
-        ),
+              (100 - bare_soil$S[bare_soil$PrimaryKey == X]) %>% unique() / 100,
+              sep = ""),
         paste("veg_mean_height: ",
-          max_height$max_height[max_height$PrimaryKey == X] %>% unique(),
-          sep = ""
-        ),
+              max_height$max_height[max_height$PrimaryKey == X] %>% unique(),
+              sep = ""),
         paste("gap_obsv: ", "./gap/", X, ".txt", sep = ""),
         sep = "\n", append = FALSE
+
       )
     }
   )
@@ -136,4 +124,7 @@ aero <- function(lpi_tall,
     dplyr::left_join(plots_texture@data)
 
   write.csv(input_data, file = paste(folder_location, "input_data.csv", sep = ""))
+
 }
+
+

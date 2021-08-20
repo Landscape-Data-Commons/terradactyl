@@ -91,7 +91,7 @@ gather_header_lmf <- function(dsn, ...) {
 
     # add PLOTKEY
     # TODO I'm still not convinced we need this
-    dplyr::mutate(PLOTKEY = PrimaryKey) %>%
+    dplyr::mutate(PlotKey = PrimaryKey) %>%
     dplyr::distinct() %>%
 
     # Populate DateLoadedInDb

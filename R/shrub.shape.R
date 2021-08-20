@@ -55,8 +55,8 @@ sagebrush_shape_base <- function(lpi_tall) {
     )) %>%
     # Rename fields
     dplyr::select(
-      SagebrushShape_All_Column_Count = C,
-      SagebrushShape_All_Spread_Count = S,
+      SagebrushShape_All_ColumnCount = C,
+      SagebrushShape_All_SpreadCount = S,
       SagebrushShape_All_Predominant,
       PrimaryKey
     )
@@ -67,8 +67,8 @@ sagebrush_shape_base <- function(lpi_tall) {
   if (nrow(shrub_shape_predominant) == 0) {
     sagebrush_shape_all <- shrub_shape_predominant %>%
       dplyr::mutate(
-        SagebrushShape_All_Column_Count = NA,
-        SagebrushShape_All_Spread_Count = NA
+        SagebrushShape_All_ColumnCount = NA,
+        SagebrushShape_All_SpreadCount = NA
       )
   }
 
