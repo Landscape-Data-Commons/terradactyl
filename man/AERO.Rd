@@ -9,8 +9,8 @@ aero(
   gap_tall,
   height_tall,
   header,
-  texture_raster = "",
-  folder_location = "~/DataCommons/AERO/"
+  texture_file,
+  folder_location = "~/Projects/LandscapeDataCommons/AERO/"
 )
 }
 \arguments{
@@ -22,7 +22,7 @@ aero(
 
 \item{header}{Table. Contains PrimaryKey, Latitude, and Longitude}
 
-\item{texture_raster}{Raster. Soil texture layer with sand and clay percentages}
+\item{texture_file}{Raster or csv. Soil texture raster(tif) with sand and clay percentages or CSV which provides soil texture classes from 12 USDA classes.}
 
 \item{folder_location}{Character. Location for function to save AERO input files}
 }
