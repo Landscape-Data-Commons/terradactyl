@@ -27,12 +27,13 @@ gather_species <- function(species_file, #
 ) {
 
 
-  # check to see if the species file exists and read in the appropriate file type
-  if (!file.exists(species_file)) {
-    stop("The species file does not exist")
-  }
 
   if (is.character(species_file)) {
+    # check to see if the species file exists and read in the appropriate file type
+    if (!file.exists(species_file)) {
+      stop("The species file does not exist")
+    }
+
     # read from .csv or .gdb. If gdb we assume it is of the schema aim.gdb
     species <- switch(toupper(stringr::str_extract(species_file,
                                                    pattern = "[A-z]{3}$"
