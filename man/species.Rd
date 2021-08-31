@@ -43,7 +43,7 @@ species_list_compare(species_file, folder)
 }
 \arguments{
 \item{species_file}{Character string. The full file path (including file extension)
-to the file containing the species list.}
+to the file containing the species list OR the species list as a data frame.}
 
 \item{species_growth_habit_code}{Character. The field name for the growth habit
 codes in the species file. Defaults to \code{"GrowthHabitSub"}}
