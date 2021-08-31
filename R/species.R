@@ -14,6 +14,7 @@
 #' @param data_code Character. The field name with the species codes in the data.
 #' @param species_list Dataframe. Species list output from \code{}
 #' @param generic_species_file Character. The full file path (including file extension)to the file containing the species list.
+#' @param by_state Logical. If \code{TRUE} then the join will attempt to use the variable \code{"SpeciesState"} if it exists. Defaults to \code{TRUE}.
 
 
 #' @export gather_species
@@ -250,17 +251,23 @@ species_join <- function(data, # field data,
                          growth_habit_file = "", # path to .csv or gdb holding tblSpeciesGrowthHabit
                          growth_habit_code = "Code",
                          overwrite_generic_species = FALSE,
-                         generic_species_file = "") {
+                         generic_species_file = "",
+                         by_state = TRUE) {
 
   # Print
   print("Gathering species data")
 
   # Set join levels, so that we can flexibly include SpeciesState
-  if ("SpeciesState" %in% names(data)) {
-    join_by <- c(data_code, "SpeciesState")
+  if (by_state) {
+    if ("SpeciesState" %in% names(data)) {
+      join_by <- c(data_code, "SpeciesState")
+    } else {
+      join_by <- data_code
+    }
   } else {
     join_by <- data_code
   }
+
 
   # Some projects use "None" to indicate "No species". Convert those to N instead
   data <- data %>% dplyr::mutate_at(

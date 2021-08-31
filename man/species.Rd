@@ -34,7 +34,8 @@ species_join(
   growth_habit_file = "",
   growth_habit_code = "Code",
   overwrite_generic_species = FALSE,
-  generic_species_file = ""
+  generic_species_file = "",
+  by_state = TRUE
 )
 
 species_list_check(dsn_tall, species_list_file, ...)
@@ -65,6 +66,8 @@ in the growth habit file. Defaults to \code{"Code"}}
 \item{species_duration}{Character. the field name for the Duration field in the species file.}
 
 \item{generic_species_file}{Character. The full file path (including file extension)to the file containing the species list.}
+
+\item{by_state}{Logical. If \code{TRUE} then the join will attempt to use the variable \code{"SpeciesState"} if it exists. Defaults to \code{TRUE}.}
 
 \item{dsn_tall}{The observed data data source}
 
