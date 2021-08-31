@@ -5,7 +5,7 @@
 #' @param species_growth_habit_code Character. The field name for the growth habit
 #'  codes in the species file. Defaults to \code{"GrowthHabitSub"}
 #' @param growth_habit_file Character string. The full file path (including file extension)
-#' to the file containing the growth habit list. If NULL we assume the species list contains those values
+#' to the file containing the growth habit list. If \code{""} we assume the species list contains those values. Defaults to \code{""}.
 #' @param growth_habit_code Character. The field name for the growth habit codes
 #' in the growth habit file. Defaults to \code{"Code"}
 #' @param species_code Character. The field name for the species codes in the species file.
