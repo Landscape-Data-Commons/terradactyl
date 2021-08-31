@@ -27,7 +27,7 @@ generic_growth_habits(
 species_join(
   data,
   data_code = "code",
-  species_file = "",
+  species_file,
   species_code = "SpeciesCode",
   species_growth_habit_code = "GrowthHabitSub",
   species_duration = "Duration",
