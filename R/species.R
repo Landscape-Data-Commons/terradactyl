@@ -304,13 +304,24 @@ species_join <- function(data, # field data,
       species_list$UpdatedSpeciesCode <- as.character(species_list$UpdatedSpeciesCode)
 
       # Merge the Updated Species codes to the data
-      data_update <- dplyr::left_join(data,
-                                      dplyr::select(
-                                        species_list, data_code,
-                                        UpdatedSpeciesCode, SpeciesState
-                                      ),
-                                      by = join_by
-      )
+      if (by_state) {
+        data_update <- dplyr::left_join(data,
+                                        dplyr::select(
+                                          species_list, data_code,
+                                          UpdatedSpeciesCode, SpeciesState
+                                        ),
+                                        by = join_by
+        )
+      } else {
+        data_update <- dplyr::left_join(data,
+                                        dplyr::select(
+                                          species_list, data_code,
+                                          UpdatedSpeciesCode
+                                        ),
+                                        by = join_by
+        )
+      }
+
 
       # Overwrite the original data code with any updated species codes
       data_update <- data_update %>%
