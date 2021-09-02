@@ -192,14 +192,22 @@ generic_growth_habits <- function(data,
 
 
   # Connect unknown codes to SpeciesState
-  if ("SpeciesState" %in% colnames(species_list)) {
+  if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% data) {
     generic.code.df <- generic.code.df %>%
       subset(!is.na(species_code)) %>%
       dplyr::inner_join(., dplyr::select(
         data, !!!dplyr::vars(data_code),
         "SpeciesState"
       ))
+  } else {
+    generic.code.df <- generic.code.df %>%
+      subset(!is.na(species_code)) %>%
+      dplyr::inner_join(., dplyr::select(
+        data, !!!dplyr::vars(data_code)
+      ))
   }
+
+
   # if there are records in generic.code.df
   if (nrow(generic.code.df) > 0) {
     # Indicate that generic codes are non-noxious
