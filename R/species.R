@@ -200,6 +200,7 @@ generic_growth_habits <- function(data,
         "SpeciesState"
       ))
   } else {
+    warning("Variable 'SpeciesState' is not present in either the data or the lookup table")
     generic.code.df <- generic.code.df %>%
       subset(!is.na(species_code)) %>%
       dplyr::inner_join(., dplyr::select(
