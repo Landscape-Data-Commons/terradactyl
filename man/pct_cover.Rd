@@ -20,3 +20,32 @@ pct_cover(lpi_tall, tall = FALSE, hit = "any", by_line = FALSE, ...)
 \description{
 Calculate the percent cover by plot for variables or combinations of variables. Percent cover will be calculated for every combination of the variables requested, so if the variables are \code{GrowthHabitSub} and \code{Duration} then the output will contain fields like \code{Graminoid.Perennial}, \code{Graminoid.Annual}, \code{Shrub.Perennial}, etc. whereas using just the variable \code{code} will produce one column per species code. Any number of indicator variables can be used. These are calculated as cover from anywhere in the canopy column or as only the first hit in the canopy column. Any groupings where all the variable values were \code{NA} will be dropped.
 }
+\examples{
+# Gather header and LPI files
+dsn = "Path/To/LMF_Geodatabase.gdb" # also contains species list
+header <- gather_header(dsn = dsn,
+                    source = "LMF")
+
+lpi_tall <- gather_lpi(dsn = "Path/To/LMF_Geodatabase.gdb",
+                    source = "LMF")
+
+# Join lpi_tall and header to get the SpeciesState value associated with LPI data
+lpi_tall <- dplyr::left_join(lpi_tall, header)
+
+# Join species list attributes
+species_join(data = lpi_tall,species_file = dsn)
+
+# Calculate percent cover of individual species and cover values (S, R, etc) in lpi_tall
+ pct_cover(lpi_tall = lpi_tall,
+    tall = FALSE,
+    hit = "any",
+    by_line = FALSE,
+    code)
+
+ Calculate percent cover of Duration and Growth Habit Sub (e.g., to produce Annual Forb cover)
+ pct_cover(lpi_tall = lpi_tall,
+    tall = FALSE,
+    hit = "any",
+    by_line = FALSE,
+    Duration, GrowthHabitSub)
+}

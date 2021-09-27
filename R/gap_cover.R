@@ -13,8 +13,6 @@
 #' \code{"canopy", "basal", "perennial canopy"}
 #' @export
 
-
-
 # Percent Gap
 #' @export gap_cover
 #' @rdname gap_cover

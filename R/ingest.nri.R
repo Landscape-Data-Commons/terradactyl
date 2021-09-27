@@ -47,7 +47,7 @@ nri_field_names <- function(dsn) {
     dplyr::mutate(DBKey = DBKEY) %>%
     dplyr::select(-DBKEY)
 
-  # Merge the original nri.data.column.explataions table saved in the package
+  # Merge the original nri.data.column.explanations table saved in the package
   nri.data.column.explanations <-
     dplyr::full_join(
       terradactyl::nri.data.column.explanations,
@@ -58,7 +58,7 @@ nri_field_names <- function(dsn) {
   # Look for instances where field of the same name may have different data types assigned
   disjointed_data_types <- nri.data.column.explanations %>%
     dplyr::group_by(FIELD.NAME) %>%
-    dplyr::summarise(n = n_distinct(DATA.TYPE))
+    dplyr::summarise(n = dplyr::n_distinct(DATA.TYPE))
 
   if (any(disjointed_data_types$n > 1)) {
     stop("There are mismatched data types identified between input files and the

@@ -5,7 +5,35 @@
 #' @param hit Character string. If \code{"any"} then percent cover will be calculated using any hit in the canopy column (so a single pin drop record may be counted more than once if it had hits that corresponded to different groups). If \code{"first"} then only the first canopy hit at a pin drop will be used to calculate cover.  If \code{"basal"}, then only the soil surfacy hit will be used to calculate cover. Defaults to \code{"any"}.
 #' @param by_line Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.
 #' @param ... Optional character strings. One or more variable name from \code{lpi_tall} to calculate percent cover for, e.g. \code{"GrowthHabitSub"} to calculate percent cover by growth habits or \code{"GrowthHabitSub", "Duration"} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
-#' @export
+#' @examples
+#' # Gather header and LPI files
+#' dsn = "Path/To/LMF_Geodatabase.gdb" # also contains species list
+#' header <- gather_header(dsn = dsn,
+#'                     source = "LMF")
+#'
+#' lpi_tall <- gather_lpi(dsn = "Path/To/LMF_Geodatabase.gdb",
+#'                     source = "LMF")
+#'
+#' # Join lpi_tall and header to get the SpeciesState value associated with LPI data
+#' lpi_tall <- dplyr::left_join(lpi_tall, header)
+#'
+#' # Join species list attributes
+#' species_join(data = lpi_tall,species_file = dsn)
+#'
+#' # Calculate percent cover of individual species and cover values (S, R, etc) in lpi_tall
+#'  pct_cover(lpi_tall = lpi_tall,
+#'     tall = FALSE,
+#'     hit = "any",
+#'     by_line = FALSE,
+#'     code)
+#'
+#'  Calculate percent cover of Duration and Growth Habit Sub (e.g., to produce Annual Forb cover)
+#'  pct_cover(lpi_tall = lpi_tall,
+#'     tall = FALSE,
+#'     hit = "any",
+#'     by_line = FALSE,
+#'     Duration, GrowthHabitSub)
+#'@export
 
 pct_cover <- function(lpi_tall,
                       tall = FALSE,
@@ -168,7 +196,7 @@ pct_cover <- function(lpi_tall,
   # Remove indicators that have incomplete grouping variable combinations
   summary <- summary %>% subset(!grepl(
     x = indicator,
-    pattern = "^[.]|[.]$|\\.\\.|\\.NA|NA\\.|\\.NA\\."
+    pattern = "^[.]|[.]$|\\.\\.|\\.NA$|^NA\\.|\\.NA\\."
   ))
 
   if (!tall) {

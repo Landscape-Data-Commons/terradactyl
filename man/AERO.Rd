@@ -15,7 +15,7 @@ aero(lpi_tall, gap_tall, height_tall, header, texture_file, folder_location)
 
 \item{header}{Table. Contains PrimaryKey, Latitude, and Longitude}
 
-\item{texture_file}{Raster or csv. Soil texture raster(tif) with sand and clay percentages or CSV which provides soil texture classes from 12 USDA classes.}
+\item{texture_file}{Raster or csv. Soil texture raster(as Rdata file) with sand and clay percentages or CSV which provides soil texture classes from 12 USDA classes.}
 
 \item{folder_location}{Character. Location for function to save AERO input files}
 }
