@@ -14,7 +14,7 @@
 #' @param data_code Character. The field name with the species codes in the data.
 #' @param species_list Dataframe. Species list output from \code{}
 #' @param generic_species_file Character. The full file path (including file extension)to the file containing the species list.
-#' @param by_state Logical. If \code{TRUE} then the join will attempt to use the variable \code{"SpeciesState"} if it exists. Defaults to \code{TRUE}.
+#' @param by_species_key Logical. If \code{TRUE} then the join will attempt to use the variable \code{"SpeciesState"} if it exists. Defaults to \code{TRUE}.
 
 
 #' @export gather_species
@@ -261,13 +261,13 @@ species_join <- function(data, # field data,
                          growth_habit_code = "Code",
                          overwrite_generic_species = FALSE,
                          generic_species_file = "",
-                         by_state = TRUE) {
+                         by_species_key = TRUE) {
 
   # Print
   print("Gathering species data")
 
   # Set join levels, so that we can flexibly include SpeciesState
-  if (by_state) {
+  if (by_species_key) {
     if ("SpeciesState" %in% names(data)) {
       join_by <- c(data_code, "SpeciesState")
     } else {
@@ -313,7 +313,7 @@ species_join <- function(data, # field data,
       species_list$UpdatedSpeciesCode <- as.character(species_list$UpdatedSpeciesCode)
 
       # Merge the Updated Species codes to the data
-      if (by_state) {
+      if (by_species_key) {
         data_update <- dplyr::left_join(data,
                                         dplyr::select(
                                           species_list, data_code,
