@@ -164,7 +164,7 @@ gather_lpi_terradat <- function(dsn = NULL,
   
   # Update fields
   lpi_tall <- dplyr::mutate_at(
-    lpi_tall, all_of(dplyr::vars(all_of(change_vars))),
+    lpi_tall, dplyr::all_of(dplyr::vars(all_of(change_vars))),
     list(as.character)
   )
   
@@ -281,7 +281,7 @@ gather_lpi_lmf <- function(dsn = NULL,
     data = pintercept,
     key = "layer",
     value = "code",
-    all_of(pin_drop)
+    dplyr::all_of(pin_drop)
   )
   
   
@@ -360,7 +360,7 @@ gather_lpi_lmf <- function(dsn = NULL,
   
   # Update fields
   lpi_hits_tall <- dplyr::mutate_at(
-    lpi_hits_tall, all_of(dplyr::vars(all_of(change_vars))),
+    lpi_hits_tall, dplyr::all_of(dplyr::vars(all_of(change_vars))),
     list(as.character)
   )
 
@@ -417,7 +417,7 @@ gather_lpi <- function(dsn = NULL,
   }
   
   # Add source field 
-  lpi$Source <- toupper(source)
+  lpi$source <- toupper(source)
   
   if("sf" %in% class(lpi)) lpi <- sf::st_drop_geometry(lpi)
   

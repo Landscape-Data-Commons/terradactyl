@@ -43,7 +43,7 @@
 #' lmf_gintercept <- read.csv("Path/To/GINTERCEPT.csv")
 #' lmf_point <- read.csv("Path/To/POINT.csv")
 #' gather_gap(source = "LMF", 
-#'            GINTERCEPT = gintercept, 
+#'            GINTERCEPT = lmf_gintercept, 
 #'            POINT = lmf_point)
 
 ## gather gap data
@@ -56,7 +56,7 @@ gather_gap_terradat <- function(dsn = NULL,
   ### switch by input types
   if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
     gap_detail <- tblGapDetail %>%
-      select_if(!names(.) %in% c(
+      dplyr::select_if(!names(.) %in% c(
         'GlobalID',
         'created_user',
         'created_date',
@@ -65,7 +65,7 @@ gather_gap_terradat <- function(dsn = NULL,
         'DateLoadedInDb'
       ))
     gap_header <- tblGapHeader %>%
-      select_if(!names(.) %in% c(
+      dplyr::select_if(!names(.) %in% c(
         'GlobalID',
         'created_user',
         'created_date',
@@ -85,7 +85,7 @@ gather_gap_terradat <- function(dsn = NULL,
     )) %>%
       
       # Remove database management fields that aren't relevant
-      select_if(!names(.) %in% c(
+      dplyr::select_if(!names(.) %in% c(
         'GlobalID',
         'created_user',
         'created_date',
@@ -102,7 +102,7 @@ gather_gap_terradat <- function(dsn = NULL,
     )) %>%
       
       # Remove database management fields that aren't relevant
-      select_if(!names(.) %in% c(
+      dplyr::select_if(!names(.) %in% c(
         'GlobalID',
         'created_user',
         'created_date',
@@ -142,6 +142,7 @@ gather_gap_terradat <- function(dsn = NULL,
       Gap = 0
     ))
   
+  
   ## Add zero values where there is no basal gap present on line
   gap_tall[gap_tall$NoBasalGaps == 1, ] <- gap_tall %>%
     dplyr::filter(NoBasalGaps == 1) %>%
@@ -162,7 +163,7 @@ gather_gap_terradat <- function(dsn = NULL,
                      gap_tall$OtherCanopy == 0] <- "P"
   
   ## last round drop
-  gap_tall <- gap_tall %>% select_if(!names(.) %in%
+  gap_tall <- gap_tall %>% dplyr::select_if(!names(.) %in%
                                        c('DateLoadedInDb', 'DataErrorChecking', 'DataEntry', 'Recorder', 'Observer', 
                                          'DateModified', 'LineKey', 'RecKey', 'FormType')
   )
@@ -193,7 +194,7 @@ gather_gap_lmf <- function(dsn = NULL,
                              stringsAsFactors = FALSE,
                              quiet = T
                            )) %>%
-                             select_if(!names(.) %in% c(
+                             dplyr::select_if(!names(.) %in% c(
                                'GlobalID',
                                'created_user',
                                'created_date',
@@ -220,7 +221,7 @@ gather_gap_lmf <- function(dsn = NULL,
                         stringsAsFactors = FALSE,
                         quiet = T
                       )) %>%
-                        select_if(!names(.) %in% c(
+                        dplyr::select_if(!names(.) %in% c(
                           'GlobalID',
                           'created_user',
                           'created_date',
@@ -370,7 +371,7 @@ gather_gap_lmf <- function(dsn = NULL,
   
   # Strip down fields
   gap <- gap %>%
-    select_if(!names(.) %in% c(
+    dplyr::select_if(!names(.) %in% c(
       'SURVEY', 'COUNTY', 'STATE', 'PLOTKEY',
       'PSU', 'POINT',
       'created_user',
@@ -408,7 +409,7 @@ gather_gap <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  gap$Source <- toupper(source)  
+  gap$source <- toupper(source)  
   
   if("sf" %in% class(gap)) gap <- sf::st_drop_geometry(gap)
   

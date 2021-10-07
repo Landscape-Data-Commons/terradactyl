@@ -67,13 +67,13 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
       LandscapeType, LandscapeTypeSecondary, HillslopeType, 
       SoilSeries = ESD_Series,
       EstablishDate
-    ) %>% mutate(
-      SlopeShapeVertical = case_when(
+    ) %>% dplyr::mutate(
+      SlopeShapeVertical = dplyr::case_when(
         SlopeShape %in% c("CC", "CV", "CL", "concave concave", "concave convex", "concave linear") ~ "concave",
         SlopeShape %in% c("LC", "LV", "LL", "linear concave", "linear convex", "linear linear") ~ "linear",
         SlopeShape %in% c("VC", "VV", "VL", "convex concave", "convex convex", "convex linear") ~ "convex"
       ),
-      SlopeShapeHorizontal = case_when(
+      SlopeShapeHorizontal = dplyr::case_when(
         SlopeShape %in% c("CC", "LC", "VC", "concave concave", "linear concave", "convex concave") ~ "concave",
         SlopeShape %in% c("CL", "LL", "VL", "concave linear", "linear linear", "convex linear") ~ "linear",
         SlopeShape %in% c("CV", "LV", "VV", "concave convex", "linear convex", "convex convex") ~ "convex"
@@ -91,7 +91,7 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
                                                POINT = NULL,  
                                                POINTCOORDINATES = NULL,
                                                GPS = NULL,
-                                               file_type = file_type
+                                               file_type = NULL
                                                ) {
   ### input ####
   ## update to have coord and gps
@@ -122,7 +122,7 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
     Slope = SLOPE_PERCENT, Aspect = SLOPE_ASPECT
   ) %>% dplyr::mutate(
     # reclass aspect into degrees
-    Aspect = suppressWarnings(as.numeric(recode(Aspect,
+    Aspect = suppressWarnings(as.numeric(dplyr::recode(Aspect,
                                                 "0" = "N", "45" = "NE","90" = "E", "135" = "SE", 
                                                 "180" = "S", "225" = "SW", "270" = "W","315" = "NW"))))
   
@@ -140,10 +140,10 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
   )
   
   # join GIS
-  gis_lmf  <- full_join(coord_lmf, gps_lmf, by = c("PrimaryKey", "DBKey"))
+  gis_lmf  <- dplyr::full_join(coord_lmf, gps_lmf, by = c("PrimaryKey", "DBKey"))
   
   # join gis and plot data
-  plot_lmf <- left_join(point_lmf, gis_lmf, by = c("PrimaryKey", "DBKey"))
+  plot_lmf <- dplyr::left_join(point_lmf, gis_lmf, by = c("PrimaryKey", "DBKey"))
   
   # last drop
   plot_lmf <- plot_lmf %>% dplyr::select(
@@ -168,7 +168,7 @@ gather_plot_characterization <- function(dsn = NULL,
                                                       tblPlots = tblPlots)
   } else if(toupper(source) %in% c("LMF", "NRI")){
     plotchar <- gather_plot_characterization_lmf(dsn = dsn,
-                                                 #file_type = file_type,
+                                                 file_type = file_type,
                                                  POINT = POINT,
                                                  POINTCOORDINATES = POINTCOORDINATES,
                                                  GPS = GPS)
@@ -176,7 +176,7 @@ gather_plot_characterization <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  plotchar$Source <- toupper(source)  
+  plotchar$source <- toupper(source)  
   
   if("sf" %in% class(plotchar)) plotchar <- sf::st_drop_geometry(plotchar)
   

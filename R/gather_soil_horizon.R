@@ -100,22 +100,22 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
       
       ### cleaning ###
     ) %>%
-    mutate_all(
+    dplyr::mutate_all(
       stringr::str_trim # defensive, early qc seems to catch this well
     ) %>%
     ### recode class data###
-    mutate(
-      StructureGrade = recode(StructureGrade, 
+    dplyr::mutate(
+      StructureGrade = dplyr::recode(StructureGrade, 
                               "0" = "Structureless",
                               "1" = "Weak",
                               "2" = "Moderate",
                               "3" = "Strong"),
-      StructureGrade2 = recode(StructureGrade2,
+      StructureGrade2 = dplyr::recode(StructureGrade2,
                                "0" = "Structureless",
                                "1" = "Weak",
                                "2" = "Moderate",
                                "3" = "Strong"),
-      StructureSize = recode(StructureSize %>% tolower(), 
+      StructureSize = dplyr::recode(StructureSize %>% tolower(), 
                              "vf" = "Very fine",
                              "vn" = "Very thin",
                              "f"  = "Fine",
@@ -126,7 +126,7 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
                              "vc" = "Very coarse",
                              "vk" = "Very thick",
                              "ec" = "Extremely coarse"),
-      StructureSize2 = recode(StructureSize2 %>% tolower(), 
+      StructureSize2 = dplyr::recode(StructureSize2 %>% tolower(), 
                               "vf" = "Very fine",
                               "vn" = "Very thin",
                               "f"  = "Fine",
@@ -137,7 +137,7 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
                               "vc" = "Very coarse",
                               "vk" = "Very thick",
                               "ec" = "Extremely coarse"),
-      StructureType = recode(StructureType %>% tolower(),
+      StructureType = dplyr::recode(StructureType %>% tolower(),
                              "gr"  = "Granular",
                              "abk" = "Angular blocky",
                              "sbk" = "Subangular blocky",
@@ -149,7 +149,7 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
                              "ma"  = "Massive",
                              "cdy" = "Cloddy",
                              "other" = "Other"),
-      StructureType2 = recode(StructureType2 %>% tolower(),
+      StructureType2 = dplyr::recode(StructureType2 %>% tolower(),
                               "gr"  = "Granular",
                               "abk" = "Angular blocky",
                               "sbk" = "Subangular blocky",
@@ -197,37 +197,37 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
       #                            .default = NA_character_),
     ) %>%
     ### complex mutates that depend on >1 var ###
-    mutate(
+    dplyr::mutate(
       SiltPct = 100 - (as.numeric(SandPct) + as.numeric(ClayPct)),
-      FragVolGravel = case_when(
+      FragVolGravel = dplyr::case_when(
         Fragment1Type == "1" ~ Fragment1VolPct,
         Fragment2Type == "1" ~ Fragment2VolPct,
         Fragment3Type == "1" ~ Fragment3VolPct
       ), 
-      FragVolCobble = case_when(
+      FragVolCobble = dplyr::case_when(
         Fragment1Type == "2" ~ Fragment1VolPct,
         Fragment2Type == "2" ~ Fragment2VolPct,
         Fragment3Type == "2" ~ Fragment3VolPct
       ),
-      FragVolStone = case_when(
+      FragVolStone = dplyr::case_when(
         Fragment1Type == "6" ~ Fragment1VolPct,
         Fragment2Type == "6" ~ Fragment2VolPct,
         Fragment3Type == "6" ~ Fragment3VolPct
       ),      
-      FragVolNodule = case_when(
+      FragVolNodule = dplyr::case_when(
         Fragment1Type == "8" ~ Fragment1VolPct,
         Fragment2Type == "8" ~ Fragment2VolPct,
         Fragment3Type == "8" ~ Fragment3VolPct
       ),      
-      FragVolDurinode = case_when(
+      FragVolDurinode = dplyr::case_when(
         Fragment1Type == "9" ~ Fragment1VolPct,
         Fragment2Type == "9" ~ Fragment2VolPct,
         Fragment3Type == "9" ~ Fragment3VolPct
       ),    
-      HorizonDepthLower = case_when(
+      HorizonDepthLower = dplyr::case_when(
         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthLower))),
-      HorizonDepthUpper = case_when(
+      HorizonDepthUpper = dplyr::case_when(
         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54,
         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthUpper))),
       DepthUOM = "cm"
@@ -241,10 +241,10 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
       -Fragment2VolPct,
       -Fragment3VolPct,
      # HorizonKey,
-    )  %>% group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
+    )  %>% dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
       PrimaryKey
     ) %>%
-    mutate(HorizonNumber = as.character(row_number()),
+    dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
            across(c(#caco3,gypsum #  data seems to not be used, disabled
              RockFragments), ~ suppressWarnings(as.integer(.x))),
            across(c(#sar, sandvf,
@@ -287,7 +287,7 @@ gather_soil_horizon_lmf <- function(dsn = NULL,
     )
   
   horizons_lmf <- horizons_lmf %>% # have to have already created horizons_lmf before the HorizonDepthUpper parsing below, as it refers to the df by name
-    mutate(
+    dplyr::mutate(
       DepthUOM = "cm", 
       HorizonNumber = as.character(HorizonNumber), 
       HorizonDepthUpper = sapply(unique(PrimaryKey), function(x) {
@@ -319,7 +319,7 @@ gather_soil_horizon <- function(dsn = NULL,
     stop("source must be AIM, TerraDat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  soil$Source <- source
+  soil$source <- source
   
   if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
   

@@ -58,7 +58,7 @@ gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
                   PitNotes = UNUSUAL_FEATURES
     )%>%
     # arrange by hz depth in order to id upper depth
-    arrange(PrimaryKey, HorizonDepthLower)  %>%
+    dplyr::arrange(PrimaryKey, HorizonDepthLower)  %>%
     dplyr::mutate(
       HorizonDepthLower = 2.54 * suppressWarnings(as.numeric(HorizonDepthLower)), # is lmf data ALWAYS in inches?
       DepthUOM = "cm",
@@ -71,18 +71,18 @@ gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
           upper <- c(0, lower[1:length(lower) - 1])
           return(upper)}) %>% unlist(),
       # get data-at-depths. Mirrors code above, cutting s-s-c and fragment lines (not in lmf/nri)
-      Texture0  = if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, Texture, NA_character_),
-      Texture15 = if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Texture, NA_character_),
-      Texture30 = if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Texture, NA_character_),
-      Texture60 = if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Texture, NA_character_),
-      TextureModifier0  = if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, TextureModifier, NA_character_),
-      TextureModifier15 = if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, TextureModifier, NA_character_),
-      TextureModifier30 = if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, TextureModifier, NA_character_),
-      TextureModifier60 = if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, TextureModifier, NA_character_),
-      Effer0  = if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, Effer, NA_character_),
-      Effer15 = if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Effer, NA_character_),
-      Effer30 = if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Effer, NA_character_),
-      Effer60 = if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Effer, NA_character_),
+      Texture0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, Texture, NA_character_),
+      Texture15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Texture, NA_character_),
+      Texture30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Texture, NA_character_),
+      Texture60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Texture, NA_character_),
+      TextureModifier0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, TextureModifier, NA_character_),
+      TextureModifier15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, TextureModifier, NA_character_),
+      TextureModifier30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, TextureModifier, NA_character_),
+      TextureModifier60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, TextureModifier, NA_character_),
+      Effer0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, Effer, NA_character_),
+      Effer15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Effer, NA_character_),
+      Effer30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Effer, NA_character_),
+      Effer60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Effer, NA_character_),
     )
   
   # get min-max effervescence data, mirrors code above
@@ -93,27 +93,27 @@ gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
     ) %>%
     # make ordinal effer field, to get min and max
     dplyr::mutate(
-      EfferOrdinal = case_when(
+      EfferOrdinal = dplyr::case_when(
         Effer == "NE" ~ 1,
         Effer == "VS" ~ 2,
         Effer == "SL" ~ 3,
         Effer == "ST" ~ 4,
         Effer == "VE" ~ 5),
     ) %>%
-    group_by(PrimaryKey) %>%
-    summarize(MinEffer = min(EfferOrdinal),
+    dplyr::group_by(PrimaryKey) %>%
+    dplyr::summarize(MinEffer = min(EfferOrdinal),
               MaxEffer = max(EfferOrdinal),
               TotalPitDepth = max(HorizonDepthLower),
               .groups = "drop") %>%
     # send the ordinal effervescence back to the character/factor data
-    mutate(
-      MinEffer = case_when(
+    dplyr::mutate(
+      MinEffer = dplyr::case_when(
         MinEffer == 1 ~ "NE",
         MinEffer == 2 ~ "VS",
         MinEffer == 3 ~ "SL",
         MinEffer == 4 ~ "ST",
         MinEffer == 5 ~ "VE"),
-      MaxEffer = case_when(
+      MaxEffer = dplyr::case_when(
         MaxEffer == 1 ~ "NE",
         MaxEffer == 2 ~ "VS",
         MaxEffer == 3 ~ "SL",
@@ -127,14 +127,14 @@ gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
     ) %>%
     # arrange by depth and take top horizons
     # data at depths is preserved because the summarize command ignores NAs
-    arrange(DBKey, PrimaryKey, HorizonDepthUpper) %>%
-    dplyr::summarize(across(everything(), ~ first(na.omit(.x))),
+    dplyr::arrange(DBKey, PrimaryKey, HorizonDepthUpper) %>%
+    dplyr::summarize(across(everything(), ~ dplyr::first(na.omit(.x))),
                      .groups = "drop") %>%
     # only need at-depth vars calculated above, the effer data, and the keys
     dplyr::select(
       -HorizonDepthLower, -Effer, -DepthUOM, -Texture, -HorizonDepthUpper,
       -Texture, -TextureModifier, -HorizonKey) %>%
-    left_join(hzeff_lmf, by = "PrimaryKey")
+    dplyr::left_join(hzeff_lmf, by = "PrimaryKey")
   
   if("sf" %in% class(soil_lmf)) soil_lmf <- soil_lmf %>% sf::st_drop_geometry()
   
@@ -170,10 +170,10 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
       Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3
     ) %>% dplyr::mutate(
       # unify depth units
-      HorizonDepthLower = case_when(
+      HorizonDepthLower = dplyr::case_when(
         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower) * 2.54),
         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthLower))),
-      HorizonDepthUpper = case_when(
+      HorizonDepthUpper = dplyr::case_when(
         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthUpper) * 2.54),
         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthUpper))),
       DepthUOM = "cm",
@@ -182,23 +182,23 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
       PercentSand = suppressWarnings(as.numeric(PercentSand)),
       PercentSilt = 100 - PercentClay - PercentSand,
       # parse fragment class columns.
-      TopHorizonGravelPct = suppressWarnings(as.numeric(case_when(
+      TopHorizonGravelPct = suppressWarnings(as.numeric(dplyr::case_when(
         Fragment1Type == "1" ~ Fragment1VolPct,
         Fragment2Type == "1" ~ Fragment2VolPct,
         Fragment3Type == "1" ~ Fragment3VolPct))),
-      TopHorizonCobblePct = suppressWarnings(as.numeric(case_when(
+      TopHorizonCobblePct = suppressWarnings(as.numeric(dplyr::case_when(
         Fragment1Type == "2" ~ Fragment1VolPct,
         Fragment2Type == "2" ~ Fragment2VolPct,
         Fragment3Type == "2" ~ Fragment3VolPct))),
-      TopHorizonStonePct = suppressWarnings(as.numeric(case_when(
+      TopHorizonStonePct = suppressWarnings(as.numeric(dplyr::case_when(
         Fragment1Type == "6" ~ Fragment1VolPct,
         Fragment2Type == "6" ~ Fragment2VolPct,
         Fragment3Type == "6" ~ Fragment3VolPct))),
-      TopHorizonNodulePct = suppressWarnings(as.numeric(case_when(
+      TopHorizonNodulePct = suppressWarnings(as.numeric(dplyr::case_when(
         Fragment1Type == "8" ~ Fragment1VolPct,
         Fragment2Type == "8" ~ Fragment2VolPct,
         Fragment3Type == "8" ~ Fragment3VolPct))),
-      TopHorizonDurinodePct = suppressWarnings(as.numeric(case_when(
+      TopHorizonDurinodePct = suppressWarnings(as.numeric(dplyr::case_when(
         Fragment1Type == "9" ~ Fragment1VolPct,
         Fragment2Type == "9" ~ Fragment2VolPct,
         Fragment3Type == "9" ~ Fragment3VolPct))),
@@ -206,34 +206,34 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
     dplyr::mutate(
       TopHorizonLargeFragmentPct = TopHorizonCobblePct + TopHorizonStonePct,
       # get soil at depth data, adapted from allie's code
-      Clay0  = ifelse(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, PercentClay, NA_integer_),
-      Clay15 = ifelse(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, PercentClay, NA_integer_),
-      Clay30 = ifelse(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, PercentClay, NA_integer_),
-      Clay60 = ifelse(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, PercentClay, NA_integer_),
-      Sand0  = ifelse(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, PercentSand, NA_integer_),
-      Sand15 = ifelse(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, PercentSand, NA_integer_),
-      Sand30 = ifelse(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, PercentSand, NA_integer_),
-      Sand60 = ifelse(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, PercentSand, NA_integer_),
-      Silt0  = ifelse(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, PercentSilt, NA_integer_),
-      Silt15 = ifelse(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, PercentSilt, NA_integer_),
-      Silt30 = ifelse(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, PercentSilt, NA_integer_),
-      Silt60 = ifelse(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, PercentSilt, NA_integer_),
-      Texture0  = if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, Texture, NA_character_),
-      Texture15 = if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Texture, NA_character_),
-      Texture30 = if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Texture, NA_character_),
-      Texture60 = if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Texture, NA_character_),
-      TextureModifier0  = if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, TextureModifier, NA_character_),
-      TextureModifier15 = if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, TextureModifier, NA_character_),
-      TextureModifier30 = if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, TextureModifier, NA_character_),
-      TextureModifier60 = if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, TextureModifier, NA_character_),
-      Effer0  = if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, Effer, NA_character_),
-      Effer15 = if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Effer, NA_character_),
-      Effer30 = if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Effer, NA_character_),
-      Effer60 = if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Effer, NA_character_),
-      RockFragments0  = if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, RockFragments, NA_real_),
-      RockFragments15 = if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, RockFragments, NA_real_),
-      RockFragments30 = if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, RockFragments, NA_real_),
-      RockFragments60 = if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, RockFragments, NA_real_),
+      Clay0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, PercentClay, NA_real_),
+      Clay15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, PercentClay, NA_real_),
+      Clay30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, PercentClay, NA_real_),
+      Clay60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, PercentClay, NA_real_),
+      Sand0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, PercentSand, NA_real_),
+      Sand15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, PercentSand, NA_real_),
+      Sand30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, PercentSand, NA_real_),
+      Sand60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, PercentSand, NA_real_),
+      Silt0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, PercentSilt, NA_real_),
+      Silt15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, PercentSilt, NA_real_),
+      Silt30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, PercentSilt, NA_real_),
+      Silt60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, PercentSilt, NA_real_),
+      Texture0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, Texture, NA_character_),
+      Texture15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Texture, NA_character_),
+      Texture30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Texture, NA_character_),
+      Texture60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Texture, NA_character_),
+      TextureModifier0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, TextureModifier, NA_character_),
+      TextureModifier15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, TextureModifier, NA_character_),
+      TextureModifier30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, TextureModifier, NA_character_),
+      TextureModifier60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, TextureModifier, NA_character_),
+      Effer0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, Effer, NA_character_),
+      Effer15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Effer, NA_character_),
+      Effer30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Effer, NA_character_),
+      Effer60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Effer, NA_character_),
+      RockFragments0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, RockFragments, NA_real_),
+      RockFragments15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, RockFragments, NA_real_),
+      RockFragments30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, RockFragments, NA_real_),
+      RockFragments60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, RockFragments, NA_real_),
     )
   
   # get min and max effer data, then rejoin to hz table
@@ -243,25 +243,25 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
     ) %>%
     # make ordinal effer field, to get min and max
     dplyr::mutate(
-      EfferOrdinal = case_when(
+      EfferOrdinal = dplyr::case_when(
         Effer == "NE" ~ 1,
         Effer == "VS" ~ 2,
         Effer == "SL" ~ 3,
         Effer == "ST" ~ 4,
         Effer == "VE" ~ 5),
     ) %>%
-    group_by(SoilKey) %>%
-    summarize(MinEffer = min(EfferOrdinal),
+    dplyr::group_by(SoilKey) %>%
+    dplyr::summarize(MinEffer = min(EfferOrdinal),
               MaxEffer = max(EfferOrdinal),
               .groups = "drop") %>%
-    mutate( # send the ordinal effervescence back to the character/factor data
-      MinEffer = case_when(
+    dplyr::mutate( # send the ordinal effervescence back to the character/factor data
+      MinEffer = dplyr::case_when(
         MinEffer == 1 ~ "NE",
         MinEffer == 2 ~ "VS",
         MinEffer == 3 ~ "SL",
         MinEffer == 4 ~ "ST",
         MinEffer == 5 ~ "VE"),
-      MaxEffer = case_when(
+      MaxEffer = dplyr::case_when(
         MaxEffer == 1 ~ "NE",
         MaxEffer == 2 ~ "VS",
         MaxEffer == 3 ~ "SL",
@@ -275,8 +275,8 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
     ) %>%
     # arrange by depth and take top horizons
     # data at depth is preserved because the summarize command ignores NAs
-    arrange(DBKey, PrimaryKey, SoilKey, HorizonDepthUpper) %>%
-    dplyr::summarize(across(everything(), ~ first(na.omit(.x))),
+    dplyr::arrange(DBKey, PrimaryKey, SoilKey, HorizonDepthUpper) %>%
+    dplyr::summarize(across(everything(), ~ dplyr::first(na.omit(.x))),
                      .groups = "drop") %>%
     # only need at-depth vars calculated above, the effer data, and the keys
     dplyr::select(
@@ -287,7 +287,7 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
       -Fragment3VolPct, -Fragment3Type, -HorizonKey,
       -TopHorizonCobblePct, -TopHorizonStonePct,
     ) %>%
-    left_join(hzeff_aim, by = "SoilKey")
+    dplyr::left_join(hzeff_aim, by = "SoilKey")
   
   ### prepare pit and plot level data ####
   # pit: mostly for metadata, also total pit depth and total rock frags
@@ -297,15 +297,15 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
       TotalFragments = RockFragments, TotalPitDepth = SoilDepthLower, PitDepthMeasure = DepthMeasure,
       PitNotes = Notes) %>%
     # unify depth measures and drop depth measure var
-    mutate(
-      TotalPitDepth = case_when(PitDepthMeasure == "in" ~ TotalPitDepth * 2.54,
+    dplyr::mutate(
+      TotalPitDepth = dplyr::case_when(PitDepthMeasure == "in" ~ TotalPitDepth * 2.54,
                            PitDepthMeasure == "cm" | is.na(PitDepthMeasure) ~ TotalPitDepth),
     ) %>%
-    select(-PitDepthMeasure)
+    dplyr::select(-PitDepthMeasure)
   
   ### join all aim-style data, final touches ####
   soil_aim <-
-    left_join(hzjoin_aim, pit_aim, by = c("PrimaryKey", "DBKey", "SoilKey")) %>%
+    dplyr::left_join(hzjoin_aim, pit_aim, by = c("PrimaryKey", "DBKey", "SoilKey")) %>%
     # final drop line
     dplyr::select(-SoilKey)
   
@@ -333,10 +333,12 @@ gather_soil_summary <- function(dsn = NULL, source,
     soil <- gather_soil_summary_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
   }
   
-  soil$Source <- source
+  soil$source <- source
   
   if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
-  if(length(class(soil) > 1)) soil <- as.data.frame(soil)
+  
+  # I do not remember why I though this was necessary. Remove in a later release if nothing breaks
+  #if(length(class(soil) > 1)) soil <- as.data.frame(soil)
   
   return(soil)
 }

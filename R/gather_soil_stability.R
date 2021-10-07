@@ -239,7 +239,6 @@ gather_soil_stability_lmf <- function(dsn = NULL,
   
   # Spread the gathered data so that Line, Rating, Vegetation,
   # and Hydro are all different variables
-  
   soil_stability_tidy <- lapply(
     X = as.list(unique(gathered$variable)),
     FUN = function(k = as.list(unique(gathered$variable)), df = gathered) {
@@ -249,10 +248,9 @@ gather_soil_stability_lmf <- function(dsn = NULL,
         dplyr::select(-id)
     }
     #) %>% Reduce(dplyr::left_join, ., by = c("RecKey", "PrimaryKey", "Position"))
-  ) %>% purrr::reduce(left_join, by = c("PrimaryKey", "DBKey", "Position")
+  ) %>% purrr::reduce(dplyr::left_join, by = c("PrimaryKey", "DBKey", "Position")
   )
-  
-  
+
   # Rename fields
   soil_stability_tidy <- dplyr::rename(soil_stability_tidy,
                                        Veg = VEG,
@@ -293,7 +291,7 @@ gather_soil_stability <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  soil_stability$Source <- toupper(source)
+  soil_stability$source <- toupper(source)
   
   return(soil_stability)
 }
