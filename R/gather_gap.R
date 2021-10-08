@@ -164,8 +164,8 @@ gather_gap_terradat <- function(dsn = NULL,
   
   ## last round drop
   gap_tall <- gap_tall %>% dplyr::select_if(!names(.) %in%
-                                       c('DateLoadedInDb', 'DataErrorChecking', 'DataEntry', 'Recorder', 'Observer', 
-                                         'DateModified', 'LineKey', 'RecKey', 'FormType')
+                                       c('DateLoadedInDb', 'DataErrorChecking', 'DataEntry',
+                                         'DateModified', 'FormType')
   )
   
   
@@ -410,8 +410,15 @@ gather_gap <- function(dsn = NULL,
   }
   
   gap$source <- toupper(source)  
-  
+
   if("sf" %in% class(gap)) gap <- sf::st_drop_geometry(gap)
+  
+  if (any(class(gap) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(gap)[do.call(rbind, vapply(gap, 
+                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+    gap <- dplyr::mutate_at(gap, dplyr::vars(change_vars), 
+                            dplyr::funs(as.character))
+  }
   
   return(gap)
 }

@@ -337,8 +337,16 @@ gather_soil_summary <- function(dsn = NULL, source,
   
   if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
   
-  # I do not remember why I though this was necessary. Remove in a later release if nothing breaks
-  #if(length(class(soil) > 1)) soil <- as.data.frame(soil)
+  if (any(class(soil) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(soil)[do.call(rbind, vapply(soil, 
+                                                     class))[, 1] %in% c("POSIXct", "POSIXt")]
+    soil <- dplyr::mutate_at(soil, dplyr::vars(change_vars), 
+                             dplyr::funs(as.character))
+  }
+  
+  # change from tibble to data frame
+  soil <- as.data.frame(soil) 
+  
   
   return(soil)
 }

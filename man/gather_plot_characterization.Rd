@@ -13,7 +13,7 @@ gather_plot_characterization_lmf(
   POINT = NULL,
   POINTCOORDINATES = NULL,
   GPS = NULL,
-  file_type = file_type
+  file_type = NULL
 )
 
 gather_plot_characterization(

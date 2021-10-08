@@ -75,7 +75,7 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
       
       HorizonNotes = ESD_Notes, 
       
-      ### all of these variables arent present in the ldc data as of v0.9. Disable (no code has been deleted, merely commented)
+      ### all of these variables arent present in the ldc data as of v0.9. Disable now delete later
       # RuptureResistance = ESD_RuptureResistance, # data almost entirely missing
       # sar = ESD_NAabsorptionRatio, # NAabsorptionRatio = ESD_NAabsorptionRatio, 
       # caco3 = ESD_CaCO3EquivPct, #CaCO3EquivalentPct = ESD_CaCO3EquivPct, ## caco3 data not present
@@ -241,9 +241,13 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
       -Fragment2VolPct,
       -Fragment3VolPct,
      # HorizonKey,
-    )  %>% dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
+     
+    )   %>% # new 10/8
+    dplyr::arrange(PrimaryKey, HorizonDepthUpper) %>% 
+    dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
       PrimaryKey
     ) %>%
+  
     dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
            across(c(#caco3,gypsum #  data seems to not be used, disabled
              RockFragments), ~ suppressWarnings(as.integer(.x))),
@@ -256,7 +260,6 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
            ), ~ suppressWarnings(as.double(.x))),
            across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
     )
-  
   horizons_aim <- as.data.frame(horizons_aim)
   
   return(horizons_aim)
@@ -322,6 +325,17 @@ gather_soil_horizon <- function(dsn = NULL,
   soil$source <- source
   
   if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
+  
+  if (any(class(soil) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(soil)[do.call(rbind, vapply(soil, 
+                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+    soil <- dplyr::mutate_at(soil, dplyr::vars(change_vars), 
+                            dplyr::funs(as.character))
+  }
+  
+  # change from tibble to data frame
+  soil <- as.data.frame(soil)
+  
   
   return(soil)
 }

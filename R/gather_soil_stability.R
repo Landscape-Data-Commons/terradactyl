@@ -152,7 +152,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     soil_stability_header,
     soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
   ) %>% dplyr::select(
-    -c(PlotKey, DateModified, FormType, LineKey, Observer, Recorder, DataEntry, DataErrorChecking, DateLoadedInDb, RecKey)
+    -c(PlotKey, DateModified, FormType, DataEntry, DataErrorChecking, DateLoadedInDb)
   )
   
   # Return final merged file
@@ -292,6 +292,16 @@ gather_soil_stability <- function(dsn = NULL,
   }
   
   soil_stability$source <- toupper(source)
+  
+  if("sf" %in% class(soil_stability)) soil_stability <- sf::st_drop_geometry(soil_stability)
+  
+  if (any(class(soil_stability) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(soil_stability)[do.call(rbind, vapply(soil_stability, 
+                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+    soil_stability <- dplyr::mutate_at(soil_stability, dplyr::vars(change_vars), 
+                            dplyr::funs(as.character))
+  }
+  
   
   return(soil_stability)
 }

@@ -72,7 +72,7 @@ gather_gap(source = "AIM",
 lmf_gintercept <- read.csv("Path/To/GINTERCEPT.csv")
 lmf_point <- read.csv("Path/To/POINT.csv")
 gather_gap(source = "LMF", 
-           GINTERCEPT = gintercept, 
+           GINTERCEPT = lmf_gintercept, 
            POINT = lmf_point)
 }
 \seealso{

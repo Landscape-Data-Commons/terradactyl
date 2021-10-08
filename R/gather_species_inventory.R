@@ -80,7 +80,7 @@ gather_species_inventory_terradat <- function(dsn = NULL,
   ) %>%
     subset(!is.na(Species)) %>% 
     dplyr::select(
-    -c(LineKey, RecKey, DateModified, FormType, Observer, Recorder, DataEntry, 
+    -c(DateModified, FormType, DataEntry, 
        DataErrorChecking, DateLoadedInDb, created_user, created_date, last_edited_user, last_edited_date, GlobalID)
   )
   
@@ -228,6 +228,13 @@ gather_species_inventory <- function(dsn = NULL,
   species_inventory$source <- toupper(source)
   
   if("sf" %in% class(species_inventory)) species_inventory <- sf::st_drop_geometry(species_inventory)
+  
+  if (any(class(species_inventory) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(species_inventory)[do.call(rbind, vapply(species_inventory, 
+                                                       class))[, 1] %in% c("POSIXct", "POSIXt")]
+    species_inventory <- dplyr::mutate_at(species_inventory, dplyr::vars(change_vars), 
+                               dplyr::funs(as.character))
+  }
   
   return(species_inventory)
 }

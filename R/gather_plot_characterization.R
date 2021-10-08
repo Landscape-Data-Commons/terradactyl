@@ -123,8 +123,14 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
   ) %>% dplyr::mutate(
     # reclass aspect into degrees
     Aspect = suppressWarnings(as.numeric(dplyr::recode(Aspect,
-                                                "0" = "N", "45" = "NE","90" = "E", "135" = "SE", 
-                                                "180" = "S", "225" = "SW", "270" = "W","315" = "NW"))))
+                                                "N" = "0", 
+                                                "NE" = "45", 
+                                                "E" = "90", 
+                                                "SE" = "135", 
+                                                "S" = "180", 
+                                                "SW" = "225", 
+                                                "W" = "270",
+                                                "NW" = "315"))))
   
   # get gis data from POINTCOORDINATES
   coord_lmf <- coord_lmf_raw %>% dplyr::select(
@@ -179,6 +185,14 @@ gather_plot_characterization <- function(dsn = NULL,
   plotchar$source <- toupper(source)  
   
   if("sf" %in% class(plotchar)) plotchar <- sf::st_drop_geometry(plotchar)
+  
+  if (any(class(plotchar) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(plotchar)[do.call(rbind, vapply(plotchar, 
+                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+    plotchar <- dplyr::mutate_at(plotchar, dplyr::vars(change_vars), 
+                            dplyr::funs(as.character))
+  }
+  
   
   return(plotchar)
 }

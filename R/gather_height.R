@@ -150,8 +150,8 @@ gather_height_terradat <- function(dsn = NULL,
   
   # final drop
   lpi_height <- lpi_height %>% dplyr::select(
-    -c(DataErrorChecking, DataEntry, Recorder, Observer, 
-       DateModified, LineKey, RecKey, FormType)
+    -c(DataErrorChecking, DataEntry,
+       DateModified, FormType)
   )
   
   
@@ -305,9 +305,10 @@ gather_height_lmf <- function(dsn = NULL,
   height$Height <- suppressWarnings(as.numeric(height$Height))
   
   # last drop
-  height <- height %>% dplyr::select(
-    -c(LineKey)
-  )
+  # commented out to preserve code for future modification, but we need linekey
+  # height <- height %>% dplyr::select(
+  #   -c(LineKey)
+  # )
   
   # return height
   return(height)
@@ -341,6 +342,14 @@ gather_height <- function(dsn = NULL,
   height$source <- toupper(source)
   
   if("sf" %in% class(height)) height <- sf::st_drop_geometry(height)
+  
+  if (any(class(height) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(height)[do.call(rbind, vapply(height, 
+                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+    height <- dplyr::mutate_at(height, dplyr::vars(change_vars), 
+                            dplyr::funs(as.character))
+  }
+  
   
   # Output height
   return(height)

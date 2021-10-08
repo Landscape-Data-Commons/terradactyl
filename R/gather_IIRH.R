@@ -125,7 +125,7 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
   
   ## last drop
   IIRH <- IIRH %>% dplyr::select(
-    -c(DateLoadedInDb, RecKey)
+    -c(DateLoadedInDb)
   )
   
   return(IIRH)
@@ -233,5 +233,12 @@ gather_rangeland_health <- function(dsn = NULL,
   
   if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)
   
+  if (any(class(IIRH) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(IIRH)[do.call(rbind, vapply(IIRH, 
+                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+    IIRH <- dplyr::mutate_at(IIRH, dplyr::vars(change_vars), 
+                            dplyr::funs(as.character))
+  }
+
   return(IIRH)
 }

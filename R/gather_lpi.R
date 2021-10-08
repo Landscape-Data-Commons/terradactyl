@@ -171,8 +171,8 @@ gather_lpi_terradat <- function(dsn = NULL,
   
   ## drops
   lpi_tall <- lpi_tall %>% dplyr::select(
-    -c("LineKey", "DateModified", "FormType", "RecKey", "FormType",
-       "Observer", "Recorder", "DataEntry", "DataErrorChecking")
+    -c( "DateModified", "FormType", "FormType",
+       "DataEntry", "DataErrorChecking")
   )
   
   
@@ -365,7 +365,7 @@ gather_lpi_lmf <- function(dsn = NULL,
   )
 
   lpi_hits_tall <- lpi_hits_tall %>% dplyr::select(
-    -c(STATE, LineKey, PLOTKEY)
+    -c(STATE, PLOTKEY)
   )
   
   return(lpi_hits_tall)
@@ -420,6 +420,13 @@ gather_lpi <- function(dsn = NULL,
   lpi$source <- toupper(source)
   
   if("sf" %in% class(lpi)) lpi <- sf::st_drop_geometry(lpi)
+  
+  if (any(class(lpi) %in% c("POSIXct", "POSIXt"))) {
+    change_vars <- names(lpi)[do.call(rbind, vapply(lpi, 
+                                                     class))[, 1] %in% c("POSIXct", "POSIXt")]
+    lpi <- dplyr::mutate_at(lpi, dplyr::vars(change_vars), 
+                             dplyr::funs(as.character))
+  }
   
   return(lpi)
 }
