@@ -170,9 +170,10 @@ gather_lpi_terradat <- function(dsn = NULL,
   
   
   ## drops
-  lpi_tall <- lpi_tall %>% dplyr::select(
-    -c( "DateModified", "FormType", "FormType",
-       "DataEntry", "DataErrorChecking")
+  lpi_tall <- lpi_tall %>% dplyr::select_if(!names(.) %in% c(
+
+     "DateModified", "FormType", "FormType",
+       "DataEntry", "DataErrorChecking", "Observer", "Recorder")
   )
   
   
@@ -338,20 +339,6 @@ gather_lpi_lmf <- function(dsn = NULL,
   lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 2] <- "S"
   lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 3] <- "M"
   lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 0] <- NA
-  
-  # rename for consistency
-  ## REVERT FOR NOT BREAKING EVERYTHING
-  # lpi_hits_tall <- lpi_hits_tall %>%
-  #   dplyr::mutate(
-  #     State = STATE, # dropping state in lmf data, as it returns only a number
-  #     SagebrushSpp = SAGEBRUSH_SPP,
-  #     PlotKey = PLOTKEY,
-  #     Layer = layer,
-  #     Code = code
-  #   ) %>%
-  #   dplyr::select(
-  #     -STATE, -SAGEBRUSH_SPP, -PLOTKEY, -layer, -code
-  #   )
   
   # Find date fields & convert to character
   # Find fields that are in a Date structure

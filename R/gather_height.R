@@ -149,9 +149,10 @@ gather_height_terradat <- function(dsn = NULL,
   lpi_height$Height <- suppressWarnings(as.numeric(lpi_height$Height))
   
   # final drop
-  lpi_height <- lpi_height %>% dplyr::select(
-    -c(DataErrorChecking, DataEntry,
-       DateModified, FormType)
+  lpi_height <- lpi_height %>% 
+    dplyr::select_if(!names(.) %in% c(
+      'DataErrorChecking', 'DataEntry',
+       'DateModified', 'FormType', 'Observer', 'Recorder')
   )
   
   

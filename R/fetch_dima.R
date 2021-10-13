@@ -8,40 +8,42 @@
 #' @return A data frame containing DIMA data of the requested table, or a list
 #' of data frames containing the requested tables. 
 #' @examples 
-#' data_allplots <- fetch_dima(endpoint = "tblPlots", values = NULL)
+#' data_allplots <- fetch_api(endpoint = "tblPlots", values = NULL)
 #' 
-#' data_JERplots <- fetch_dima(endpoint = "tblPlots", values = "ProjectKey=JER")
+#' data_JERplots <- fetch_api(endpoint = "tblPlots", values = "ProjectKey=JER")
 #' 
-#' data_gap <- fetch_dima(endpoint = list("tblGapHeader", "tblGapDetail"), 
+#' data_gap <- fetch_api(endpoint = list("tblGapHeader", "tblGapDetail"), 
 #'                        values = "PrimaryKey=15050113465465692020-09-15")
 
 ## Fetch data for a single table
-#' @rdname fetch_dima
-#' @export fetch_dima_single
-fetch_dima_single <- function(endpoint, values = NULL, verbose = T){
+#' @rdname fetch_api
+#' @export fetch_api_single
+fetch_api_single <- function(api, endpoint, values = NULL, verbose = T){
+
   if(is.null(values)){
-    url <- paste0("https://dima.landscapedatacommons.org/api/",endpoint)
+    url <- paste0("https://", api, ".landscapedatacommons.org/api/",endpoint)
   } else {
-    url <- paste0("https://dima.landscapedatacommons.org/api/",endpoint,"?",values)
+    url <- paste0("https://", api, ".landscapedatacommons.org/api/",endpoint,"?",values)
   }
   if(verbose) print(paste("Accessing", url))
-  get_url <- GET(url) 
-  flat_get <- content(get_url, "text", encoding = "UTF-8")
-  jsonize <- fromJSON(flat_get, flatten = TRUE)
+  get_url <- httr::GET(url) 
+  flat_get <- httr::content(get_url, "text", encoding = "UTF-8")
+  jsonize <- jsonlite::fromJSON(flat_get, flatten = TRUE)
   df <- as.data.frame(jsonize)
   return(df)
 }
 
 ## wrapper, automatically detecting if multiple tables are requested
-#' @export fetch_dima
-#' @rdname fetch_dima
-fetch_dima <- function(endpoint,values=NULL) {
-  
+#' @export fetch_api
+#' @rdname fetch_api
+fetch_api <- function(api, endpoint, values=NULL) {
+  api <- tolower(api)
   if(class(endpoint) == "list"){
-    out <- lapply(endpoint, fetch_dima_single, values = values)
+    print(paste("Fetching", length(endpoint), "tables"))
+    out <- lapply(endpoint, fetch_api_single, values = values, api = api)
     names(out) <- endpoint
   } else {
-    out <- fetch_dima_single(endpoint = endpoint, values = values)
+    out <- fetch_api_single(endpoint = endpoint, values = values, api = api)
   }
   
   return(out)

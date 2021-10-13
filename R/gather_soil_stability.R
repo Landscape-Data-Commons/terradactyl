@@ -67,7 +67,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   }
   
   soil_stability_detail <- soil_stability_detail %>%
-    dplyr::select(-c(
+    dplyr::select_if(!names(.) %in% c(
       "created_user",
       "created_date",
       "last_edited_user",
@@ -76,7 +76,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     ))
   
   soil_stability_header <- soil_stability_header %>%
-    dplyr::select(-c(
+    dplyr::select_if(!names(.) %in% c(
       "created_user",
       "created_date",
       "last_edited_user",
@@ -151,8 +151,10 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   soil_stability_tall <- dplyr::left_join(
     soil_stability_header,
     soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
-  ) %>% dplyr::select(
-    -c(PlotKey, DateModified, FormType, DataEntry, DataErrorChecking, DateLoadedInDb)
+  ) %>% dplyr::select_if(!names(.) %in% c(
+    'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb',
+    'Observer', 'Recorder'
+    )
   )
   
   # Return final merged file

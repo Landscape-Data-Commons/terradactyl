@@ -62,7 +62,10 @@ gather_gap_terradat <- function(dsn = NULL,
         'created_date',
         'last_edited_user',
         'last_edited_date',
-        'DateLoadedInDb'
+        'DateLoadedInDb',
+        'DateLoadedinDB',
+        'Observer',
+        'Recorder'
       ))
     gap_header <- tblGapHeader %>%
       dplyr::select_if(!names(.) %in% c(
@@ -71,7 +74,10 @@ gather_gap_terradat <- function(dsn = NULL,
         'created_date',
         'last_edited_user',
         'last_edited_date',
-        'DateLoadedInDb'
+        'DateLoadedInDb',
+        'DateLoadedInDB',
+        'Observer',
+        'Recorder'
       ))
   } else if(!is.null(dsn)){
     if (!file.exists(dsn)) {
@@ -91,7 +97,8 @@ gather_gap_terradat <- function(dsn = NULL,
         'created_date',
         'last_edited_user',
         'last_edited_date',
-        'DateLoadedInDb'
+        'DateLoadedInDb',
+        'DateLoadedInDB'
       ))
     
     # Read tblGapHeader
@@ -108,7 +115,8 @@ gather_gap_terradat <- function(dsn = NULL,
         'created_date',
         'last_edited_user',
         'last_edited_date',
-        'DateLoadedInDb'
+        'DateLoadedInDb',
+        'DateLoadedInDB'
       ))
     
   } else {
@@ -164,7 +172,7 @@ gather_gap_terradat <- function(dsn = NULL,
   
   ## last round drop
   gap_tall <- gap_tall %>% dplyr::select_if(!names(.) %in%
-                                       c('DateLoadedInDb', 'DataErrorChecking', 'DataEntry',
+                                       c('DateLoadedInDb', 'DateLoadedInDB', 'DataErrorChecking', 'DataEntry',
                                          'DateModified', 'FormType')
   )
   
