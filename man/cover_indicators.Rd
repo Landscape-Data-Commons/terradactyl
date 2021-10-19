@@ -9,7 +9,7 @@
 \alias{pct_cover_litter}
 \alias{pct_cover_live}
 \alias{pct_cover_species}
-\title{Percent Cover Indicators}
+\title{Percent Cover Indicators, wrapper functions of \code{pct_cover}}
 \usage{
 pct_cover_between_plant(lpi_tall, tall = FALSE, by_line = FALSE)
 
@@ -32,13 +32,25 @@ pct_cover_species(lpi_tall, tall = TRUE, by_line = FALSE, hit = "any")
 
 \item{by_line}{Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
 
-\item{hit}{String. If \code{"first"} then only top LPI hits are included. If \code{"any"} then any hit values are included.}
+\item{hit}{String. If \code{"first"} then only top LPI hits are included. If \code{"any"} then any hit values are included.Only used for \code{pct_cover_live} and \code{pct_cover_species}.}
 
-\item{...}{Optional bare variable names. Names of variables to include as part of grouping e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.}
+\item{...}{Optional bare variable names. Only used for \code{pct_cover_live}. Names of variables to include as part of grouping e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.}
 }
 \value{
 A \code{tbl} of either wide or tall format.
 }
 \description{
 Calculate the percent cover  indicators by plot or line for variables or combinations of variables.This is a family of standard indicator variables to examine total foliar cover, bare soil, litter cover, and other ground cover indicators. To compute cover by species, growth habit and duration, or other custom line-point intercept combinations, see \code{pct_cover()}.
+}
+\examples{
+# Calculate between plant cover, or non-plant species first hit cover
+between_plant_cover <- pct_cover_between_plant(lpi_tall,
+                                               tall = FALSE,
+                                               by_line = FALSE)
+
+# Calculate ground cover, including those under plants
+between_plant_cover <- pct_cover_all_ground(lpi_tall,
+                                            tall = FALSE,
+                                            by_line = FALSE)
+
 }
