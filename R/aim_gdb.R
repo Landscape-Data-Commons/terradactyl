@@ -384,7 +384,7 @@ lpi_calc <- function(header,
   )] <- "NonWoody"
 
   lpi_species$GrowthHabit[lpi_species$GrowthHabitSub %in%
-    c("Forb/herb", "Forb", "Graminoid", "Grass")] <- "ForbGrass"
+    c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb")] <- "ForbGrass"
 
   # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
   lpi_species$GrowthHabit[grepl(
@@ -400,6 +400,12 @@ lpi_calc <- function(header,
     pattern = "Sub-Shrub|subshrub|Sub-shrub|Subshrub",
     x = lpi_species$GrowthHabitSub
   )] <- "SubShrub"
+
+  # Add a Shrub/SubShrub/Succulent field
+  lpi_species$ShrubSucculent[grepl(
+    pattern = "SubShrub|Shrub|Succulent",
+    x = lpi_species$GrowthHabitSub
+  )] <- "ShrubSucculent"
 
   # Calculate Total Foliar Cover ----
   total_foliar <- pct_cover_total_foliar(
@@ -426,6 +432,7 @@ lpi_calc <- function(header,
     "ER" = "HerbLitter",
     "HT" = "NonVegLitter",
     "NL" = "NonVegLitter",
+    "AL" = "NonVegLitter",
     "DS" = "DepSoil",
     "\\bD\\b" = "Duff",
     "LC" = "Lichen",
@@ -500,7 +507,8 @@ lpi_calc <- function(header,
           "WL",
           "NL",
           "EL",
-          "HT"
+          "HT",
+          "AL"
         ) ~ "TotalLitter"
       )
     )
@@ -531,8 +539,7 @@ lpi_calc <- function(header,
   # Species Group Cover ----
   # Set the replacement values for valid indicator names ----
   spp.cover.replace <- c(
-    # "NONWOODY" = "ForbGrass",
-    "NON" = "Non",
+     "NON" = "Non",
     "^NO\\." = "NonNox",
     "NO$" = "NonNox",
     "^YES" = "Nox",
@@ -554,8 +561,9 @@ lpi_calc <- function(header,
     "TALL" = "Tall",
     "0" = "Live",
     "1" = "Dead",
-    "PREFERRED" = "Preferred"
-  )
+    "PREFERRED" = "Preferred",
+    "WOODY" = "Woody"
+    )
 
 
   # Any hit cover ----
@@ -618,6 +626,22 @@ lpi_calc <- function(header,
       hit = "any",
       by_line = FALSE,
       Duration, GrowthHabit
+    ),
+
+    # Cover by GrowthHabit
+    pct_cover(lpi_species,
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              GrowthHabit
+    ),
+
+    # Shrub/Succulent Cover
+    pct_cover(lpi_species,
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              ShrubSucculent
     )
   )
 
@@ -644,7 +668,7 @@ lpi_calc <- function(header,
 
     # Add AH to the beginning of the indicator to signify "any hit"
     dplyr::mutate(indicator = paste("AH_", indicator, "Cover", sep = "") %>%
-      # Change the Sagebrush Live indicator sine it's slightly different
+      # Change the Sagebrush Live indicator name it's slightly different
       stringr::str_replace_all(
         string = .,
         pattern = "AH_SagebrushLiveCover",
@@ -655,7 +679,7 @@ lpi_calc <- function(header,
   # First hit cover ----
   fh_spp_group_cover <- rbind(
     # cover by Noxious, Duration, and GrowthHabitSub combination
-    test <- pct_cover(lpi_species,
+   pct_cover(lpi_species,
       tall = TRUE,
       hit = "first",
       by_line = FALSE,
@@ -762,6 +786,8 @@ lpi_calc <- function(header,
       # Join to the lpi.cover data
       dplyr::left_join(lpi_indicators, ., by = "PrimaryKey")
   }
+
+
 
   # Return lpi_indicators
   return(lpi_indicators)
