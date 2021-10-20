@@ -56,18 +56,24 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
   } else {
     stop("Supply either tblPlots or the path to a GDB containing that table")
   }
-  
   plot_tall <- plot_raw %>%
-    dplyr::select(
-      PrimaryKey, DBKey,
-      SpeciesState, 
-      Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, Zone, Datum,
-      State, County,
-      EcolSite, ParentMaterial, Slope, Aspect, SlopeShape = ESD_SlopeShape,
-      LandscapeType, LandscapeTypeSecondary, HillslopeType, 
+    dplyr::select_if(names(.) %in% c(
+      'PrimaryKey', 'DBKey',
+      'SpeciesState', 
+      'Latitude', 'Longitude', 'Zone', 'Datum',
+      'State', 'County',
+      'EcolSite', 'ParentMaterial', 'Slope', 'Aspect', 'ESD_SlopeShape',
+      'LandscapeType', 'LandscapeTypeSecondary', 'HillslopeType', 
+      'ESD_Series',
+      'EstablishDate'
+    )) %>% 
+    dplyr::rename(
+      Latitude_NAD83 = Latitude,
+      Longitude_NAD83 = Longitude,
+      SlopeShape = ESD_SlopeShape,
       SoilSeries = ESD_Series,
-      EstablishDate
-    ) %>% dplyr::mutate(
+      ) %>%
+    dplyr::mutate(
       SlopeShapeVertical = dplyr::case_when(
         SlopeShape %in% c("CC", "CV", "CL", "concave concave", "concave convex", "concave linear") ~ "concave",
         SlopeShape %in% c("LC", "LV", "LL", "linear concave", "linear convex", "linear linear") ~ "linear",
@@ -79,7 +85,11 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
         SlopeShape %in% c("CV", "LV", "VV", "concave convex", "linear convex", "convex convex") ~ "convex"
       ),
       Aspect = suppressWarnings(as.numeric(Aspect)),
-    ) %>% dplyr::select(-SlopeShape)
+      MLRA = dplyr::if_else(
+        stringr::str_trim(toupper(EcolSite)) == "UNKNOWN", "UNKNOWN", 
+        stringr::str_extract(EcolSite, "[:digit:]+")), 
+      MLRA = tidyr::replace_na(MLRA, "UNKNOWN")) %>% 
+     dplyr::select(-SlopeShape)
   
   return(plot_tall)
 }
