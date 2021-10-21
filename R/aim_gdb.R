@@ -313,6 +313,8 @@ gather_header <- function(dsn, source, ...) {
   )
 
   header$source <- source
+  
+  if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
 
   return(header)
 }

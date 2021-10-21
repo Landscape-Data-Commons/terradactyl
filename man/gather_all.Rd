@@ -2,15 +2,54 @@
 % Please edit documentation in R/gather_all.R
 \name{gather_all}
 \alias{gather_all}
-\title{Build tall tables for all AIM methods}
+\title{Gather tall tables for gap, vegetation height, LPI, plot characterization, 
+IIRH, soil horizon, soil pit summary, soil stability, and species inventory.}
 \usage{
-gather_all(dsn, folder)
+gather_all(dsn = NULL, dflist = NULL, outfolder, verbose = T)
 }
 \arguments{
-\item{dsn}{String. Filepath to data}
+\item{dsn}{Character string. The full filepath and filename (including file 
+extension) of the geodatabase or text file containing thes table of interest. 
+This field is unnecessary if you provide dflist.}
 
-\item{folder}{Folder location for tall Rdata files}
+\item{dflist}{Named list of data frames containing monitoring data. Tables 
+must be named as expected by the individual gather_functions.}
+
+\item{outfolder}{Character string. Name of a folder to save all output to.
+If the specified folder does not exist, the function will create it.}
+
+\item{verbose}{True/False. When true, displays progress information, and 
+reports missing input data.}
+}
+\value{
+A list of tall data frames containing reformatted input data.
 }
 \description{
-Build tall tables for all AIM methods
+Given wide format AIM/LMF data, gather gap, 
+vegetation height, LPI, plot characterization, IIRH, soil horizon, 
+soil pit summary, soil stability, and species inventory data. Missing
+tables will be skipped. AIM-type and LMF-type data will both be processed.
 }
+\examples{
+gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", outfolder = "output")
+
+names <- sf::st_layers(dsn = "Path/To/AIM-LMF_Geodatabase.gdb")$name
+all_data <- sapply(names, function(n){
+  sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", 
+  layer = n, quiet = T)
+})
+gather_all(dflist = all_data, outfolder = "output")
+}
+\seealso{
+Other <gather>: 
+\code{\link{gather_gap}()},
+\code{\link{gather_height}()},
+\code{\link{gather_lpi}()},
+\code{\link{gather_plot_characterization}()},
+\code{\link{gather_rangeland_health}()},
+\code{\link{gather_soil_horizon}()},
+\code{\link{gather_soil_stability}()},
+\code{\link{gather_soil_summary}()},
+\code{\link{gather_species_inventory}()}
+}
+\concept{<gather>}
