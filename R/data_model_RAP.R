@@ -6,6 +6,9 @@
 #' RAP_inputs <- terradactyl::data_model_RAP(lpi_species,
 #'                                           header)
 #'
+
+#' @export data_model_RAP
+#' @rdname data_model_RAP
 data_model_RAP <- function(lpi_species,
                            header) {
 
