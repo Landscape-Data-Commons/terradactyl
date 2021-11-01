@@ -5,6 +5,8 @@
 #' library(terradactyl)
 #' cover <- core_cover_indicators(lpi_species)
 
+#' @export core_cover_indicators
+#' @rdname core_cover_indicators
 core_cover_indicators <- function(lpi_species) {
 
   # Correct the Non-Woody to NonWoody
