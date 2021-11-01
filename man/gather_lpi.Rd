@@ -4,29 +4,81 @@
 \alias{gather_lpi}
 \alias{gather_lpi_terradat}
 \alias{gather_lpi_lmf}
-\title{Gather TerrADat LPI data into tall/long data frames}
+\title{Convert line-point intercept (LPI) data into a tall, tidy data frame}
 \usage{
-gather_lpi_terradat(dsn = "", detail = "", header = "")
+gather_lpi_terradat(dsn = NULL, tblLPIDetail = NULL, tblLPIHeader = NULL)
 
-gather_lpi_lmf(dsn, file_type = "gdb")
+gather_lpi_lmf(dsn = NULL, file_type = "gdb", PINTERCEPT = NULL)
 
-gather_lpi(dsn, file_type = "gdb", source)
+gather_lpi(
+  dsn = NULL,
+  file_type = "gdb",
+  source,
+  tblLPIDetail = NULL,
+  tblLPIHeader = NULL,
+  PINTERCEPT = NULL
+)
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file extension) of the geodatabase containing the table of interest.}
+\item{dsn}{Character string. The full filepath and filename (including file 
+extension) of the geodatabase or text file containing the table of interest. 
+This field is unnecessary if you provide either both of tblLPIDetail and 
+tblLPIHeader (AIM/DIMA/TerrADat) or PINTERCEPT (LMF/NRI).}
 
-\item{detail}{Dataframe of the data structure tblLPIDetail from the DIMA database with the addition of PrimaryKey and DBKey fields.}
+\item{tblLPIDetail}{Dataframe of the data structure tblLPIDetail from the 
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide 
+dsn.}
 
-\item{header}{Dataframe of the data structure tblLPIHeader from the DIMA database with the addition of PrimaryKey and DBKey fields.}
+\item{tblLPIHeader}{Dataframe of the data structure tblLPIHeader from the 
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
+tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide 
+dsn.}
 
-\item{file_type}{Character string that denotes the source file type, \code{"gdb"}, \code{"txt"}, \code{"csv"}}
+\item{file_type}{Character string that denotes the source file type of the 
+LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+AIM/DIMA/TerrADat, or if PINTERCEPT is provided.}
 
-\item{source}{Character string. The data source format, can be LPI, .}
+\item{PINTERCEPT}{Dataframe of the data structure PINTERCEPT from the LMF/NRI 
+database with the addition of PrimaryKey and DBKey fields. Use when source 
+is LMF or NRI; alternately provide dsn.}
+
+\item{source}{Character string. The data source format, 
+\code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
 }
 \value{
-A data frames containing the data from the LPI pin intercepts
+A tall data frame containing the data from the LPI pin intercepts
 }
 \description{
-Given a Line-point intercept data, create a tall format data frame that can be used in \code{pct_cover()} functions.
+Given wide format line-point intercept data, create a tall 
+format data frame usable by other terradactyl functions.
+}
+\examples{
+gather_lpi(dsn = "Path/To/AIM_Geodatabase.gdb", 
+           source = "AIM")
+gather_lpi(dsn = "Path/To/LMF_Geodatabase.gdb", 
+           source = "LMF")
+
+aim_lpidetail <- read.csv("Path/To/tblLPIDetail.csv")
+aim_lpiheader <- read.csv("Path/To/tblLPIHeader.csv")
+gather_lpi(source = "AIM", 
+           tblLPIDetail = aim_lpidetail, 
+           tblLPIHeader = aim_lpiheader)
+
+lmf_pintercept <- read.csv("Path/To/PINTERCEPT.csv")
+gather_lpi(source = "LMF", 
+           RANGEHEALTH = lmf_pintercept)
+}
+\seealso{
+Other <gather>: 
+\code{\link{gather_all}()},
+\code{\link{gather_gap}()},
+\code{\link{gather_height}()},
+\code{\link{gather_plot_characterization}()},
+\code{\link{gather_rangeland_health}()},
+\code{\link{gather_soil_horizon}()},
+\code{\link{gather_soil_stability}()},
+\code{\link{gather_soil_summary}()},
+\code{\link{gather_species_inventory}()}
 }
 \concept{<gather>}

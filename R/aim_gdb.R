@@ -313,6 +313,8 @@ gather_header <- function(dsn, source, ...) {
   )
 
   header$source <- source
+  
+  if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
 
   return(header)
 }
@@ -760,6 +762,7 @@ lpi_calc <- function(header,
 
   # if a species was not sagebrush, remove shape observation
   lpi_species$ShrubShape[lpi_species$SG_Group != "Sagebrush"] <- NA
+  lpi_species$ShrubShape[lpi_species$ShrubShape == ""] <- NA
   sagebrush_shape_calc <- sagebrush_shape(
     lpi_tall = lpi_species,
     # NRI and LMF don't collect live v. dead
