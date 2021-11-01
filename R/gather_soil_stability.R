@@ -152,8 +152,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     soil_stability_header,
     soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
   ) %>% dplyr::select_if(!names(.) %in% c(
-    'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb',
-    'Observer', 'Recorder'
+    'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb'
     )
   )
   

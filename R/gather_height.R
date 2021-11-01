@@ -152,7 +152,7 @@ gather_height_terradat <- function(dsn = NULL,
   lpi_height <- lpi_height %>% 
     dplyr::select_if(!names(.) %in% c(
       'DataErrorChecking', 'DataEntry',
-       'DateModified', 'FormType', 'Observer', 'Recorder')
+       'DateModified', 'FormType')
   )
   
   
@@ -304,12 +304,6 @@ gather_height_lmf <- function(dsn = NULL,
   
   # Make sure height is a numeric field
   height$Height <- suppressWarnings(as.numeric(height$Height))
-  
-  # last drop
-  # commented out to preserve code for future modification, but we need linekey
-  # height <- height %>% dplyr::select(
-  #   -c(LineKey)
-  # )
   
   # return height
   return(height)

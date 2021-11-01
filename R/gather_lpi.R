@@ -173,7 +173,7 @@ gather_lpi_terradat <- function(dsn = NULL,
   lpi_tall <- lpi_tall %>% dplyr::select_if(!names(.) %in% c(
 
      "DateModified", "FormType", "FormType",
-       "DataEntry", "DataErrorChecking", "Observer", "Recorder")
+       "DataEntry", "DataErrorChecking")
   )
   
   

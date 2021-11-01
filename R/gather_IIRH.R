@@ -117,7 +117,9 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
                         RH_SoilSiteStability = SSSVxWRatingFinal,
                         RH_CommentsBI = CommentBI,
                         RH_CommentsHF = CommentHF,
-                        RH_CommentsSS = CommentSSS
+                        RH_CommentsSS = CommentSSS,
+                        Observer,
+                        Recorder
   ) %>%
     
     # Add the indicators
@@ -200,7 +202,7 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
                   RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
                   RH_SoilSiteStability = "SOILSITE_STABILITY",
                   RH_BioticIntegrity = "BIOTIC_INTEGRITY",
-                  RH_HydrologicFunction = "HYDROLOGIC_FUNCTION"
+                  RH_HydrologicFunction = "HYDROLOGIC_FUNCTION",
     )
   
   return(IIRH_clean)

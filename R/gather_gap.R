@@ -63,9 +63,7 @@ gather_gap_terradat <- function(dsn = NULL,
         'last_edited_user',
         'last_edited_date',
         'DateLoadedInDb',
-        'DateLoadedinDB',
-        'Observer',
-        'Recorder'
+        'DateLoadedinDB'
       ))
     gap_header <- tblGapHeader %>%
       dplyr::select_if(!names(.) %in% c(
@@ -75,9 +73,7 @@ gather_gap_terradat <- function(dsn = NULL,
         'last_edited_user',
         'last_edited_date',
         'DateLoadedInDb',
-        'DateLoadedInDB',
-        'Observer',
-        'Recorder'
+        'DateLoadedInDB'
       ))
   } else if(!is.null(dsn)){
     if (!file.exists(dsn)) {
@@ -172,10 +168,19 @@ gather_gap_terradat <- function(dsn = NULL,
   
   ## last round drop
   gap_tall <- gap_tall %>% dplyr::select_if(!names(.) %in%
-                                       c('DateLoadedInDb', 'DateLoadedInDB', 'DataErrorChecking', 'DataEntry',
-                                         'DateModified', 'FormType')
-  )
-  
+                                       c('DateLoadedInDb', 
+                                         'DateLoadedInDB', 
+                                         'DataErrorChecking', 
+                                         'DataEntry',
+                                         'DateModified', 
+                                         'FormType')
+  ) %>%
+    # make sure data types are numeric when needed 
+    dplyr::mutate(
+      GapStart = suppressWarnings(as.numeric(GapStart)),
+      GapEnd = suppressWarnings(as.numeric(GapEnd)),
+      Gap = suppressWarnings(as.numeric(Gap))
+    )
   
   return(gap_tall)
 }
@@ -388,7 +393,13 @@ gather_gap_lmf <- function(dsn = NULL,
       'last_edited_date',
       'GlobalID', 
       'X'
-    ))
+    )) %>%
+  # make sure data types are numeric when needed 
+   dplyr::mutate(
+     GapStart = suppressWarnings(as.numeric(GapStart)),
+     GapEnd = suppressWarnings(as.numeric(GapEnd)),
+     Gap = suppressWarnings(as.numeric(Gap))
+   )
   
   return(gap)
 }
