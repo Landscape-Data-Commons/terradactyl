@@ -5,7 +5,13 @@
 \title{Gather tall tables for gap, vegetation height, LPI, plot characterization, 
 IIRH, soil horizon, soil pit summary, soil stability, and species inventory.}
 \usage{
-gather_all(dsn = NULL, dflist = NULL, outfolder, verbose = T)
+gather_all(
+  dsn = NULL,
+  dflist = NULL,
+  outfolder,
+  outtype = c("csv", "rdata"),
+  verbose = T
+)
 }
 \arguments{
 \item{dsn}{Character string. The full filepath and filename (including file 

@@ -12,6 +12,8 @@
 #' must be named as expected by the individual gather_functions.
 #' @param outfolder Character string. Name of a folder to save all output to.
 #' If the specified folder does not exist, the function will create it.
+#' @param outtype Vector specifying output format, accepting "csv" and "rdata". 
+#' Defaults to writing both.
 #' @param verbose True/False. When true, displays progress information, and 
 #' reports missing input data. 
 #' @importFrom magrittr %>%
@@ -28,14 +30,20 @@
 #' })
 #' gather_all(dflist = all_data, outfolder = "output")
 
-gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
+gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", "rdata"), 
+                       verbose = T) {
   # prep ####
+  outtype <- tolower(outtype)
+  
   # most people wouldnt put the trailing f-slash on a folder name so add it in
   if(substr(outfolder, nchar(outfolder), nchar(outfolder)) != "/") {
     outfolder <- paste0(outfolder, "/")
   }
   
   if(!dir.exists(outfolder)) dir.create(outfolder)
+  
+  # if neither dsn or dflist are provided, stop
+  if(is.null(dflist) & is.null(dsn)) stop("Provide either dsn or dflist")
   
   # if both dsn and dflist are provided, drop dsn
   if(!is.null(dflist) & !is.null(dsn)){
@@ -107,8 +115,15 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   
   gap_tall <- dplyr::bind_rows(gap_aim, gap_lmf)
   if(1 <= nrow(gap_tall)){
-    write.csv(gap_tall,
-              file = paste(outfolder, "gap_tall.csv", sep = ""), row.names = F)
+    if("csv" %in% outtype){
+      write.csv(gap_tall,
+                file = paste(outfolder, "gap_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(gap_tall,
+              file = paste0(outfolder, "gap_tall.rdata"))
+    }
+    
   }
   rm(gap_aim, gap_lmf)
   invisible(gc())
@@ -137,8 +152,15 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   
   soilstab_tall <- dplyr::bind_rows(soilstab_aim, soilstab_lmf)
   if(1 <= nrow(soilstab_tall)){
-    write.csv(soilstab_tall,
-              file = paste0(outfolder, "soilstab_tall.csv"), row.names = F)
+    
+    if("csv" %in% outtype){
+      write.csv(soilstab_tall,
+                file = paste(outfolder, "soilstab_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(soilstab_tall,
+              file = paste0(outfolder, "soilstab_tall.rdata"))
+    }
   }
   rm(soilstab_aim, soilstab_lmf)
   invisible(gc())
@@ -166,9 +188,14 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   
   lpi_tall <- dplyr::bind_rows(lpi_aim, lpi_lmf)
   if(1 <= nrow(lpi_tall)){
-    write.csv(lpi_tall,
-              file = paste(outfolder, "lpi_tall.csv", sep = ""), row.names = F
-    )
+    if("csv" %in% outtype){
+      write.csv(lpi_tall,
+                file = paste(outfolder, "lpi_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(lpi_tall,
+              file = paste0(outfolder, "lpi_tall.rdata"))
+    }
   }
   rm(lpi_aim, lpi_lmf)
   invisible(gc())
@@ -196,8 +223,14 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   
   height_tall <- dplyr::bind_rows(height_aim, height_lmf)
   if(1 <= nrow(height_tall)){
-    write.csv(height_tall,
-              file = paste(outfolder, "height_tall.csv", sep = ""), row.names = F)
+    if("csv" %in% outtype){
+      write.csv(height_tall,
+                file = paste(outfolder, "height_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(height_tall,
+              file = paste0(outfolder, "height_tall.rdata"))
+    }
   }
   rm(height_lmf, height_aim)
   invisible(gc())
@@ -227,8 +260,15 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   
   spp_inventory_tall <- dplyr::bind_rows(spp_inventory_aim, spp_inventory_lmf)
   if(1 <= nrow(spp_inventory_tall)){
-    write.csv(spp_inventory_tall,
-              file = paste(outfolder, "spp_inventory_tall.csv", sep = ""), row.names = F)
+    
+    if("csv" %in% outtype){
+      write.csv(spp_inventory_tall,
+                file = paste(outfolder, "spp_inventory_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(spp_inventory_tall,
+              file = paste0(outfolder, "spp_inventory_tall.rdata"))
+    }
   }
   rm(spp_inventory_aim, spp_inventory_lmf)
   invisible(gc())
@@ -253,7 +293,16 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   }
   hz_tall <- dplyr::bind_rows(hz_aim, hz_lmf)
   if(1 <= nrow(hz_tall)){
-    write.csv(hz_tall, file = paste0(outfolder, "soil_horizons_tall.csv"), row.names = F)
+    
+    if("csv" %in% outtype){
+      write.csv(hz_tall,
+                file = paste(outfolder, "soil_horizons_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(hz_tall,
+              file = paste0(outfolder, "soil_horizons_tall.rdata"))
+    }
+    
   }
   rm(hz_aim, hz_lmf)
   invisible(gc())
@@ -279,7 +328,14 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   }
   pit_tall <- dplyr::bind_rows(pit_aim, pit_lmf)
   if(1 <= nrow(pit_tall)){
-    write.csv(pit_tall, file = paste0(outfolder, "soil_summary_tall.csv"), row.names = F)
+    if("csv" %in% outtype){
+      write.csv(pit_tall,
+                file = paste(outfolder, "pit_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(pit_tall,
+              file = paste0(outfolder, "pit_tall.rdata"))
+    }  
   }
   
   rm(pit_aim, pit_lmf)
@@ -308,8 +364,14 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   }
   iirh_tall <- dplyr::bind_rows(iirh_aim, iirh_lmf)
   if(1 <= nrow(iirh_tall)){
-    write.csv(iirh_tall, file = paste0(outfolder, "rangeland_health_tall.csv"), row.names = F)
-  }
+    if("csv" %in% outtype){
+      write.csv(iirh_tall,
+                file = paste(outfolder, "rangeland_health_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(iirh_tall,
+              file = paste0(outfolder, "rangeland_health_tall.rdata"))
+    }  }
   rm(iirh_aim, iirh_lmf)
   invisible(gc())
   
@@ -347,13 +409,19 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, verbose = T) {
   }
   plotchar_tall <- dplyr::bind_rows(plotchar_aim, plotchar_lmf)
   if(1 <= nrow(plotchar_tall)){
-    write.csv(plotchar_tall, file = paste0(outfolder, "plot_characterization.csv"), row.names = F)
-  }
+    if("csv" %in% outtype){
+      write.csv(plotchar_tall,
+                file = paste(outfolder, "plot_characterization_tall.csv", sep = ""), row.names = F)
+    }
+    if("rdata" %in% outtype){
+      saveRDS(plotchar_tall,
+              file = paste0(outfolder, "plot_characterization_tall.rdata"))
+    }  }
   rm(plotchar_aim, plotchar_lmf)
   invisible(gc())
   
   # output ####
-
+  
   list_out <- list(
     gap_tall, height_tall, hz_tall, lpi_tall, pit_tall, plotchar_tall, 
     soilstab_tall, spp_inventory_tall

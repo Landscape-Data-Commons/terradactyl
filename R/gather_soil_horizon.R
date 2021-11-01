@@ -55,8 +55,7 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
     ### select ###
     dplyr::select(
       PrimaryKey, DBKey, HorizonKey, HorizonDepthUpper, HorizonDepthLower, 
-      DepthUOM = DepthMeasure, HorizonName = ESD_Horizon, 
-      
+      DepthUOM = DepthMeasure, HorizonName = ESD_Horizon,
       RockFragments, Texture, TextureModifier = ESD_HorizonModifier,
       pH = ESD_pH, EC = ESD_EC, Effervescence = Effer, 
       ClayPct = ESD_PctClay, SandPct = ESD_PctSand,

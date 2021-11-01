@@ -58,21 +58,23 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
   }
   plot_tall <- plot_raw %>%
     dplyr::select_if(names(.) %in% c(
-      'PrimaryKey', 'DBKey',
+      'PrimaryKey', 'DBKey', 'ProjectKey',
       'SpeciesState', 
       'Latitude', 'Longitude', 'Zone', 'Datum',
       'State', 'County',
       'EcolSite', 'ParentMaterial', 'Slope', 'Aspect', 'ESD_SlopeShape',
       'LandscapeType', 'LandscapeTypeSecondary', 'HillslopeType', 
       'ESD_Series',
-      'EstablishDate'
+      'Observer', 'Recorder',
+      'EstablishDate',
+      'ESD_Investigators'
     )) %>% 
     dplyr::rename(
       Latitude_NAD83 = Latitude,
       Longitude_NAD83 = Longitude,
       SlopeShape = ESD_SlopeShape,
       SoilSeries = ESD_Series,
-      ) %>%
+    ) %>%
     dplyr::mutate(
       SlopeShapeVertical = dplyr::case_when(
         SlopeShape %in% c("CC", "CV", "CL", "concave concave", "concave convex", "concave linear") ~ "concave",
@@ -85,11 +87,10 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
         SlopeShape %in% c("CV", "LV", "VV", "concave convex", "linear convex", "convex convex") ~ "convex"
       ),
       Aspect = suppressWarnings(as.numeric(Aspect)),
-      MLRA = dplyr::if_else(
-        stringr::str_trim(toupper(EcolSite)) == "UNKNOWN", "UNKNOWN", 
-        stringr::str_extract(EcolSite, "[:digit:]+")), 
-      MLRA = tidyr::replace_na(MLRA, "UNKNOWN")) %>% 
-     dplyr::select(-SlopeShape)
+      Slope = suppressWarnings(as.numeric(Slope)),
+      Latitude_NAD83 = suppressWarnings(as.numeric(Latitude_NAD83)),
+      Longitude_NAD83 = suppressWarnings(as.numeric(Longitude_NAD83))) %>% 
+    dplyr::select(-SlopeShape)
   
   return(plot_tall)
 }
@@ -102,7 +103,7 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
                                                POINTCOORDINATES = NULL,
                                                GPS = NULL,
                                                file_type = NULL
-                                               ) {
+) {
   ### input ####
   ## update to have coord and gps
   if (!is.null(POINT) & !is.null(POINTCOORDINATES) & !is.null(GPS)){
@@ -111,18 +112,18 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
     gps_lmf_raw   <- GPS
   } else if(!is.null(dsn)){
     point_lmf_raw <-
-        sf::st_read(dsn = dsn, layer = "POINT", stringsAsFactors = FALSE, quiet = T)
-
+      sf::st_read(dsn = dsn, layer = "POINT", stringsAsFactors = FALSE, quiet = T)
+    
     coord_lmf_raw <-
-        sf::st_read(dsn = dsn, layer = "POINTCOORDINATES", stringsAsFactors = FALSE, quiet = T)
-
+      sf::st_read(dsn = dsn, layer = "POINTCOORDINATES", stringsAsFactors = FALSE, quiet = T)
+    
     gps_lmf_raw <-
-        sf::st_read(dsn = dsn, layer = "GPS", stringsAsFactors = FALSE, quiet = T)
-
+      sf::st_read(dsn = dsn, layer = "GPS", stringsAsFactors = FALSE, quiet = T)
+    
   } else{
     stop("Supply either POINT, POINTCOORDINATES, and GPS, or the path to a GDB containing those tables")
   }  
-
+  
   # get slope shape from POINT
   point_lmf <- point_lmf_raw %>% dplyr::select(
     DBKey, PrimaryKey, 
@@ -133,20 +134,20 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
   ) %>% dplyr::mutate(
     # reclass aspect into degrees
     Aspect = suppressWarnings(as.numeric(dplyr::recode(Aspect,
-                                                "N" = "0", 
-                                                "NE" = "45", 
-                                                "E" = "90", 
-                                                "SE" = "135", 
-                                                "S" = "180", 
-                                                "SW" = "225", 
-                                                "W" = "270",
-                                                "NW" = "315"))))
+                                                       "N" = "0", 
+                                                       "NE" = "45", 
+                                                       "E" = "90", 
+                                                       "SE" = "135", 
+                                                       "S" = "180", 
+                                                       "SW" = "225", 
+                                                       "W" = "270",
+                                                       "NW" = "315"))))
   
   # get gis data from POINTCOORDINATES
   coord_lmf <- coord_lmf_raw %>% dplyr::select(
-   PrimaryKey, DBKey,
-   Latitude_NAD83 = REPORT_LATITUDE, # is this the datum?
-   Longitude_NAD83 = REPORT_LONGITUDE, # is this the datum?
+    PrimaryKey, DBKey,
+    Latitude_NAD83 = REPORT_LATITUDE,
+    Longitude_NAD83 = REPORT_LONGITUDE,
   )
   
   # get gis from GPS
@@ -178,7 +179,7 @@ gather_plot_characterization <- function(dsn = NULL,
                                          POINTCOORDINATES = NULL,
                                          GPS = NULL,
                                          file_type = "gdb"){
-
+  
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     plotchar <- gather_plot_characterization_terradat(dsn = dsn,
                                                       tblPlots = tblPlots)
@@ -198,9 +199,9 @@ gather_plot_characterization <- function(dsn = NULL,
   
   if (any(class(plotchar) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(plotchar)[do.call(rbind, vapply(plotchar, 
-                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+                                                         class))[, 1] %in% c("POSIXct", "POSIXt")]
     plotchar <- dplyr::mutate_at(plotchar, dplyr::vars(change_vars), 
-                            dplyr::funs(as.character))
+                                 dplyr::funs(as.character))
   }
   
   

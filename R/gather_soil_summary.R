@@ -181,6 +181,12 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
       PercentClay = suppressWarnings(as.numeric(PercentClay)),
       PercentSand = suppressWarnings(as.numeric(PercentSand)),
       PercentSilt = 100 - PercentClay - PercentSand,
+      
+      # somehow the pcts sometimes end up as logical. no idea why. force class change here
+      Fragment1VolPct = suppressWarnings(as.numeric(Fragment1VolPct)),
+      Fragment2VolPct = suppressWarnings(as.numeric(Fragment2VolPct)),
+      Fragment3VolPct = suppressWarnings(as.numeric(Fragment3VolPct)),
+      
       # parse fragment class columns.
       TopHorizonGravelPct = suppressWarnings(as.numeric(dplyr::case_when(
         Fragment1Type == "1" ~ Fragment1VolPct,
@@ -293,11 +299,12 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
   # pit: mostly for metadata, also total pit depth and total rock frags
   pit_aim <- pit_aim_raw %>%
     dplyr::select(
-      PrimaryKey, DBKey, SoilKey,
+      PrimaryKey, DBKey, SoilKey, Observer,
       TotalFragments = RockFragments, TotalPitDepth = SoilDepthLower, PitDepthMeasure = DepthMeasure,
       PitNotes = Notes) %>%
     # unify depth measures and drop depth measure var
     dplyr::mutate(
+      TotalPitDepth = suppressWarnings(as.numeric(TotalPitDepth)), # again, weird data type errors. force change here
       TotalPitDepth = dplyr::case_when(PitDepthMeasure == "in" ~ TotalPitDepth * 2.54,
                            PitDepthMeasure == "cm" | is.na(PitDepthMeasure) ~ TotalPitDepth),
     ) %>%
