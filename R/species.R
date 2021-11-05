@@ -192,7 +192,7 @@ generic_growth_habits <- function(data,
 
 
   # Connect unknown codes to SpeciesState
-  if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% data) {
+  if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% colnames(data)) {
     generic.code.df <- generic.code.df %>%
       subset(!is.na(species_code)) %>%
       dplyr::inner_join(., dplyr::select(
