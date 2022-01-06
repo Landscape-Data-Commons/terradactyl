@@ -231,9 +231,7 @@ gather_rangeland_health <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  # IIRH$source <- toupper(source)  
-  IIRH$source <- source
-  
+  IIRH$source <- toupper(source)  
   
   if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)
   
