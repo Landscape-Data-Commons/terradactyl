@@ -24,6 +24,9 @@ must be named as expected by the individual gather_functions.}
 \item{outfolder}{Character string. Name of a folder to save all output to.
 If the specified folder does not exist, the function will create it.}
 
+\item{outtype}{Vector specifying output format, accepting "csv" and "rdata". 
+Defaults to writing both.}
+
 \item{verbose}{True/False. When true, displays progress information, and 
 reports missing input data.}
 }
