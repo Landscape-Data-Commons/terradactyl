@@ -428,8 +428,9 @@ gather_gap <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  gap$source <- toupper(source)  
-
+  # gap$source <- toupper(source)  
+  gap$source <- source  
+  
   if("sf" %in% class(gap)) gap <- sf::st_drop_geometry(gap)
   
   if (any(class(gap) %in% c("POSIXct", "POSIXt"))) {

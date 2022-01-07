@@ -404,7 +404,8 @@ gather_lpi <- function(dsn = NULL,
   }
   
   # Add source field 
-  lpi$source <- toupper(source)
+  # lpi$source <- toupper(source)
+  lpi$source <- source
   
   if("sf" %in% class(lpi)) lpi <- sf::st_drop_geometry(lpi)
   

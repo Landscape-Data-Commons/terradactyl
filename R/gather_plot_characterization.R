@@ -193,7 +193,8 @@ gather_plot_characterization <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  plotchar$source <- toupper(source)  
+  # plotchar$source <- toupper(source)  
+  plotchar$source <- source  
   
   if("sf" %in% class(plotchar)) plotchar <- sf::st_drop_geometry(plotchar)
   
