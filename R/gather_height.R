@@ -334,7 +334,8 @@ gather_height <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  height$source <- toupper(source)
+  # height$source <- toupper(source)
+  height$source <- source
   
   if("sf" %in% class(height)) height <- sf::st_drop_geometry(height)
   
