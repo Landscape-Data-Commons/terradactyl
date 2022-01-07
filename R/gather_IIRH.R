@@ -232,7 +232,7 @@ gather_rangeland_health <- function(dsn = NULL,
   }
   
   # IIRH$source <- toupper(source)  
-  IIRH$source <- source
+  if(nrow(IIRH) > 0) IIRH$source <- source
   
   
   if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)

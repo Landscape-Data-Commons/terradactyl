@@ -1157,14 +1157,20 @@ build_terradat_indicators <- function(header, source, dsn,
     soil_stability_calc(
       soil_stability_tall = soil_stability_tall,
       header = header
-    ),
+    ) %>%
+    # Remove RecKey field
+    dplyr::select_if(!names(.) %in% c("RecKey"))
+  )
+  
     # Rangeland Health
-    gather_rangeland_health(dsn,
+    rh <- gather_rangeland_health(dsn,
       source = source
     ) %>%
-      # Remove RecKey field
-      dplyr::select(-RecKey)
-  )
+      dplyr::select_if(!names(.) %in% c("RecKey"))
+    
+    if(nrow(rh) > 0){
+      indicators <- c(indicators, rh)
+    }
 
   all_indicators <- Reduce(dplyr::left_join, indicators)
 }
