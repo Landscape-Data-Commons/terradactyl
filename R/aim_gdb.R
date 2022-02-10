@@ -34,6 +34,9 @@ gather_header_terradat <- function(dsn, ...) {
     # If there are any Sites with no PrimaryKeys, delete them
     subset(!is.na(PrimaryKey))
 
+  # add null datevisited column to these. TO DO: get this data from LPI header
+  header$DateVisited <- NA
+  
   # Return the header file
   return(header)
 }
@@ -329,6 +332,7 @@ lpi_calc <- function(header,
                      source,
                      dsn) {
 
+  print("Beginning LPI indicator calculation")
   # Join the lpi data to the header PrimaryKeys and add the StateSpecies Key
   lpi_tall_header <- readRDS(lpi_tall) %>%
     dplyr::left_join(dplyr::select(
@@ -775,6 +779,7 @@ lpi_calc <- function(header,
 #' @rdname aim_gdb
 # Calculate the Gap indicators for AIM
 gap_calc <- function(header, gap_tall) {
+  print("Beginning Gap indicator calculation")
   # tidy gap
   gap_tall <- readRDS(gap_tall) %>%
 
@@ -814,6 +819,8 @@ gap_calc <- function(header, gap_tall) {
 height_calc <- function(header, height_tall,
                         species_file = species_file,
                         source) {
+  print("Beginning Height indicator calculation")
+  
   # gather tall height
   height <- readRDS(height_tall) %>%
 
@@ -967,6 +974,8 @@ height_calc <- function(header, height_tall,
 #' @rdname aim_gdb
 # Calculate species inventory
 spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source) {
+  print("Beginning Species Inventory indicator calculation")
+  
   # tidy.species
   spp_inventory_tall <- readRDS(spp_inventory_tall) %>%
     # Join to the header to get the relevant PrimaryKeys and SpeciesSate
@@ -1075,6 +1084,7 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source)
 #' @rdname aim_gdb
 # Calculate soil stability values
 soil_stability_calc <- function(header, soil_stability_tall) {
+  print("Beginning Soil Stability indicator calculation")
   # Gather and subset
   soil_stability_tall <- readRDS(soil_stability_tall) %>%
     subset(!is.na(Rating)) %>%
@@ -1119,9 +1129,9 @@ build_terradat_indicators <- function(header, source, dsn,
     # Filter using the filtering expression specified by user
     dplyr::filter(!!!filter_exprs) %>%
     dplyr::filter(source %in% c("AIM", "TerrADat")) %>%
-
+    dplyr::select_if(!names(.) %in% c("DateVisited"))
     # the general header file for LMF has date visited in it, for TerrADat we get that from LPI
-    dplyr::select(-DateVisited)
+    # dplyr::select(-DateVisited)
 
   # Join all indicator calculations together
   indicators <- list(
@@ -1169,9 +1179,9 @@ build_terradat_indicators <- function(header, source, dsn,
       dplyr::select_if(!names(.) %in% c("RecKey"))
     
     if(nrow(rh) > 0){
-      indicators <- c(indicators, rh)
+      indicators <- c(indicators, list(rh))
     }
-
+    
   all_indicators <- Reduce(dplyr::left_join, indicators)
 }
 

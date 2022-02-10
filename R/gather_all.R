@@ -165,11 +165,11 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
     
     if("csv" %in% outtype){
       write.csv(soilstab_tall,
-                file = paste(outfolder, "soilstab_tall.csv", sep = ""), row.names = F)
+                file = paste(outfolder, "soil_stability_tall.csv", sep = ""), row.names = F)
     }
     if("rdata" %in% outtype){
       saveRDS(soilstab_tall,
-              file = paste0(outfolder, "soilstab_tall.rdata"))
+              file = paste0(outfolder, "soil_stability_tall.rdata"))
     }
   }
   rm(soilstab_aim, soilstab_lmf)
