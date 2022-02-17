@@ -21,30 +21,30 @@ gather_gap(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file 
+\item{dsn}{Character string. The full filepath and filename (including file
 extension) of the geodatabase or text file containing the table of interest.
-This field is unnecessary if you provide either both of tblGapDetail and 
+This field is unnecessary if you provide either both of tblGapDetail and
 tblGapHeader (AIM/DIMA/TerrADat) or both of GINTERCEPT and POINT (LMF/NRI).}
 
-\item{tblGapDetail}{Dataframe of the data structure tblGapDetail from the 
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
-tblGapHeader when data source is AIM, DIMA, or TerrADat; alternately provide 
+\item{tblGapDetail}{Dataframe of the data structure tblGapDetail from the
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+tblGapHeader when data source is AIM, DIMA, or TerrADat; alternately provide
 dsn.}
 
-\item{tblGapHeader}{Dataframe of the data structure tblGapHeader from the 
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
-tblGapDetail when data source is AIM, DIMA, or TerrADat; alternately provide 
+\item{tblGapHeader}{Dataframe of the data structure tblGapHeader from the
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+tblGapDetail when data source is AIM, DIMA, or TerrADat; alternately provide
 dsn.}
 
-\item{file_type}{Character string that denotes the source file type of the 
-LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+\item{file_type}{Character string that denotes the source file type of the
+LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
 AIM/DIMA/TerrADat, or if GINTERCEPT and POINT are provided.}
 
 \item{GINTERCEPT}{Dataframe of the data structure GINTERCEPT from the LMF/NRI
-database. Use with POINT when data source is LMF or NRI; alternately provide 
+database. Use with POINT when data source is LMF or NRI; alternately provide
 dsn.}
 
-\item{POINT}{Dataframe of the data structure POINT from the LMF database. 
+\item{POINT}{Dataframe of the data structure POINT from the LMF database.
 Use with GINTERCEPT when data source if LMF or NRI; alternately provide dsn.}
 
 \item{source}{Character string. The data source format,
@@ -54,25 +54,25 @@ Use with GINTERCEPT when data source if LMF or NRI; alternately provide dsn.}
 A tall data frame containing the data from the gap measurements.
 }
 \description{
-Given wide format gap data, create a tall format data frame 
+Given wide format gap data, create a tall format data frame
 usable by other terradactyl functions.
 }
 \examples{
-gather_gap(dsn = "Path/To/AIM_Geodatabase.gdb", 
+gather_gap(dsn = "Path/To/AIM_Geodatabase.gdb",
            source = "AIM")
-gather_gap(dsn = "Path/To/LMF_Geodatabase.gdb", 
+gather_gap(dsn = "Path/To/LMF_Geodatabase.gdb",
            source = "LMF")
 
 aim_gapdetail <- read.csv("Path/To/tblGapDetail.csv")
 aim_gapheader <- read.csv("Path/To/tblGapHeader.csv")
-gather_gap(source = "AIM", 
-           tblGapDetail = aim_gapdetail, 
+gather_gap(source = "AIM",
+           tblGapDetail = aim_gapdetail,
            tblGapHeader = aim_gapheader)
 
 lmf_gintercept <- read.csv("Path/To/GINTERCEPT.csv")
 lmf_point <- read.csv("Path/To/POINT.csv")
-gather_gap(source = "LMF", 
-           GINTERCEPT = lmf_gintercept, 
+gather_gap(source = "LMF",
+           GINTERCEPT = lmf_gintercept,
            POINT = lmf_point)
 }
 \seealso{
