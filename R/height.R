@@ -63,7 +63,8 @@ mean_height <- function(height_tall,
   # Calculate the max height by grouping variable, if method =="max"
   if (method == "max") {
     height_tall <- height_tall %>%
-      dplyr::group_by(PrimaryKey, LineKey, PointNbr) %>%
+      # dplyr::group_by(PrimaryKey, LineKey, PointNbr) %>%
+      dplyr::group_by(PrimaryKey, LineKey, PointNbr, !!!grouping_variables) %>%
       dplyr::summarise(max = max(Height))
 
     summary <- height_tall %>%
@@ -73,7 +74,8 @@ mean_height <- function(height_tall,
 
     # Convert to wide format
     if (!tall) {
-      summary <- summary %>% tidyr::spread(key = max, value = max_height, fill = 0)
+      # summary <- summary %>% tidyr::spread(key = max, value = max_height, fill = 0)
+      summary <- summary %>% tidyr::spread(key = 2:(ncol(summary)-1), value = max_height, fill = 0) # changed 2-22-22, assumes that the rightmost column is the max val, leftmost is primary key, and all others are grouping variables.
     }
   }
 
