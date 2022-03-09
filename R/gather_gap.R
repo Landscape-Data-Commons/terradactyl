@@ -144,8 +144,8 @@ gather_gap_terradat <- function(dsn = NULL,
     )
 
   ## Add zero values where there is no canopy gap present on line
-  gap_tall[gap_tall$NoCanopyGaps == 1, ] <- gap_tall %>%
-    dplyr::filter(NoCanopyGaps == 1) %>%
+  gap_tall[gap_tall$NoCanopyGaps == 2, ] <- gap_tall %>%
+    dplyr::filter(NoCanopyGaps == 2) %>%
     tidyr::replace_na(list(
       RecType = "C",
       GapStart = 0,
