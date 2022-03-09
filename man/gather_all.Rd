@@ -2,7 +2,7 @@
 % Please edit documentation in R/gather_all.R
 \name{gather_all}
 \alias{gather_all}
-\title{Gather tall tables for gap, vegetation height, LPI, plot characterization,
+\title{Gather tall tables for gap, vegetation height, LPI, plot characterization, 
 IIRH, soil horizon, soil pit summary, soil stability, and species inventory.}
 \usage{
 gather_all(
@@ -11,39 +11,36 @@ gather_all(
   outfolder,
   outtype = c("csv", "rdata"),
   verbose = T,
-  doLPI = T,
-  source = "auto"
+  doLPI = T
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file
-extension) of the geodatabase or text file containing thes table of interest.
+\item{dsn}{Character string. The full filepath and filename (including file 
+extension) of the geodatabase or text file containing thes table of interest. 
 This field is unnecessary if you provide dflist.}
 
-\item{dflist}{Named list of data frames containing monitoring data. Tables
+\item{dflist}{Named list of data frames containing monitoring data. Tables 
 must be named as expected by the individual gather_functions.}
 
 \item{outfolder}{Character string. Name of a folder to save all output to.
 If the specified folder does not exist, the function will create it.}
 
-\item{outtype}{Vector specifying output format, accepting "csv" and "rdata".
+\item{outtype}{Vector specifying output format, accepting "csv" and "rdata". 
 Defaults to writing both.}
 
-\item{verbose}{True/False. When true, displays progress information, and
+\item{verbose}{True/False. When true, displays progress information, and 
 reports missing input data.}
 
 \item{doLPI}{True/False. When false, LPI data will not be gathered. LPI data
 is large and the gather process is RAM-intensive. This function will function
 with fewer resources if LPI is run in batches, external to this wrapper.}
-
-\item{source}{"auto", "aim", or "lmf" (case independent). Read both AIM and LMF data, or force to only read one type.}
 }
 \value{
 A list of tall data frames containing reformatted input data.
 }
 \description{
-Given wide format AIM/LMF data, gather gap,
-vegetation height, LPI, plot characterization, IIRH, soil horizon,
+Given wide format AIM/LMF data, gather gap, 
+vegetation height, LPI, plot characterization, IIRH, soil horizon, 
 soil pit summary, soil stability, and species inventory data. Missing
 tables will be skipped. AIM-type and LMF-type data will both be processed.
 }
@@ -52,7 +49,7 @@ gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", outfolder = "output")
 
 names <- sf::st_layers(dsn = "Path/To/AIM-LMF_Geodatabase.gdb")$name
 all_data <- sapply(names, function(n){## Gather Height Data
-  sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
+  sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", 
   layer = n, quiet = T)
 })
 gather_all(dflist = all_data, outfolder = "output")
