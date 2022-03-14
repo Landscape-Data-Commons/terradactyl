@@ -7,7 +7,7 @@
 mean_height(
   height_tall,
   method = "mean",
-  omit_zero = TRUE,
+  omit_zero = FALSE,
   by_line = FALSE,
   tall = FALSE,
   ...
@@ -28,4 +28,19 @@ mean_height(
 }
 \description{
 Calculate the vegetation height
+}
+\examples{
+# Gather height data into tall format
+height_tall <- gather_height(dsn = "Path/To/LMF_Geodatabase.gdb",
+                    source = "LMF")
+# Calculate woody and herbaceous height (specified in "type" field)
+# All arguments must be named explicitly for this function to work correctly
+height <- mean_height(height_tall,
+                      method = "mean",
+                      omit_zero = FALSE,
+                      by_line = FALSE,
+                      tall = FALSE,
+                      type)
+
+
 }

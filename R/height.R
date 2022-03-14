@@ -5,11 +5,25 @@
 #' @param by_line Logical. If \code{TRUE} then the results will be calculated on a per-line basis. If \code{FALSE} then the results will be calculated on a per-plot basis. Defaults to \code{FALSE}.
 #' @param ... Optional bare variable names. One or more variable name from \code{lpi.tall} to calculate percent cover for, e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
 #' @param tall Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.
+#' @examples
+#' # Gather height data into tall format
+#' height_tall <- gather_height(dsn = "Path/To/LMF_Geodatabase.gdb",
+#'                     source = "LMF")
+#' # Calculate woody and herbaceous height (specified in "type" field)
+#' # All arguments must be named explicitly for this function to work correctly
+#' height <- mean_height(height_tall,
+#'                       method = "mean",
+#'                       omit_zero = FALSE,
+#'                       by_line = FALSE,
+#'                       tall = FALSE,
+#'                       type)
+#'
+#'
 #' @export mean_height
 
 mean_height <- function(height_tall,
                         method = "mean",
-                        omit_zero = TRUE,
+                        omit_zero = FALSE,
                         by_line = FALSE,
                         tall = FALSE,
                         ...) {
@@ -31,7 +45,10 @@ mean_height <- function(height_tall,
     level <- rlang::quos(PrimaryKey)
   }
 
-  # If height of zer0 is dropped by the calculation, filter out zeros
+  # Make sure the Height field is numeric
+  height_tall$Height <- as.numeric(height_tall$Height)
+
+  # If height of zero is dropped by the calculation, filter out zeros
   if (omit_zero) {
     height_tall <- dplyr::filter(
       height_tall,
