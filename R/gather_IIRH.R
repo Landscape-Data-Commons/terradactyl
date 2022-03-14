@@ -230,15 +230,10 @@ gather_rangeland_health <- function(dsn = NULL,
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
-<<<<<<< HEAD
 
-=======
-  
-  # IIRH$source <- toupper(source)  
+  # IIRH$source <- toupper(source)
   IIRH$source <- source
-  
-  
->>>>>>> 55480965126b0dad37247fafa62b0c2a317c0a87
+
   if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)
 
   if (any(class(IIRH) %in% c("POSIXct", "POSIXt"))) {
