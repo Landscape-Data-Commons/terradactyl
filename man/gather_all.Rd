@@ -10,7 +10,8 @@ gather_all(
   dflist = NULL,
   outfolder,
   outtype = c("csv", "rdata"),
-  verbose = T
+  verbose = T,
+  doLPI = T
 )
 }
 \arguments{
@@ -29,6 +30,10 @@ Defaults to writing both.}
 
 \item{verbose}{True/False. When true, displays progress information, and 
 reports missing input data.}
+
+\item{doLPI}{True/False. When false, LPI data will not be gathered. LPI data
+is large and the gather process is RAM-intensive. This function will function
+with fewer resources if LPI is run in batches, external to this wrapper.}
 }
 \value{
 A list of tall data frames containing reformatted input data.
@@ -43,7 +48,7 @@ tables will be skipped. AIM-type and LMF-type data will both be processed.
 gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", outfolder = "output")
 
 names <- sf::st_layers(dsn = "Path/To/AIM-LMF_Geodatabase.gdb")$name
-all_data <- sapply(names, function(n){
+all_data <- sapply(names, function(n){## Gather Height Data
   sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", 
   layer = n, quiet = T)
 })

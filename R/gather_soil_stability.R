@@ -292,7 +292,7 @@ gather_soil_stability <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
   
-  soil_stability$source <- toupper(source)
+  soil_stability$source <- source
   
   if("sf" %in% class(soil_stability)) soil_stability <- sf::st_drop_geometry(soil_stability)
   

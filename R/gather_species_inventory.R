@@ -225,7 +225,8 @@ gather_species_inventory <- function(dsn = NULL,
   }
   
   # Add source field so that we know where the data came from
-  species_inventory$source <- toupper(source)
+  # species_inventory$source <- toupper(source)
+  species_inventory$source <- source
   
   if("sf" %in% class(species_inventory)) species_inventory <- sf::st_drop_geometry(species_inventory)
   
