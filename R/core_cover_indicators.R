@@ -20,9 +20,15 @@ core_cover_indicators <- function(lpi_species) {
 
   # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
   lpi_species$GrowthHabit[grepl(
-    pattern = "NonVascular|Nonvascular|Non-vascular|Succulent",
+    pattern = "NonVascular|Nonvascular|Non-vascular",
     x = lpi_species$GrowthHabitSub
-  )] <- "NA"
+  )] <- "Nonvascular"
+
+  # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
+  lpi_species$GrowthHabitSub[grepl(
+    pattern = "NonVascular|Nonvascular|Non-vascular",
+    x = lpi_species$GrowthHabitSub
+  )] <- NA
 
   # Correct the Sub-shrub to SubShrub
   lpi_species$GrowthHabitSub[grepl(
