@@ -36,7 +36,7 @@ gather_header_terradat <- function(dsn, ...) {
 
   # add null datevisited column to these. TO DO: get this data from LPI header
   header$DateVisited <- NA
-  
+
   # Return the header file
   return(header)
 }
@@ -316,7 +316,7 @@ gather_header <- function(dsn, source, ...) {
   )
 
   header$source <- source
-  
+
   if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
 
   return(header)
@@ -397,6 +397,13 @@ lpi_calc <- function(header,
     pattern = "NonVascular|Nonvascular|Non-vascular|Succulent",
     x = lpi_species$GrowthHabitSub
   )] <- "NA"
+
+  # If non-vascular in GrowthHabit,null it out
+  lpi_species$GrowthHabit[grepl(
+    pattern = "NonVascular|Nonvascular|Non-vascular|Succulent",
+    x = lpi_species$GrowthHabit
+  )] <- "NA"
+
 
   # For the purposes of cover calcs, Non-Woody==Forb & Grass != Sedge, so we need to remove sedges
   lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
@@ -846,7 +853,7 @@ height_calc <- function(header, height_tall,
                         species_file = species_file,
                         source) {
   print("Beginning Height indicator calculation")
-  
+
   # gather tall height
   height <- readRDS(height_tall) %>%
 
@@ -1001,7 +1008,7 @@ height_calc <- function(header, height_tall,
 # Calculate species inventory
 spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source) {
   print("Beginning Species Inventory indicator calculation")
-  
+
   # tidy.species
   spp_inventory_tall <- readRDS(spp_inventory_tall) %>%
     # Join to the header to get the relevant PrimaryKeys and SpeciesSate
