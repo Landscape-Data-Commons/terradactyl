@@ -1197,17 +1197,17 @@ build_terradat_indicators <- function(header, source, dsn,
     # Remove RecKey field
     dplyr::select_if(!names(.) %in% c("RecKey"))
   )
-  
+
     # Rangeland Health
     rh <- gather_rangeland_health(dsn,
       source = source
     ) %>%
       dplyr::select_if(!names(.) %in% c("RecKey"))
-    
+
     if(nrow(rh) > 0){
       indicators <- c(indicators, list(rh))
     }
-    
+
   all_indicators <- Reduce(dplyr::left_join, indicators)
 }
 
