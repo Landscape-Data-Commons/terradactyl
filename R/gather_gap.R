@@ -168,7 +168,7 @@ gather_gap_terradat <- function(dsn = NULL,
   ## gaps are those with only PerennialsCanopy == 1
   gap_tall <- gap_tall %>% dplyr::mutate(RecType = as.character(RecType))
 
-  gap_tall$RecType[gap_tall$PerennialsCanopyv == 1 &
+  gap_tall$RecType[gap_tall$PerennialsCanopy == 1 &
                      gap_tall$AnnualForbsCanopy == 0 &
                      gap_tall$AnnualGrassesCanopy == 0 &
                      gap_tall$OtherCanopy == 0] <- "P"
