@@ -79,9 +79,9 @@ gather_species_inventory_terradat <- function(dsn = NULL,
     by = c("RecKey", "PrimaryKey")
   ) %>%
     subset(!is.na(Species)) %>%
-    dplyr::select_if(!names(.) %in% c('DateModified', 'FormType', 'DataEntry',
-       'DataErrorChecking', 'DateLoadedInDb', 'created_user', 'created_date',
-       'last_edited_user', 'last_edited_date', 'GlobalID')
+    dplyr::select(
+    -c(DateModified, FormType, DataEntry,
+       DataErrorChecking, DateLoadedInDb, created_user, created_date, last_edited_user, last_edited_date, GlobalID)
   )
 
   return(species_inventory_tall)
