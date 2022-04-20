@@ -15,8 +15,6 @@ knitr::opts_chunk$set(message = F)
 
 # terradactyl <img src='man/figures/logo.png' align="right" height="120" />
 
-
-# Using terradactyl
 ``` r
 devtools::install_github('Landscape-Data-Commons/terradactyl')
 ```
@@ -73,7 +71,7 @@ lpi_tall[lpi_tall$code %in% c("ARTRW8", "ARTRT", "ARTRV", "ARTR2"),
 cover_artemisia <-
   pct_cover(lpi_tall = lpi_tall,
             tall = F,
-            hit = "any",
+            hit = "first",
             by_line = F,
             BigSagebrush)
 
@@ -132,7 +130,7 @@ head(cover_duration_firsthit)
 
 Note that any hit cover values for any plot can sum to greater than 100%, as it is possible for a single point to have multiple types of cover, such as annual grass growing underneath a shrub. Here only top canopy foliar cover is considered, excluding non-species codes (e.g., bare soil, litter), so rows do not sum to 100.
 
-In contrast to any hit data, the sum of first hit cover is always less than or equal to 100% when all cover types are included. Here only foliar cover is considered, excluding non-species codes (e.g., bare soil, litter), so rows do not sum to 100. 
+In contrast to any hit data, the sum of first hit cover is always less than or equal to 100% when all cover types are included. Here only foliar cover is considered, excluding non-species codes, so rows do not sum to 100. 
 
 Any hit data is generally applicable and preferred for most studies, particularly those which prioritize species presence, as it captures data from across the entire canopy rather than solely focusing on the tallest species. First hit data is applicable for fewer uses, principally remote sensing and other studies focused on the top-down characteristics of the site.
 
