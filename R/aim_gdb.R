@@ -9,16 +9,24 @@
 # Build the header portion of the terradat table
 #' @export gather_header_terradat
 #' @rdname aim_gdb
-gather_header_terradat <- function(dsn, ...) {
+gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, ...) {
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
   # tblPlots provides the link between species tables
-  # (LPI, Height, Species Richness) and tblStateSpecies
-  header <- sf::st_read(
-    dsn = dsn, layer = "tblPlots",
-    stringsAsFactors = FALSE
-  ) %>%
+  if(!is.null(tblPlots)){
+    header <- tblPlots
+  } else if (!is.null(dsn)){
+    # (LPI, Height, Species Richness) and tblStateSpecies
+    header <- sf::st_read(
+      dsn = dsn, layer = "tblPlots",
+      stringsAsFactors = FALSE
+    )
+  } else {
+    stop("Provide either tblPlots or a path to a GDB containing it")
+  }
+
+  header <- header %>%
     as.data.frame() %>%
 
     # Filter using the filtering expression specified by user
@@ -36,7 +44,7 @@ gather_header_terradat <- function(dsn, ...) {
 
   # add null datevisited column to these. TO DO: get this data from LPI header
   header$DateVisited <- NA
-  
+
   # Return the header file
   return(header)
 }
@@ -44,15 +52,25 @@ gather_header_terradat <- function(dsn, ...) {
 # Build the header portion of the LMF table
 #' @export gather_header_lmf
 #' @rdname aim_gdb
-gather_header_lmf <- function(dsn, ...) {
+gather_header_lmf <- function(dsn = NULL, POINT = NULL, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
-  # Get the LMF points
+
+  if(!is.null(POINT)){
+    point <- POINT
+  } else if (!is.null(dsn)){
+
+    # Get the LMF points
   point <- sf::read_sf(
     dsn = dsn,
     layer = "POINT"
-  ) %>%
+  )} else {
+    stop("Provide either POINT or a path to a GDB containing it")
+  }
+
+
+  point <- point %>%
     # remove spatial attributes
     as.data.frame() %>%
 
@@ -165,6 +183,42 @@ gather_header_lmf <- function(dsn, ...) {
     dplyr::left_join(point_elevation, ., by = "PrimaryKey")
 
 
+  # normalize ecolsiteID to match AIM data format
+  # R prefix added above during the concatenation
+  # replace the invalid codes with UNKNOWN or NA
+  # -XE - No Eco Site Established code, XW- Water, XR- Road, XI - Inaccessible, or XN - Not eligible
+
+  # get a vector of which rows need prefixing
+  point_ESD <- point_ESD %>% dplyr::mutate(
+    EcologicalSiteId = dplyr::case_when(stringr::str_detect(point_ESD$EcologicalSiteId, "^[0-9]") ~
+                                           paste0("R", EcologicalSiteId),
+                                          TRUE ~ EcologicalSiteId),
+    EcologicalSiteId = stringr::str_trim(EcologicalSiteId)
+  )
+
+  # QC to remove errors known in the LDC data
+  point_ESD$EcologicalSiteId = dplyr::recode(
+    point_ESD$EcologicalSiteId,
+    XE = "UNKNOWN",
+    XW = "UNKNOWN Water",
+    XR = "UNKNOWN Road",
+    XI = "UNKNOWN",
+    XN = "UNKNOWN",
+    NANAXE = "UNKNOWN",
+    NANAXW = "UNKNOWN Water",
+    NANAXR = "UNKNOWN Road",
+    NANAXN = "UNKNOWN",
+    NANAXI = "UNKNOWN",
+    NANATX = "UNKNOWN",
+    NANANA = "UNKNOWN",
+    Unknown = "UNKNOWN",
+    `Not available` = "UNKNOWN",
+    none = "UNKNOWN",
+    Unknowon = "UNKNOWN",
+    `Not available on WSS` = "UNKNOWN",
+    ORUNKNOWN = "UNKNOWN")
+
+
   # Return the point_ESD as the header file
   point_ESD <- point_ESD %>% dplyr::mutate(PlotID = PrimaryKey)
   return(point_ESD)
@@ -173,12 +227,20 @@ gather_header_lmf <- function(dsn, ...) {
 # Build the header portion of the LMF table
 #' @export gather_header_nri
 #' @rdname aim_gdb
-gather_header_nri <- function(dsn, ...) {
+gather_header_nri <- function(dsn = NULL, POINT = NULL, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
+  if(!is.null(POINT)){
+    point <- POINT
+  } else if(!is.null(dsn)){
+    point <- read.csv(file.path(dsn, "POINT.csv"), stringsAsFactors = FALSE)
+  } else {
+    stop("Provide either POINT or a path to a folder containing it")
+  }
+
   # Get the LMF points
-  point <- read.csv(file.path(dsn, "POINT.csv"), stringsAsFactors = FALSE) %>%
+  point <- point %>%
     # remove spatial attributes
     as.data.frame() %>%
 
@@ -291,6 +353,41 @@ gather_header_nri <- function(dsn, ...) {
     dplyr::distinct()
 
 
+  # normalize ecolsiteID to match AIM data format
+  # R prefix added above during the concatenation
+  # replace the invalid codes with UNKNOWN or NA
+  # -XE - No Eco Site Established code, XW- Water, XR- Road, XI - Inaccessible, or XN - Not eligible
+
+  # get a vector of which rows need prefixing
+  point_ESD <- point_ESD %>% dplyr::mutate(
+    EcologicalSiteId = dplyr::case_when(stringr::str_detect(point_ESD$EcologicalSiteId, "^[0-9]") ~
+                                          paste0("R", EcologicalSiteId),
+                                        TRUE ~ EcologicalSiteId),
+    EcologicalSiteId = stringr::str_trim(EcologicalSiteId)
+  )
+
+  # QC to remove errors known in national datasets
+  point_ESD$EcologicalSiteId = dplyr::recode(
+    point_ESD$EcologicalSiteId,
+    XE = "UNKNOWN",
+    XW = "UNKNOWN Water",
+    XR = "UNKNOWN Road",
+    XI = "UNKNOWN",
+    XN = "UNKNOWN",
+    NANAXE = "UNKNOWN",
+    NANAXW = "UNKNOWN Water",
+    NANAXR = "UNKNOWN Road",
+    NANAXN = "UNKNOWN",
+    NANAXI = "UNKNOWN",
+    NANATX = "UNKNOWN",
+    NANANA = "UNKNOWN",
+    Unknown = "UNKNOWN",
+    `Not available` = "UNKNOWN",
+    none = "UNKNOWN",
+    Unknowon = "UNKNOWN",
+    `Not available on WSS` = "UNKNOWN",
+    ORUNKNOWN = "UNKNOWN")
+
   # Return the point_ESD as the header file
   return(point_ESD)
 }
@@ -316,7 +413,7 @@ gather_header <- function(dsn, source, ...) {
   )
 
   header$source <- source
-  
+
   if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
 
   return(header)
@@ -459,6 +556,7 @@ lpi_calc <- function(header,
     "CM" = "BareSoil",
     "LM" = "BareSoil",
     "FG" = "BareSoil",
+    "PC" = "BareSoil",
     "BR" = "Rock",
     "\\bS\\b" = "BareSoil",
     "[[:punct:]]" = ""
@@ -846,7 +944,7 @@ height_calc <- function(header, height_tall,
                         species_file = species_file,
                         source) {
   print("Beginning Height indicator calculation")
-  
+
   # gather tall height
   height <- readRDS(height_tall) %>%
 
@@ -1001,7 +1099,7 @@ height_calc <- function(header, height_tall,
 # Calculate species inventory
 spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source) {
   print("Beginning Species Inventory indicator calculation")
-  
+
   # tidy.species
   spp_inventory_tall <- readRDS(spp_inventory_tall) %>%
     # Join to the header to get the relevant PrimaryKeys and SpeciesSate
@@ -1197,17 +1295,17 @@ build_terradat_indicators <- function(header, source, dsn,
     # Remove RecKey field
     dplyr::select_if(!names(.) %in% c("RecKey"))
   )
-  
+
     # Rangeland Health
     rh <- gather_rangeland_health(dsn,
       source = source
     ) %>%
       dplyr::select_if(!names(.) %in% c("RecKey"))
-    
+
     if(nrow(rh) > 0){
       indicators <- c(indicators, list(rh))
     }
-    
+
   all_indicators <- Reduce(dplyr::left_join, indicators)
 }
 

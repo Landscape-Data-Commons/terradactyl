@@ -96,5 +96,13 @@ mean_height <- function(height_tall,
     }
   }
 
+  # constrain to 2 digits
+  summary <-
+    summary %>%
+    dplyr::mutate(dplyr::across(
+      c(2:(ncol(.) - 1)), # not sure why this isn't 2:ncol(.) but it works this way not the other
+      round, digits = 2)
+    )
+
   return(summary)
 }

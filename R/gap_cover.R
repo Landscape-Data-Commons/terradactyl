@@ -96,6 +96,9 @@ gap_cover <- function(gap_tall,
   gap_summary <- gap_summary %>%
     dplyr::select(PrimaryKey, total_line_length, interval, n, length, percent)
 
+  # constrain to 2 digits
+  gap_summary$percent <- round(gap_summary$percent, digits = 2)
+
   # Convert to wide format
   percent <- gap_summary %>%
     dplyr::select(., -n, -length) %>%
