@@ -1,18 +1,3 @@
----
-title: "Using terradactyl"
-author: "Joe Brehm & Sarah McCord"
-date: "4/7/2022"
-output:
-  html_document: default
-  word_document: default
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = T)
-knitr::opts_chunk$set(warning = F)
-knitr::opts_chunk$set(message = F)
-```
-
 # terradactyl <img src='man/figures/logo.png' align="right" height="120" />
 
 ``` r
