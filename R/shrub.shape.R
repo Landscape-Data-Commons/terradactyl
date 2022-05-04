@@ -18,6 +18,7 @@ sagebrush_shape_base <- function(lpi_tall) {
     # condense to the unique lpi hits
     dplyr::select(dplyr::one_of(c(
       "PrimaryKey",
+      "RecKey",
       "PointNbr",
       "ShrubShape",
       "chckbox"

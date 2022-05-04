@@ -176,7 +176,7 @@ pct_cover <- function(lpi_tall,
         dplyr::ungroup() %>%
         dplyr::group_by(!!!level, indicator) %>%
         dplyr::summarize(percent = 100 * dplyr::n() / dplyr::first(point_count)) %>%
-        dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
+        dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
     }
   )
 

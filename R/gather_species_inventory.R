@@ -79,11 +79,10 @@ gather_species_inventory_terradat <- function(dsn = NULL,
     by = c("RecKey", "PrimaryKey")
   ) %>%
     subset(!is.na(Species)) %>%
-    dplyr::select_if(!names(.) %in%
-                       c('DateModified', 'FormType', 'DataEntry',
-                         'DataErrorChecking', 'DateLoadedInDb', 'created_user', 'created_date', 'last_edited_user',
-                         'last_edited_date', 'GlobalID')
-    )
+    dplyr::select(
+    -c(DateModified, FormType, DataEntry,
+       DataErrorChecking, DateLoadedInDb, created_user, created_date, last_edited_user, last_edited_date, GlobalID)
+  )
 
   return(species_inventory_tall)
 }
@@ -110,7 +109,7 @@ species_count <- function(species_inventory_tall, ...) {
   species_count <- species_inventory_tall %>%
     dplyr::count(!!!levels, !!!grouping_variables) %>%
     tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
-    dplyr::filter(!grepl(indicator, pattern = "^[NA.]{0,100}NA$"))
+    dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
 
 
 
@@ -145,8 +144,8 @@ tall_species <- function(species_inventory_detail) {
 #' @export gather_species_inventory_lmf
 #' @rdname gather_species_inventory
 gather_species_inventory_lmf <- function(dsn = NULL,
-                                         file_type = "gdb",
-                                         PLANTCENSUS = NULL) {
+                               file_type = "gdb",
+                               PLANTCENSUS = NULL) {
   if(!is.null(PLANTCENSUS)){
     plantcensus <- PLANTCENSUS
   } else if(!is.null(dsn)){
@@ -193,8 +192,8 @@ gather_species_inventory_lmf <- function(dsn = NULL,
   # rename fields
   species_inventory <- dplyr::rename(species_inventory,
                                      Species = CPLANT
-  ) %>% dplyr::select_if(!names(.) %in% c('SURVEY', 'SEQNUM', 'GlobalID', 'created_user',
-                                          'created_date', 'last_edited_user', 'last_edited_date'))
+  ) %>% dplyr::select(., -c(SURVEY:SEQNUM, GlobalID, created_user,
+                            created_date, last_edited_user, last_edited_date))
 
   return(species_inventory)
 }
@@ -233,9 +232,9 @@ gather_species_inventory <- function(dsn = NULL,
 
   if (any(class(species_inventory) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(species_inventory)[do.call(rbind, vapply(species_inventory,
-                                                                  class))[, 1] %in% c("POSIXct", "POSIXt")]
+                                                       class))[, 1] %in% c("POSIXct", "POSIXt")]
     species_inventory <- dplyr::mutate_at(species_inventory, dplyr::vars(change_vars),
-                                          dplyr::funs(as.character))
+                               dplyr::funs(as.character))
   }
 
   return(species_inventory)

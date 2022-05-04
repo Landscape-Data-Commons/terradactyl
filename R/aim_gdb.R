@@ -495,6 +495,13 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabitSub
   )] <- "NA"
 
+  # If non-vascular in GrowthHabit,null it out
+  lpi_species$GrowthHabit[grepl(
+    pattern = "NonVascular|Nonvascular|Non-vascular|Succulent",
+    x = lpi_species$GrowthHabit
+  )] <- "NA"
+
+
   # For the purposes of cover calcs, Non-Woody==Forb & Grass != Sedge, so we need to remove sedges
   lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
 
