@@ -182,45 +182,9 @@ gather_header_lmf <- function(dsn = NULL, POINT = NULL, ...) {
     # Join to point.elevation to build the final header
     dplyr::left_join(point_elevation, ., by = "PrimaryKey")
 
-
-  # normalize ecolsiteID to match AIM data format
-  # R prefix added above during the concatenation
-  # replace the invalid codes with UNKNOWN or NA
-  # -XE - No Eco Site Established code, XW- Water, XR- Road, XI - Inaccessible, or XN - Not eligible
-
-  # get a vector of which rows need prefixing
-  point_ESD <- point_ESD %>% dplyr::mutate(
-    EcologicalSiteId = dplyr::case_when(stringr::str_detect(point_ESD$EcologicalSiteId, "^[0-9]") ~
-                                           paste0("R", EcologicalSiteId),
-                                          TRUE ~ EcologicalSiteId),
-    EcologicalSiteId = stringr::str_trim(EcologicalSiteId)
-  )
-
-  # QC to remove errors known in the LDC data
-  point_ESD$EcologicalSiteId = dplyr::recode(
-    point_ESD$EcologicalSiteId,
-    XE = "UNKNOWN",
-    XW = "UNKNOWN Water",
-    XR = "UNKNOWN Road",
-    XI = "UNKNOWN",
-    XN = "UNKNOWN",
-    NANAXE = "UNKNOWN",
-    NANAXW = "UNKNOWN Water",
-    NANAXR = "UNKNOWN Road",
-    NANAXN = "UNKNOWN",
-    NANAXI = "UNKNOWN",
-    NANATX = "UNKNOWN",
-    NANANA = "UNKNOWN",
-    Unknown = "UNKNOWN",
-    `Not available` = "UNKNOWN",
-    none = "UNKNOWN",
-    Unknowon = "UNKNOWN",
-    `Not available on WSS` = "UNKNOWN",
-    ORUNKNOWN = "UNKNOWN")
-
-
   # Return the point_ESD as the header file
   point_ESD <- point_ESD %>% dplyr::mutate(PlotID = PrimaryKey)
+
   return(point_ESD)
 }
 
@@ -406,7 +370,7 @@ gather_header <- function(dsn, source, ...) {
 
   header <- switch(toupper(source),
     "LMF" = gather_header_lmf(dsn = dsn, ...),
-    "NRI" = gather_header_lmf(dsn = dsn, ...),
+    "NRI" = gather_header_nri(dsn = dsn, ...),
     "TERRADAT" = gather_header_terradat(dsn = dsn, ...),
     "AIM" = gather_header_terradat(dsn = dsn, ...),
     "DIMA" = gather_header_terradat(dsn = dsn, ...)
@@ -415,6 +379,8 @@ gather_header <- function(dsn, source, ...) {
   header$source <- source
 
   if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
+
+  header <- header %>% dplyr::mutate(EcologicalSiteId = ecosite_qc(EcologicalSiteId))
 
   return(header)
 }
