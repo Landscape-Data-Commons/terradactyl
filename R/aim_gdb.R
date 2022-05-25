@@ -76,8 +76,8 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     # Get the LMF points
   point <- sf::read_sf(
     dsn = dsn,
-    layer = "POINT"
-  # )} else {
+    layer = "POINT")
+  # } else {
   #   stop("Provide either POINT or a path to a GDB containing it")
   # }
 
