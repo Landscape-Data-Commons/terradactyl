@@ -15,13 +15,18 @@
 \alias{build_indicators}
 \title{Build AIM Indicators Tables and Feature Classes}
 \usage{
-gather_header_terradat(dsn = NULL, tblPlots = NULL, ...)
+gather_header_terradat(
+  dsn = NULL,
+  tblPlots = NULL,
+  tblLPIHeader = tblLPIHeader,
+  ...
+)
 
-gather_header_lmf(dsn = NULL, POINT = NULL, ...)
+gather_header_lmf(dsn = NULL, ...)
 
-gather_header_nri(dsn = NULL, POINT = NULL, ...)
+gather_header_nri(dsn = NULL, ...)
 
-gather_header(dsn, source, ...)
+gather_header(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, ...)
 
 lpi_calc(header, lpi_tall, species_file, source, dsn)
 
