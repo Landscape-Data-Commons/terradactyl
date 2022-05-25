@@ -9,21 +9,26 @@
 # Build the header portion of the terradat table
 #' @export gather_header_terradat
 #' @rdname aim_gdb
-gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, ...) {
+gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = tblLPIHeader, ...) {
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
   # tblPlots provides the link between species tables
   if(!is.null(tblPlots)){
     header <- tblPlots
+    tblLPIHeader <- tblLPIHeader
   } else if (!is.null(dsn)){
     # (LPI, Height, Species Richness) and tblStateSpecies
     header <- sf::st_read(
       dsn = dsn, layer = "tblPlots",
       stringsAsFactors = FALSE
     )
+    tblLPIHeader <- sf::st_read(
+      dsn = dsn, layer = "tblLPIHeader",
+      stringsAsFactors = FALSE
+    )
   } else {
-    stop("Provide either tblPlots or a path to a GDB containing it")
+    stop("Provide either tblPlots and tblLPIHeader or a path to a GDB containing them")
   }
 
   header <- header %>%
@@ -35,15 +40,23 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, ...) {
     # Select the field names we need in the final feature class
     dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey, DBKey,
       EcologicalSiteId = EcolSite, Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, State,
-      County, DateEstablished = EstablishDate, DateLoadedInDb,
-      ProjectName
+      County, DateEstablished = EstablishDate, DateLoadedInDb #,
+      #ProjectName
     ) %>%
 
     # If there are any Sites with no PrimaryKeys, delete them
     subset(!is.na(PrimaryKey))
 
-  # add null datevisited column to these. TO DO: get this data from LPI header
-  header$DateVisited <- NA
+  # add datevisited column from LPI header
+  tblDate <- tblLPIHeader %>%
+    dplyr::select(PrimaryKey, FormDate, DBKey) %>%
+    dplyr::group_by(PrimaryKey, DBKey) %>%
+    dplyr::summarize(DateVisited = dplyr::first(FormDate,
+                                                order_by = FormDate
+    ) %>%
+      as.POSIXct())
+
+  header <- header %>% dplyr::left_join(tblDate, by = c("PrimaryKey", "DBKey"))
 
   # Return the header file
   return(header)
@@ -52,22 +65,21 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, ...) {
 # Build the header portion of the LMF table
 #' @export gather_header_lmf
 #' @rdname aim_gdb
-gather_header_lmf <- function(dsn = NULL, POINT = NULL, ...) {
+gather_header_lmf <- function(dsn = NULL,  ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
 
-  if(!is.null(POINT)){
-    point <- POINT
-  } else if (!is.null(dsn)){
-
+  # if(!is.null(POINT)){
+  #   point <- POINT
+  # } else if (!is.null(dsn)){
     # Get the LMF points
   point <- sf::read_sf(
     dsn = dsn,
     layer = "POINT"
-  )} else {
-    stop("Provide either POINT or a path to a GDB containing it")
-  }
+  # )} else {
+  #   stop("Provide either POINT or a path to a GDB containing it")
+  # }
 
 
   point <- point %>%
@@ -191,17 +203,17 @@ gather_header_lmf <- function(dsn = NULL, POINT = NULL, ...) {
 # Build the header portion of the LMF table
 #' @export gather_header_nri
 #' @rdname aim_gdb
-gather_header_nri <- function(dsn = NULL, POINT = NULL, ...) {
+gather_header_nri <- function(dsn = NULL, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
-  if(!is.null(POINT)){
-    point <- POINT
-  } else if(!is.null(dsn)){
+  # if(!is.null(POINT)){
+  #   point <- POINT
+  # } else if(!is.null(dsn)){
     point <- read.csv(file.path(dsn, "POINT.csv"), stringsAsFactors = FALSE)
-  } else {
-    stop("Provide either POINT or a path to a folder containing it")
-  }
+  # } else {
+  #   stop("Provide either POINT or a path to a folder containing it")
+  # }
 
   # Get the LMF points
   point <- point %>%
@@ -330,27 +342,6 @@ gather_header_nri <- function(dsn = NULL, POINT = NULL, ...) {
     EcologicalSiteId = stringr::str_trim(EcologicalSiteId)
   )
 
-  # QC to remove errors known in national datasets
-  point_ESD$EcologicalSiteId = dplyr::recode(
-    point_ESD$EcologicalSiteId,
-    XE = "UNKNOWN",
-    XW = "UNKNOWN Water",
-    XR = "UNKNOWN Road",
-    XI = "UNKNOWN",
-    XN = "UNKNOWN",
-    NANAXE = "UNKNOWN",
-    NANAXW = "UNKNOWN Water",
-    NANAXR = "UNKNOWN Road",
-    NANAXN = "UNKNOWN",
-    NANAXI = "UNKNOWN",
-    NANATX = "UNKNOWN",
-    NANANA = "UNKNOWN",
-    Unknown = "UNKNOWN",
-    `Not available` = "UNKNOWN",
-    none = "UNKNOWN",
-    Unknowon = "UNKNOWN",
-    `Not available on WSS` = "UNKNOWN",
-    ORUNKNOWN = "UNKNOWN")
 
   # Return the point_ESD as the header file
   return(point_ESD)
@@ -359,7 +350,7 @@ gather_header_nri <- function(dsn = NULL, POINT = NULL, ...) {
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn, source, ...) {
+gather_header <- function(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, ...) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -371,9 +362,9 @@ gather_header <- function(dsn, source, ...) {
   header <- switch(toupper(source),
     "LMF" = gather_header_lmf(dsn = dsn, ...),
     "NRI" = gather_header_nri(dsn = dsn, ...),
-    "TERRADAT" = gather_header_terradat(dsn = dsn, ...),
-    "AIM" = gather_header_terradat(dsn = dsn, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, ...)
+    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, ...),
+    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, ...),
+    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, ...)
   )
 
   header$source <- source
