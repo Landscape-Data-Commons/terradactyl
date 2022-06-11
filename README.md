@@ -11,7 +11,7 @@ library(terradactyl)
 The basic workflow of `terradactyl` is to first gather data into a standard format, also called a tall table. Then calculate indicators based on that format and grouping variables (if relevant). For some commonly calculated groups of indicators, such as for the AIM program or model inputs, there are also data model functions which take the tall table files and other data and produce data outputs specific to that user need. 
 
 
-![Visualization of terradactyl workflow](C:\Users\jrbrehm\Documents\GitHub\terradactyl-workspace-2\Vignettes\terradactyl diagram.png)
+![image](https://user-images.githubusercontent.com/13965706/173185966-37bece42-c23a-46e0-881e-9b573ee3c1cd.png)
  
  
 `terradactyl` relies on a few common organizing principles across functions. “PrimaryKey” refers to the unique plot-visit identifier and allows us to join tall tables across methods. In many instances, “PrimaryKey” is built using a combination of the Plot ID and the visit date. In all instances, “PrimaryKey” values must be established prior to using `terradactyl.` “LineKey” is optional and refers to individual transects (subsamples) collected at a plot. “DBKey” refers to the original database file, which allows us to track data provenance during QC. 'source' refers to a particular format type. Common sources are AIM, TerrADat, LMF, NRI. Data may be of source = 'AIM' but not belong to the AIM program, it just notes the original data format type. 
