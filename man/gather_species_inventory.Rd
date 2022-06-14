@@ -30,49 +30,49 @@ gather_species_inventory(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file 
-extension) of the geodatabase containing the table of interest. This field 
-is unnecessary if you supply either both of tblSpecRichDetail and 
+\item{dsn}{Character string. The full filepath and filename (including file
+extension) of the geodatabase containing the table of interest. This field
+is unnecessary if you supply either both of tblSpecRichDetail and
 tblSpecRichHeader (AIM/DIMA/TerrADat) or PLANTCENSUS (LMF/NRI).}
 
-\item{tblSpecRichDetail}{Dataframe of the data structure tblSpecRichDetail 
-from the DIMA database with the addition of PrimaryKey and DBKey fields. 
-Use with tblSpecRichHeader when data source is AIM, DIMA, or TerrADat; 
+\item{tblSpecRichDetail}{Dataframe of the data structure tblSpecRichDetail
+from the DIMA database with the addition of PrimaryKey and DBKey fields.
+Use with tblSpecRichHeader when data source is AIM, DIMA, or TerrADat;
 alternately provide dsn.}
 
-\item{tblSpecRichHeader}{Dataframe of the data structure tblSpecRichHeader 
-from the DIMA database with the addition of PrimaryKey and DBKey fields. 
-Use with tblSpecRichDetail when data source is AIM, DIMA, or TerrADat; 
+\item{tblSpecRichHeader}{Dataframe of the data structure tblSpecRichHeader
+from the DIMA database with the addition of PrimaryKey and DBKey fields.
+Use with tblSpecRichDetail when data source is AIM, DIMA, or TerrADat;
 alternately provide dsn.}
 
-\item{PLANTCENSUS}{Dataframe of the data structure PLANTCENSUS from LMF/NRI 
-database with the addition of PrimaryKey and DBKey fields. Use when data 
+\item{PLANTCENSUS}{Dataframe of the data structure PLANTCENSUS from LMF/NRI
+database with the addition of PrimaryKey and DBKey fields. Use when data
 source is LMF or NRI; alternately provide dsn.}
 
-\item{source}{Character string. The data source format, 
+\item{source}{Character string. The data source format,
 \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
 }
 \value{
 A tall data frame containing species inventory data.
 }
 \description{
-Given species inventory data create a tall format data frame 
+Given species inventory data create a tall format data frame
 usable by other terradactyl functions.
 }
 \examples{
-gather_species_inventory(dsn = "Path/To/AIM_Geodatabase.gdb", 
+gather_species_inventory(dsn = "Path/To/AIM_Geodatabase.gdb",
                          source = "AIM")
-gather_species_inventory(dsn = "Path/To/LMF_Geodatabase.gdb", 
+gather_species_inventory(dsn = "Path/To/LMF_Geodatabase.gdb",
                          source = "LMF")
 
 aim_specrichdetail <- read.csv("Path/To/tblSpecRichDetail.csv")
 aim_specrichheader <- read.csv("Path/To/tblSpecRichHeader.csv")
-gather_species_inventory(source = "AIM", 
-                         tblSpecRichDetail = aim_specrichdetail, 
+gather_species_inventory(source = "AIM",
+                         tblSpecRichDetail = aim_specrichdetail,
                          tblSpecRichHeader = aim_specrichheader)
 
 lmf_census <- read.csv("Path/To/PLANTCENSUS.csv")
-gather_species_inventory(source = "LMF", 
+gather_species_inventory(source = "LMF",
                          PLANTCENSUS = lmf_census)
 }
 \seealso{
