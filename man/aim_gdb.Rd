@@ -15,11 +15,11 @@
 \alias{build_indicators}
 \title{Build AIM Indicators Tables and Feature Classes}
 \usage{
-gather_header_terradat(dsn, ...)
+gather_header_terradat(dsn = NULL, tblPlots = NULL, ...)
 
-gather_header_lmf(dsn, ...)
+gather_header_lmf(dsn = NULL, POINT = NULL, ...)
 
-gather_header_nri(dsn, ...)
+gather_header_nri(dsn = NULL, POINT = NULL, ...)
 
 gather_header(dsn, source, ...)
 

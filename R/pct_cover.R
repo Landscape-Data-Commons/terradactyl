@@ -217,5 +217,22 @@ pct_cover <- function(lpi_tall,
       ))
   }
 
+  # constrain to 2 digits
+  if(tall){
+    summary <-
+      summary %>%
+      dplyr::mutate(dplyr::across(
+        c(3:ncol(.)),
+        round, digits = 2)
+      )
+  } else {
+    summary <-
+      summary %>%
+      dplyr::mutate(dplyr::across(
+        c(2:ncol(.)),
+        round, digits = 2)
+      )
+  }
+
   return(summary)
 }
