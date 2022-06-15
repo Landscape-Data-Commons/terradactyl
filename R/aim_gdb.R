@@ -9,14 +9,18 @@
 # Build the header portion of the terradat table
 #' @export gather_header_terradat
 #' @rdname aim_gdb
-gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = tblLPIHeader, ...) {
+gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
+                                   tblLPIHeader = NULL, tblGapHeader = NULL,
+                                   tblSpecRichHeader = NULL, ...) {
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
   # tblPlots provides the link between species tables
-  if(!is.null(tblPlots)){
+  if(!is.null(tblPlots) & !is.null(tblLPIHeader) & !is.null(tblSpecRichHeader)){
     header <- tblPlots
     tblLPIHeader <- tblLPIHeader
+    tblGapHeader <- tblGapHeader
+    tblSpecRichHeader <- tblSpecRichHeader
   } else if (!is.null(dsn)){
     # (LPI, Height, Species Richness) and tblStateSpecies
     header <- sf::st_read(
@@ -27,8 +31,17 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = t
       dsn = dsn, layer = "tblLPIHeader",
       stringsAsFactors = FALSE
     )
+    tblGapHeader <- sf::st_read(
+      dsn = dsn, layer = "tblGapHeader",
+      stringsAsFactors = FALSE
+    )
+    tblSpecRichHeader <- sf::st_read(
+      dsn = dsn, layer = "tblSpecRichHeader",
+      stringsAsFactors = FALSE
+    )
+
   } else {
-    stop("Provide either tblPlots and tblLPIHeader or a path to a GDB containing them")
+    stop("Provide either tblPlots, tblGapHeader, tblSpecRichHeader, and tblLPIHeader or a path to a GDB containing them")
   }
 
   header <- header %>%
@@ -47,16 +60,29 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = t
     # If there are any Sites with no PrimaryKeys, delete them
     subset(!is.na(PrimaryKey))
 
-  # add datevisited column from LPI header
-  tblDate <- tblLPIHeader %>%
-    dplyr::select(PrimaryKey, FormDate, DBKey) %>%
-    dplyr::group_by(PrimaryKey, DBKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(FormDate,
-                                                order_by = FormDate
-    ) %>%
-      as.POSIXct())
+  # add datevisited column from LPI header and gap header.
+  tblDate1 <- tblLPIHeader %>%
+    dplyr::select(PrimaryKey, FormDate) %>%
+    dplyr::group_by(PrimaryKey) %>%
+    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
 
-  header <- header %>% dplyr::left_join(tblDate, by = c("PrimaryKey", "DBKey"))
+  tblDate2 <- tblGapHeader %>%
+    dplyr::select(PrimaryKey, FormDate) %>%
+    dplyr::group_by(PrimaryKey) %>%
+    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+
+  tblDate3 <- tblSpecRichHeader %>%
+    dplyr::select(PrimaryKey, FormDate) %>%
+    dplyr::group_by(PrimaryKey) %>%
+    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+
+  tblDate <-
+    rbind(tblDate1, tblDate2) %>%
+    rbind(tblDate3) %>%
+    dplyr::group_by(PrimaryKey) %>%
+    dplyr::summarize(DateVisited = dplyr::first(DateVisited, order_by = DateVisited))
+
+  header <- header %>% dplyr::left_join(tblDate, by = c("PrimaryKey"))
 
   # Return the header file
   return(header)
@@ -69,18 +95,9 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
-
-  # if(!is.null(POINT)){
-  #   point <- POINT
-  # } else if (!is.null(dsn)){
-    # Get the LMF points
   point <- sf::read_sf(
     dsn = dsn,
     layer = "POINT")
-  # } else {
-  #   stop("Provide either POINT or a path to a GDB containing it")
-  # }
-
 
   point <- point %>%
     # remove spatial attributes
@@ -328,12 +345,6 @@ gather_header_nri <- function(dsn = NULL, ...) {
     dplyr::left_join(point_elevation, ., by = c("PrimaryKey", "DBKey")) %>%
     dplyr::distinct()
 
-
-  # normalize ecolsiteID to match AIM data format
-  # R prefix added above during the concatenation
-  # replace the invalid codes with UNKNOWN or NA
-  # -XE - No Eco Site Established code, XW- Water, XR- Road, XI - Inaccessible, or XN - Not eligible
-
   # get a vector of which rows need prefixing
   point_ESD <- point_ESD %>% dplyr::mutate(
     EcologicalSiteId = dplyr::case_when(stringr::str_detect(point_ESD$EcologicalSiteId, "^[0-9]") ~
@@ -350,7 +361,7 @@ gather_header_nri <- function(dsn = NULL, ...) {
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, ...) {
+gather_header <- function(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, tblGapHeader = NULL, ...) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -362,9 +373,9 @@ gather_header <- function(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, ...
   header <- switch(toupper(source),
     "LMF" = gather_header_lmf(dsn = dsn, ...),
     "NRI" = gather_header_nri(dsn = dsn, ...),
-    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, ...),
-    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, ...)
+    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, ...),
+    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, ...),
+    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, ...)
   )
 
   header$source <- source
@@ -807,7 +818,6 @@ lpi_calc <- function(header,
 
 
 
-
   # Combine  all LPI based cover indicators----
   lpi_cover <- dplyr::bind_rows(
     ah_spp_group_cover,
@@ -850,8 +860,8 @@ lpi_calc <- function(header,
       dplyr::group_by(PrimaryKey, DBKey) %>%
       dplyr::summarize(DateVisited = dplyr::first(FormDate,
         order_by = FormDate
-      ) %>%
-        as.POSIXct()) %>%
+      )) %>%
+        # as.POSIXct()) %>%
       # Join to the lpi.cover data
       dplyr::left_join(lpi_indicators, ., by = "PrimaryKey")
   }
@@ -1180,15 +1190,21 @@ soil_stability_calc <- function(header, soil_stability_tall) {
     subset(PrimaryKey %in% header$PrimaryKey)
 
   # Calculate indicators
+
+
   soil_stability_calcs <- soil_stability(soil_stability_tall,
     cover = TRUE
-  ) %>%
-    # Rename fields
-    dplyr::rename(
-      SoilStability_All = all,
-      SoilStability_Protected = covered,
-      SoilStability_Unprotected = uncovered
-    )
+  )
+  if(all(c('all', 'uncovered', 'covered')) %in% colnames(soil_stability_calcs)) {
+    soil_stability_calcs <- soil_stability_calcs  %>%
+      # Rename fields
+      dplyr::rename(
+        SoilStability_All = all,
+        SoilStability_Protected = covered,
+        SoilStability_Unprotected = uncovered
+      )
+  }
+
 
   # Return
   return(soil_stability_calcs)
@@ -1216,8 +1232,8 @@ build_terradat_indicators <- function(header, source, dsn,
   header <- readRDS(header) %>%
     # Filter using the filtering expression specified by user
     dplyr::filter(!!!filter_exprs) %>%
-    dplyr::filter(source %in% c("AIM", "TerrADat")) %>%
-    dplyr::select_if(!names(.) %in% c("DateVisited"))
+    dplyr::filter(source %in% c("AIM", "TerrADat")) #%>%
+    # dplyr::select_if(!names(.) %in% c("DateVisited"))
     # the general header file for LMF has date visited in it, for TerrADat we get that from LPI
     # dplyr::select(-DateVisited)
 
