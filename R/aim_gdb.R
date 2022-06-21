@@ -39,9 +39,8 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
       dsn = dsn, layer = "tblSpecRichHeader",
       stringsAsFactors = FALSE
     )
-
   } else {
-    stop("Provide either tblPlots, tblGapHeader, tblSpecRichHeader, and tblLPIHeader or a path to a GDB containing them")
+    stop("Provide either tblPlots and tblLPIHeader or a path to a GDB containing them")
   }
 
   header <- header %>%
