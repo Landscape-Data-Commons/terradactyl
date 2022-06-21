@@ -9,7 +9,7 @@
 # Build the header portion of the terradat table
 #' @export gather_header_terradat
 #' @rdname aim_gdb
-gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = NULL, ...) {
+gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, ...) {
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -22,15 +22,8 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = N
       dsn = dsn, layer = "tblPlots",
       stringsAsFactors = FALSE
     )
-
-    tblLPIHeader <- sf::st_read(
-      dsn = dsn,
-      layer = "tblLPIHeader",
-      stringsAsFactors = F
-    )
-
   } else {
-    stop("Provide either tblPlots and tblLPIHeader or a path to a GDB containing them")
+    stop("Provide either tblPlots or a path to a GDB containing it")
   }
 
   header <- header %>%
@@ -49,16 +42,8 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = N
     # If there are any Sites with no PrimaryKeys, delete them
     subset(!is.na(PrimaryKey))
 
-  # add datevisited column from LPI header
-  tblDate <- tblLPIHeader %>%
-    dplyr::select(PrimaryKey, FormDate, DBKey) %>%
-    dplyr::group_by(PrimaryKey, DBKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(FormDate,
-                                                order_by = FormDate
-    ) %>%
-      as.POSIXct())
-
-  header <- header %>% dplyr::left_join(tblDate, by = c("PrimaryKey", "DBKey"))
+  # add null datevisited column to these. TO DO: get this data from LPI header
+  header$DateVisited <- NA
 
   # Return the header file
   return(header)
