@@ -15,7 +15,6 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = N
 
   # tblPlots provides the link between species tables
   if(!is.null(tblPlots)){
-  if(!is.null(tblPlots) & !is.null(tblLPIHeader) & !is.null(tblSpecRichHeader) & !is.null(tblGapHeader)){
     header <- tblPlots
   } else if (!is.null(dsn)){
     # (LPI, Height, Species Richness) and tblStateSpecies
