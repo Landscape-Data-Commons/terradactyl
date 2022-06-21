@@ -9,7 +9,7 @@
 # Build the header portion of the terradat table
 #' @export gather_header_terradat
 #' @rdname aim_gdb
-gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = NULL, ...) {
+gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = NULL, tblSpecRichHeader = NULL, ...) {
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
