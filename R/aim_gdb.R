@@ -14,6 +14,7 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL, tblLPIHeader = N
   filter_exprs <- rlang::quos(...)
 
   # tblPlots provides the link between species tables
+  if(!is.null(tblPlots)){
   if(!is.null(tblPlots) & !is.null(tblLPIHeader) & !is.null(tblSpecRichHeader) & !is.null(tblGapHeader)){
     header <- tblPlots
   } else if (!is.null(dsn)){
@@ -374,7 +375,7 @@ gather_header_nri <- function(dsn = NULL, POINT = NULL, ...) {
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, tblGapHeader = NULL, tblSpecRichHeader = NULL, ...) {
+gather_header <- function(dsn, source, ...) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -386,9 +387,9 @@ gather_header <- function(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, tbl
   header <- switch(toupper(source),
     "LMF" = gather_header_lmf(dsn = dsn, ...),
     "NRI" = gather_header_nri(dsn = dsn, ...),
-    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...),
-    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...)
+    "TERRADAT" = gather_header_terradat(dsn = dsn, ...),
+    "AIM" = gather_header_terradat(dsn = dsn, ...),
+    "DIMA" = gather_header_terradat(dsn = dsn, ...)
   )
 
   header$source <- source
