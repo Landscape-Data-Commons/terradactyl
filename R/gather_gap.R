@@ -197,14 +197,16 @@ gather_gap_terradat <- function(dsn = NULL,
 gather_gap_lmf <- function(dsn = NULL,
                            file_type = "gdb",
                            GINTERCEPT = NULL,
-                           POINT = NULL) {
+                           POINT = NULL,
+                           ESFSG = NULL) {
 
-  if(!is.null(GINTERCEPT) & !is.null(POINT)){
+  if(!is.null(GINTERCEPT) & !is.null(POINT) & !is.null(ESFSG)){
     gintercept <- GINTERCEPT
     point <- POINT
+    esfsg <- ESFSG
   } else if(!is.null(dsn) & file_type %in% c("gdb", "csv", "txt")){
     if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a database containing GINTERCEPT and POINT")
+      stop("dsn must be a valid filepath to a database containing GINTERCEPT, POINT, and ESFSG")
     }
     gintercept <- switch(file_type,
                          "gdb" = {
@@ -263,6 +265,36 @@ gather_gap_lmf <- function(dsn = NULL,
     )
 
 
+    # Read in ESFSG for other plot level information (specifically, line lengths)
+    esfsg <- switch(file_type,
+                    "gdb" = {
+                      suppressWarnings(sf::st_read(
+                        dsn = dsn,
+                        layer = "ESFSG",
+                        stringsAsFactors = FALSE,
+                        quiet = T
+                      )) %>%
+                        dplyr::select_if(!names(.) %in% c(
+                          'GlobalID',
+                          'created_user',
+                          'created_date',
+                          'last_edited_user',
+                          'last_edited_date'
+                        ))
+                    },
+                    "txt" = {
+                      read.table(paste(dsn, "esfsg.txt", sep = ""),
+                                 stringsAsFactors = FALSE,
+                                 strip.white = TRUE,
+                                 header = FALSE, sep = "|"
+                      )
+                    },
+                    "csv" = {
+                      stop("csv not currently supported for gap data")
+                      read.csv(point_dsn)
+                    }
+    )
+
     if (file_type == "txt") {
       # Add meaningful column names
       gintercept <- name_variables_nri(
@@ -273,10 +305,13 @@ gather_gap_lmf <- function(dsn = NULL,
         data = gintercept,
         table_name = "POINT"
       )
+      esfsg <- name_variables_nri(
+        data = esfsg,
+        table_name = "ESFSG"
+      )
     }
-  }
-  else {
-    stop("Supply either GINTERCEPT and POINT, or the path to a GDB containing those tables")
+  } else {
+    stop("Supply GINTERCEPT, POINT, and ESFSG or the path to a GDB containing those tables")
   }
 
 
