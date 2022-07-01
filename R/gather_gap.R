@@ -358,7 +358,7 @@ gather_gap_lmf <- function(dsn = NULL,
                                         "END_GAP", "PrimaryKey", "DBKey")) %>%
     dplyr::select(-zero)
 
-  # convert to metric, original data are in decimal feet
+  # convert to metric (cm), original data are in decimal feet
   gintercept$START_GAP <- gintercept$START_GAP * 30.48
   gintercept$END_GAP <- gintercept$END_GAP * 30.48
   gintercept$Gap <- abs(gintercept$END_GAP - gintercept$START_GAP)
