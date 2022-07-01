@@ -418,8 +418,64 @@ gather_gap_lmf <- function(dsn = NULL,
   # units are metric
   gap$Measure <- 1
 
-  # line length of an NRI transect in meters
-  gap$LineLengthAmount <- 150 * 30.48 / 100
+  ## New as of July 2022
+  # This is intended to calculate the total length of transect not designated with
+  # an ESFSG_STATE that indicates non-measurement.
+  # This finds the sum of lengths of transect segments with any ESFSG_STATE values
+  # other than XI, XR, XN, and XW (See section 8.6.2 of the 2022 LMF Handbook)
+  # E.g., the nesw transect on a plot might have a segment from 0 to 25 feet
+  # designated WY, one from 25 to 75 feet designated XW, and a final from 75 to 150
+  # designated WY so the value for LineLengthAmount for that transect would be:
+  # sum(25 - 0, 150 - 75) * 30.48 / 100
+
+  # We're going to calculate the line lengths separately for plots with a COVERAGE
+  # value of "all" because those entries represent two transects
+  # And by "calculate" we mean ASSUME THAT BOTH LINES WERE 150 FEET AND FULLY SAMPLED
+  # because that seems to be what "all" means here
+  line_lengths_all_df <- esfsg %>%
+    dplyr::filter(.data = .,
+                  COVERAGE == "all") %>%
+    data.frame(PRIMARYKEY = unique(.[["PrimaryKey"]]),
+               # Assuming 150 feet per transect, converted to meters
+               LineLengthAmount = 150 * 30.48 / 100,
+               stringsAsFactors = FALSE)
+  # This is a little inelegant, but we want two copies of each of those records:
+  # One where COVERAGE is "nesw" and one where COVERAGE is "nwse"
+  # This is so we can match them to the proper transects in the data
+  line_lengths_all_nesw_df <- line_lengths_all_df
+  line_lengths_all_nesw_df$COVERAGE <- "nesw"
+  line_lengths_all_nwse_df <- line_lengths_all_df
+  line_lengths_all_nwse_df$COVERAGE <- "nwse"
+  line_lengths_all_df <- rbind(line_lengths_all_nwse_df,
+                               line_lengths_all_nesw_df) %>%
+    # COVERAGE will be renamed to LineKey later
+    dplyr::select(PrimaryKey,
+                  COVERAGE,
+                  LineLengthAmount)
+
+  # And now for the trickier bit. This is calculating line lengths per transect
+  line_lengths_notall_df <- esfsg %>%
+    dplyr::filter(.data = .,
+                  # We've already dealt with the "all" records above
+                  COVERAGE != "all",
+                  # We don't want to include unmeasured segments in the calculations
+                  !ESFSG_STATE %in% c("XI", "XN", "XR", "XW")) %>%
+    dplyr::group_by(.data = .,
+                    PrimaryKey,
+                    # COVERAGE will be renamed to LineKey later
+                    COVERAGE) %>%
+    dplyr::summarize(.data = .,
+                     # This finds the sum of the various segments on the transect in meters
+                     LineLengthAmount = sum(END_MARK - START_MARK) * 30.48 / 100)
+
+  # Combine our two data frames of line length info into a single lookup table
+  line_lengths_lookup <- rbind(line_lengths_all_df,
+                               line_lengths_notall_df)
+  names(line_lengths_lookup)[names(line_lengths_lookup) == "COVERAGE"] <- "LineKey"
+
+  # Add LineLengthAmount to gap
+  gap <- dplyr::left_join(x = gap,
+                          y = line_lengths_lookup)
 
   # minimum gap size
   gap$GapMin <- 12 * 2.54
