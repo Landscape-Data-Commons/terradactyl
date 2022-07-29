@@ -1194,7 +1194,7 @@ soil_stability_calc <- function(header, soil_stability_tall) {
   soil_stability_calcs <- soil_stability(soil_stability_tall,
     cover = TRUE
   )
-  if(all(c('all', 'uncovered', 'covered')) %in% colnames(soil_stability_calcs)) {
+  if(all(c('all', 'uncovered', 'covered') %in% colnames(soil_stability_calcs))) {
     soil_stability_calcs <- soil_stability_calcs  %>%
       # Rename fields
       dplyr::rename(
