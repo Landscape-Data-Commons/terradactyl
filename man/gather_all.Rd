@@ -10,8 +10,8 @@ gather_all(
   dflist = NULL,
   outfolder,
   outtype = c("csv", "rdata"),
-  verbose = TRUE,
-  doLPI = TRUE
+  verbose = T,
+  doLPI = T
 )
 }
 \arguments{
@@ -40,7 +40,7 @@ A list of tall data frames containing reformatted input data.
 }
 \description{
 Given wide format AIM/LMF data, gather gap,
-vegetation height, LPI, plot characterization, IIRH, soil horizon,
+vegetation height, LPI, header, IIRH, soil horizon,
 soil pit summary, soil stability, and species inventory data. Missing
 tables will be skipped. AIM-type and LMF-type data will both be processed.
 }

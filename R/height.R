@@ -20,7 +20,6 @@
 #'
 #'
 #' @export mean_height
-
 mean_height <- function(height_tall,
                         method = "mean",
                         omit_zero = FALSE,
@@ -66,15 +65,17 @@ mean_height <- function(height_tall,
       ) %>%
       dplyr::summarize(mean_height = mean(as.numeric(Height))) %>%
       tidyr::unite(indicator,
-        !!!grouping_variables,
-        sep = "."
+                   !!!grouping_variables,
+                   sep = "."
       )
 
     summary <- summary[!grepl(summary$indicator, pattern = "^NA\\.|\\.NA$|\\.NA\\."), ]
 
+    summary$mean_height <- round(summary$mean_height, digits = 2)
+
     # Convert to wide format
     if (!tall) {
-      summary <- summary %>% tidyr::spread(key = indicator, value = mean_height, fill = 0)
+      summary <- summary %>% tidyr::pivot_wider(names_from = indicator, values_from = mean_height, values_fill = 0)
     }
   }
   # Calculate the max height by grouping variable, if method =="max"
@@ -89,10 +90,11 @@ mean_height <- function(height_tall,
       dplyr::summarize(max_height = mean(max)) %>%
       dplyr::filter(!grepl(max_height, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
 
+    summary$max_height <- round(summary$max_height, digits = 2)
+
     # Convert to wide format
     if (!tall) {
-      # summary <- summary %>% tidyr::spread(key = max, value = max_height, fill = 0)
-      summary <- summary %>% tidyr::spread(key = 2:(ncol(summary)-1), value = max_height, fill = 0) # changed 2-22-22, assumes that the rightmost column is the max val, leftmost is primary key, and all others are grouping variables.
+      summary <- summary %>% tidyr::pivot_wider(names_from = Species, values_from = max_height, values_fill = 0)
     }
   }
 

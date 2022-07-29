@@ -63,5 +63,20 @@ soil_stability <- function(soil_stability_tall,
       tidyr::spread(key = Veg, value = rating)
   }
 
+  if("all" %in% colnames(soil_stability_rating_all)){
+    soil_stability_rating_all <- soil_stability_rating_all %>%
+      dplyr::rename(SoilStability_All = all)
+  }
+
+  if("covered" %in% colnames(soil_stability_rating_all)){
+    soil_stability_rating_all <- soil_stability_rating_all %>%
+      dplyr::rename(SoilStability_Protected = covered)
+  }
+
+  if("uncovered" %in% colnames(soil_stability_rating_all)){
+    soil_stability_rating_all <- soil_stability_rating_all %>%
+      dplyr::rename(SoilStability_Unprotected = uncovered)
+  }
+
   return(soil_stability_rating_all)
 }

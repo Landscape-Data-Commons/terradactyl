@@ -20,53 +20,53 @@ gather_lpi(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file 
-extension) of the geodatabase or text file containing the table of interest. 
-This field is unnecessary if you provide either both of tblLPIDetail and 
+\item{dsn}{Character string. The full filepath and filename (including file
+extension) of the geodatabase or text file containing the table of interest.
+This field is unnecessary if you provide either both of tblLPIDetail and
 tblLPIHeader (AIM/DIMA/TerrADat) or PINTERCEPT (LMF/NRI).}
 
-\item{tblLPIDetail}{Dataframe of the data structure tblLPIDetail from the 
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
-tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide 
+\item{tblLPIDetail}{Dataframe of the data structure tblLPIDetail from the
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide
 dsn.}
 
-\item{tblLPIHeader}{Dataframe of the data structure tblLPIHeader from the 
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
-tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide 
+\item{tblLPIHeader}{Dataframe of the data structure tblLPIHeader from the
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide
 dsn.}
 
-\item{file_type}{Character string that denotes the source file type of the 
-LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+\item{file_type}{Character string that denotes the source file type of the
+LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
 AIM/DIMA/TerrADat, or if PINTERCEPT is provided.}
 
-\item{PINTERCEPT}{Dataframe of the data structure PINTERCEPT from the LMF/NRI 
-database with the addition of PrimaryKey and DBKey fields. Use when source 
+\item{PINTERCEPT}{Dataframe of the data structure PINTERCEPT from the LMF/NRI
+database with the addition of PrimaryKey and DBKey fields. Use when source
 is LMF or NRI; alternately provide dsn.}
 
-\item{source}{Character string. The data source format, 
+\item{source}{Character string. The data source format,
 \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
 }
 \value{
 A tall data frame containing the data from the LPI pin intercepts
 }
 \description{
-Given wide format line-point intercept data, create a tall 
+Given wide format line-point intercept data, create a tall
 format data frame usable by other terradactyl functions.
 }
 \examples{
-gather_lpi(dsn = "Path/To/AIM_Geodatabase.gdb", 
+gather_lpi(dsn = "Path/To/AIM_Geodatabase.gdb",
            source = "AIM")
-gather_lpi(dsn = "Path/To/LMF_Geodatabase.gdb", 
+gather_lpi(dsn = "Path/To/LMF_Geodatabase.gdb",
            source = "LMF")
 
 aim_lpidetail <- read.csv("Path/To/tblLPIDetail.csv")
 aim_lpiheader <- read.csv("Path/To/tblLPIHeader.csv")
-gather_lpi(source = "AIM", 
-           tblLPIDetail = aim_lpidetail, 
+gather_lpi(source = "AIM",
+           tblLPIDetail = aim_lpidetail,
            tblLPIHeader = aim_lpiheader)
 
 lmf_pintercept <- read.csv("Path/To/PINTERCEPT.csv")
-gather_lpi(source = "LMF", 
+gather_lpi(source = "LMF",
            RANGEHEALTH = lmf_pintercept)
 }
 \seealso{

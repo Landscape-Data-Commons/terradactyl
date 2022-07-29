@@ -2,7 +2,7 @@
 #' IIRH, soil horizon, soil pit summary, soil stability, and species inventory.
 #'
 #' @description Given wide format AIM/LMF data, gather gap,
-#' vegetation height, LPI, plot characterization, IIRH, soil horizon,
+#' vegetation height, LPI, header, IIRH, soil horizon,
 #' soil pit summary, soil stability, and species inventory data. Missing
 #' tables will be skipped. AIM-type and LMF-type data will both be processed.
 #' @param dsn Character string. The full filepath and filename (including file
@@ -39,11 +39,10 @@
 #' @rdname gather_all
 
 gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", "rdata"),
-                       verbose = TRUE, doLPI = TRUE) {
+                       verbose = T, doLPI = T) {
   # prep ####
   outtype <- tolower(outtype)
 
-  # most people wouldnt put the trailing f-slash on a folder name so add it in
   if(substr(outfolder, nchar(outfolder), nchar(outfolder)) != "/") {
     outfolder <- paste0(outfolder, "/")
   }
@@ -175,82 +174,84 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
   rm(soilstab_aim, soilstab_lmf)
   invisible(gc())
 
-  # LPI and Height ####
+  # LPI ####
   if(doLPI == T){
     if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
       if(verbose) print("Gathering AIM LPI")
       lpi_aim <- gather_lpi(dsn = dsn, file_type = "gdb", source = "AIM",
-                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader) } else {
-                              lpi_aim <- NULL
-                              if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
-                            }
+                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
 
 
 
-    if(("PINTERCEPT" %in% names_rda) |
-       ("PINTERCEPT" %in% names_gdb)){
-      if(verbose) print("Gathering LMF LPI")
-      lpi_lmf <- gather_lpi(dsn = dsn, file_type = "gdb", source = "LMF",
-                            PINTERCEPT = PINTERCEPT)
-    } else {
-      lpi_lmf <- NULL
-      if(verbose) print("PINTERCEPT not found. Skipping LMF LPI.")
-    }
-
-    lpi_tall <- dplyr::bind_rows(lpi_aim, lpi_lmf)
-    if(1 <= nrow(lpi_tall)){
-      if("csv" %in% outtype){
-        write.csv(lpi_tall,
-                  file = paste(outfolder, "lpi_tall.csv", sep = ""), row.names = F)
+      if(("PINTERCEPT" %in% names_rda) |
+         ("PINTERCEPT" %in% names_gdb)){
+        if(verbose) print("Gathering LMF LPI")
+        lpi_lmf <- gather_lpi(dsn = dsn, file_type = "gdb", source = "LMF",
+                              PINTERCEPT = PINTERCEPT)
+      } else {
+        lpi_lmf <- NULL
+        if(verbose) print("PINTERCEPT not found. Skipping LMF LPI.")
       }
-      if("rdata" %in% outtype){
-        saveRDS(lpi_tall,
-                file = paste0(outfolder, "lpi_tall.rdata"))
+
+      lpi_tall <- dplyr::bind_rows(lpi_aim, lpi_lmf)
+      if(1 <= nrow(lpi_tall)){
+        if("csv" %in% outtype){
+          write.csv(lpi_tall,
+                    file = paste(outfolder, "lpi_tall.csv", sep = ""), row.names = F)
+        }
+        if("rdata" %in% outtype){
+          saveRDS(lpi_tall,
+                  file = paste0(outfolder, "lpi_tall.rdata"))
+        }
       }
-    }
-    rm(lpi_aim, lpi_lmf)
-    invisible(gc())
+      rm(lpi_aim, lpi_lmf)
+      invisible(gc())
 
-    # Height ####
-    if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-       ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
-      if(verbose) print("Gathering AIM Height")
-      height_aim <- gather_height(dsn = dsn, file_type = "gdb", source = "AIM",
-                                  tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
-    } else {
-      height_aim <- NULL
-      if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM Height.")
-    }
-
-    if(("PASTUREHEIGHTS" %in% names_rda) |
-       ("PASTUREHEIGHTS" %in% names_gdb)){
-      if(verbose) print("Gathering LMF Height")
-      height_lmf <- gather_height(dsn = dsn, file_type = "gdb", source = "LMF",
-                                  PASTUREHEIGHTS = PASTUREHEIGHTS)
-    } else {
-      height_lmf <- NULL
-      if(verbose) print("PASTUREHEIGHTS not found. Skipping LMF Height.")
-    }
-
-    height_tall <- dplyr::bind_rows(height_aim, height_lmf)
-    if(1 <= nrow(height_tall)){
-      if("csv" %in% outtype){
-        write.csv(height_tall,
-                  file = paste(outfolder, "height_tall.csv", sep = ""), row.names = F)
+      # Height ####
+      if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
+         ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
+        if(verbose) print("Gathering AIM Height")
+        height_aim <- gather_height(dsn = dsn, file_type = "gdb", source = "AIM",
+                                    tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
+      } else {
+        height_aim <- NULL
+        if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM Height.")
       }
-      if("rdata" %in% outtype){
-        saveRDS(height_tall,
-                file = paste0(outfolder, "height_tall.rdata"))
+
+      if(("PASTUREHEIGHTS" %in% names_rda) |
+         ("PASTUREHEIGHTS" %in% names_gdb)){
+        if(verbose) print("Gathering LMF Height")
+        height_lmf <- gather_height(dsn = dsn, file_type = "gdb", source = "LMF",
+                                    PASTUREHEIGHTS = PASTUREHEIGHTS)
+      } else {
+        height_lmf <- NULL
+        if(verbose) print("PASTUREHEIGHTS not found. Skipping LMF Height.")
       }
+
+      height_tall <- dplyr::bind_rows(height_aim, height_lmf)
+      if(1 <= nrow(height_tall)){
+        if("csv" %in% outtype){
+          write.csv(height_tall,
+                    file = paste(outfolder, "height_tall.csv", sep = ""), row.names = F)
+        }
+        if("rdata" %in% outtype){
+          saveRDS(height_tall,
+                  file = paste0(outfolder, "height_tall.rdata"))
+        }
+      }
+      rm(height_lmf, height_aim)
+      invisible(gc())
+
+
+      } else {
+      lpi_aim <- NULL
+      if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
     }
-    rm(height_lmf, height_aim)
-    invisible(gc())
 
-
-  } else {
-    print("doLPI is false, skipping all LPI and Height")
-  }
+} else {
+  print("doLPI is false, skipping all lpi")
+}
 
   # Species inventory ####
   if(("tblSpecRichDetail" %in% names_rda & "tblSpecRichHeader" %in% names_rda) |
@@ -280,11 +281,11 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
 
     if("csv" %in% outtype){
       write.csv(spp_inventory_tall,
-                file = paste(outfolder, "spp_inventory_tall.csv", sep = ""), row.names = F)
+                file = paste(outfolder, "species_inventory_tall.csv", sep = ""), row.names = F)
     }
     if("rdata" %in% outtype){
       saveRDS(spp_inventory_tall,
-              file = paste0(outfolder, "spp_inventory_tall.rdata"))
+              file = paste0(outfolder, "species_inventory_tall.Rdata"))
     }
   }
   rm(spp_inventory_aim, spp_inventory_lmf)
@@ -392,51 +393,68 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
   rm(iirh_aim, iirh_lmf)
   invisible(gc())
 
-  # # header ####
-  if(("tblPlots" %in% names_rda) |
-         ("tblPlots" %in% names_gdb)){
-    header_aim <- gather_header(dsn = dsn, source = "AIM") }else{
-      header_aim <- NULL
-    }
+  # header ####
+  if(("tblPlots" %in% names_rda & "tblLPIHeader" %in% names_rda) |
+     ("tblPlots" %in% names_gdb & "tblLPIHeader" %in% names_rda)){
+    if(verbose) print("Gathering AIM Header")
+    header_aim <- gather_header(dsn = dsn, source = "AIM", tblPlots = tblPlots, tblLPIHeader = tblLPIHeader)
 
+#
+#     if(verbose) print("Gathering AIM plot characterization")
+#     plotchar_aim <- gather_plot_characterization(dsn = dsn,
+#                                                  source = "AIM",
+#                                                  tblPlots = tblPlots)
+
+  } else {
+    header_aim <- NULL
+
+    if(verbose) print("tblPlots not found. Skipping AIM header.")
+  }
   if(("POINT" %in% names_rda) |
-  ("POINT" %in% names_gdb)){
-     header_lmf <- gather_header(dsn = dsn, source = "LMF", ) }else{
-      header_lmf <- NULL
-    }
+     ("POINT" %in% names_gdb)){
+    if(verbose) print("Gathering LMF header")
+    header_lmf <- gather_header(dsn = dsn,
+                                  source = "LMF")
+  } else {
+    header_lmf <- NULL
+    if(verbose) print("POINT not found. Skipping LMF header.")
+  }
 
-  header <- dplyr::bind_rows(header_aim, header_lmf)
-  if(1 <= nrow(header)){
+  header_tall <- dplyr::bind_rows(header_aim, header_lmf)
+  if(1 <= nrow(header_tall)){
     if("csv" %in% outtype){
-      write.csv(header,
+      write.csv(header_tall,
                 file = paste(outfolder, "header.csv", sep = ""), row.names = F)
     }
     if("rdata" %in% outtype){
-      saveRDS(header,
+      saveRDS(header_tall,
               file = paste0(outfolder, "header.rdata"))
-    }
-  }
-  rm(header_lmf, header_aim)
+    }  }
+  rm(header_aim, header_lmf)
   invisible(gc())
-  if(doLPI == T){
 
-  list_out <- list(
-    gap_tall, height_tall, hz_tall, lpi_tall, pit_tall,
-    soilstab_tall, spp_inventory_tall, iirh_tall, header
-  )
+  # # output ####
+  # if(doLPI == T){
+  #
+  # list_out <- list(
+  #   gap_tall, height_tall, hz_tall, lpi_tall, pit_tall, header_tall,
+  #   soilstab_tall, spp_inventory_tall
+  # )
+  #
+  # names(list_out) <- c("Gap", "VegHeight", "SoilHorizons", "LPI", "SoilPitSummary",
+  #                      "Header",
+  #                      "SoilStability", "SpeciesInventory")
+  #
+  # } else {
+  #   list_out <- list(
+  #     gap_tall, hz_tall, #pit_tall,
+  #     header_tall,
+  #     soilstab_tall, spp_inventory_tall
+  #   )
+  #
+  #   names(list_out) <- c("Gap", "SoilHorizons", "SoilPitSummary",
+  #                        "Header", "SoilStability", "SpeciesInventory")
+  # }
 
-  names(list_out) <- c("Gap", "VegHeight", "SoilHorizons", "LPI", "SoilPitSummary",
-                        "SoilStability", "SpeciesInventory", "IIRH", "Header")
-
-  } else {
-    list_out <- list(
-      gap_tall, hz_tall, pit_tall,
-      soilstab_tall, spp_inventory_tall,iirh_tall, header
-    )
-
-    names(list_out) <- c("Gap", "SoilHorizons", "SoilPitSummary",
-                          "SoilStability", "SpeciesInventory","IIRH", "Header")
-  }
-
-  return(list_out)
+  # return(list_out)
 }
