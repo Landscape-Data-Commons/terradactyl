@@ -20,52 +20,52 @@ gather_height(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file 
-extension) of the geodatabase or text file containing the table of interest.  
-This field is unnecessary if you provide either both of tblLPIDetail and 
+\item{dsn}{Character string. The full filepath and filename (including file
+extension) of the geodatabase or text file containing the table of interest.
+This field is unnecessary if you provide either both of tblLPIDetail and
 tblLPIHeader (AIM/DIMA/TerrADat) or PASTUREHEIGHTS (LMF/NRI).}
 
-\item{tblLPIDetail}{Dataframe of the data structure tblLPIDetail from the 
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
-tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide 
+\item{tblLPIDetail}{Dataframe of the data structure tblLPIDetail from the
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide
 dsn.}
 
-\item{tblLPIHeader}{Dataframe of the data structure tblLPIHeader from the 
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with 
-tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide 
+\item{tblLPIHeader}{Dataframe of the data structure tblLPIHeader from the
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide
 dsn.}
 
-\item{file_type}{Character string that denotes the source file type of the 
-LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for 
+\item{file_type}{Character string that denotes the source file type of the
+LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
 AIM/DIMA/TerrADat, or if PASTUREHEIGHTS is provided.}
 
 \item{PASTUREHEIGHTS}{Dataframe of the data structure PASTUREHEIGHTS from the
 LMF/NRI database; alternately provide dsn.}
 
-\item{source}{Character string. The data source format, 
+\item{source}{Character string. The data source format,
 \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
 }
 \value{
 A tall data frame containing the data from the height measurements.
 }
 \description{
-Given wide format line-point intercept data, create a tall 
+Given wide format line-point intercept data, create a tall
 format data frame usable by other terradactyl functions.
 }
 \examples{
-gather_height(dsn = "Path/To/AIM_Geodatabase.gdb", 
+gather_height(dsn = "Path/To/AIM_Geodatabase.gdb",
               source = "AIM")
-gather_height(dsn = "Path/To/LMF_Geodatabase.gdb", 
+gather_height(dsn = "Path/To/LMF_Geodatabase.gdb",
               source = "LMF")
 
 aim_lpidetail <- read.csv("Path/To/tblLPIDetail.csv")
 aim_lpiheader <- read.csv("Path/To/tblLPIHeader.csv")
-gather_height(source = "AIM", 
-              tblLPIDetail = aim_lpidetail, 
+gather_height(source = "AIM",
+              tblLPIDetail = aim_lpidetail,
               tblLPIHeader = aim_lpiheader)
 
 lmf_heights <- read.csv("Path/To/PASTUREHEIGHTS.csv")
-gather_height(source = "LMF", 
+gather_height(source = "LMF",
               PASTUREHEIGHTS = lmf_heights)
 }
 \seealso{

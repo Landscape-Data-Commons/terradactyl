@@ -227,6 +227,9 @@ gather_plot_characterization <- function(dsn = NULL,
                                  dplyr::funs(as.character))
   }
 
+  # reorder so that primary key is leftmost column
+  plotchar <- plotchar %>%
+    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
 
   return(plotchar)
 }
