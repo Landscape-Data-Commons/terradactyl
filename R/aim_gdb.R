@@ -52,7 +52,8 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     # Select the field names we need in the final feature class
     dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey, DBKey,
       EcologicalSiteId = EcolSite, Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, State,
-      County, DateEstablished = EstablishDate, DateLoadedInDb #,
+      County, DateEstablished = EstablishDate, DateLoadedInDb,
+      Design, DesignFlag, Purpose, PurposeFlag#,
       #ProjectName
     ) %>%
 
