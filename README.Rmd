@@ -86,7 +86,7 @@ To use `species_join` you must use the “data_code” parameter to specify the 
 It is important to QC the species list, as any species that are present in the analyzed data but not the species list will not be tallied by any indicators.
 
 ```{r  lpi species join}
-path_specieslist <- "C:/Users/jrbrehm/Documents/Data/tblStateSpecies.csv"
+path_specieslist <- terradactyl::species_list_sample
 
 header <- terradactyl::tall_header_sample
 header[1:6,1:4]
