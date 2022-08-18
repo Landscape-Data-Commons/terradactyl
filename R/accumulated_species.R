@@ -34,7 +34,7 @@ accumulated_species <- function (lpi_tall,
 
   # Subset the header by the filter expressions
   header_sub <- readRDS(header) %>% dplyr::filter(!!!filter_exprs) %>%
-    dplyr::select("PrimaryKey", "PlotID", "DBKey", "State", "SpeciesState","source")
+    dplyr::select("PrimaryKey", "PlotID", "DBKey", "State", "SpeciesState","Latitude_NAD83", "Longitude_NAD83", "source")
 
   # read in LPI and join to species table
   lpi_tall_header <- readRDS(lpi_tall) %>%
