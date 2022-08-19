@@ -173,7 +173,7 @@ gather_lpi_terradat <- function(dsn = NULL,
   lpi_tall <- lpi_tall %>% dplyr::select_if(!names(.) %in% c(
 
      "DateModified", "FormType", "FormType",
-       "DataEntry", "DataErrorChecking")
+       "DataEntry", "DataErrorChecking", "DateVisited")
   )
 
 
@@ -352,7 +352,7 @@ gather_lpi_lmf <- function(dsn = NULL,
   )
 
   lpi_hits_tall <- lpi_hits_tall %>% dplyr::select_if(!names(.) %in% c(
-    'STATE', 'PLOTKEY')
+    'STATE', 'PLOTKEY', "DateVisited")
   )
 
   return(lpi_hits_tall)
