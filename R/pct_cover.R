@@ -43,6 +43,10 @@ pct_cover <- function(lpi_tall,
   ## Get a list of the variables the user wants to group by.
   grouping_variables <- rlang::quos(...)
 
+  # Are there grouping variables? We can use this to decide whether to try to
+  # use them later one
+  use_grouping_variables <- length(grouping_variables) > 0
+
   if (!is.data.frame(lpi_tall)) {
     stop("lpi_tall must be a data frame.")
   }
@@ -101,17 +105,17 @@ pct_cover <- function(lpi_tall,
   lpi_tall <- dplyr::mutate(
     .data = lpi_tall,
     layer = factor(layer,
-      levels = c(
-        "TopCanopy",
-        "Lower1",
-        "Lower2",
-        "Lower3",
-        "Lower4",
-        "Lower5",
-        "Lower6",
-        "Lower7",
-        "SoilSurface"
-      )
+                   levels = c(
+                     "TopCanopy",
+                     "Lower1",
+                     "Lower2",
+                     "Lower3",
+                     "Lower4",
+                     "Lower5",
+                     "Lower6",
+                     "Lower7",
+                     "SoilSurface"
+                   )
     )
   ) %>% dplyr::arrange(layer)
 
@@ -125,59 +129,99 @@ pct_cover <- function(lpi_tall,
 
 
   summary <- switch(hit,
-    "any" = {
-      summary <- lpi_tall %>%
-        # Remove records where there are NAs for the grouping variables
-        dplyr::filter(complete.cases(!!!grouping_variables)) %>%
-        dplyr::group_by(
-          PrimaryKey, LineKey, PointNbr, point_count,
-          !!!grouping_variables
-        ) %>%
-        ## Here's the breakdown of the gnarly parts:
-        # Because this is a tall format, we want just
-        # presence/absence for the indicator at a given point
-        # so we'll write in 1 if any of the layers within that indicator
-        # has a non-NA and non-"" value
-        dplyr::summarize(present = dplyr::if_else(any(!is.na(code) &
-          code != ""), 1, 0)) %>%
-        tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
-        dplyr::ungroup() %>%
-        dplyr::group_by(!!!level, indicator) %>%
-        # Within a plot, find the sum of all the "presents"
-        # then divide by the number of possible hits, which
-        # we added in point_count
-        dplyr::summarize(percent = 100 * sum(present, na.rm = TRUE) / dplyr::first(point_count))
-    },
-    "first" = {
-      summary <- lpi_tall %>%
+                    "any" = {
+                      # Okay! Fork here if using additional grouping variables
+                      if (use_grouping_variables) {
+                        summary <- lpi_tall %>%
+                          # Remove records where there are NAs for the grouping variables
+                          dplyr::filter(complete.cases(!!!grouping_variables)) %>%
+                          dplyr::group_by(
+                            PrimaryKey, LineKey, PointNbr, point_count,
+                            !!!grouping_variables
+                          ) %>%
+                          ## Here's the breakdown of the gnarly parts:
+                          # Because this is a tall format, we want just
+                          # presence/absence for the indicator at a given point
+                          # so we'll write in 1 if any of the layers within that indicator
+                          # has a non-NA and non-"" value
+                          dplyr::summarize(present = dplyr::if_else(any(!is.na(code) &
+                                                                          code != ""), 1, 0)) %>%
+                          tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
+                          dplyr::ungroup() %>%
+                          dplyr::group_by(!!!level, indicator) %>%
+                          # Within a plot, find the sum of all the "presents"
+                          # then divide by the number of possible hits, which
+                          # we added in point_count
+                          dplyr::summarize(percent = 100 * sum(present, na.rm = TRUE) / dplyr::first(point_count))
+                      } else {
+                        summary <- lpi_tall %>%
+                          dplyr::group_by(PrimaryKey, LineKey, PointNbr, point_count) %>%
+                          dplyr::summarize(present = dplyr::if_else(any(!is.na(code) &
+                                                                          code != ""), 1, 0)) %>%
+                          dplyr::ungroup() %>%
+                          # Have to manually add in an indicator because there are no grouping
+                          # variables to use
+                          dplyr::mutate(indicator = "pct_cover_any") %>%
+                          dplyr::group_by(!!!level, indicator) %>%
+                          dplyr::summarize(percent = 100 * sum(present, na.rm = TRUE) / dplyr::first(point_count))
+                      }
 
-        # Strip out all the non-hit codes
-        dplyr::filter(!(code %in% c("", NA, "None", "N"))) %>%
-        dplyr::group_by(PrimaryKey, LineKey, PointNbr, point_count) %>%
-        # Get the first hit at a point
-        dplyr::summarize(code = dplyr::first(code)) %>%
-        # Get all the other fields back
-        merge(
-          x = dplyr::distinct(dplyr::select(
-            lpi_tall,
-            "PrimaryKey",
-            "LineKey",
-            "PointNbr",
-            "code",
-            !!!grouping_variables
-          )),
-          y = .,
-          all.y = TRUE
-        ) %>%
-        tidyr::unite(indicator,
-          !!!grouping_variables,
-          sep = "."
-        ) %>%
-        dplyr::ungroup() %>%
-        dplyr::group_by(!!!level, indicator) %>%
-        dplyr::summarize(percent = 100 * dplyr::n() / dplyr::first(point_count)) %>%
-        dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
-    }
+                    },
+                    "first" = {
+                      if (use_grouping_variables) {
+                        summary <- lpi_tall %>%
+                          # Strip out all the non-hit codes
+                          dplyr::filter(!(code %in% c("", NA, "None", "N"))) %>%
+                          dplyr::group_by(PrimaryKey, LineKey, PointNbr, point_count) %>%
+                          # Get the first hit at a point
+                          dplyr::summarize(code = dplyr::first(code)) %>%
+                          # Get all the other fields back
+                          merge(
+                            x = dplyr::distinct(dplyr::select(
+                              lpi_tall,
+                              "PrimaryKey",
+                              "LineKey",
+                              "PointNbr",
+                              "code",
+                              !!!grouping_variables
+                            )),
+                            y = .,
+                            all.y = TRUE
+                          ) %>%
+                          tidyr::unite(indicator,
+                                       !!!grouping_variables,
+                                       sep = "."
+                          ) %>%
+                          dplyr::ungroup() %>%
+                          dplyr::group_by(!!!level, indicator) %>%
+                          dplyr::summarize(percent = 100 * dplyr::n() / dplyr::first(point_count)) %>%
+                          dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
+                      } else {
+                        summary <- lpi_tall %>%
+                          # Strip out all the non-hit codes
+                          dplyr::filter(!(code %in% c("", NA, "None", "N"))) %>%
+                          dplyr::group_by(PrimaryKey, LineKey, PointNbr, point_count) %>%
+                          # Get the first hit at a point
+                          dplyr::summarize(code = dplyr::first(code)) %>%
+                          # Get all the other fields back
+                          merge(
+                            x = dplyr::distinct(dplyr::select(
+                              lpi_tall,
+                              "PrimaryKey",
+                              "LineKey",
+                              "PointNbr",
+                              "code"
+                            )),
+                            y = .,
+                            all.y = TRUE
+                          ) %>%
+                          dplyr::mutate(indicator = "pct_cover_first") %>%
+                          dplyr::ungroup() %>%
+                          dplyr::group_by(!!!level, indicator) %>%
+                          dplyr::summarize(percent = 100 * dplyr::n() / dplyr::first(point_count)) %>%
+                          dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
+                      }
+                    }
   )
 
   # remove rows with no grouping applied
@@ -204,14 +248,14 @@ pct_cover <- function(lpi_tall,
       # Replace the NA values with 0s because they represent 0% cover for that indicator
       tidyr::replace_na(replace = setNames(
         as.list(rep.int(0,
-          # Make a list of 0s named with the newly-created field names for replace_na()
-          times = length(unique(names(.)[!(names(.) %in% c(
-            "PrimaryKey",
-            "PlotKey",
-            "PlotID",
-            "LineKey",
-            "LineID"
-          ))]))
+                        # Make a list of 0s named with the newly-created field names for replace_na()
+                        times = length(unique(names(.)[!(names(.) %in% c(
+                          "PrimaryKey",
+                          "PlotKey",
+                          "PlotID",
+                          "LineKey",
+                          "LineID"
+                        ))]))
         )),
         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
       ))
