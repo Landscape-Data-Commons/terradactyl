@@ -105,8 +105,14 @@ gap_cover <- function(gap_tall,
     dplyr::ungroup()
 
   # Subset the fields we need to output
-  gap_summary <- gap_summary %>%
-    dplyr::select(PrimaryKey, total_line_length, interval, n, length, percent)
+  if (by_line) {
+    gap_summary <- gap_summary %>%
+      dplyr::select(PrimaryKey, LineKey, total_line_length, interval, n, length, percent)
+  } else {
+    gap_summary <- gap_summary %>%
+      dplyr::select(PrimaryKey, total_line_length, interval, n, length, percent)
+  }
+
 
   # constrain to 2 digits
   gap_summary$percent <- round(gap_summary$percent, digits = 2)
