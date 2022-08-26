@@ -416,5 +416,9 @@ gather_lpi <- function(dsn = NULL,
                              dplyr::funs(as.character))
   }
 
+  # reorder so that primary key is leftmost column
+  lpi <- lpi %>%
+    dplyr::select(PrimaryKey, DBKey, LineKey, RecKey, tidyselect::everything())
+
   return(lpi)
 }

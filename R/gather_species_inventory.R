@@ -238,5 +238,9 @@ gather_species_inventory <- function(dsn = NULL,
                                dplyr::funs(as.character))
   }
 
+  # reorder so that primary key is leftmost column
+  species_inventory <- species_inventory %>%
+    dplyr::select(PrimaryKey, DBKey, LineKey, RecKey, tidyselect::everything())
+
   return(species_inventory)
 }

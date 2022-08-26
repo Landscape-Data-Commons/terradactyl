@@ -88,7 +88,9 @@ mean_height <- function(height_tall,
     summary <- height_tall %>%
       dplyr::group_by(!!!level, !!!grouping_variables) %>%
       dplyr::summarize(max_height = mean(max)) %>%
-      dplyr::filter(!grepl(max_height, pattern = "^[NA.]{0,100}NA$"))
+      dplyr::filter(!grepl(max_height, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
+
+    summary$max_height <- round(summary$max_height, digits = 2)
 
     summary$max_height <- round(summary$max_height, digits = 2)
 

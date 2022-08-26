@@ -230,10 +230,10 @@ gather_rangeland_health <- function(dsn = NULL,
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
-  
-  # IIRH$source <- toupper(source)  
+
+  # IIRH$source <- toupper(source)
   if(nrow(IIRH) > 0) IIRH$source <- source
-  
+
   if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)
 
   if (any(class(IIRH) %in% c("POSIXct", "POSIXt"))) {
@@ -242,6 +242,10 @@ gather_rangeland_health <- function(dsn = NULL,
     IIRH <- dplyr::mutate_at(IIRH, dplyr::vars(change_vars),
                             dplyr::funs(as.character))
   }
+
+  # reorder so that primary key is leftmost column
+  IIRH <- IIRH %>%
+    dplyr::select(PrimaryKey, DBKey, RecKey, tidyselect::everything())
 
   return(IIRH)
 }

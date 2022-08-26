@@ -447,5 +447,9 @@ gather_gap <- function(dsn = NULL,
                             dplyr::funs(as.character))
   }
 
+  # reorder so that primary key is leftmost column
+  gap <- gap %>%
+    dplyr::select(PrimaryKey, DBKey, LineKey, RecKey, tidyselect::everything())
+
   return(gap)
 }
