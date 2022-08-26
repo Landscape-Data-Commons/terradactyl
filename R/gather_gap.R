@@ -431,6 +431,7 @@ gather_gap <- function(dsn = NULL,
                           file_type = file_type,
                           POINT = POINT,
                           GINTERCEPT = GINTERCEPT)
+    gap$RecKey <- NA # This data cannot be found in LMF, but is worth keeping around in TerrADat data
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }

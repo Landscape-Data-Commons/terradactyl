@@ -288,6 +288,9 @@ gather_soil_stability <- function(dsn = NULL,
       dsn = dsn,
       file_type = file_type,
       SOILDISAG = SOILDISAG)
+    soil_stability$LineKey <- NA  # This data cannot be found in LMF, but is worth keeping around in TerrADat data
+    soil_stability$RecKey <- NA  # This data cannot be found in LMF, but is worth keeping around in TerrADat data
+
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }

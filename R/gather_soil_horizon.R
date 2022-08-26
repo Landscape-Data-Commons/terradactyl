@@ -317,6 +317,7 @@ gather_soil_horizon <- function(dsn = NULL,
   } else if(toupper(source) %in% c("LMF", "NRI")){
     #print("a")
     soil <- gather_soil_horizon_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
+    soil$HorizonKey <- NA  # This data cannot be found in LMF, but is worth keeping around in TerrADat data
   } else {
     stop("source must be AIM, TerraDat, DIMA, LMF, or NRI (all case independent)")
   }
