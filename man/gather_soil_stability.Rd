@@ -24,47 +24,47 @@ gather_soil_stability(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file 
-extension) of the geodatabase containing the table of interest. This field 
-is unnecessary if you supply either both of tblSoilStabDetail and 
+\item{dsn}{Character string. The full filepath and filename (including file
+extension) of the geodatabase containing the table of interest. This field
+is unnecessary if you supply either both of tblSoilStabDetail and
 tblSoilStabHeader (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).}
 
-\item{tblSoilStabDetail}{Dataframe of the data structure tblSoilStabDetail 
-from the DIMA database with the addition of PrimaryKey and DBKey fields. 
+\item{tblSoilStabDetail}{Dataframe of the data structure tblSoilStabDetail
+from the DIMA database with the addition of PrimaryKey and DBKey fields.
 Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.}
 
-\item{tblSoilStabHeader}{Dataframe of the data structure tblSoilStabHeader 
-from the DIMA database with the addition of PrimaryKey and DBKey fields. 
+\item{tblSoilStabHeader}{Dataframe of the data structure tblSoilStabHeader
+from the DIMA database with the addition of PrimaryKey and DBKey fields.
 Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.}
 
-\item{source}{Character string. The data source format, can be \code{"AIM"}, 
+\item{source}{Character string. The data source format, can be \code{"AIM"},
 \code{"TerrADat"}, \code{"DIMA"}, \code{"LMF"}, or \code{"NRI"} (case independent).}
 
-\item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from LMF/NRI 
-database with the addition of PrimaryKey and DBKey fields. Use when data 
+\item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from LMF/NRI
+database with the addition of PrimaryKey and DBKey fields. Use when data
 source is LMF or NRI; alternately provide dsn.}
 }
 \value{
 A tall data frame containing soil horizon data.
 }
 \description{
-Given soil stability create a tall format data frame usable by 
+Given soil stability create a tall format data frame usable by
 other terradactyl functions.
 }
 \examples{
-gather_soil_stability(dsn = "Path/To/AIM_Geodatabase.gdb", 
+gather_soil_stability(dsn = "Path/To/AIM_Geodatabase.gdb",
                       source = "AIM")
-gather_soil_stability(dsn = "Path/To/LMF_Geodatabase.gdb", 
+gather_soil_stability(dsn = "Path/To/LMF_Geodatabase.gdb",
                       source = "LMF")
 
 aim_soilstabdetail <- read.csv("Path/To/tblSoilStabDetail.csv")
 aim_soilstabheader <- read.csv("Path/To/tblSoilStabHeader.csv")
-gather_soil_stability(source = "AIM", 
-                      tblSoilStabDetail = aim_soilstabdetail, 
+gather_soil_stability(source = "AIM",
+                      tblSoilStabDetail = aim_soilstabdetail,
                       tblSoilStabHeader = aim_soilstabheader)
 
 lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
-gather_soil_stability(source = "LMF", 
+gather_soil_stability(source = "LMF",
                       SOILHORIZON = lmf_horizons)
 }
 \seealso{

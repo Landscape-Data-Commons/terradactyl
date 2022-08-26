@@ -29,11 +29,12 @@ gather_header_lmf(dsn = NULL, ...)
 gather_header_nri(dsn = NULL, ...)
 
 gather_header(
-  dsn,
+  dsn = NULL,
   source,
   tblPlots = NULL,
   tblLPIHeader = NULL,
   tblGapHeader = NULL,
+  tblSpecRichHeader = NULL,
   ...
 )
 

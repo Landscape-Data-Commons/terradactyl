@@ -18,41 +18,41 @@ gather_soil_horizon(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file 
+\item{dsn}{Character string. The full filepath and filename (including file
 extension) of the geodatabase or text file containing the table of interest.
 This field is unnecessary if you provide either tblSoilPitHorizons
 (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).}
 
-\item{tblSoilPitHorizons}{Dataframe of the data structure tblSoilPitHorizons 
+\item{tblSoilPitHorizons}{Dataframe of the data structure tblSoilPitHorizons
 from the DIMA database with the addition of PrimaryKey and DBKey fields.
 Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.}
 
-\item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from the 
+\item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from the
 LMF/NRI database with the addition of PrimaryKey and DBKey fields;
 alternately provide dsn.}
 
-\item{source}{Character string. The data source format, 
+\item{source}{Character string. The data source format,
 \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
 }
 \value{
 A tall data frame containing soil horzon data.
 }
 \description{
-Given wide format soil horizon data, create a tall 
+Given wide format soil horizon data, create a tall
 format data frame usable by other terradactyl functions.
 }
 \examples{
-gather_soil_horizon(dsn = "Path/To/AIM_Geodatabase.gdb", 
+gather_soil_horizon(dsn = "Path/To/AIM_Geodatabase.gdb",
                     source = "AIM")
-gather_soil_horizon(dsn = "Path/To/LMF_Geodatabase.gdb", 
+gather_soil_horizon(dsn = "Path/To/LMF_Geodatabase.gdb",
                     source = "LMF")
 
 aim_horizons <- read.csv("Path/To/tblSoilPitHorizons.csv")
-gather_soil_horizon(source = "AIM", 
+gather_soil_horizon(source = "AIM",
                     tblSoilPitHorizons = aim_horizons)
 
 lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
-gather_soil_horizon(source = "LMF", 
+gather_soil_horizon(source = "LMF",
                     SOILHORIZON = lmf_horizons)
 }
 \seealso{
