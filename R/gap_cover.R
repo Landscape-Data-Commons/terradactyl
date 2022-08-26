@@ -74,7 +74,7 @@ gap_cover <- function(gap_tall,
     dplyr::left_join(gap_tall, .)
 
   # Find the interval class for each gap
-  breaks <- c(breaks, 100000)
+  breaks <- c(breaks, Inf)
   gap_tall$interval <- cut(gap_tall$Gap, breaks = breaks, right = FALSE)
   gap_tall$interval <- gap_tall$interval %>%
     as.character() %>%
