@@ -80,6 +80,18 @@ gap_cover <- function(gap_tall,
     as.character() %>%
     replace(., is.na(.), "NoGap")
 
+  # I want to clean up the interval labels
+  # They currently are formatted like "[25,51)" but we'd like them as "25-51"
+  gap_tall$interval <- gsub(x = gap_tall$interval,
+                            pattern = "^\\[",
+                            replacement = "")
+  gap_tall$interval <- gsub(x = gap_tall$interval,
+                            pattern = ",",
+                            replacement = "-")
+  gap_tall$interval <- gsub(x = gap_tall$interval,
+                            pattern = "\\)$",
+                            replacement = "")
+
   # Summarize gaps by interval class
   gap_summary <- gap_tall %>%
     dplyr::group_by(!!!level, total_line_length, interval) %>%
