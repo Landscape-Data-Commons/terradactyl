@@ -83,7 +83,8 @@ mean_height <- function(height_tall,
 
     summary <- summary[!grepl(summary$indicator, pattern = "^NA\\.|\\.NA$|\\.NA\\."), ]
 
-    summary$mean_height <- round(summary$mean_height, digits = 2)
+    # quarantined by joe brehm 8/26, with all other rounding code. Need to make these optional parameters
+    # summary$mean_height <- round(summary$mean_height, digits = 2)
 
     # Convert to wide format
     if (!tall) {
@@ -102,9 +103,8 @@ mean_height <- function(height_tall,
       dplyr::summarize(max_height = mean(max)) %>%
       dplyr::filter(!grepl(max_height, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
 
-    summary$max_height <- round(summary$max_height, digits = 2)
-
-    summary$max_height <- round(summary$max_height, digits = 2)
+    # quarantined by joe brehm 8/26, with all other rounding code. Need to make these optional parameters
+    # summary$max_height <- round(summary$max_height, digits = 2)
 
     # Convert to wide format
     if (!tall) {

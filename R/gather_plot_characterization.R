@@ -90,7 +90,6 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
       Slope = suppressWarnings(as.numeric(Slope)),
       Latitude_NAD83 = suppressWarnings(as.numeric(Latitude_NAD83)),
       Longitude_NAD83 = suppressWarnings(as.numeric(Longitude_NAD83)),
-      EcolSite = terradactyl::ecosite_qc(EcolSite),
       MLRA = substr(EcolSite, 2, 5) %>% gsub("NKNO", NA, .)) %>%
     dplyr::select(-SlopeShape)
 
@@ -166,7 +165,7 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
 
   # get ecological site and mlra from ESFSG
   esfsg_lmf <- esfsg_lmf_raw %>% dplyr::mutate(
-    EcolSite = paste0(ESFSG_MLRA, ESFSG_SITE, ESFSG_STATE) %>% ecosite_qc(),
+    EcolSite = paste0(ESFSG_MLRA, ESFSG_SITE, ESFSG_STATE),
     MLRA = ESFSG_MLRA %>% gsub("^$", NA, .)
   ) %>% dplyr::select(
     PrimaryKey, DBKey,

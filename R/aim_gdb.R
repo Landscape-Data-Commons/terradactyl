@@ -382,8 +382,6 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, tblLPIHeader = NU
 
   if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
 
-  header <- header %>% dplyr::mutate(EcologicalSiteId = ecosite_qc(EcologicalSiteId))
-
   return(header)
 }
 
