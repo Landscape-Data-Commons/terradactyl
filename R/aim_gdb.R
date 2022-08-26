@@ -361,7 +361,7 @@ gather_header_nri <- function(dsn = NULL, ...) {
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, tblGapHeader = NULL, ...) {
+gather_header <- function(dsn = NULL, source, tblPlots = NULL, tblLPIHeader = NULL, tblGapHeader = NULL, tblSpecRichHeader = NULL, ...) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -373,9 +373,9 @@ gather_header <- function(dsn, source, tblPlots = NULL, tblLPIHeader = NULL, tbl
   header <- switch(toupper(source),
     "LMF" = gather_header_lmf(dsn = dsn, ...),
     "NRI" = gather_header_nri(dsn = dsn, ...),
-    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, ...),
-    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, ...)
+    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...),
+    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...),
+    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...)
   )
 
   header$source <- source

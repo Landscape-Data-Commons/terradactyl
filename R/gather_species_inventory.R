@@ -192,8 +192,9 @@ gather_species_inventory_lmf <- function(dsn = NULL,
   # rename fields
   species_inventory <- dplyr::rename(species_inventory,
                                      Species = CPLANT
-  ) %>% dplyr::select(., -c(SURVEY:SEQNUM, GlobalID, created_user,
-                            created_date, last_edited_user, last_edited_date))
+  ) %>% dplyr::select(., -c(SURVEY:SEQNUM)) %>%
+    dplyr::select_if(!names(.) %in% c("GlobalID", "created_user",
+                            "created_date", "last_edited_user", "last_edited_date"))
 
   return(species_inventory)
 }
