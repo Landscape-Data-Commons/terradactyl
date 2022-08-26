@@ -57,17 +57,29 @@ mean_height <- function(height_tall,
 
   # Calculate mean height by grouping variable, if method == "mean"
   if (method == "mean") {
-    summary <- height_tall %>%
-      dplyr::filter(!is.na(Height)) %>%
-      dplyr::group_by(
-        !!!level,
-        !!!grouping_variables
-      ) %>%
-      dplyr::summarize(mean_height = mean(as.numeric(Height))) %>%
-      tidyr::unite(indicator,
-                   !!!grouping_variables,
-                   sep = "."
-      )
+    if (length(grouping_variables) > 0) {
+      summary <- height_tall %>%
+        dplyr::filter(!is.na(Height)) %>%
+        dplyr::group_by(
+          !!!level,
+          !!!grouping_variables
+        ) %>%
+        dplyr::summarize(mean_height = mean(as.numeric(Height))) %>%
+        tidyr::unite(indicator,
+                     !!!grouping_variables,
+                     sep = "."
+        )
+    } else {
+      summary <- height_tall %>%
+        dplyr::filter(!is.na(Height)) %>%
+        dplyr::group_by(!!!level) %>%
+        dplyr::summarize(mean_height = mean(as.numeric(Height))) %>%
+        dplyr::mutate(indicator = "mean_height")
+
+      # Reorder variables
+      present_key_vars <- c("PrimaryKey", "LineKey")[c("PrimaryKey", "LineKey") %in% names(summary)]
+      summary <- summary[, c(present_key_vars, "indicator", "mean_height")]
+    }
 
     summary <- summary[!grepl(summary$indicator, pattern = "^NA\\.|\\.NA$|\\.NA\\."), ]
 
