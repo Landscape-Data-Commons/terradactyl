@@ -227,7 +227,6 @@ gather_rangeland_health <- function(dsn = NULL,
     IIRH <- gather_rangeland_health_lmf(dsn = dsn,
                                         file_type = file_type,
                                         RANGEHEALTH = RANGEHEALTH)
-    IIRH$RecKey <- NA  # This data cannot be found in LMF, but is worth keeping around in TerrADat data
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
@@ -246,7 +245,7 @@ gather_rangeland_health <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   IIRH <- IIRH %>%
-    dplyr::select(PrimaryKey, DBKey, RecKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
 
   return(IIRH)
 }

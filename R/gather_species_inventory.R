@@ -221,8 +221,6 @@ gather_species_inventory <- function(dsn = NULL,
       dsn = dsn, file_type = file_type,
       PLANTCENSUS = PLANTCENSUS
     )
-    species_inventory$LineKey <- NA # This data cannot be found in LMF, but is worth keeping around in TerrADat data
-    species_inventory$RecKey <- NA # This data cannot be found in LMF, but is worth keeping around in TerrADat data
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
@@ -242,7 +240,7 @@ gather_species_inventory <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   species_inventory <- species_inventory %>%
-    dplyr::select(PrimaryKey, DBKey, LineKey, RecKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
 
   return(species_inventory)
 }
