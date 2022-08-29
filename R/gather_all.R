@@ -180,9 +180,10 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
       if(verbose) print("Gathering AIM LPI")
       lpi_aim <- gather_lpi(dsn = dsn, file_type = "gdb", source = "AIM",
-                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
-
-
+                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)} else {
+                              lpi_aim <- NULL
+                              if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
+                            }
 
       if(("PINTERCEPT" %in% names_rda) |
          ("PINTERCEPT" %in% names_gdb)){
@@ -244,10 +245,7 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
       invisible(gc())
 
 
-      } else {
-      lpi_aim <- NULL
-      if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
-    }
+
 
 } else {
   print("doLPI is false, skipping all lpi")
@@ -285,7 +283,7 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
     }
     if("rdata" %in% outtype){
       saveRDS(spp_inventory_tall,
-              file = paste0(outfolder, "species_inventory_tall.rdata"))
+              file = paste0(outfolder, "spp_inventory_tall.rdata"))
     }
   }
   rm(spp_inventory_aim, spp_inventory_lmf)
