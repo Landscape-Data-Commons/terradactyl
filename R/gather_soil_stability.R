@@ -288,8 +288,6 @@ gather_soil_stability <- function(dsn = NULL,
       dsn = dsn,
       file_type = file_type,
       SOILDISAG = SOILDISAG)
-    soil_stability$LineKey <- NA  # This data cannot be found in LMF, but is worth keeping around in TerrADat data
-    soil_stability$RecKey <- NA  # This data cannot be found in LMF, but is worth keeping around in TerrADat data
 
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
@@ -308,7 +306,7 @@ gather_soil_stability <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   soil_stability <- soil_stability %>%
-    dplyr::select(PrimaryKey, DBKey, LineKey, RecKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
 
   return(soil_stability)
 }

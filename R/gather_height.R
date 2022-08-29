@@ -330,7 +330,6 @@ gather_height <- function(dsn = NULL,
       dsn = dsn, file_type = file_type,
       PASTUREHEIGHTS = PASTUREHEIGHTS
     )
-    height$RecKey <- NA  # This data cannot be found in LMF, but is worth keeping around in TerrADat data
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
@@ -348,7 +347,7 @@ gather_height <- function(dsn = NULL,
   }
 
   height <- height %>%
-    dplyr::select(PrimaryKey, DBKey, LineKey, RecKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
 
   # Output height
   return(height)
