@@ -39,7 +39,7 @@
 #' @rdname gather_all
 
 gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", "rdata"),
-                       verbose = TRUE, doLPI = TRUE) {
+                       verbose = T, doLPI = T) {
   # prep ####
   outtype <- tolower(outtype)
 
@@ -184,8 +184,6 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
                               lpi_aim <- NULL
                               if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
                             }
-
-
 
       if(("PINTERCEPT" %in% names_rda) |
          ("PINTERCEPT" %in% names_gdb)){
