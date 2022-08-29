@@ -285,7 +285,7 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
     }
     if("rdata" %in% outtype){
       saveRDS(spp_inventory_tall,
-              file = paste0(outfolder, "species_inventory_tall.Rdata"))
+              file = paste0(outfolder, "species_inventory_tall.rdata"))
     }
   }
   rm(spp_inventory_aim, spp_inventory_lmf)

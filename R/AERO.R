@@ -4,7 +4,7 @@
 #' @param height_tall Table. Height data in tall format
 #' @param lpi_tall Table. Line-point intercept data in tall format
 #' @param header Table. Contains PrimaryKey, Latitude, and Longitude
-#' @param texture_file Raster or csv. Soil texture raster(as Rdata file) with sand and clay percentages or CSV which provides soil texture classes from 12 USDA classes.
+#' @param texture_file Raster or csv. Soil texture raster(as rdata file) with sand and clay percentages or CSV which provides soil texture classes from 12 USDA classes.
 #' @param folder_location Character. Location for function to save AERO input files
 #' @return AERO input files and an input_summary table which summarizes all input values in a single place.
 #'
@@ -30,7 +30,7 @@ aero<- function (lpi_tall,
 
 
   } else if (grepl(x = texture_file,
-                   pattern = ".Rdata$")) {
+                   pattern = ".rdata$")) {
     texture_raster <- readRDS(texture_file)
     plots<-sp::SpatialPointsDataFrame(data=header,
                                       coords=cbind(y=header$Longitude_NAD83,
@@ -58,7 +58,7 @@ aero<- function (lpi_tall,
     plots_texture <- plots_texture@data
 
   } else {
-    stop("Invalid texture file provided. Make sure it is either a raster (stored in Rdata) or a csv.")
+    stop("Invalid texture file provided. Make sure it is either a raster (stored in rdata) or a csv.")
   }
 
     # Calculate mean maximum height for each plot

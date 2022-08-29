@@ -11,21 +11,21 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   filter_exprs <- rlang::quos(...)
 
   # Read header information to provide subset and link between species tables
-  header <- readRDS(paste(dsn_tall, "header.Rdata", sep = ""))
+  header <- readRDS(paste(dsn_tall, "header.rdata", sep = ""))
   header_sub <- header %>% dplyr::filter(!!!filter_exprs)
 
   # Read in LPI
-  lpi <- readRDS(paste(dsn_tall, "lpi_tall.Rdata", sep = "")) %>%
+  lpi <- readRDS(paste(dsn_tall, "lpi_tall.rdata", sep = "")) %>%
     dplyr::select(PrimaryKey, Species = code) %>%
     dplyr::left_join(header_sub, .)
 
 
   # Read in height
-  height <- readRDS(paste(dsn_tall, "height_tall.Rdata", sep = "")) %>%
+  height <- readRDS(paste(dsn_tall, "height_tall.rdata", sep = "")) %>%
     dplyr::left_join(header_sub, .)
 
   # Species inventory
-  spp_inventory <- readRDS(paste(dsn_tall, "spp_inventory_tall.Rdata", sep = "")) %>%
+  spp_inventory <- readRDS(paste(dsn_tall, "spp_inventory_tall.rdata", sep = "")) %>%
     dplyr::select(PrimaryKey, Species) %>%
     dplyr::left_join(header_sub, .)
 
