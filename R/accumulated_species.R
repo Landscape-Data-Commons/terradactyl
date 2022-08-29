@@ -1,18 +1,18 @@
 #' Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.
-#' @param lpi_tall File path to LPI Rdata file
-#' @param height_tall File path to height Rdata file
-#' @param species_inventory_tall File path to species inventory Rdata file
+#' @param lpi_tall File path to LPI rdata file
+#' @param height_tall File path to height rdata file
+#' @param species_inventory_tall File path to species inventory rdata file
 #' @param species_file File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.
-#' @param header File path to header Rdata file
+#' @param header File path to header rdata file
 #' @param ... Optional filtering expression to subset the number of plots
 #' @examples
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 #' # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
 
-#'accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.Rdata",
-#'                                                       spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.Rdata",
-#'                                                        height_tall = "~/AIM/Data/height_tall.Rdata",
-#'                                                        header = "~/AIM/Data/header.Rdata",
+#'accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.rdata",
+#'                                                       spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.rdata",
+#'                                                        height_tall = "~/AIM/Data/height_tall.rdata",
+#'                                                        header = "~/AIM/Data/header.rdata",
 #'                                                        species_file = "species_file.csv",
 #'                                                        SpeciesState %in% "NM")
 
