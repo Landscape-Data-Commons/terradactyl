@@ -180,7 +180,10 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
       if(verbose) print("Gathering AIM LPI")
       lpi_aim <- gather_lpi(dsn = dsn, file_type = "gdb", source = "AIM",
-                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)}
+                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)} else {
+                              lpi_aim <- NULL
+                              if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
+                            }
 
 
 
@@ -244,10 +247,7 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
       invisible(gc())
 
 
-      } else {
-      lpi_aim <- NULL
-      if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
-    }
+
 
 } else {
   print("doLPI is false, skipping all lpi")
