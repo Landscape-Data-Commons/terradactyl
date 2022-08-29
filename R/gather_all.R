@@ -39,7 +39,7 @@
 #' @rdname gather_all
 
 gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", "rdata"),
-                       verbose = TRUE, doLPI = TRUE) {
+                       verbose = T, doLPI = T) {
   # prep ####
   outtype <- tolower(outtype)
 
@@ -180,7 +180,7 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
       if(verbose) print("Gathering AIM LPI")
       lpi_aim <- gather_lpi(dsn = dsn, file_type = "gdb", source = "AIM",
-                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)}
+                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
 
 
 
