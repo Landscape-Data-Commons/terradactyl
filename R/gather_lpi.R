@@ -399,7 +399,6 @@ gather_lpi <- function(dsn = NULL,
     lpi <- gather_lpi_lmf(dsn = dsn,
                           file_type = file_type,
                           PINTERCEPT = PINTERCEPT)
-    lpi$RecKey <- NA # This data cannot be found in LMF, but is worth keeping around in TerrADat data
     lpi$chckbox <- NA
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
@@ -420,7 +419,7 @@ gather_lpi <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   lpi <- lpi %>%
-    dplyr::select(PrimaryKey, DBKey, LineKey, RecKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
 
   return(lpi)
 }

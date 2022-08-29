@@ -317,7 +317,6 @@ gather_soil_horizon <- function(dsn = NULL,
   } else if(toupper(source) %in% c("LMF", "NRI")){
     #print("a")
     soil <- gather_soil_horizon_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
-    soil$HorizonKey <- NA  # This data cannot be found in LMF, but is worth keeping around in TerrADat data
   } else {
     stop("source must be AIM, TerraDat, DIMA, LMF, or NRI (all case independent)")
   }
@@ -337,7 +336,7 @@ gather_soil_horizon <- function(dsn = NULL,
   soil <- as.data.frame(soil) %>%
 
   # reorder so that primary key is leftmost column
-    dplyr::select(PrimaryKey, DBKey, HorizonKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
 
   return(soil)
 }
