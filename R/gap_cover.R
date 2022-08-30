@@ -80,8 +80,7 @@ gap_cover <- function(gap_tall,
     as.character() %>%
     replace(., is.na(.), "NoGap")
 
-  # I want to clean up the interval labels
-  # They currently are formatted like "[25,51)" but we'd like them as "25-51"
+  # Clean up the interval labels. They currently are formatted like "[25,51)" but we'd like them as "25-51"
   gap_tall$interval <- gsub(x = gap_tall$interval,
                             pattern = "^\\[",
                             replacement = "")
@@ -123,6 +122,36 @@ gap_cover <- function(gap_tall,
     dplyr::select(., -n, -percent) %>%
     tidyr::spread(key = interval, value = length, fill = 0)
 
+  # add absent columns
+  if(!("20-25" %in% gap_summary$interval)){
+    percent$`20-25` <- 0
+    n$`20-25` <- 0
+    length$`20-25` <- 0
+  }
+
+  if(!("25-51" %in% gap_summary$interval)){
+    percent$`25-51` <- 0
+    n$`25-51` <- 0
+    length$`25-51` <- 0
+  }
+
+  if(!("51-101" %in% gap_summary$interval)){
+    percent$`51-101` <- 0
+    n$`51-101` <- 0
+    length$`51-101` <- 0
+  }
+
+  if(!("101-201" %in% gap_summary$interval)){
+    percent$`101-201` <- 0
+    n$`101-201` <- 0
+    length$`101-201` <- 0
+  }
+
+  if(!("201-Inf" %in% gap_summary$interval)){
+    percent$`201-Inf` <- 0
+    n$`201-Inf` <- 0
+    length$`201-Inf` <- 0
+  }
 
   ## If tall=FALSE, then convert to wide format
   if (!tall) {

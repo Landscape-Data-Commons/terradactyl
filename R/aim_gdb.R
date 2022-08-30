@@ -16,31 +16,16 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
   filter_exprs <- rlang::quos(...)
 
   # tblPlots provides the link between species tables
-  if(!is.null(tblPlots) & !is.null(tblLPIHeader) & !is.null(tblSpecRichHeader)){
+  if(!is.null(tblPlots)){
     header <- tblPlots
-    tblLPIHeader <- tblLPIHeader
-    tblGapHeader <- tblGapHeader
-    tblSpecRichHeader <- tblSpecRichHeader
   } else if (!is.null(dsn)){
     # (LPI, Height, Species Richness) and tblStateSpecies
     header <- sf::st_read(
       dsn = dsn, layer = "tblPlots",
       stringsAsFactors = FALSE
     )
-    tblLPIHeader <- sf::st_read(
-      dsn = dsn, layer = "tblLPIHeader",
-      stringsAsFactors = FALSE
-    )
-    tblGapHeader <- sf::st_read(
-      dsn = dsn, layer = "tblGapHeader",
-      stringsAsFactors = FALSE
-    )
-    tblSpecRichHeader <- sf::st_read(
-      dsn = dsn, layer = "tblSpecRichHeader",
-      stringsAsFactors = FALSE
-    )
   } else {
-    stop("Provide either tblPlots and tblLPIHeader or a path to a GDB containing them")
+    stop("Provide either tblPlots or a path to a GDB containing it")
   }
 
   header <- header %>%
@@ -52,7 +37,7 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     # Select the field names we need in the final feature class
     dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey, DBKey,
       EcologicalSiteId = EcolSite, Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, State,
-      County, DateEstablished = EstablishDate, DateLoadedInDb,
+      County, DateEstablished = EstablishDate, DateLoadedInDB,
       Design, DesignFlag, Purpose, PurposeFlag#,
       #ProjectName
     ) %>%
@@ -60,21 +45,48 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     # If there are any Sites with no PrimaryKeys, delete them
     subset(!is.na(PrimaryKey))
 
-  # add datevisited column from LPI header and gap header.
-  tblDate1 <- tblLPIHeader %>%
-    dplyr::select(PrimaryKey, FormDate) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+  # load all of lpi gap and species richness headers, as present in the geodatabase
+  if(!is.null(dsn)){
+    layernames <- sf::st_layers(dsn)$name
+    if("tblLPIHeader" %in% layernames){
+      tblLPIHeader <- sf::st_read(dsn, "tblLPIHeader")
+    }
+    if("tblGapHeader" %in% layernames){
+      tblGapHeader <- sf::st_read(dsn, "tblGapHeader")
+    }
+    if("tblSpecRichHeader" %in% layernames){
+      tblSpecRichHeader <- sf::st_read(dsn, "tblSpecRichHeader")
+    }
+  }
 
-  tblDate2 <- tblGapHeader %>%
-    dplyr::select(PrimaryKey, FormDate) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+  # add datevisited column from LPI header, gap, and species richness header, when present.
+  if(!is.null(tblLPIHeader)){
+    tblDate1 <- tblLPIHeader %>%
+      dplyr::select(PrimaryKey, FormDate) %>%
+      dplyr::group_by(PrimaryKey) %>%
+      dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+  } else {
+    tblDate1 <- NULL
+  }
 
-  tblDate3 <- tblSpecRichHeader %>%
-    dplyr::select(PrimaryKey, FormDate) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+  if(!is.null(tblGapHeader)){
+    tblDate2 <- tblGapHeader %>%
+      dplyr::select(PrimaryKey, FormDate) %>%
+      dplyr::group_by(PrimaryKey) %>%
+      dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+  } else {
+    tblDate2 <- NULL
+  }
+
+  if(!is.null(tblSpecRichHeader)){
+    tblDate3 <- tblSpecRichHeader %>%
+      dplyr::select(PrimaryKey, FormDate) %>%
+      dplyr::group_by(PrimaryKey) %>%
+      dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+  } else {
+    tblDate3 <- NULL
+  }
+
 
   tblDate <-
     rbind(tblDate1, tblDate2) %>%
@@ -144,8 +156,8 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     dplyr::mutate(PlotKey = PrimaryKey) %>%
     dplyr::distinct() %>%
 
-    # Populate DateLoadedInDb
-    dplyr::mutate(DateLoadedInDb = DBKey)
+    # Populate DateLoadedInDB
+    dplyr::mutate(DateLoadedInDB = DBKey)
 
   # Get the field coordinates
   point_coordinate <- sf::st_read(
@@ -267,8 +279,8 @@ gather_header_nri <- function(dsn = NULL, ...) {
     ) %>%
     dplyr::distinct() %>%
 
-    # Populate DateLoadedInDb
-    dplyr::mutate(DateLoadedInDb = DBKey)
+    # Populate DateLoadedInDB
+    dplyr::mutate(DateLoadedInDB = DBKey)
 
   # Get the field coordinates
   point_coordinate <- read.csv(file.path(dsn, "POINTCOORDINATES.csv"),
