@@ -32,14 +32,25 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     as.data.frame() %>%
 
     # Filter using the filtering expression specified by user
-    dplyr::filter(!!!filter_exprs) %>%
+    dplyr::filter(!!!filter_exprs)
 
+  # data from different sources / years capitalize this differently.
+  if("DateLoadedInDB" %in% colnames(header)) header$DateLoadedInDb <- header$DateLoadedInDB
+
+  # add these fields if missing
+  if(!("Design" %in% colnames(header))) header$Design <- NA
+  if(!("DesignFlag" %in% colnames(header))) header$DesignFlag <- NA
+  if(!("Purpose" %in% colnames(header))) header$Purpose <- NA
+  if(!("PurposeFlag" %in% colnames(header))) header$PurposeFlag <- NA
+  if(!("ProjectName" %in% colnames(header))) header$ProjectName <- NA
+
+  header <- header %>%
     # Select the field names we need in the final feature class
     dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey, DBKey,
       EcologicalSiteId = EcolSite, Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, State,
-      County, DateEstablished = EstablishDate, DateLoadedInDB,
-      Design, DesignFlag, Purpose, PurposeFlag#,
-      #ProjectName
+      County, DateEstablished = EstablishDate, DateLoadedInDb,
+      Design, DesignFlag, Purpose, PurposeFlag,
+      ProjectName
     ) %>%
 
     # If there are any Sites with no PrimaryKeys, delete them
