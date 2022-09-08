@@ -35,7 +35,9 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     dplyr::filter(!!!filter_exprs)
 
   # data from different sources / years capitalize this differently.
-  if("DateLoadedInDB" %in% colnames(header)) header$DateLoadedInDb <- header$DateLoadedInDB
+  if("DateLoadedInDB" %in% colnames(header) | !("DateLoadedInDb" %in% colnames(header))) {
+    header$DateLoadedInDb <- header$DateLoadedInDB
+  }
 
   # add these fields if missing
   if(!("Design" %in% colnames(header))) header$Design <- NA
@@ -75,7 +77,7 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     tblDate1 <- tblLPIHeader %>%
       dplyr::select(PrimaryKey, FormDate) %>%
       dplyr::group_by(PrimaryKey) %>%
-      dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+      dplyr::summarize(DateVisited = dplyr::first(na.omit(FormDate), order_by = FormDate))
   } else {
     tblDate1 <- NULL
   }
@@ -84,7 +86,7 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     tblDate2 <- tblGapHeader %>%
       dplyr::select(PrimaryKey, FormDate) %>%
       dplyr::group_by(PrimaryKey) %>%
-      dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+      dplyr::summarize(DateVisited = dplyr::first(na.omit(FormDate), order_by = FormDate))
   } else {
     tblDate2 <- NULL
   }
@@ -93,7 +95,7 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     tblDate3 <- tblSpecRichHeader %>%
       dplyr::select(PrimaryKey, FormDate) %>%
       dplyr::group_by(PrimaryKey) %>%
-      dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+      dplyr::summarize(DateVisited = dplyr::first(na.omit(FormDate), order_by = FormDate))
   } else {
     tblDate3 <- NULL
   }
