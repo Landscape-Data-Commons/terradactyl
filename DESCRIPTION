@@ -1,7 +1,7 @@
 Package: terradactyl
 Type: Package
 Title: Tools for Creating and Using TerrADat
-Version: 0.1.5
+Version: 1.0.0
 Author: c(person(given="Sarah", family="McCord", role=c("aut", "cre"), email="sarah.mccord@ars.usda.gov"), person(given="Nelson", family="Stauffer", role="aut"))
 Maintainer: Sarah McCord <sarah.mccord@usda.gov>
 Description: Access, tidy, and calculate standard indicators for data from the BLM AIM program, the BLM LMF program, and the NRCS NRI monitoring programs.
