@@ -25,6 +25,8 @@ library(terradactyl)
 `terradactyl` can be used to gather core rangeland monitoring data into a standard format, calculate standardized indicators, custom indicators, and produce consistent data models. There are also a few quality control scripts available to help users ensure that species data are handled correctly.
 The basic workflow of `terradactyl` is to first gather data into a standard format, also called a tall table. Then calculate indicators based on that format and grouping variables (if relevant). For some commonly calculated groups of indicators, such as for the AIM program or model inputs, there are also data model functions which take the tall table files and other data and produce data outputs specific to that user need. 
 
+Recommended Citation:
+McCord, S.E., J.R. Brehm, S.H. Burnett, C. Dietrich, B. Edwards, M. Hernandez-Narvaez, E. Kachergis, L.J. Metz, F. Pierson, K.S. Ramirez, N.G. Stauffer, N.P. Webb, C.E. Tweedie. A framework and toolset for standardizing ecosystem indicators. Ecological Indicators, vol 144, 2022. https://doi.org/10.1016/j.ecolind.2022.109511.
 
 ![Visualization of terradactyl workflow](C:\Users\jrbrehm\Documents\GitHub\terradactyl\man\figures\data-flow.png)
  
