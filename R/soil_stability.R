@@ -18,7 +18,10 @@ soil_stability <- function(soil_stability_tall,
   soil_stability_rating <- list()
 
   # Remove NA Rating values
-  soil_stability_tall <- subset(soil_stability_tall, !is.na(Rating))
+  # ensure that rating is numeric
+  soil_stability_tall <- soil_stability_tall %>%
+    dplyr::filter(!is.na(Rating)) %>%
+    dplyr::mutate(Rating = as.numeric(Rating))
 
   # Calculate a mean rating for all cover types
   if (all == TRUE) {
