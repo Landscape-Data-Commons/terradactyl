@@ -28,7 +28,7 @@ The basic workflow of `terradactyl` is to first gather data into a standard form
 Recommended Citation:
 McCord, S.E., J.R. Brehm, S.H. Burnett, C. Dietrich, B. Edwards, M. Hernandez-Narvaez, E. Kachergis, L.J. Metz, F. Pierson, K.S. Ramirez, N.G. Stauffer, N.P. Webb, C.E. Tweedie. A framework and toolset for standardizing ecosystem indicators. Ecological Indicators, vol 144, 2022. https://doi.org/10.1016/j.ecolind.2022.109511.
 
-![Visualization of terradactyl workflow](C:\Users\jrbrehm\Documents\GitHub\terradactyl\man\figures\data-flow.png)
+![Visualization of terradactyl workflow](C:/Users/jrbrehm/Documents/GitHub/terradactyl/man/figures/data-flow.png)
  
  
 `terradactyl` relies on a few common organizing principles across functions. “PrimaryKey” refers to the unique plot-visit identifier and allows us to join tall tables across methods. In many instances, “PrimaryKey” is built using a combination of the Plot ID and the visit date. In all instances, “PrimaryKey” values must be established prior to using `terradactyl.` “LineKey” is optional and refers to individual transects (subsamples) collected at a plot. “DBKey” refers to the original database file, which allows us to track data provenance during QC. 'source' refers to a particular format type. Common sources are AIM, TerrADat, LMF, NRI. Data may be of source = 'AIM' but not belong to the AIM program, it just notes the original data format type. 

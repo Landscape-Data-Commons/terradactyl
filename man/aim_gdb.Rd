@@ -21,15 +21,7 @@ gather_header_lmf(dsn = NULL, ...)
 
 gather_header_nri(dsn = NULL, ...)
 
-gather_header(
-  dsn = NULL,
-  source,
-  tblPlots = NULL,
-  tblLPIHeader = NULL,
-  tblGapHeader = NULL,
-  tblSpecRichHeader = NULL,
-  ...
-)
+gather_header(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, ...)
 
 lpi_calc(header, lpi_tall, species_file, source, dsn)
 
