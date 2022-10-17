@@ -62,20 +62,31 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
   ## get date from all tables provided to date_tables
   # if date_tables is not provided, load all of lpi gap and species richness headers, as present in the geodatabase
   if(!is.null(dsn) & is.null(date_tables)){
-    print("Reading dates from tblLPIHeader, tblGapHeader, and tblSpecRichHeader")
     layernames <- sf::st_layers(dsn)$name
     if("tblLPIHeader" %in% layernames){
+      print("Reading dates from tblLPIHeader")
       tblLPIHeader <- sf::st_read(dsn, "tblLPIHeader")
     }
     if("tblGapHeader" %in% layernames){
+      print("Reading dates from tblGapHeader")
       tblGapHeader <- sf::st_read(dsn, "tblGapHeader")
     }
     if("tblSpecRichHeader" %in% layernames){
+      print("Reading dates from tblSpecRichHeader")
       tblSpecRichHeader <- sf::st_read(dsn, "tblSpecRichHeader")
     }
 
     date_tables <- list(tblLPIHeader, tblGapHeader, tblSpecRichHeader)
   }
+
+  if(is.null(date_tables) & is.null(dsn)){
+    stop("date_tables must be provided if dsn is not. Provide a list of tables containing FormDate or collectDate")
+  }
+
+  if(class(date_tables) != "list"){
+    stop("date_tables must be a list of minimum length 1")
+  }
+
 
   # tblHorizontalFlux uses collectDate, most other tables use FormDate
   tblDate <- lapply(date_tables, function(date_table){
@@ -375,7 +386,7 @@ gather_header_nri <- function(dsn = NULL, ...) {
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn = NULL, source, tblPlots = NULL, tblLPIHeader = NULL, tblGapHeader = NULL, tblSpecRichHeader = NULL, ...) {
+gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, ...) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -387,9 +398,9 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, tblLPIHeader = NU
   header <- switch(toupper(source),
     "LMF" = gather_header_lmf(dsn = dsn, ...),
     "NRI" = gather_header_nri(dsn = dsn, ...),
-    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...),
-    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...)
+    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
+    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
+    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...)
   )
 
   header$source <- source
