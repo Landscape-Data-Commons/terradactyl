@@ -90,8 +90,13 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
 
   # tblHorizontalFlux uses collectDate, most other tables use FormDate
   tblDate <- lapply(date_tables, function(date_table){
-    if("FormDate" %in% colnames(date_table)) out <- date_table %>% dplyr::select(PrimaryKey, Date = FormDate)
-    if("collectDate" %in% colnames(date_table)) out <- date_table %>% dplyr::select(PrimaryKey, Date = collectDate)
+    if("FormDate" %in% colnames(date_table)) {
+      out <- date_table %>% dplyr::select(PrimaryKey, Date = FormDate)
+    } else if("collectDate" %in% colnames(date_table)) {
+      out <- date_table %>% dplyr::select(PrimaryKey, Date = collectDate)
+    } else {
+      out <- data.frame()
+    }
 
     return(out)
   }) %>%
