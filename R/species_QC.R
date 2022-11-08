@@ -15,19 +15,34 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   header_sub <- header %>% dplyr::filter(!!!filter_exprs)
 
   # Read in LPI
-  lpi <- readRDS(paste(dsn_tall, "lpi_tall.rdata", sep = "")) %>%
-    dplyr::select(PrimaryKey, Species = code) %>%
-    dplyr::left_join(header_sub, .)
+  if(file.exists(paste(dsn_tall, "lpi_tall.rdata", sep = ""))){
+    lpi <- readRDS(paste(dsn_tall, "lpi_tall.rdata", sep = "")) %>%
+      dplyr::select(PrimaryKey, Species = code) %>%
+      dplyr::left_join(header_sub, .)
+  } else {
+    print("No LPI data found")
+    lpi <- NULL
+  }
 
 
   # Read in height
-  height <- readRDS(paste(dsn_tall, "height_tall.rdata", sep = "")) %>%
-    dplyr::left_join(header_sub, .)
+  if(file.exists(paste(dsn_tall, "height_tall.rdata", sep = ""))){
+    height <- readRDS(paste(dsn_tall, "height_tall.rdata", sep = "")) %>%
+      dplyr::left_join(header_sub, .)
+  } else {
+    print("No height data found")
+    height <- NULL
+  }
 
   # Species inventory
-  spp_inventory <- readRDS(paste(dsn_tall, "spp_inventory_tall.rdata", sep = "")) %>%
-    dplyr::select(PrimaryKey, Species) %>%
-    dplyr::left_join(header_sub, .)
+  if(file.exists(paste(dsn_tall, "spp_inventory_tall.rdata", sep = ""))){
+    spp_inventory <- readRDS(paste(dsn_tall, "spp_inventory_tall.rdata", sep = "")) %>%
+      dplyr::select(PrimaryKey, Species) %>%
+      dplyr::left_join(header_sub, .)
+  } else {
+    print("No species inventory data found")
+    spp_inventory <- NULL
+  }
 
 
   # Merge all Species together with header data

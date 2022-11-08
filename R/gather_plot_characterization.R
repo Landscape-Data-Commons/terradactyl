@@ -90,6 +90,7 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
       Slope = suppressWarnings(as.numeric(Slope)),
       Latitude_NAD83 = suppressWarnings(as.numeric(Latitude_NAD83)),
       Longitude_NAD83 = suppressWarnings(as.numeric(Longitude_NAD83)),
+      PrimaryKey = as.character(PrimaryKey),
       MLRA = substr(EcolSite, 2, 5) %>% gsub("NKNO", NA, .)) %>%
     dplyr::select(-SlopeShape)
 

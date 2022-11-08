@@ -5,10 +5,10 @@
 \title{Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.}
 \usage{
 accumulated_species(
-  lpi_tall,
-  height_tall,
-  spp_inventory_tall,
   header,
+  lpi_tall = NULL,
+  height_tall = NULL,
+  spp_inventory_tall = NULL,
   species_file = "",
   dead = TRUE,
   source = c("TerrADat", "AIM", "LMF", "NRI"),
@@ -16,17 +16,17 @@ accumulated_species(
 )
 }
 \arguments{
+\item{header}{File path to header rdata file}
+
 \item{lpi_tall}{File path to LPI rdata file}
 
 \item{height_tall}{File path to height rdata file}
 
-\item{header}{File path to header rdata file}
+\item{spp_inventory_tall}{File path to species inventory rdata file}
 
 \item{species_file}{File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.}
 
 \item{...}{Optional filtering expression to subset the number of plots}
-
-\item{species_inventory_tall}{File path to species inventory rdata file}
 }
 \description{
 Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.
