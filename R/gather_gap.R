@@ -63,7 +63,8 @@ gather_gap_terradat <- function(dsn = NULL,
         'last_edited_user',
         'last_edited_date',
         'DateLoadedInDb',
-        'DateLoadedinDB'
+        'DateLoadedinDB',
+        "rid"
       ))
     gap_header <- tblGapHeader %>%
       dplyr::select_if(!names(.) %in% c(
@@ -73,7 +74,8 @@ gather_gap_terradat <- function(dsn = NULL,
         'last_edited_user',
         'last_edited_date',
         'DateLoadedInDb',
-        'DateLoadedInDB'
+        'DateLoadedInDB',
+        "rid"
       ))
   } else if(!is.null(dsn)){
     if (!file.exists(dsn)) {
@@ -94,7 +96,8 @@ gather_gap_terradat <- function(dsn = NULL,
         'last_edited_user',
         'last_edited_date',
         'DateLoadedInDb',
-        'DateLoadedInDB'
+        'DateLoadedInDB',
+        'rid'
       ))
 
     # Read tblGapHeader
@@ -112,15 +115,20 @@ gather_gap_terradat <- function(dsn = NULL,
         'last_edited_user',
         'last_edited_date',
         'DateLoadedInDb',
-        'DateLoadedInDB'
+        'DateLoadedInDB',
+        'rid'
       ))
 
   } else {
     stop("Supply either tblGapDetail and tblGapHeader, or the path to a GDB containing those tables")
   }
+  # add null DBKey field if not present
+  if(!"DBKey" %in% colnames(gap_header)) gap_header$DBKey <- NA
+  if(!"DBKey" %in% colnames(gap_detail)) gap_detail$DBKey <- NA
 
 
-  ## New 2/15/22 # ensure that gap, gapstart, and gapend are numeric
+
+  ## ensure that gap, gapstart, and gapend are numeric
   gap_detail$GapStart <- as.numeric(gap_detail$GapStart)
   gap_detail$GapEnd <- as.numeric(gap_detail$GapEnd)
   gap_detail$Gap <- as.numeric(gap_detail$Gap)
@@ -435,7 +443,6 @@ gather_gap <- function(dsn = NULL,
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
 
-  # gap$source <- toupper(source)
   gap$source <- source
 
   if("sf" %in% class(gap)) gap <- sf::st_drop_geometry(gap)

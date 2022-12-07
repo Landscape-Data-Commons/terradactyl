@@ -73,6 +73,10 @@ gather_lpi_terradat <- function(dsn = NULL,
     stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing those tables")
   }
 
+  # Add null DBKey column if not present
+  if(!("DBKey" %in% colnames(lpi_header))) lpi_header$DBKey <- NA
+  if(!("DBKey" %in% colnames(lpi_detail))) lpi_detail$DBKey <- NA
+
   # Make a tall data frame with the hit codes by layer and the checkbox designation
   lpi_hits_tall <- lpi_detail %>%
     dplyr::mutate_if(is.factor, as.character) %>%

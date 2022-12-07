@@ -68,6 +68,9 @@ gather_species_inventory_terradat <- function(dsn = NULL,
     stop("Supply either tblSpecRichDetail and tblSpecRichHeader, or the path to a GDB containing those tables")
   }
 
+  # Add null DBKey column if not present
+  if(!("DBKey" %in% colnames(species_inventory_header))) species_inventory_header$DBKey <- NA
+  if(!("DBKey" %in% colnames(species_inventory_detail))) species_inventory_detail$DBKey <- NA
 
   # Make Species Inventory Detail  a tall dataframe
   species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
@@ -75,8 +78,8 @@ gather_species_inventory_terradat <- function(dsn = NULL,
   # Join with header data and strip out NA codes
   species_inventory_tall <- dplyr::left_join(
     x = species_inventory_header,
-    y = species_detail_tall,
-    by = c("RecKey", "PrimaryKey")
+    y = species_detail_tall#,
+    # by = c("RecKey", "PrimaryKey")
   ) %>%
     subset(!is.na(Species)) %>%
     dplyr::select_if(!names(.) %in%

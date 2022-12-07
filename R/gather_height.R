@@ -77,12 +77,17 @@ gather_height_terradat <- function(dsn = NULL,
   # we only want to carry a subset of the lpi_header fields forward
   lpi_header <- dplyr::select(lpi_header, !!!levels, LineKey:CheckboxLabel)
 
+  # Add null DBKey column if not present
+  if(!("DBKey" %in% colnames(lpi_header))) lpi_header$DBKey <- NA
+  if(!("DBKey" %in% colnames(lpi_detail))) lpi_detail$DBKey <- NA
+
   lpi_height_tall_woody <- dplyr::select(
     .data = lpi_detail,
     !!!levels,
     PointLoc,
     PointNbr,
     RecKey,
+    DBKey,
     dplyr::matches("Woody$")
   ) %>% dplyr::mutate(type = "woody")
   # Strip out the extra name stuff so woody and herbaceous variable names match.
@@ -101,6 +106,7 @@ gather_height_terradat <- function(dsn = NULL,
     PointLoc,
     PointNbr,
     RecKey,
+    DBKey,
     dplyr::matches("Herbaceous$")
   ) %>% dplyr::mutate(type = "herbaceous")
   names(lpi_height_tall_herb) <- stringr::str_replace_all(
@@ -118,6 +124,7 @@ gather_height_terradat <- function(dsn = NULL,
     PointLoc,
     PointNbr,
     RecKey,
+    DBKey,
     dplyr::matches("LowerHerb$")
   ) %>% dplyr::mutate(type = "lower.herbaceous")
   names(lpi_height_tall_lower_herb) <- stringr::str_replace_all(

@@ -44,7 +44,6 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
   if(!("Purpose" %in% colnames(header))) header$Purpose <- NA
   if(!("PurposeFlag" %in% colnames(header))) header$PurposeFlag <- NA
   if(!("ProjectName" %in% colnames(header))) header$ProjectName <- NA
-  if(!("SpeciesState" %in% colnames(header))) header$SpeciesState <- NA
 
   header <- header %>%
     # Select the field names we need in the final feature class
@@ -882,22 +881,6 @@ lpi_calc <- function(header,
     sagebrush_shape_calc,
     by = "PrimaryKey"
   )
-
-  # quarantined 8/19/22 by joe brehm. Was causing an error with build_indicators, where this date field sometimes different from date as assigned by gather_header(), resulting in NA LPI data
-  # # For TerrADat only, get the data visited from the first line in LPI
-  # if (source %in% c("TerrADat", "AIM")) {
-  #   lpi_indicators <- lpi_species %>%
-  #     dplyr::select(PrimaryKey, FormDate, DBKey) %>%
-  #     dplyr::group_by(PrimaryKey, DBKey) %>%
-  #     dplyr::summarize(DateVisited = dplyr::first(FormDate,
-  #       order_by = FormDate
-  #     )) %>%
-  #       # as.POSIXct()) %>%
-  #     # Join to the lpi.cover data
-  #     dplyr::left_join(lpi_indicators, ., by = "PrimaryKey")
-  # }
-
-
 
   # Return lpi_indicators
   return(lpi_indicators)
