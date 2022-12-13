@@ -193,19 +193,24 @@ generic_growth_habits <- function(data,
 
   # Connect unknown codes to SpeciesState
   if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% colnames(data)) {
-    generic.code.df <- generic.code.df %>%
+    generic.code.df <-
+      generic.code.df %>%
       subset(!is.na(species_code)) %>%
-      dplyr::inner_join(., dplyr::select(
-        data, !!!dplyr::vars(data_code),
-        "SpeciesState"
-      ))
+      dplyr::inner_join(., dplyr::select(data, dplyr::any_of(
+        c(!!!dplyr::vars(data_code),
+        "SpeciesState"))
+      )) %>%
+      unique()
   } else {
-    warning("Variable 'SpeciesState' is not present in either the data or the lookup table")
-    generic.code.df <- generic.code.df %>%
+    warning("Variable 'SpeciesState' is not present in the data table and/or species list")
+
+    generic.code.df <-
+      generic.code.df %>%
       subset(!is.na(species_code)) %>%
       dplyr::inner_join(., dplyr::select(
         data, !!!dplyr::vars(data_code)
-      ))
+      )) %>%
+        unique()
   }
 
 
@@ -236,6 +241,15 @@ generic_growth_habits <- function(data,
   # Remove Code, Prefix, and PrimaryKey if they exist
   species_generic <- species_generic[, !colnames(species_generic) %in%
                                        c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
+
+  # remove GrowthHabit, GrowthHabitSub, and Duration if they are not the specified data columns
+  if(species_growth_habit_code != "GrowthHabitSub") {
+    species_generic <- species_generic %>% dplyr::select_if(!colnames(.) %in% c("GrowthHabit", "GrowthHabitSub"))
+  }
+
+  if(species_duration != "Duration") {
+    species_generic <- species_generic %>% dplyr::select_if(!colnames(.) %in% "Duration")
+  }
 
   # Remove NA in species list
   if ("SpeciesCode" %in% names(species_generic)) {
