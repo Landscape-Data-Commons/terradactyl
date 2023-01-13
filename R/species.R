@@ -134,8 +134,8 @@ generic_growth_habits <- function(data,
 
 ) {
   generic_df <- data.frame(
-    SpeciesFixed = unique(data[, colnames(data) == data_code]),
-    SpeciesOriginal = unique(data[, colnames(data) == data_code])
+    SpeciesFixed = unique(data[[data_code]]),
+    SpeciesOriginal = unique(data[[data_code]])
   ) %>%
 
     # Clean up the species codes, remove white space
