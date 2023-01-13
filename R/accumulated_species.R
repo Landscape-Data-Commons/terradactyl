@@ -175,7 +175,7 @@ accumulated_species <- function (header,
       # merge back with species_cover
       species_height <- dplyr::left_join(species_height_live_dead_split,
                                          species_height,
-                                         by = c("Species" = "indicator",
+                                         by = c("Species", # = "indicator",
                                                 "PrimaryKey"))
       
     }
