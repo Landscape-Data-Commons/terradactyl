@@ -193,26 +193,18 @@ generic_growth_habits <- function(data,
 
   # Connect unknown codes to SpeciesState
   if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% colnames(data)) {
-    generic.code.df <-
-      generic.code.df %>%
-      subset(!is.na(species_code)) %>%
-      dplyr::inner_join(., dplyr::select(data, dplyr::any_of(
-        c(!!!dplyr::vars(data_code),
-        "SpeciesState"))
-      )) %>%
-      unique()
+    generic.code.df <- dplyr::inner_join(generic.code.df[!is.na(species_code), ],
+                                         dplyr::select(data, data_code, SpeciesState))
   } else {
-    warning("Variable 'SpeciesState' is not present in the data table and/or species list")
-
-    generic.code.df <-
-      generic.code.df %>%
-      subset(!is.na(species_code)) %>%
-      dplyr::inner_join(., dplyr::select(
-        data, !!!dplyr::vars(data_code)
-      )) %>%
-        unique()
+    warning("Variable 'SpeciesState' is not present in either the data or the lookup table")
+    generic.code.df <- dplyr::inner_join(generic.code.df[!is.na(species_code), ],
+                                         # We have to use dplyr::select() because that returns
+                                         # a data frame instead of a vector when there's only
+                                         # one variable being asked for
+                                         dplyr::select(data, data_code))
   }
 
+  generic.code.df <- unique(generic.code.df)
 
   # if there are records in generic.code.df
   if (nrow(generic.code.df) > 0) {
