@@ -161,6 +161,19 @@ gather_gap_terradat <- function(dsn = NULL,
       Gap = 0
     ))
 
+  ## Add zero values where there is no canopy gap present on the line, AND there is basal gap on the line
+  # Find missing records
+  gap_tall_missing_c <-
+    gap_tall %>%
+    dplyr::filter(NoCanopyGaps == 1,
+                  RecType != "C") %>%
+    dplyr::select(PrimaryKey, LineKey, RecKey, Measure, LineLengthAmount) %>%
+    unique() %>%
+    dplyr::mutate(RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, NoCanopyGaps = 1)
+
+  # Append them to gap_tall
+  gap_tall <-
+    dplyr::bind_rows(gap_tall, gap_tall_missing_c)
 
   ## Add zero values where there is no basal gap present on line
   gap_tall[gap_tall$NoBasalGaps == 1, ] <- gap_tall %>%
@@ -171,6 +184,20 @@ gather_gap_terradat <- function(dsn = NULL,
       GapEnd = 0,
       Gap = 0
     ))
+
+  ## Add zero values where there is no basal gap present on the line, AND there is canopy gap on the line
+  # Find missing records
+  gap_tall_missing_b <-
+    gap_tall %>%
+    dplyr::filter(NoBasalGaps == 1,
+                  RecType != "B" | is.na(RecType)) %>%
+    dplyr::select(PrimaryKey, LineKey, RecKey) %>%
+    unique() %>%
+    dplyr::mutate(RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, NoBasalGaps = 1)
+
+  # Append them to gap_tall
+  gap_tall <-
+    dplyr::bind_rows(gap_tall, gap_tall_missing_b)
 
   ## Identify which gaps are perennial gaps vs all canopy gaps. Perennial
   ## gaps are those with only PerennialsCanopy == 1
