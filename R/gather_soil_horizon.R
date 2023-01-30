@@ -74,29 +74,6 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
 
       HorizonNotes = ESD_Notes,
 
-      ### all of these variables arent present in the ldc data as of v0.9. Disable now delete later
-      # RuptureResistance = ESD_RuptureResistance, # data almost entirely missing
-      # sar = ESD_NAabsorptionRatio, # NAabsorptionRatio = ESD_NAabsorptionRatio,
-      # caco3 = ESD_CaCO3EquivPct, #CaCO3EquivalentPct = ESD_CaCO3EquivPct, ## caco3 data not present
-      # sandvf = ESD_SandFractPctVeryFine, #SandFractPctVeryFine = "ESD_SandFractPctVeryFine",
-      # sandfine = ESD_SandFractPctFine, #SandFractPctFine = "ESD_SandFractPctFine",
-      # sandmed = ESD_SandFractPctMed, #SandFractPctMed = "ESD_SandFractPctMed",
-      # sandco = ESD_SandFractPctCoarse, # SandFractPctCoarse = "ESD_SandFractPctCoarse",
-      # sandvc = ESD_SandFractPctVeryCoarse, # SandFractPctVeryCoarse = "ESD_SandFractPctVeryCoarse",
-      # gypsum = ESD_GypsumPct, #Gypsum_Pct = ESD_GypsumPct,
-      # fraground = ESD_FragmentRoundness, #FragmentRoundness = "ESD_FragmentRoundness",
-      # poresize = ESD_PoresSize, #PoresSize = "ESD_PoresSize",
-      # poreqty = ESD_PoresQty, #PoresQty = "ESD_PoresQty",
-      # CarbonateStage = ESD_CarbonateStage,
-      # GravelClassPctFine = ESD_GravelClassPctFine,
-      # GravelClassPctMed = ESD_GravelClassPctMed,
-      # GravelClassPctCoarse = ESD_GravelClassPctCoarse,
-      # GravelCarbonateCoatPct = ESD_GravelCarbonateCoatPct,
-      # sandtotal_psa = ESD_PSAPctSand, #PSA_SandPct = ESD_PSAPctSand,
-      # silttotal_psa = ESD_PSAPctSilt, #PSA_SiltPct = ESD_PSAPctSilt,
-      # claytotal_psa = ESD_PSAPctClay #PSA_ClayPct = ESD_PSAPctClay,
-
-
       ### cleaning ###
     ) %>%
     dplyr::mutate_all(
@@ -160,58 +137,24 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
                               "ma"  = "Massive",
                               "cdy" = "Cloddy",
                               "other" = "Other"),
-      ## these columns unused. preserved code just in case
-      # fraground = recode(fraground %>% tolower(),
-      #                    "va" = "Very angular",
-      #                    "an" = "Angular",
-      #                    "sa" = "Subangular",
-      #                    "sr" = "Subrounded",
-      #                    "ro" = "Rounded",
-      #                    "wr" = "Well rounded"),
-      # poresize = recode(poresize %>% tolower(),
-      #                   "vf" = "Very fine",
-      #                   "f"  = "Fine",
-      #                   "m"  = "Medium",
-      #                   "c"  = "Coarse",
-      #                   "vc" = "Very coarse"),
-      # RuptureResistance = recode(RuptureResistance %>% tolower(),
-      #                            "ef" = "Extr. Firm",
-      #                            "eh" = "Extr. Hard",
-      #                            "fi" =	"Firm",
-      #                            "fr" =	"Friable",
-      #                            "ha" =	"Hard",
-      #                            "l"  =	"Loose",
-      #                            "mh" =	"Mod. Hard",
-      #                            "r"  =	"Rigid",
-      #                            "s"  =	"Soft",
-      #                            "sh" =	"Slightly Hard",
-      #                            "sr" =	"Slightly Rigid",
-      #                            "vfi" =	"Very Firm",
-      #                            "vfr" =	"Very Friable",
-      #                            "vh" =	"Very Hard",
-      #                            "vr" =	"Very Rigid",
-      #
-      #                            # "" = NA_character_ # "" returns a zero-l varname error. Why?
-      #                            # workaround may be over-general. This will eliminate any data validation errs that could be fixed (eg mispellings)
-      #                            .default = NA_character_),
     ) %>%
     ### complex mutates that depend on >1 var ###
     dplyr::mutate(
       SiltPct = 100 - (as.numeric(SandPct) + as.numeric(ClayPct)),
       FragVolGravel = dplyr::case_when(
-        Fragment1Type == "1" ~ Fragment1VolPct,
-        Fragment2Type == "1" ~ Fragment2VolPct,
-        Fragment3Type == "1" ~ Fragment3VolPct
+        Fragment1Type %in% c("GR", "Gravel", "1") ~ Fragment1VolPct,
+        Fragment2Type %in% c("GR", "Gravel", "1") ~ Fragment2VolPct,
+        Fragment3Type %in% c("GR", "Gravel", "1") ~ Fragment3VolPct
       ),
       FragVolCobble = dplyr::case_when(
-        Fragment1Type == "2" ~ Fragment1VolPct,
-        Fragment2Type == "2" ~ Fragment2VolPct,
-        Fragment3Type == "2" ~ Fragment3VolPct
+        Fragment1Type %in% c("CB", "Cobble", "2") ~ Fragment1VolPct,
+        Fragment2Type %in% c("CB", "Cobble", "2") ~ Fragment2VolPct,
+        Fragment3Type %in% c("CB", "Cobble", "2") ~ Fragment3VolPct
       ),
       FragVolStone = dplyr::case_when(
-        Fragment1Type == "6" ~ Fragment1VolPct,
-        Fragment2Type == "6" ~ Fragment2VolPct,
-        Fragment3Type == "6" ~ Fragment3VolPct
+        Fragment1Type %in% c("ST", "Stone", "6") ~ Fragment1VolPct,
+        Fragment2Type %in% c("ST", "Stone", "6") ~ Fragment2VolPct,
+        Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct
       ),
       FragVolNodule = dplyr::case_when(
         Fragment1Type == "8" ~ Fragment1VolPct,
@@ -239,23 +182,18 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
       -Fragment1VolPct,
       -Fragment2VolPct,
       -Fragment3VolPct,
-     # HorizonKey,
-
-    )   %>% # new 10/8
+    )   %>%
     dplyr::arrange(PrimaryKey, HorizonDepthUpper) %>%
     dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
       PrimaryKey
     ) %>%
 
     dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
-           across(c(#caco3,gypsum #  data seems to not be used, disabled
-             RockFragments), ~ suppressWarnings(as.integer(.x))),
-           across(c(#sar, sandvf,
-             pH, # sandfine, sandmed, sandco, sandvc,
+           across(c(RockFragments), ~ suppressWarnings(as.integer(.x))),
+           across(c(pH,
              EC, ClayPct, SandPct, SiltPct, # poreqty,
              FragVolGravel, FragVolCobble, FragVolStone, FragVolNodule,
              FragVolDurinode, HorizonDepthUpper, HorizonDepthLower,
-             #sandtotal_psa, silttotal_psa, claytotal_psa,
            ), ~ suppressWarnings(as.double(.x))),
            across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
     )
@@ -315,7 +253,6 @@ gather_soil_horizon <- function(dsn = NULL,
   if(toupper(source) %in% c("AIM", "TERRADAT")) {
     soil <- gather_soil_horizon_terradat(dsn = dsn, tblSoilPitHorizons = tblSoilPitHorizons)
   } else if(toupper(source) %in% c("LMF", "NRI")){
-    #print("a")
     soil <- gather_soil_horizon_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
   } else {
     stop("source must be AIM, TerraDat, DIMA, LMF, or NRI (all case independent)")
