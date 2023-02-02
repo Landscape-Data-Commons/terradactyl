@@ -1,7 +1,7 @@
 Package: terradactyl
 Type: Package
 Title: Tools for Creating and Using TerrADat
-Version: 1.0.4
+Version: 1.0.5
 Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
                person(given="Joseph R", family = "Brehm", role="aut"),
                person(given="Sarah H", family="Burnett", role="aut"),
@@ -21,7 +21,7 @@ Description: Access, tidy, and calculate standard indicators for data from the B
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Imports:
     dplyr,
     stringr,
