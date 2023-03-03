@@ -1438,50 +1438,54 @@ build_indicators <- function(header, source, dsn, lpi_tall,
     )
   )
 
-  # Compare indicator field names with the names for a the target feature class
-  feature_class_field_names <- sf::st_read(dsn,
-    layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
-  )
+  # If target feature class is a gdb compare indicator field names with the names for a the target feature class
+  if(substr(dsn, nchar(dsn)-2, nchar(dsn)) == "gdb"){
+    feature_class_field_names <- sf::st_read(dsn,
+                                             layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
+    )
 
-  feature_class_field_names <- feature_class_field_names[
-    ,
-    !colnames(feature_class_field_names) %in%
-      c(
-        "created_user",
-        "created_date",
-        "last_edited_user",
-        "last_edited_date"
-      )
-  ]
+    feature_class_field_names <- feature_class_field_names[
+      ,
+      !colnames(feature_class_field_names) %in%
+        c(
+          "created_user",
+          "created_date",
+          "last_edited_user",
+          "last_edited_date"
+        )
+    ]
 
-  #
-  indicator_field_names <- data.frame(
-    name = names(all_indicators),
-    calculated = "yes"
-  )
+    #
+    indicator_field_names <- data.frame(
+      name = names(all_indicators),
+      calculated = "yes"
+    )
 
-  missing_names <- data.frame(
-    name = names(feature_class_field_names),
-    feature.class = "yes"
-  ) %>%
-    # Join feature class field names to indicator field names
-    dplyr::full_join(indicator_field_names) %>%
+    missing_names <- data.frame(
+      name = names(feature_class_field_names),
+      feature.class = "yes"
+    ) %>%
+      # Join feature class field names to indicator field names
+      dplyr::full_join(indicator_field_names) %>%
 
-    # get the field names where there is not corrollary in calculated
-    subset(is.na(calculated), select = "name") %>%
-    dplyr::mutate(value = NA) %>%
-    # make into a data frame
-    tidyr::spread(key = name, value = value) %>%
-    dplyr::select(-Shape, -GlobalID)
+      # get the field names where there is not corrollary in calculated
+      subset(is.na(calculated), select = "name") %>%
+      dplyr::mutate(value = NA) %>%
+      # make into a data frame
+      tidyr::spread(key = name, value = value) %>%
+      dplyr::select(-Shape, -GlobalID)
 
-  # Add a row for each PrimaryKey inall_indicators
-  missing_names[nrow(all_indicators), ] <- NA
-  # For some indicators, the null value is 0 (to indicate the method was completed,
-  # but no data in that group were collected)
-  missing_names[, grepl(names(missing_names), pattern = "^FH|^AH|^Num")] <- 0
+    # Add a row for each PrimaryKey inall_indicators
+    missing_names[nrow(all_indicators), ] <- NA
+    # For some indicators, the null value is 0 (to indicate the method was completed,
+    # but no data in that group were collected)
+    missing_names[, grepl(names(missing_names), pattern = "^FH|^AH|^Num")] <- 0
 
-  # Merge back to indicator data to create a feature class for export
-  final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
+    # Merge back to indicator data to create a feature class for export
+    final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
+    return(final_feature_class)
 
-  return(final_feature_class)
+  } else {
+    return(all_indicators)
+  }
 }

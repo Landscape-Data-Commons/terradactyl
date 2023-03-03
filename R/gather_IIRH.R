@@ -136,7 +136,7 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
 #' @export gather_rangeland_health_lmf
 #' @rdname IIRH
 gather_rangeland_health_lmf <- function(dsn = NULL,
-                                        file_type = "gdb",
+                                        file_type = NULL,
                                         RANGEHEALTH = NULL) {
 
   if(!is.null(RANGEHEALTH)){
@@ -146,6 +146,18 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
 
     if (!file.exists(dsn)) {
       stop("dsn must be a valid filepath to a geodatabase containing RHSUMMARY or the filepath to a text file containing RHSUMMARY")
+    }
+
+    # if file type is NULL, define it by checking the extension of dsn
+    if(is.null(file_type)){
+      extension <- substr(dsn, nchar(dsn)-2, nchar(dsn))
+      if(extension == "csv") {
+        file_type <- "csv"
+      } else if(extension == "gdb") {
+        file_type <- "gdb"
+      } else {
+        file_type <- "txt"
+      }
     }
 
     # Read in the data as .txt or .gdb
@@ -213,7 +225,7 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
 #'
 gather_rangeland_health <- function(dsn = NULL,
                                     source,
-                                    file_type = "gdb",
+                                    file_type = NULL,
                                     tblQualHeader = NULL,
                                     tblQualDetail = NULL,
                                     RANGEHEALTH = NULL) {

@@ -68,11 +68,11 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
       Hue = ESD_Hue, Value = ESD_Value, Chroma = ESD_Chroma, ColorMoistDry = ESD_Color,
       RootSize = ESD_RootSize, RootQty = ESD_RootQty,
 
-      Fragment1VolPct = ESD_FragVolPct,  Fragment1Type = ESD_FragmentType,
-      Fragment2VolPct = ESD_FragVolPct2, Fragment2Type = ESD_FragmentType2,
-      Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3,
+      Fragment1VolPct = ESD_FragVolPct * RockFragments,  Fragment1Type = ESD_FragmentType,
+      Fragment2VolPct = ESD_FragVolPct2 * RockFragments, Fragment2Type = ESD_FragmentType2,
+      Fragment3VolPct = ESD_FragVolPct3 * RockFragments, Fragment3Type = ESD_FragmentType3,
 
-      HorizonNotes = ESD_Notes,
+      HorizonNotes = ESD_Notes
 
       ### cleaning ###
     ) %>%
@@ -157,14 +157,14 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
         Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct
       ),
       FragVolNodule = dplyr::case_when(
-        Fragment1Type == "8" ~ Fragment1VolPct,
-        Fragment2Type == "8" ~ Fragment2VolPct,
-        Fragment3Type == "8" ~ Fragment3VolPct
+        Fragment1Type %in% c("8", "Nodule") ~ Fragment1VolPct,
+        Fragment2Type %in% c("8", "Nodule") ~ Fragment2VolPct,
+        Fragment3Type %in% c("8", "Nodule") ~ Fragment3VolPct
       ),
       FragVolDurinode = dplyr::case_when(
-        Fragment1Type == "9" ~ Fragment1VolPct,
-        Fragment2Type == "9" ~ Fragment2VolPct,
-        Fragment3Type == "9" ~ Fragment3VolPct
+        Fragment1Type %in% c("9", "Durinode") ~ Fragment1VolPct,
+        Fragment2Type %in% c("9", "Durinode") ~ Fragment2VolPct,
+        Fragment3Type %in% c("9", "Durinode") ~ Fragment3VolPct
       ),
       HorizonDepthLower = dplyr::case_when(
         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,

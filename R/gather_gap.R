@@ -230,9 +230,22 @@ gather_gap_terradat <- function(dsn = NULL,
 #' @export gather_gap_lmf
 #' @rdname gather_gap
 gather_gap_lmf <- function(dsn = NULL,
-                           file_type = "gdb",
+                           file_type = NULL,
                            GINTERCEPT = NULL,
                            POINT = NULL) {
+
+  # if file type is NULL, define it by checking the extension of dsn
+  if(is.null(file_type)){
+    extension <- substr(dsn, nchar(dsn)-2, nchar(dsn))
+    if(extension == "csv") {
+      file_type <- "csv"
+    } else if(extension == "gdb") {
+      file_type <- "gdb"
+    } else {
+      file_type <- "txt"
+    }
+  }
+
 
   if(!is.null(GINTERCEPT) & !is.null(POINT)){
     gintercept <- GINTERCEPT
@@ -314,6 +327,9 @@ gather_gap_lmf <- function(dsn = NULL,
     stop("Supply either GINTERCEPT and POINT, or the path to a GDB containing those tables")
   }
 
+  # Ensure START_GAP and END_GAP are numeric
+  gintercept$START_GAP <- as.numeric(gintercept$START_GAP)
+  gintercept$END_GAP <- as.numeric(gintercept$END_GAP)
 
   # Look at the point table and add blanks or substitute perennial gap for
   # canopy gap
