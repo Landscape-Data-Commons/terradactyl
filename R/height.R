@@ -47,6 +47,9 @@ mean_height <- function(height_tall,
   # Make sure the Height field is numeric
   height_tall$Height <- as.numeric(height_tall$Height)
 
+  # Filter out NA heights
+  height_tall <- height_tall %>% subset(!is.na(Height))
+
   # If height of zero is dropped by the calculation, filter out zeros
   if (omit_zero) {
     height_tall <- dplyr::filter(
