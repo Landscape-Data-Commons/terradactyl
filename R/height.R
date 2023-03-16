@@ -1,10 +1,10 @@
 #' Calculate the vegetation height
 #' @param height_tall A tall/long-format data frame. Use the data frame \code{"height"} from the \code{gather.lpi()} output.
-#' @param omit_zero Logical. If \code{TRUE} the results omit height measurements of \code{0}. Defaults to \code{FALSE}.
+#' @param omit_zero Logical. If \code{TRUE} the results omit height measurements of \code{0}. Defaults to \code{TRUE}.
 #' @param method Character string. Indicates the type of indicator, \code{"max"}, which yields the average maximum height (of the herbaceous or woody heights) on the plot or \code{"mean"} which yields the mean height by functional group (woody/herbaceous).
 #' @param by_line Logical. If \code{TRUE} then the results will be calculated on a per-line basis. If \code{FALSE} then the results will be calculated on a per-plot basis. Defaults to \code{FALSE}.
-#' @param ... Optional bare variable names. One or more variable name from \code{lpi.tall} to calculate percent cover for, e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
 #' @param tall Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.
+#' @param ... Optional bare variable names. One or more variable name from \code{lpi.tall} to calculate percent cover for, e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
 #' @examples
 #' # Gather height data into tall format
 #' height_tall <- gather_height(dsn = "Path/To/LMF_Geodatabase.gdb",
@@ -22,7 +22,7 @@
 #' @export mean_height
 mean_height <- function(height_tall,
                         method = "mean",
-                        omit_zero = FALSE,
+                        omit_zero = TRUE,
                         by_line = FALSE,
                         tall = FALSE,
                         ...) {

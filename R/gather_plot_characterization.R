@@ -65,9 +65,9 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
       'EcolSite', 'ParentMaterial', 'Slope', 'Elevation', 'Aspect', 'ESD_SlopeShape',
       'LandscapeType', 'LandscapeTypeSecondary', 'HillslopeType',
       'ESD_Series',
-      'Observer', 'Recorder',
-      'EstablishDate',
-      'ESD_Investigators'
+      # 'Observer', 'Recorder',
+      'EstablishDate'
+      # 'ESD_Investigators'
     )) %>%
     dplyr::rename(
       Latitude_NAD83 = Latitude,
