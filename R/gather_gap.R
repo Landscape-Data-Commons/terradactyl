@@ -155,10 +155,7 @@ gather_gap_terradat <- function(dsn = NULL,
   gap_tall[gap_tall$NoCanopyGaps == 1, ] <- gap_tall %>%
     dplyr::filter(NoCanopyGaps == 1) %>%
     tidyr::replace_na(list(
-      RecType = "C",
-      GapStart = 0,
-      GapEnd = 0,
-      Gap = 0
+      RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1
     ))
 
   ## Add zero values where there is no canopy gap present on the line, AND there is basal gap on the line
@@ -167,9 +164,9 @@ gather_gap_terradat <- function(dsn = NULL,
     gap_tall %>%
     dplyr::filter(NoCanopyGaps == 1,
                   RecType != "C") %>%
-    dplyr::select(PrimaryKey, LineKey, RecKey, Measure, LineLengthAmount, NoBasalGaps, NoCanopyGaps) %>%
+    dplyr::select(PrimaryKey, LineKey, RecKey, LineLengthAmount, NoBasalGaps, NoCanopyGaps) %>%
     unique() %>%
-    dplyr::mutate(RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0)
+    dplyr::mutate(RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
 
   # Append them to gap_tall
   gap_tall <-
@@ -179,10 +176,7 @@ gather_gap_terradat <- function(dsn = NULL,
   gap_tall[gap_tall$NoBasalGaps == 1, ] <- gap_tall %>%
     dplyr::filter(NoBasalGaps == 1) %>%
     tidyr::replace_na(list(
-      RecType = "B",
-      GapStart = 0,
-      GapEnd = 0,
-      Gap = 0
+      RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1
     ))
 
   ## Add zero values where there is no basal gap present on the line, AND there is canopy gap on the line
@@ -193,7 +187,7 @@ gather_gap_terradat <- function(dsn = NULL,
                   RecType != "B" | is.na(RecType)) %>%
     dplyr::select(PrimaryKey, LineKey, RecKey, NoCanopyGaps, NoBasalGaps) %>%
     unique() %>%
-    dplyr::mutate(RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0)
+    dplyr::mutate(RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
 
   # Append them to gap_tall
   gap_tall <-
