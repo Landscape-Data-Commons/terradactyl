@@ -111,9 +111,6 @@ gap_cover <- function(gap_tall,
     gap_summary <- gap_summary %>%
       dplyr::select(PrimaryKey, total_line_length, interval, n, length, percent)
   }
-  # quarantined by joe brehm 8/26, with all other rounding code. Need to make these optional parameters
-  # constrain to 2 digits
-  # gap_summary$percent <- round(gap_summary$percent, digits = 2)
 
   # Convert to wide format
   percent <- gap_summary %>%
@@ -165,14 +162,16 @@ gap_cover <- function(gap_tall,
       key = gap_class,
       value = percent,
       -PrimaryKey,
-      -total_line_length
+      -total_line_length,
+      -LineKey
     )
     gap_summary <- n %>%
       tidyr::gather(
         key = gap_class,
         value = n,
         -PrimaryKey,
-        -total_line_length
+        -total_line_length,
+        -LineKey
       ) %>%
       merge(gap_summary, allow.cartesian = TRUE)
     gap_summary <- length %>%
@@ -180,7 +179,8 @@ gap_cover <- function(gap_tall,
         key = gap_class,
         value = length,
         -PrimaryKey,
-        -total_line_length
+        -total_line_length,
+        -LineKey
       ) %>%
       merge(gap_summary, allow.cartesian = TRUE)
   }
