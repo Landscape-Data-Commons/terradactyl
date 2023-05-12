@@ -41,7 +41,6 @@
 #' @rdname gather_soil_summary
 gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
   ### input ####
-  # print("a")
   if (!is.null(SOILHORIZON)){
     hz_lmf_raw <- SOILHORIZON
   } else if(!is.null(dsn)){
