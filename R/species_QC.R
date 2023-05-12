@@ -28,7 +28,8 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   # Read in height
   if(file.exists(paste(dsn_tall, "height_tall.rdata", sep = ""))){
     height <- readRDS(paste(dsn_tall, "height_tall.rdata", sep = "")) %>%
-      dplyr::left_join(header_sub, .)
+      dplyr::left_join(header_sub, .) %>%
+      dplyr::select(PrimaryKey, Species, SpeciesState, source)
   } else {
     print("No height data found")
     height <- NULL
@@ -49,8 +50,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 
   species_all <- dplyr::bind_rows(
     lpi,
-    height %>%
-      dplyr::select(PrimaryKey, Species, SpeciesState, source),
+    height,
     spp_inventory
   ) %>%
     subset(nchar(Species) >= 3 & Species != "None") %>%
@@ -153,35 +153,35 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
     ) %>%
     dplyr::distinct()
 
-  height.mismatched.growth.habit <- height %>%
-    subset(!is.na(Species) | Species != "None") %>%
-    dplyr::left_join(species_unique) %>%
-    dplyr::filter(toupper(GrowthHabit_measured) != toupper(GrowthHabit) | is.na(GrowthHabit)) %>%
+  if(!is.null(height)){
+    height.mismatched.growth.habit <- height %>%
+      subset(!is.na(Species) | Species != "None") %>%
+      dplyr::left_join(species_unique) %>%
+      dplyr::filter(toupper(GrowthHabit_measured) != toupper(GrowthHabit) | is.na(GrowthHabit)) %>%
 
-    # Remove all instances where it fails because there is an NA in Species
-    dplyr::filter(!is.na(Species)) %>%
+      # Remove all instances where it fails because there is an NA in Species
+      dplyr::filter(!is.na(Species)) %>%
 
-    # Remove all instances where GrowthHabit is NA
-    dplyr::filter(!is.na(GrowthHabit)) %>%
+      # Remove all instances where GrowthHabit is NA
+      dplyr::filter(!is.na(GrowthHabit)) %>%
 
-    # Make the number of columns more manageable
-    dplyr::select(
-      PrimaryKey, Height, Species, GrowthHabit_measured,
-      GrowthHabit, ScientificName, CommonName, Duration, Noxious, SG_Group
-    ) %>%
-    dplyr::distinct()
+      # Make the number of columns more manageable
+      dplyr::select(
+        PrimaryKey, Height, Species, GrowthHabit_measured,
+        GrowthHabit, ScientificName, CommonName, Duration, Noxious, SG_Group
+      ) %>%
+      dplyr::distinct()
 
-
-
-  write.csv(height.mismatched.growth.habit,
-    file = paste(dirname(species_list_file),
-      "/",
-      unique(species_all$SpeciesState)[1],
-      "_height_mismatched_growth_habit_",
-      Sys.Date(), ".csv",
-      sep = ""
+    write.csv(height.mismatched.growth.habit,
+              file = paste(dirname(species_list_file),
+                           "/",
+                           unique(species_all$SpeciesState)[1],
+                           "_height_mismatched_growth_habit_",
+                           Sys.Date(), ".csv",
+                           sep = ""
+              )
     )
-  )
+  }
 
   # Evaluate the codes used in the species list
   species_list <- switch(stringr::str_sub(species_list_file, start = -3),

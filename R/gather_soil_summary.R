@@ -2,46 +2,45 @@
 #'
 #' @description Given soil horizon and pit data, create a tall format data frame
 #' usable by other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file 
-#' extension) of the geodatabase containing the table of interest. This field 
-#' is unnecessary if you supply either both of tblSoilPitHorizons and 
+#' @param dsn Character string. The full filepath and filename (including file
+#' extension) of the geodatabase containing the table of interest. This field
+#' is unnecessary if you supply either both of tblSoilPitHorizons and
 #' tblSoilPits (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).
-#' @param source Character string. The data source format, 
+#' @param source Character string. The data source format,
 #' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
-#' @param tblSoilPitHorizons Dataframe of the data structure tblSoilPitHorizons 
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields. 
+#' @param tblSoilPitHorizons Dataframe of the data structure tblSoilPitHorizons
+#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
 #' Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.
-#' @param tblSoilPits Dataframe of the data structure tblSoilPits from the DIMA 
-#' database with the addition of PrimaryKey and DBKey fields. Use when data 
+#' @param tblSoilPits Dataframe of the data structure tblSoilPits from the DIMA
+#' database with the addition of PrimaryKey and DBKey fields. Use when data
 #' source is AIM, DIMA, or TerrADat; alternately provide dsn.
-#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from LMF/NRI 
-#' database with the addition of PrimaryKey and DBKey fields. Use when data 
-#' source is LMF or NRI; alternately provide dsn. 
+#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from LMF/NRI
+#' database with the addition of PrimaryKey and DBKey fields. Use when data
+#' source is LMF or NRI; alternately provide dsn.
 #' @importFrom magrittr %>%
 #' @name gather_soil_summary
 #' @family <gather>
 #' @return A tall data frame summarizing horizon data to the soil pit
 #' @examples
-#' gather_soil_summary(dsn = "Path/To/AIM_Geodatabase.gdb", 
+#' gather_soil_summary(dsn = "Path/To/AIM_Geodatabase.gdb",
 #'                     source = "AIM")
-#' gather_soil_summary(dsn = "Path/To/LMF_Geodatabase.gdb", 
+#' gather_soil_summary(dsn = "Path/To/LMF_Geodatabase.gdb",
 #'                     source = "LMF")
-#' 
+#'
 #' aim_horizons <- read.csv("Path/To/tblSoilPitHorizons.csv")
 #' aim_pits <- read.csv("Path/To/tblSoilPits.csv")
-#' gather_soil_summary(source = "AIM", 
+#' gather_soil_summary(source = "AIM",
 #'                     tblSoilPitHorizons = aim_horizons,
 #'                     tblSoilPits = aim_pits)
-#' 
+#'
 #' lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
-#' gather_soil_summary(source = "LMF", 
+#' gather_soil_summary(source = "LMF",
 #'                     SOILHORIZON = lmf_horizons)
 
 #' @export gather_soil_summary_lmf
 #' @rdname gather_soil_summary
 gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
   ### input ####
-  # print("a")
   if (!is.null(SOILHORIZON)){
     hz_lmf_raw <- SOILHORIZON
   } else if(!is.null(dsn)){
@@ -49,7 +48,7 @@ gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
   } else{
     stop("One or more necessary inputs missing")
   }
-  
+
   ### prepare hz data ####
   hz_lmf <- hz_lmf_raw  %>%
     dplyr::select(PrimaryKey, DBKey, HorizonKey = SEQNUM,
@@ -84,7 +83,7 @@ gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
       Effer30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Effer, NA_character_),
       Effer60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Effer, NA_character_),
     )
-  
+
   # get min-max effervescence data, mirrors code above
   # tacked on min hz depth, because we're already summarizing by primary key here
   hzeff_lmf <- hz_lmf %>%
@@ -120,7 +119,7 @@ gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
         MaxEffer == 4 ~ "ST",
         MaxEffer == 5 ~ "VE"),
     )
-  
+
   soil_lmf <- hz_lmf %>% # edited from aim version above
     dplyr::group_by(
       PrimaryKey, DBKey,
@@ -135,17 +134,17 @@ gather_soil_summary_lmf <- function(dsn = NULL, SOILHORIZON = NULL){
       -HorizonDepthLower, -Effer, -DepthUOM, -Texture, -HorizonDepthUpper,
       -Texture, -TextureModifier, -HorizonKey) %>%
     dplyr::left_join(hzeff_lmf, by = "PrimaryKey")
-  
+
   if("sf" %in% class(soil_lmf)) soil_lmf <- soil_lmf %>% sf::st_drop_geometry()
-  
+
   return(soil_lmf)
-  
+
 }
 
 #' @export gather_soil_summary_terradat
 #' @rdname gather_soil_summary
 gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, tblSoilPits = NULL){
-  
+
   if (!is.null(tblSoilPits) & !is.null(tblSoilPitHorizons)) {
     hz_aim_raw <- tblSoilPitHorizons
     pit_aim_raw <- tblSoilPits
@@ -157,14 +156,14 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
   } else {
     stop("One or more necessary inputs missing")
   }
-  
+
   ### prepare hz data, incl effervescence ####
   hz_aim <- hz_aim_raw %>%
     dplyr::select(
       PrimaryKey, DBKey, SoilKey, HorizonKey,
       HorizonDepthUpper, HorizonDepthLower, DepthUOM = DepthMeasure,
       Texture, TextureModifier = ESD_HorizonModifier,
-      PercentClay = ESD_PctClay, PercentSand = ESD_PctSand, Effer, RockFragments,
+      PercentClay = ESD_PctClay, PercentSand = ESD_PctSand, Effer, #RockFragments,
       Fragment1VolPct = ESD_FragVolPct, Fragment1Type = ESD_FragmentType,
       Fragment2VolPct = ESD_FragVolPct2, Fragment2Type = ESD_FragmentType2,
       Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3
@@ -181,33 +180,33 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
       PercentClay = suppressWarnings(as.numeric(PercentClay)),
       PercentSand = suppressWarnings(as.numeric(PercentSand)),
       PercentSilt = 100 - PercentClay - PercentSand,
-      
+
       # somehow the pcts sometimes end up as logical. no idea why. force class change here
       Fragment1VolPct = suppressWarnings(as.numeric(Fragment1VolPct)),
       Fragment2VolPct = suppressWarnings(as.numeric(Fragment2VolPct)),
       Fragment3VolPct = suppressWarnings(as.numeric(Fragment3VolPct)),
-      
+
       # parse fragment class columns.
       TopHorizonGravelPct = suppressWarnings(as.numeric(dplyr::case_when(
-        Fragment1Type == "1" ~ Fragment1VolPct,
-        Fragment2Type == "1" ~ Fragment2VolPct,
-        Fragment3Type == "1" ~ Fragment3VolPct))),
+        Fragment1Type %in% c("GR", "Gravel", "1") ~ Fragment1VolPct,
+        Fragment2Type %in% c("GR", "Gravel", "1") ~ Fragment2VolPct,
+        Fragment3Type %in% c("GR", "Gravel", "1") ~ Fragment3VolPct))),
       TopHorizonCobblePct = suppressWarnings(as.numeric(dplyr::case_when(
-        Fragment1Type == "2" ~ Fragment1VolPct,
-        Fragment2Type == "2" ~ Fragment2VolPct,
-        Fragment3Type == "2" ~ Fragment3VolPct))),
+        Fragment1Type %in% c("CB", "Cobble", "2") ~ Fragment1VolPct,
+        Fragment2Type %in% c("CB", "Cobble", "2") ~ Fragment2VolPct,
+        Fragment3Type %in% c("CB", "Cobble", "2") ~ Fragment3VolPct))),
       TopHorizonStonePct = suppressWarnings(as.numeric(dplyr::case_when(
-        Fragment1Type == "6" ~ Fragment1VolPct,
-        Fragment2Type == "6" ~ Fragment2VolPct,
-        Fragment3Type == "6" ~ Fragment3VolPct))),
+        Fragment1Type %in% c("ST", "Stone", "6") ~ Fragment1VolPct,
+        Fragment2Type %in% c("ST", "Stone", "6") ~ Fragment2VolPct,
+        Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct))),
       TopHorizonNodulePct = suppressWarnings(as.numeric(dplyr::case_when(
-        Fragment1Type == "8" ~ Fragment1VolPct,
-        Fragment2Type == "8" ~ Fragment2VolPct,
-        Fragment3Type == "8" ~ Fragment3VolPct))),
+        Fragment1Type %in% c("Nodule", "8") ~ Fragment1VolPct,
+        Fragment2Type %in% c("Nodule", "8") ~ Fragment2VolPct,
+        Fragment3Type %in% c("Nodule", "8") ~ Fragment3VolPct))),
       TopHorizonDurinodePct = suppressWarnings(as.numeric(dplyr::case_when(
-        Fragment1Type == "9" ~ Fragment1VolPct,
-        Fragment2Type == "9" ~ Fragment2VolPct,
-        Fragment3Type == "9" ~ Fragment3VolPct))),
+        Fragment1Type %in% c("Durinode", "9") ~ Fragment1VolPct,
+        Fragment2Type %in% c("Durinode", "9") ~ Fragment2VolPct,
+        Fragment3Type %in% c("Durinode", "9") ~ Fragment3VolPct))),
     ) %>%
     dplyr::mutate(
       TopHorizonLargeFragmentPct = TopHorizonCobblePct + TopHorizonStonePct,
@@ -236,12 +235,12 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
       Effer15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, Effer, NA_character_),
       Effer30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, Effer, NA_character_),
       Effer60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, Effer, NA_character_),
-      RockFragments0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, RockFragments, NA_real_),
-      RockFragments15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, RockFragments, NA_real_),
-      RockFragments30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, RockFragments, NA_real_),
-      RockFragments60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, RockFragments, NA_real_),
+      # RockFragments0  = dplyr::if_else(HorizonDepthUpper == 0 | HorizonDepthUpper == 1, RockFragments, NA_real_),
+      # RockFragments15 = dplyr::if_else(HorizonDepthUpper < 15 & 14 < HorizonDepthLower, RockFragments, NA_real_),
+      # RockFragments30 = dplyr::if_else(HorizonDepthUpper < 30 & 29 < HorizonDepthLower, RockFragments, NA_real_),
+      # RockFragments60 = dplyr::if_else(HorizonDepthUpper < 60 & 59 < HorizonDepthLower, RockFragments, NA_real_),
     )
-  
+
   # get min and max effer data, then rejoin to hz table
   hzeff_aim <- hz_aim %>%
     dplyr::select(
@@ -274,7 +273,7 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
         MaxEffer == 4 ~ "ST",
         MaxEffer == 5 ~ "VE"),
     )
-  
+
   hzjoin_aim <- hz_aim %>%
     dplyr::group_by(
       PrimaryKey, DBKey, SoilKey,
@@ -288,19 +287,20 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
     dplyr::select(
       -HorizonDepthUpper, -HorizonDepthLower, -DepthUOM,
       -Texture, -TextureModifier, -PercentClay, -PercentSand, -PercentSilt,
-      -Effer, -RockFragments,
+      -Effer, #-RockFragments,
       -Fragment1VolPct, -Fragment1Type, -Fragment2VolPct, -Fragment2Type,
       -Fragment3VolPct, -Fragment3Type, -HorizonKey,
-      -TopHorizonCobblePct, -TopHorizonStonePct,
+      # -TopHorizonCobblePct, -TopHorizonStonePct,
     ) %>%
     dplyr::left_join(hzeff_aim, by = "SoilKey")
-  
+
   ### prepare pit and plot level data ####
   # pit: mostly for metadata, also total pit depth and total rock frags
   pit_aim <- pit_aim_raw %>%
     dplyr::select(
-      PrimaryKey, DBKey, SoilKey, Observer,
-      TotalFragments = RockFragments, TotalPitDepth = SoilDepthLower, PitDepthMeasure = DepthMeasure,
+      PrimaryKey, DBKey, SoilKey,
+      # TotalFragments = RockFragments,
+      TotalPitDepth = SoilDepthLower, PitDepthMeasure = DepthMeasure,
       PitNotes = Notes) %>%
     # unify depth measures and drop depth measure var
     dplyr::mutate(
@@ -309,15 +309,15 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
                            PitDepthMeasure == "cm" | is.na(PitDepthMeasure) ~ TotalPitDepth),
     ) %>%
     dplyr::select(-PitDepthMeasure)
-  
+
   ### join all aim-style data, final touches ####
   soil_aim <-
     dplyr::left_join(hzjoin_aim, pit_aim, by = c("PrimaryKey", "DBKey", "SoilKey")) %>%
     # final drop line
     dplyr::select(-SoilKey)
-  
+
   if("sf" %in% class(soil_aim)) soil_aim <- soil_aim %>% sf::st_drop_geometry()
-  
+
   return(soil_aim)
 }
 
@@ -326,35 +326,35 @@ gather_soil_summary_terradat <- function(dsn = NULL, tblSoilPitHorizons = NULL, 
 gather_soil_summary <- function(dsn = NULL, source,
                                 tblSoilPitHorizons = NULL, tblSoilPits = NULL,
                                 SOILHORIZON = NULL){
-  
- 
+
+
   if(toupper(source) %in% c("AIM", "TERRADAT")) {
     if(is.null(dsn) & (is.null(tblSoilPits) | is.null(tblSoilPitHorizons))){
       stop("If source is AIM or TerrADat, you must provide either a geodatabase or tblSoilPits and tblSoilPitHorizons")}
     soil <- gather_soil_summary_terradat(dsn = dsn, tblSoilPits = tblSoilPits,
                                     tblSoilPitHorizons = tblSoilPitHorizons)}
-  
+
   if(toupper(source) %in% c("LMF", "NRI")){
     if(is.null(dsn) & is.null(SOILHORIZON)){
       stop("If source is LMF or NRI, you must provide either a geodatabase or table SOILHORIZON")}
     soil <- gather_soil_summary_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
   }
-  
+
   soil$source <- source
-  
+
   if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
-  
+
   if (any(class(soil) %in% c("POSIXct", "POSIXt"))) {
-    change_vars <- names(soil)[do.call(rbind, vapply(soil, 
+    change_vars <- names(soil)[do.call(rbind, vapply(soil,
                                                      class))[, 1] %in% c("POSIXct", "POSIXt")]
-    soil <- dplyr::mutate_at(soil, dplyr::vars(change_vars), 
+    soil <- dplyr::mutate_at(soil, dplyr::vars(change_vars),
                              dplyr::funs(as.character))
   }
-  
+
   # change from tibble to data frame
-  soil <- as.data.frame(soil) 
-  
-  
+  soil <- as.data.frame(soil)
+
+
   return(soil)
 }
 

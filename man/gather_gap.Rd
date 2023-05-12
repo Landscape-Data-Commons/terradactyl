@@ -8,7 +8,7 @@
 \usage{
 gather_gap_terradat(dsn = NULL, tblGapDetail = NULL, tblGapHeader = NULL)
 
-gather_gap_lmf(dsn = NULL, file_type = "gdb", GINTERCEPT = NULL, POINT = NULL)
+gather_gap_lmf(dsn = NULL, file_type = NULL, GINTERCEPT = NULL, POINT = NULL)
 
 gather_gap(
   dsn = NULL,
