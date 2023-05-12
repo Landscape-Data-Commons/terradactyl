@@ -23,24 +23,24 @@ gather_soil_summary(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file 
-extension) of the geodatabase containing the table of interest. This field 
-is unnecessary if you supply either both of tblSoilPitHorizons and 
+\item{dsn}{Character string. The full filepath and filename (including file
+extension) of the geodatabase containing the table of interest. This field
+is unnecessary if you supply either both of tblSoilPitHorizons and
 tblSoilPits (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).}
 
-\item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from LMF/NRI 
-database with the addition of PrimaryKey and DBKey fields. Use when data 
+\item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from LMF/NRI
+database with the addition of PrimaryKey and DBKey fields. Use when data
 source is LMF or NRI; alternately provide dsn.}
 
-\item{tblSoilPitHorizons}{Dataframe of the data structure tblSoilPitHorizons 
-from the DIMA database with the addition of PrimaryKey and DBKey fields. 
+\item{tblSoilPitHorizons}{Dataframe of the data structure tblSoilPitHorizons
+from the DIMA database with the addition of PrimaryKey and DBKey fields.
 Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.}
 
-\item{tblSoilPits}{Dataframe of the data structure tblSoilPits from the DIMA 
-database with the addition of PrimaryKey and DBKey fields. Use when data 
+\item{tblSoilPits}{Dataframe of the data structure tblSoilPits from the DIMA
+database with the addition of PrimaryKey and DBKey fields. Use when data
 source is AIM, DIMA, or TerrADat; alternately provide dsn.}
 
-\item{source}{Character string. The data source format, 
+\item{source}{Character string. The data source format,
 \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
 }
 \value{
@@ -51,19 +51,19 @@ Given soil horizon and pit data, create a tall format data frame
 usable by other terradactyl functions.
 }
 \examples{
-gather_soil_summary(dsn = "Path/To/AIM_Geodatabase.gdb", 
+gather_soil_summary(dsn = "Path/To/AIM_Geodatabase.gdb",
                     source = "AIM")
-gather_soil_summary(dsn = "Path/To/LMF_Geodatabase.gdb", 
+gather_soil_summary(dsn = "Path/To/LMF_Geodatabase.gdb",
                     source = "LMF")
 
 aim_horizons <- read.csv("Path/To/tblSoilPitHorizons.csv")
 aim_pits <- read.csv("Path/To/tblSoilPits.csv")
-gather_soil_summary(source = "AIM", 
+gather_soil_summary(source = "AIM",
                     tblSoilPitHorizons = aim_horizons,
                     tblSoilPits = aim_pits)
 
 lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
-gather_soil_summary(source = "LMF", 
+gather_soil_summary(source = "LMF",
                     SOILHORIZON = lmf_horizons)
 }
 \seealso{

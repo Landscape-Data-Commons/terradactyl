@@ -13,12 +13,12 @@ gather_rangeland_health_terradat(
   tblQualDetail = NULL
 )
 
-gather_rangeland_health_lmf(dsn = NULL, file_type = "gdb", RANGEHEALTH = NULL)
+gather_rangeland_health_lmf(dsn = NULL, file_type = NULL, RANGEHEALTH = NULL)
 
 gather_rangeland_health(
   dsn = NULL,
   source,
-  file_type = "gdb",
+  file_type = NULL,
   tblQualHeader = NULL,
   tblQualDetail = NULL,
   RANGEHEALTH = NULL
