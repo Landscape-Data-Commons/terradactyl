@@ -415,12 +415,16 @@ gather_lpi <- function(dsn = NULL,
 
   if("sf" %in% class(lpi)) lpi <- sf::st_drop_geometry(lpi)
 
+  # Set classes
+  ## date fields
   if (any(class(lpi) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(lpi)[do.call(rbind, vapply(lpi,
                                                      class))[, 1] %in% c("POSIXct", "POSIXt")]
     lpi <- dplyr::mutate_at(lpi, dplyr::vars(change_vars),
                              dplyr::funs(as.character))
   }
+  ## text field
+  lpi$LineKey <- as.character(lpi$LineKey)
 
   # reorder so that primary key is leftmost column
   lpi <- lpi %>%
