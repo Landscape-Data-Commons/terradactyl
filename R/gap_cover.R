@@ -76,9 +76,11 @@ gap_cover <- function(gap_tall,
   # Find the interval class for each gap
   breaks <- c(breaks, Inf)
   gap_tall$interval <- cut(gap_tall$Gap, breaks = breaks, right = FALSE)
-  gap_tall$interval <- gap_tall$interval %>%
-    as.character() %>%
-    replace(., is.na(.), "NoGap")
+  # gap_tall$interval <- gap_tall$interval %>%
+  #   as.character() %>%
+  #   replace(., is.na(.), "NoGap")
+  gap_tall <- gap_tall %>%
+    dplyr::filter(!is.na(interval))
 
   # Clean up the interval labels. They currently are formatted like "[25,51)" but we'd like them as "25-51"
   gap_tall$interval <- gsub(x = gap_tall$interval,
