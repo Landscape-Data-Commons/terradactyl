@@ -117,9 +117,9 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
                         RH_SoilSiteStability = SSSVxWRatingFinal,
                         RH_CommentsBI = CommentBI,
                         RH_CommentsHF = CommentHF,
-                        RH_CommentsSS = CommentSSS,
-                        Observer,
-                        Recorder
+                        RH_CommentsSS = CommentSSS#,
+                        # Observer,
+                        # Recorder
   ) %>%
 
     # Add the indicators
