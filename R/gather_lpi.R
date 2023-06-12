@@ -147,7 +147,6 @@ gather_lpi_terradat <- function(dsn = NULL,
   lpi_tall <- suppressWarnings(dplyr::left_join(
     x = lpi_hits_tall,
     y = lpi_chkbox_tall,
-    all.x = TRUE,
     by = c("PrimaryKey", "PointLoc", "PointNbr", "RecKey", "layer")
   ) %>%
     dplyr::left_join(
