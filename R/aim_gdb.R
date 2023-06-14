@@ -1552,7 +1552,14 @@ build_indicators <- function(header, source, dsn, lpi_tall,
     missing_names[nrow(all_indicators), ] <- NA
     # For some indicators, the null value is 0 (to indicate the method was completed,
     # but no data in that group were collected)
-    missing_names[, grepl(names(missing_names), pattern = "^FH|^AH|^Num")] <- 0
+    # Skip this if the method was not provided
+    if(!(is.null(lpi_tall) & is.null(dsn))){
+      missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
+    }
+
+    if(!(is.null(spp_inventory_tall) & is.null(dsn))){
+      missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+    }
 
     # Merge back to indicator data to create a feature class for export
     final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
