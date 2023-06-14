@@ -101,7 +101,7 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
   }) %>%
     dplyr::bind_rows() %>%
     dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(na.omit(Date), order_by = Date))
+    dplyr::summarize(DateVisited = dplyr::first(na.omit(Date), order_by = na.omit(Date)))
 
   header <- header %>% dplyr::left_join(tblDate, by = c("PrimaryKey"))
 
