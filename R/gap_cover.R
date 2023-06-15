@@ -114,7 +114,13 @@ gap_cover <- function(gap_tall,
     nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
     nogap$total_line_length <- unlist(nogap$total_line_length)
   } else {
-    nogap <- NULL
+    nogap <- data.frame(PrimaryKey = NA,
+                        total_line_length = NA,
+                        `20-25` = NA,
+                        `25-51` = NA,
+                        `51-101` = NA,
+                        `101-201` = NA,
+                        `201-Inf` = NA)
   }
 
 
