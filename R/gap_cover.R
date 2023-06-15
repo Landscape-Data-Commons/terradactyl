@@ -85,6 +85,15 @@ gap_cover <- function(gap_tall,
                         allnogap = t)
       return(out)
     }) %>% as.data.frame() %>% t() %>% unique() %>% as.data.frame()
+
+    nogap <- subset(nogap, unlist(nogap$allnogap)) %>% dplyr::select(-allnogap)
+    nogap$`20-25` <- 0
+    nogap$`25-51` <- 0
+    nogap$`51-101` <- 0
+    nogap$`101-201` <- 0
+    nogap$`201-Inf` <- 0
+    nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
+    nogap$total_line_length <- unlist(nogap$total_line_length)
   } else if(type == "basal"){
     nogap <- sapply(gap_tall$PrimaryKey, function(p){
       gap <- dplyr::filter(gap_tall, PrimaryKey == p)
@@ -95,17 +104,19 @@ gap_cover <- function(gap_tall,
                         allnogap = t)
       return(out)
     }) %>% as.data.frame() %>% t() %>% unique() %>% as.data.frame()
+
+    nogap <- subset(nogap, unlist(nogap$allnogap)) %>% dplyr::select(-allnogap)
+    nogap$`20-25` <- 0
+    nogap$`25-51` <- 0
+    nogap$`51-101` <- 0
+    nogap$`101-201` <- 0
+    nogap$`201-Inf` <- 0
+    nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
+    nogap$total_line_length <- unlist(nogap$total_line_length)
   } else {
     nogap <- NULL
   }
-  nogap <- subset(nogap, unlist(nogap$allnogap)) %>% dplyr::select(-allnogap)
-  nogap$`20-25` <- 0
-  nogap$`25-51` <- 0
-  nogap$`51-101` <- 0
-  nogap$`101-201` <- 0
-  nogap$`201-Inf` <- 0
-  nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
-  nogap$total_line_length <- unlist(nogap$total_line_length)
+
 
   # Find the interval class for each gap
   breaks <- c(breaks, Inf)
