@@ -29,7 +29,6 @@ gap_cover <- function(gap_tall,
     level <- rlang::quos(PrimaryKey)
   }
 
-
   ## Convert the line lengths to the same units as the gaps
   # if metric (gap$Measure==1) then multiply by 100 to convert to centimeters
   gap_tall$LineLengthAmount[gap_tall$Measure == 1] <-
@@ -50,6 +49,7 @@ gap_cover <- function(gap_tall,
     gap_tall$GapMin[gap_tall$Measure == 2] <-
       gap_tall$MinGap[gap_tall$Measure == 2] * 2.54
   }
+
   ## Note if this is Basal or Canopy Gap by removing gaps from the opposite type.
   # "NA"s in RecType occur when there are no gaps
   if (type == "canopy") {
@@ -87,13 +87,17 @@ gap_cover <- function(gap_tall,
     }) %>% as.data.frame() %>% t() %>% unique() %>% as.data.frame()
 
     nogap <- subset(nogap, unlist(nogap$allnogap)) %>% dplyr::select(-allnogap)
-    nogap$`20-25` <- 0
-    nogap$`25-51` <- 0
-    nogap$`51-101` <- 0
-    nogap$`101-201` <- 0
-    nogap$`201-Inf` <- 0
     nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
     nogap$total_line_length <- unlist(nogap$total_line_length)
+
+    if(nrow(nogap) > 0){
+      nogap$`20-25` <- 0
+      nogap$`25-51` <- 0
+      nogap$`51-101` <- 0
+      nogap$`101-201` <- 0
+      nogap$`201-Inf` <- 0
+    }
+
   } else if(type == "basal"){
     nogap <- sapply(gap_tall$PrimaryKey, function(p){
       gap <- dplyr::filter(gap_tall, PrimaryKey == p)
@@ -106,13 +110,17 @@ gap_cover <- function(gap_tall,
     }) %>% as.data.frame() %>% t() %>% unique() %>% as.data.frame()
 
     nogap <- subset(nogap, unlist(nogap$allnogap)) %>% dplyr::select(-allnogap)
-    nogap$`20-25` <- 0
-    nogap$`25-51` <- 0
-    nogap$`51-101` <- 0
-    nogap$`101-201` <- 0
-    nogap$`201-Inf` <- 0
     nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
     nogap$total_line_length <- unlist(nogap$total_line_length)
+
+    if(nrow(nogap) > 0){
+      nogap$`20-25` <- 0
+      nogap$`25-51` <- 0
+      nogap$`51-101` <- 0
+      nogap$`101-201` <- 0
+      nogap$`201-Inf` <- 0
+    }
+
   } else {
     nogap <- data.frame(PrimaryKey = NA,
                         total_line_length = NA,
