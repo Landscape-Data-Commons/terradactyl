@@ -1355,13 +1355,13 @@ build_terradat_indicators <- function(header, source, dsn,
   }
 
   # Rangeland health
-  if(!is.null(dsn)){
+  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn))){
     print("Gathering rangeland health indicators from dsn")
     rh <- gather_rangeland_health(dsn, source = source) %>%
-        # Remove RecKey field, which is not applicable at the indicator level
-        dplyr::select_if(!names(.) %in% c("RecKey"))
+      # Remove RecKey field, which is not applicable at the indicator level
+      dplyr::select_if(!names(.) %in% c("RecKey"))
   } else {
-    print("Rangeland health data not provided")
+    print("Rangeland health data not found")
     rh <- NULL
   }
 
@@ -1553,11 +1553,11 @@ build_indicators <- function(header, source, dsn, lpi_tall,
     # For some indicators, the null value is 0 (to indicate the method was completed,
     # but no data in that group were collected)
     # Skip this if the method was not provided
-    if(!(is.null(lpi_tall) & is.null(dsn))){
+    if(!is.null(lpi_tall)){
       missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
     }
 
-    if(!(is.null(spp_inventory_tall) & is.null(dsn))){
+    if(!is.null(spp_inventory_tall)){
       missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
     }
 
