@@ -73,6 +73,40 @@ gap_cover <- function(gap_tall,
     # Merge back with original gap data
     dplyr::left_join(gap_tall, .)
 
+  # Find primary keys with no gaps, they will be removed by a filter later and
+  # must be added back on at the end
+  if(type == "canopy"){
+    nogap <- sapply(gap_tall$PrimaryKey, function(p){
+      gap <- dplyr::filter(gap_tall, PrimaryKey == p)
+      t <- all(all(gap$NoCanopyGaps) & !is.na(gap$NoCanopyGaps))
+      l <- unique(gap$total_line_length)
+      out <- data.frame(PrimaryKey = p,
+                        total_line_length = l,
+                        allnogap = t)
+      return(out)
+    }) %>% as.data.frame() %>% t() %>% unique() %>% as.data.frame()
+  } else if(type == "basal"){
+    nogap <- sapply(gap_tall$PrimaryKey, function(p){
+      gap <- dplyr::filter(gap_tall, PrimaryKey == p)
+      t <- all(all(gap$NoBasalGaps) & !is.na(gap$NoBasalGaps))
+      l <- unique(gap$total_line_length)
+      out <- data.frame(PrimaryKey = p,
+                        total_line_length = l,
+                        allnogap = t)
+      return(out)
+    }) %>% as.data.frame() %>% t() %>% unique() %>% as.data.frame()
+  } else {
+    nogap <- NULL
+  }
+  nogap <- subset(nogap, unlist(nogap$allnogap)) %>% dplyr::select(-allnogap)
+  nogap$`20-25` <- 0
+  nogap$`25-51` <- 0
+  nogap$`51-101` <- 0
+  nogap$`101-201` <- 0
+  nogap$`201-Inf` <- 0
+  nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
+  nogap$total_line_length <- unlist(nogap$total_line_length)
+
   # Find the interval class for each gap
   breaks <- c(breaks, Inf)
   gap_tall$interval <- cut(gap_tall$Gap, breaks = breaks, right = FALSE)
@@ -154,6 +188,13 @@ gap_cover <- function(gap_tall,
     percent$`201-Inf` <- 0
     n$`201-Inf` <- 0
     length$`201-Inf` <- 0
+  }
+
+  ## Add in 0's for the NoCanopyGap and NoBasalGap lines
+  if(nrow(nogap) > 0 & !is.null(nogap)){
+    percent <- dplyr::bind_rows(percent, nogap)
+    n <- dplyr::bind_rows(n, nogap)
+    length <- dplyr::bind_rows(length, nogap)
   }
 
   ## If tall=FALSE, then convert to wide format
