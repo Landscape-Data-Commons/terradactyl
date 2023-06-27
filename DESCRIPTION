@@ -1,7 +1,7 @@
 Package: terradactyl
 Type: Package
 Title: Tools for Creating and Using TerrADat
-Version: 1.0.6
+Version: 1.0.7
 Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
                person(given="Joseph R", family = "Brehm", role="aut"),
                person(given="Sarah H", family="Burnett", role="aut"),
