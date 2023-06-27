@@ -1247,61 +1247,133 @@ build_terradat_indicators <- function(header, source, dsn,
   header <- readRDS(header) %>%
     # Filter using the filtering expression specified by user
     dplyr::filter(!!!filter_exprs) %>%
-    dplyr::filter(source %in% c("AIM", "TerrADat")) #%>%
-    # dplyr::select_if(!names(.) %in% c("DateVisited"))
-    # the general header file for LMF has date visited in it, for TerrADat we get that from LPI
-    # dplyr::select(-DateVisited)
+    dplyr::filter(source %in% c("AIM", "TerrADat"))
 
-  # Join all indicator calculations together
-  indicators <- list(
-    header,
+  # # Join all indicator calculations together
+  # indicators <- list(
+  #   header,
+  #   # LPI
+  #   lpi_calc(
+  #     lpi_tall = lpi_tall,
+  #     header = header,
+  #     source = source,
+  #     species_file = species_file,
+  #     dsn = dsn
+  #   ),
+  #   # Gap
+  #   gap_calc(
+  #     gap_tall = gap_tall,
+  #     header = header
+  #   ),
+  #   # # Height
+  #   height_calc(
+  #     height_tall = height_tall,
+  #     header = header,
+  #     source = source,
+  #     species_file = species_file
+  #   ),
+  #   # # Species Inventory
+  #   spp_inventory_calc(
+  #     spp_inventory_tall = spp_inventory_tall,
+  #     header = header,
+  #     species_file = species_file,
+  #     source = source
+  #   ),
+  #   # # Soil Stability
+  #   soil_stability_calc(
+  #     soil_stability_tall = soil_stability_tall,
+  #     header = header
+  #   ) %>%
+  #   # Remove RecKey field
+  #   dplyr::select_if(!names(.) %in% c("RecKey"))
+  # )
+  #
+  #   # Rangeland Health
+  #   rh <- gather_rangeland_health(dsn,
+  #     source = source
+  #   ) %>%
+  #     dplyr::select_if(!names(.) %in% c("RecKey"))
+  #
+  #   if(nrow(rh) > 0){
+  #     indicators <- c(indicators, list(rh))
+  #   }
+
+  # Calculate all indicators and send them to a list, to later be reduced
+
+  # If a method is not provided (ie the path to the table provided as NULL)
+  # then we need a NULL variable to go into the list
+  if(!is.null(lpi_tall)){
     # LPI
-    lpi_calc(
-      lpi_tall = lpi_tall,
-      header = header,
-      source = source,
-      species_file = species_file,
-      dsn = dsn
-    ),
-    # Gap
-    gap_calc(
-      gap_tall = gap_tall,
-      header = header
-    ),
-    # # Height
-    height_calc(
-      height_tall = height_tall,
-      header = header,
-      source = source,
-      species_file = species_file
-    ),
-    # # Species Inventory
-    spp_inventory_calc(
-      spp_inventory_tall = spp_inventory_tall,
-      header = header,
-      species_file = species_file,
-      source = source
-    ),
-    # # Soil Stability
-    soil_stability_calc(
-      soil_stability_tall = soil_stability_tall,
-      header = header
-    ) %>%
-    # Remove RecKey field
-    dplyr::select_if(!names(.) %in% c("RecKey"))
-  )
+    lpi <- lpi_calc(lpi_tall = lpi_tall,
+                    header = header,
+                    source = source,
+                    species_file = species_file,
+                    dsn = dsn)
+  } else {
+    print("LPI data not provided")
+    lpi <- NULL
+  }
 
-    # Rangeland Health
-    rh <- gather_rangeland_health(dsn,
-      source = source
-    ) %>%
+  # Gap
+  if(!is.null(gap_tall)){
+    gap <- gap_calc(gap_tall = gap_tall,
+                    header = header)
+  } else {
+    print("Gap data not provided")
+    gap <- NULL
+  }
+
+  # Height
+  if(!is.null(height_tall)){
+    height <- height_calc(height_tall = height_tall,
+                          header = header,
+                          source = source,
+                          species_file = species_file)
+  } else {
+    print("Height data not provided")
+    height <- NULL
+  }
+
+  # Species Inventory
+  if(!is.null(spp_inventory_tall)){
+    spinv <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
+                                header = header,
+                                species_file = species_file,
+                                source = source)
+  } else {
+    print("Species inventory data not provided")
+    spinv <- NULL
+  }
+
+  # Soil Stability
+  if(!is.null(soil_stability_tall)){
+    sstab <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
+                                 header = header)
+  } else {
+    print("Soil stability data not provided")
+    sstab <- NULL
+  }
+
+  # Rangeland health
+  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn))){
+    print("Gathering rangeland health indicators from dsn")
+    rh <- gather_rangeland_health(dsn, source = source) %>%
+      # Remove RecKey field, which is not applicable at the indicator level
       dplyr::select_if(!names(.) %in% c("RecKey"))
+  } else {
+    print("Rangeland health data not found")
+    rh <- NULL
+  }
 
-    if(nrow(rh) > 0){
-      indicators <- c(indicators, list(rh))
-    }
+  # Combine the indicators
+  l_indicators <- list(header, lpi, gap, height, spinv, sstab, rh)
+  # Drop unused methods
+  l_indicators_dropnull <- l_indicators[!sapply(l_indicators, is.null)]
 
-  all_indicators <- Reduce(dplyr::left_join, indicators)
+  # reduce the list to a data frame
+  all_indicators <- Reduce(dplyr::left_join, l_indicators_dropnull)
+
+  return(all_indicators)
 }
 
 # Build LMF Indicators
@@ -1440,6 +1512,7 @@ build_indicators <- function(header, source, dsn, lpi_tall,
 
   # If target feature class is a gdb compare indicator field names with the names for a the target feature class
   if(substr(dsn, nchar(dsn)-2, nchar(dsn)) == "gdb"){
+    print("Reading column names from dsn. Missing columns will be added to output.")
     feature_class_field_names <- sf::st_read(dsn,
                                              layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
     )
@@ -1468,7 +1541,7 @@ build_indicators <- function(header, source, dsn, lpi_tall,
       # Join feature class field names to indicator field names
       dplyr::full_join(indicator_field_names) %>%
 
-      # get the field names where there is not corrollary in calculated
+      # get the field names where there is not corollary in calculated
       subset(is.na(calculated), select = "name") %>%
       dplyr::mutate(value = NA) %>%
       # make into a data frame
@@ -1479,7 +1552,14 @@ build_indicators <- function(header, source, dsn, lpi_tall,
     missing_names[nrow(all_indicators), ] <- NA
     # For some indicators, the null value is 0 (to indicate the method was completed,
     # but no data in that group were collected)
-    missing_names[, grepl(names(missing_names), pattern = "^FH|^AH|^Num")] <- 0
+    # Skip this if the method was not provided
+    if(!is.null(lpi_tall)){
+      missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
+    }
+
+    if(!is.null(spp_inventory_tall)){
+      missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+    }
 
     # Merge back to indicator data to create a feature class for export
     final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)

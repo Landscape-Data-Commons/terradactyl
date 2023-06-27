@@ -260,7 +260,7 @@ gather_lpi_lmf <- function(dsn = NULL,
   # Identify the pin drop variables
   pin_drop <- c(
     colnames(pintercept)[grepl(
-      pattern = "^HIT[1-6]$",
+      pattern = "^HIT[1-9]$",
       x = colnames(pintercept)
     )],
     "BASAL",
@@ -319,10 +319,11 @@ gather_lpi_lmf <- function(dsn = NULL,
     "HIT3" = "Lower2",
     "HIT4" = "Lower3",
     "HIT5" = "Lower4",
-    "HIT6" = "Lower5"
+    "HIT6" = "Lower5",
+    "HIT7" = "Lower6",
+    "HIT8" = "Lower7",
+    "HIT9" = "Lower8"
   )
-
-
 
   # Change "Transect and Mark to common names to DIMA schema
 
@@ -413,12 +414,16 @@ gather_lpi <- function(dsn = NULL,
 
   if("sf" %in% class(lpi)) lpi <- sf::st_drop_geometry(lpi)
 
+  # Set classes
+  ## date fields
   if (any(class(lpi) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(lpi)[do.call(rbind, vapply(lpi,
                                                      class))[, 1] %in% c("POSIXct", "POSIXt")]
     lpi <- dplyr::mutate_at(lpi, dplyr::vars(change_vars),
                              dplyr::funs(as.character))
   }
+  ## text field
+  lpi$LineKey <- as.character(lpi$LineKey)
 
   # reorder so that primary key is leftmost column
   lpi <- lpi %>%
