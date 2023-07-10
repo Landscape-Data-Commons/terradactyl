@@ -103,6 +103,10 @@ aero<- function (lpi_tall,
 
   # Convert gaps to meters
   canopy_gap <- canopy_gap %>% dplyr::mutate(Gap = Gap/100)
+
+  # Remove restricted character (/) from primary keys
+  plots_texture$PrimaryKey <- gsub("\\/", "-", plots_texture$PrimaryKey)
+
   # Write files to gap location
   lapply(
     plots_texture$PK_texture,
