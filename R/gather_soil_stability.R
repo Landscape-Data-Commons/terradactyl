@@ -75,6 +75,13 @@ gather_soil_stability_terradat <- function(dsn = NULL,
       "GlobalID"
     ))
 
+  # In some cases (due to bad DIMA defaults) empty rows may exist in DIMA data. Remove them.
+  soil_stability_detail %>% dplyr::filter(
+    !is.na(Rating1) & is.na(Rating2) & is.na(Rating3) & is.na(Rating4) & is.na(Rating5) &
+      is.na(Rating6) & is.na(Rating7) & is.na(Rating8) & is.na(Rating9) & is.na(Rating10) &
+      is.na(Rating11) & is.na(Rating12) & is.na(Rating13) & is.na(Rating14) & is.na(Rating15) &
+      is.na(Rating16) & is.na(Rating17) & is.na(Rating18))
+
   soil_stability_header <- soil_stability_header %>%
     dplyr::select_if(!names(.) %in% c(
       "created_user",
@@ -155,6 +162,11 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb'
     )
   )
+
+  # In some cases, the Hydro variable is lost. Add it back in
+  if (!"Hydro" %in% colnames(soil_stability_tall)){
+    soil_stability_tall$Hydro <- NA
+  }
 
   # Return final merged file
   return(soil_stability_tall)

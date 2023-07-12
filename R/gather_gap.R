@@ -162,7 +162,7 @@ gather_gap_terradat <- function(dsn = NULL,
     gap_tall %>%
     dplyr::filter(NoCanopyGaps == 1,
                   RecType != "C") %>%
-    dplyr::select(PrimaryKey, LineKey, RecKey, LineLengthAmount, NoBasalGaps, NoCanopyGaps) %>%
+    dplyr::select(PrimaryKey, LineKey, RecKey, NoBasalGaps, NoCanopyGaps) %>%
     unique() %>%
     dplyr::mutate(RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
 
@@ -183,7 +183,7 @@ gather_gap_terradat <- function(dsn = NULL,
     gap_tall %>%
     dplyr::filter(NoBasalGaps == 1,
                   RecType != "B" | is.na(RecType)) %>%
-    dplyr::select(PrimaryKey, LineKey, RecKey, NoCanopyGaps, NoBasalGaps, DateVisited) %>%
+    dplyr::select(PrimaryKey, LineKey, RecKey, NoCanopyGaps, NoBasalGaps) %>%
     unique() %>%
     dplyr::mutate(RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
 
