@@ -28,8 +28,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   # Read in height
   if(file.exists(paste(dsn_tall, "height_tall.rdata", sep = ""))){
     height <- readRDS(paste(dsn_tall, "height_tall.rdata", sep = "")) %>%
-      dplyr::left_join(header_sub, .) %>%
-      dplyr::select(PrimaryKey, Species, SpeciesState, source)
+      dplyr::left_join(header_sub, .)
   } else {
     print("No height data found")
     height <- NULL
@@ -108,7 +107,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
       ),
       dplyr::any_vars(!is.na(.))
     ) %>%
-    dplyr::left_join(species_all %>% dplyr::select(Species, SpeciesState, Notes))
+    dplyr::left_join(species_all %>% dplyr::select(Species, SpeciesState, Notes) %>% unique())
 
   species_hits <- species_issues %>%
     dplyr::group_by(Species, source) %>%
