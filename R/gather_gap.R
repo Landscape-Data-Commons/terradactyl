@@ -126,8 +126,6 @@ gather_gap_terradat <- function(dsn = NULL,
   if(!"DBKey" %in% colnames(gap_header)) gap_header$DBKey <- NA
   if(!"DBKey" %in% colnames(gap_detail)) gap_detail$DBKey <- NA
 
-
-
   ## ensure that gap, gapstart, and gapend are numeric
   gap_detail$GapStart <- as.numeric(gap_detail$GapStart)
   gap_detail$GapEnd <- as.numeric(gap_detail$GapEnd)
@@ -185,7 +183,7 @@ gather_gap_terradat <- function(dsn = NULL,
     gap_tall %>%
     dplyr::filter(NoBasalGaps == 1,
                   RecType != "B" | is.na(RecType)) %>%
-    dplyr::select(PrimaryKey, LineKey, RecKey, NoCanopyGaps, NoBasalGaps) %>%
+    dplyr::select(PrimaryKey, LineKey, RecKey, NoCanopyGaps, NoBasalGaps, DateVisited) %>%
     unique() %>%
     dplyr::mutate(RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
 
