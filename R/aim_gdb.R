@@ -386,14 +386,58 @@ gather_header_nri <- function(dsn = NULL, ...) {
   # Return the point_ESD as the header file
   return(point_ESD)
 }
+
+# Build the header portion of the Survey123 table
+#' @export gather_header_survey123
+#' @rdname aim_gdb
+gather_header_survey123 <- function(PlotChar, speciesstate, ...){
+    # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
+    filter_exprs <- rlang::quos(...)
+
+    header <- PlotChar %>%
+      as.data.frame() %>%
+
+      # Filter using the filtering expression specified by user
+      dplyr::filter(!!!filter_exprs)
+
+    # Add these fields if missing, to match terradat formatting
+    header$Design <- NA
+    header$DesignFlag <- NA
+    header$Purpose <- NA
+    header$PurposeFlag <- NA
+    header$ProjectName <- NA
+    header$State <- NA
+    header$DBKey <- NA
+    header$County <- NA
+    header$DateLoadedInDb <- NA
+    header$SpeciesState <- speciesstate
+
+    header <- header %>%
+      # Select the field names we need in the final feature class
+      dplyr::select(PrimaryKey = PlotKey, PlotID, PlotKey, DBKey,
+                    EcologicalSiteId = Ecolsite, Latitude_NAD83 = y, Longitude_NAD83 = x, State, SpeciesState,
+                    Elevation,
+                    County, DateEstablished = EstabDate,
+                    DateLoadedInDb,
+                    Design, DesignFlag, Purpose, PurposeFlag,
+                    ProjectName
+      ) %>%
+
+      # If there are any Sites with no PrimaryKeys, delete them
+      subset(!is.na(PrimaryKey))
+
+    # Return the header file
+    return(header)
+}
+
 # Build the header wrapper
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, ...) {
+gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, PlotChar_0 = NULL, speciesstate = NULL, ...) {
   # Error check
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI", "SURVEY123")) {
     stop("No valid source provided")
   })
 
@@ -404,7 +448,8 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
     "NRI" = gather_header_nri(dsn = dsn, ...),
     "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
     "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...)
+    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
+    "SURVEY123" = gather_header_survey123(PlotChar = PlotChar123, speciesstate = speciesstate)
   )
 
   header$source <- source

@@ -120,7 +120,7 @@ gather_gap_terradat <- function(dsn = NULL,
       ))
 
   } else {
-    stop("Supply either tblGapDetail and tblGapHeader, or the path to a GDB containing those tables")
+    stop("Provide either tblGapDetail and tblGapHeader, or the path to a GDB containing those tables")
   }
   # add null DBKey field if not present
   if(!"DBKey" %in% colnames(gap_header)) gap_header$DBKey <- NA
@@ -155,6 +155,8 @@ gather_gap_terradat <- function(dsn = NULL,
     tidyr::replace_na(list(
       RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1
     ))
+  gap_tall$NoCanopyGaps <- as.numeric(gap_tall$NoCanopyGaps)
+  gap_tall$NoBasalGaps <- as.numeric(gap_tall$NoBasalGaps)
 
   ## Add zero values where there is no canopy gap present on the line, AND there is basal gap on the line
   # Find missing records
@@ -454,6 +456,130 @@ gather_gap_lmf <- function(dsn = NULL,
   return(gap)
 }
 
+#' @export gather_gap_survey123
+#' @rdname gather_gap
+gather_gap_survey123 <- function(Gap_0, GapDetail_1) {
+
+  # Add fields to match terradat schema
+  GapDetail_1$DBKey <- NA
+  GapDetail_1$SeqNo <- NA
+  Gap_0$DBKey <- NA
+  Gap_0$RecKey <- NA
+
+  # Select only the necessary fields
+  gap_detail <- GapDetail_1 %>%
+    dplyr::select(
+      GlobalID,
+      ParentGlobalID,
+      DBKey,
+      GapStart,
+      GapEnd,
+      RecType,
+      Gap,
+      SeqNo
+    )
+
+  gap_header <- Gap_0 %>%
+    dplyr::select(
+      GlobalID,
+      PrimaryKey = PlotKey,
+      DBKey,
+      LineKey,
+      RecKey,
+      FormDate,
+      Direction,
+      # Measure, # This is necessary but missing data
+      LineLengthAmount = LineLengthCM,
+      GapMin,
+      GapData, # Will have to be reclassified later
+      Notes = CollectNote,
+      NoCanopyGaps,
+      NoBasalGaps
+    )
+
+
+  ## ensure that gap, gapstart, and gapend are numeric
+  gap_detail$GapStart <- as.numeric(gap_detail$GapStart)
+  gap_detail$GapEnd <- as.numeric(gap_detail$GapEnd)
+  gap_detail$Gap <- as.numeric(gap_detail$Gap)
+  ##
+
+  # Merge header and detail data together
+  # Survey123 uses global ID, we have to translate it, then drop GlobalIDs
+  gap_tall <- dplyr::left_join(
+    x = gap_header,
+    y = gap_detail,
+    by = c("GlobalID" = "ParentGlobalID", "DBKey")
+  ) %>%
+    dplyr::select(-"GlobalID.y", -"GlobalID")
+
+  # Remove all orphaned records
+  gap_tall <- gap_tall[!is.na(gap_tall$PrimaryKey), ]
+
+  # reclassify GapData from text to code
+  gap_tall$GapData <-
+    dplyr::recode(
+      gap_tall$GapData,
+      "Both" = 1, ### Probable bug here -- I do not know what survey123 codes this value as
+      "Canopy" = 2,
+      "Basal" = 3
+    )
+
+  # Look for NA values in NoCanopyGaps and NoBasalGaps, we assume they are 0
+  gap_tall <- gap_tall %>%
+    dplyr::mutate(
+      NoCanopyGaps = tidyr::replace_na(NoCanopyGaps, replace = 0),
+      NoBasalGaps = tidyr::replace_na(NoBasalGaps, replace = 0)
+    )
+
+  ## Add zero values where there is no canopy gap present on line
+  gap_tall[gap_tall$NoCanopyGaps == 1, ] <- gap_tall %>%
+    dplyr::filter(NoCanopyGaps == 1) %>%
+    tidyr::replace_na(list(
+      RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1
+    ))
+  gap_tall$NoCanopyGaps <- as.numeric(gap_tall$NoCanopyGaps)
+  gap_tall$NoBasalGaps <- as.numeric(gap_tall$NoBasalGaps)
+
+  ## Add zero values where there is no canopy gap present on the line, AND there is basal gap on the line
+  # Find missing records
+  gap_tall_missing_c <-
+    gap_tall %>%
+    dplyr::filter(NoCanopyGaps == 1,
+                  RecType != "C") %>%
+    dplyr::select(PrimaryKey, LineKey, RecKey, NoBasalGaps, NoCanopyGaps) %>%
+    unique() %>%
+    dplyr::mutate(RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
+
+  # Append them to gap_tall
+  gap_tall <-
+    dplyr::bind_rows(gap_tall, gap_tall_missing_c)
+
+  ## Add zero values where there is no basal gap present on line
+  gap_tall[gap_tall$NoBasalGaps == 1, ] <- gap_tall %>%
+    dplyr::filter(NoBasalGaps == 1) %>%
+    tidyr::replace_na(list(
+      RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1
+    ))
+
+  ## Add zero values where there is no basal gap present on the line, AND there is canopy gap on the line
+  # Find missing records
+  gap_tall_missing_b <-
+    gap_tall %>%
+    dplyr::filter(NoBasalGaps == 1,
+                  RecType != "B" | is.na(RecType)) %>%
+    dplyr::select(PrimaryKey, LineKey, RecKey, NoCanopyGaps, NoBasalGaps) %>%
+    unique() %>%
+    dplyr::mutate(RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
+
+  # Append them to gap_tall
+  gap_tall <-
+    dplyr::bind_rows(gap_tall, gap_tall_missing_b)
+
+  return(gap_tall)
+}
+
+
 #' @export gather_gap
 #' @rdname gather_gap
 gather_gap <- function(dsn = NULL,
@@ -462,7 +588,9 @@ gather_gap <- function(dsn = NULL,
                        tblGapHeader = NULL,
                        tblGapDetail = NULL,
                        POINT = NULL,
-                       GINTERCEPT = NULL) {
+                       GINTERCEPT = NULL,
+                       Gap_0 = NULL,
+                       GapDetail_1 = NULL) {
 
   # Gather gap using the appropriate method
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -474,8 +602,10 @@ gather_gap <- function(dsn = NULL,
                           file_type = file_type,
                           POINT = POINT,
                           GINTERCEPT = GINTERCEPT)
+  } else if(toupper(source) %in% c("SURVEY123")){
+    gap <- gather_gap_survey123(Gap_0 = Gap_0, GapDetail_1 = GapDetail_1)
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+    stop("source must be AIM, TerrADat, Survey123, DIMA, LMF, or NRI (all case independent)")
   }
 
   gap$source <- source

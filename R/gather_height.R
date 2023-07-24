@@ -316,6 +316,110 @@ gather_height_lmf <- function(dsn = NULL,
   return(height)
 }
 
+#' @export gather_height_survey123
+#' @rdname gather_height
+gather_height_survey123 <- function(LPI_0,
+                                    LPIDetail_1) {
+
+  # This code copy-and-pasted from gather_height_terradat
+  lpi_header <- LPI_0
+  lpi_detail <- LPIDetail_1
+
+  # Survery123 uses GlobalID to link data, not PrimaryKey. Bring in PrimaryKey from PlotKey
+  lpi_header$PrimaryKey <- lpi_header$PlotKey
+  lpi_detail <- dplyr::left_join(lpi_detail, lpi_header %>% dplyr::select(GlobalID, PrimaryKey), by = c("ParentGlobalID" = "GlobalID"))
+
+  if (any(colnames(lpi_header) %in% "DBKey")) {
+    levels <- rlang::quos(PrimaryKey, "DBKey")
+  } else {
+    levels <- rlang::quos(PrimaryKey)
+  }
+
+  # we only want to carry a subset of the lpi_header fields forward
+  # lpi_header <- dplyr::select(lpi_header, !!!levels, PlotID:CheckboxLabel)
+
+  # Add null DBKey column if not present
+  if(!("DBKey" %in% colnames(lpi_header))) lpi_header$DBKey <- NA
+  if(!("DBKey" %in% colnames(lpi_detail))) lpi_detail$DBKey <- NA
+
+  lpi_height_tall_woody <- dplyr::select(
+    .data = lpi_detail,
+    !!!levels,
+    PointLoc,
+    PointNbr,
+    RecKey,
+    DBKey,
+    dplyr::matches("Woody$")
+  ) %>% dplyr::mutate(type = "woody")
+  # Strip out the extra name stuff so woody and herbaceous variable names match.
+  names(lpi_height_tall_woody) <- stringr::str_replace_all(
+    string = names(lpi_height_tall_woody),
+    pattern = "Woody$",
+    replacement = ""
+  )
+  # Add observed growth habit field
+  lpi_height_tall_woody$GrowthHabit_measured <- "Woody"
+
+  # Herbaceous height
+  lpi_height_tall_herb <- dplyr::select(
+    .data = lpi_detail,
+    !!!levels,
+    PointLoc,
+    PointNbr,
+    RecKey,
+    DBKey,
+    dplyr::matches("Herbaceous$")
+  ) %>% dplyr::mutate(type = "herbaceous")
+  names(lpi_height_tall_herb) <- stringr::str_replace_all(
+    string = names(lpi_height_tall_herb),
+    pattern = "Herbaceous$",
+    replacement = ""
+  )
+  # Add observed growth habit field
+  lpi_height_tall_herb$GrowthHabit_measured <- "NonWoody"
+
+  # Merge all gather types together
+  lpi_height <- rbind(
+    lpi_height_tall_woody,
+    lpi_height_tall_herb
+  )
+  lpi_height <- lpi_height %>%
+    dplyr::full_join(x = ., y = lpi_header, by = c("PrimaryKey", "DBKey")) %>%
+    subset(., !is.na(Height))
+
+  # Add NA to fields with no species
+  lpi_height$Species[!grepl(pattern = "[[:digit:]]|[[:alpha:]]", lpi_height$Species)] <- NA
+
+  # Remove orphaned records and duplicates, if they exist
+  lpi_height <- unique(lpi_height)
+  lpi_height <- lpi_height[!is.na(lpi_height$PrimaryKey), ]
+
+  # Make sure height is a numeric field
+  lpi_height$Height <- suppressWarnings(as.numeric(lpi_height$Height))
+
+  # final drop
+  lpi_height <- lpi_height %>%
+    dplyr::select(
+      "PrimaryKey", "DBKey", "PointLoc", "PointNbr", "RecKey", "Height",
+      "Species", "Chkbox", "type", "GrowthHabit_measured", "LineKey", "FormDate",
+      "Direction",
+      ## These methods data are not in Survey123
+      # "Measure",
+      # "LineLengthAmount",
+      # "SpacingIntervalAmount",
+      # "SpacingType",
+      # "HeightOption",
+      # "HeightUOM",
+      # "ShowCheckbox",
+      # "CheckboxLabel"
+    )
+
+
+  # Output the woody/herbaceous level data
+  return(lpi_height)
+}
+
+
 #' Gather Height wrapper for all data types
 #' @export gather_height
 #' @rdname gather_height
@@ -325,7 +429,9 @@ gather_height <- function(dsn = NULL,
                           source,
                           tblLPIDetail = NULL,
                           tblLPIHeader = NULL,
-                          PASTUREHEIGHTS = NULL) {
+                          PASTUREHEIGHTS = NULL,
+                          LPI_0 = NULL,
+                          LPIDetail_1 = NULL) {
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     height <- gather_height_terradat(
       dsn = dsn,
@@ -337,8 +443,13 @@ gather_height <- function(dsn = NULL,
       dsn = dsn, file_type = file_type,
       PASTUREHEIGHTS = PASTUREHEIGHTS
     )
+  } else if(toupper(source) %in% c("SURVEY123")){
+    height <- gather_height_survey123(
+      LPI_0 = LPI_0,
+      LPIDetail_1 = LPIDetail_1
+    )
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+    stop("source must be AIM, TerrADat, DIMA, LMF, Survey123, or NRI (all case independent)")
   }
 
   # height$source <- toupper(source)
@@ -348,9 +459,9 @@ gather_height <- function(dsn = NULL,
 
   if (any(class(height) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(height)[do.call(rbind, vapply(height,
-                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+                                                       class))[, 1] %in% c("POSIXct", "POSIXt")]
     height <- dplyr::mutate_at(height, dplyr::vars(change_vars),
-                            dplyr::funs(as.character))
+                               dplyr::funs(as.character))
   }
 
   height <- height %>%
