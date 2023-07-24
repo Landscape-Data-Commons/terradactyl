@@ -22,6 +22,11 @@ aero<- function (lpi_tall,
   header <- header %>% subset(!is.na(Longitude_NAD83) &
                                 !is.na(Latitude_NAD83))
 
+  # Limit tall tables to only PrimaryKeys found in header
+  lpi_tall <- subset(lpi_tall, PrimaryKey %in% header$PrimaryKey)
+  gap_tall <- subset(gap_tall, PrimaryKey %in% header$PrimaryKey)
+  height_tall <- subset(height_tall, PrimaryKey %in% header$PrimaryKey)
+
   if (grepl(x = texture_file,
             pattern = ".csv$")){
     texture <- read.csv(texture_file) %>% dplyr::select(PrimaryKey, SoilTexture)
@@ -40,6 +45,10 @@ aero<- function (lpi_tall,
 
     #extract soil texture values to plots
     plots_texture <- raster::extract( x=texture_raster,y=plots, df=TRUE, sp=TRUE)
+
+    if(all(is.na(plots_texture$sand) & all(is.na(plots_texture$clay)))){
+      stop("No raster values extracted. Plots and raster do not overlap.")
+    }
 
     # Remove any plots without sand texture
     plots_texture <- subset(plots_texture,!is.na(sand))
@@ -91,10 +100,20 @@ aero<- function (lpi_tall,
   # because there may be multiple textures per plot, make a new identifier of common_pk + SoilTexture
   plots_texture <- plots_texture %>%
     dplyr::mutate(
-      SoilTexture = SoilTexture %>% stringr::str_replace(" ", "_"),
-      PK_texture = paste(PrimaryKey,SoilTexture, sep = "_")) %>%
+      SoilTexture = SoilTexture %>% stringr::str_replace(" ", "_")) %>%
     subset(PrimaryKey %in% common_PK)
 
+  # If there is soil texture data, append it to the primary keys.
+  if(!all(is.na(plots_texture$SoilTexture))){
+    plots_texture$PK_texture = paste(PrimaryKey,SoilTexture, sep = "_")
+
+  # Otherwise, pass primary key to PK_texture
+  } else {
+    plots_texture$PK_texture <- plots_texture$PrimaryKey
+  }
+
+  # Remove restricted character (/) from keys
+  plots_texture$PK_texture <- gsub("\\/", "-", plots_texture$PK_texture)
 
   # Write Gap txt files of the raw gap observations
   # Create the gap folder location
@@ -103,9 +122,6 @@ aero<- function (lpi_tall,
 
   # Convert gaps to meters
   canopy_gap <- canopy_gap %>% dplyr::mutate(Gap = Gap/100)
-
-  # Remove restricted character (/) from primary keys
-  plots_texture$PrimaryKey <- gsub("\\/", "-", plots_texture$PrimaryKey)
 
   # Write files to gap location
   lapply(
@@ -125,11 +141,11 @@ aero<- function (lpi_tall,
       cat(
         file = paste(folder_location, X, ".ini", sep = ""),
         "[INPUT_VALUES]",
-                paste("wind_location:",
-                      plots_texture$Latitude[plots_texture$PK_texture == X] %>% unique(),
-                      plots_texture$Longitude[plots_texture$PrimaryKey == plots_texture$PrimaryKey[plots_texture$PK_texture == X]]%>% unique(),
-                  sep = " "
-                ),
+        paste("wind_location:",
+              plots_texture$Latitude[plots_texture$PK_texture == X] %>% unique(),
+              plots_texture$Longitude[plots_texture$PrimaryKey == plots_texture$PrimaryKey[plots_texture$PK_texture == X]]%>% unique(),
+              sep = " "
+        ),
         paste("soil_sand_fraction: ",
               plots_texture$sand[plots_texture$PK_texture == X] %>% unique(),
               sep = ""),
