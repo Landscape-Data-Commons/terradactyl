@@ -4,11 +4,14 @@
 \alias{gather_gap}
 \alias{gather_gap_terradat}
 \alias{gather_gap_lmf}
+\alias{gather_gap_survey123}
 \title{Convert gap data into a tall, tidy data frame}
 \usage{
 gather_gap_terradat(dsn = NULL, tblGapDetail = NULL, tblGapHeader = NULL)
 
 gather_gap_lmf(dsn = NULL, file_type = NULL, GINTERCEPT = NULL, POINT = NULL)
+
+gather_gap_survey123(Gap_0, GapDetail_1)
 
 gather_gap(
   dsn = NULL,
@@ -17,7 +20,9 @@ gather_gap(
   tblGapHeader = NULL,
   tblGapDetail = NULL,
   POINT = NULL,
-  GINTERCEPT = NULL
+  GINTERCEPT = NULL,
+  Gap_0 = NULL,
+  GapDetail_1 = NULL
 )
 }
 \arguments{

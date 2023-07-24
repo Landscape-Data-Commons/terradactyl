@@ -4,6 +4,7 @@
 \alias{gather_header_terradat}
 \alias{gather_header_lmf}
 \alias{gather_header_nri}
+\alias{gather_header_survey123}
 \alias{gather_header}
 \alias{lpi_calc}
 \alias{gap_calc}
@@ -21,7 +22,17 @@ gather_header_lmf(dsn = NULL, ...)
 
 gather_header_nri(dsn = NULL, ...)
 
-gather_header(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, ...)
+gather_header_survey123(PlotChar, speciesstate, ...)
+
+gather_header(
+  dsn = NULL,
+  source,
+  tblPlots = NULL,
+  date_tables = NULL,
+  PlotChar_0 = NULL,
+  speciesstate = NULL,
+  ...
+)
 
 lpi_calc(header, lpi_tall, species_file, source, dsn)
 

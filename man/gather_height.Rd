@@ -4,11 +4,14 @@
 \alias{gather_height}
 \alias{gather_height_terradat}
 \alias{gather_height_lmf}
+\alias{gather_height_survey123}
 \title{Convert height data into a tall, tidy data frame}
 \usage{
 gather_height_terradat(dsn = NULL, tblLPIDetail = NULL, tblLPIHeader = NULL)
 
 gather_height_lmf(dsn = NULL, file_type = "gdb", PASTUREHEIGHTS = NULL)
+
+gather_height_survey123(LPI_0, LPIDetail_1)
 
 gather_height(
   dsn = NULL,
@@ -16,7 +19,9 @@ gather_height(
   source,
   tblLPIDetail = NULL,
   tblLPIHeader = NULL,
-  PASTUREHEIGHTS = NULL
+  PASTUREHEIGHTS = NULL,
+  LPI_0 = NULL,
+  LPIDetail_1 = NULL
 )
 }
 \arguments{
