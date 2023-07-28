@@ -6,6 +6,7 @@
 \alias{species_count}
 \alias{tall_species}
 \alias{gather_species_inventory_lmf}
+\alias{gather_species_inventory_survey123}
 \title{Convert species inventory data into tall, tidy data frame}
 \usage{
 gather_species_inventory_terradat(
@@ -19,6 +20,12 @@ species_count(species_inventory_tall, ...)
 tall_species(species_inventory_detail)
 
 gather_species_inventory_lmf(dsn = NULL, file_type = "gdb", PLANTCENSUS = NULL)
+
+gather_species_inventory_survey123(
+  dsn = NULL,
+  SpeciesRichness_0 = NULL,
+  SpecRichDetail_1 = NULL
+)
 
 gather_species_inventory(
   dsn = NULL,

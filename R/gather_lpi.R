@@ -175,8 +175,8 @@ gather_lpi_terradat <- function(dsn = NULL,
   ## drops
   lpi_tall <- lpi_tall %>% dplyr::select_if(!names(.) %in% c(
 
-     "DateModified", "FormType", "FormType",
-       "DataEntry", "DataErrorChecking", "DateVisited")
+    "DateModified", "FormType", "FormType",
+    "DataEntry", "DataErrorChecking", "DateVisited")
   )
 
 
@@ -384,6 +384,179 @@ gather_lpi_nps <- function(dsn) {
   )
 }
 
+#' @export gather_lpi_survey123
+#' @rdname gather_lpi
+gather_lpi_survey123 <- function(dsn = NULL,
+                                 LPI_0 = NULL,
+                                 LPIDetail_1 = NULL) {
+
+  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+  if (!is.null(LPI_0) & !is.null(LPIDetail_1)) {
+    lpi_detail <- LPIDetail_1
+    lpi_header <- LPI_0
+  } else if(!is.null(dsn)){
+
+    if(!file.exists(dsn)){
+      stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+    }
+
+    lpi_detail <- suppressWarnings(sf::st_read(
+      dsn = dsn,
+      layer = "tblLPIDetail",
+      stringsAsFactors = FALSE, quiet = T
+    ))
+    lpi_header <- suppressWarnings(sf::st_read(
+      dsn = dsn,
+      layer = "tblLPIHeader",
+      stringsAsFactors = FALSE, quiet = T
+    ))
+  } else {
+    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing those tables")
+  }
+
+  # Add null DBKey column if not present
+  if(!("DBKey" %in% colnames(lpi_header))) lpi_header$DBKey <- NA
+  if(!("DBKey" %in% colnames(lpi_detail))) lpi_detail$DBKey <- NA
+
+  # Survey123 uses GlobalID to join, and PlotKey becomes PrimaryKey
+  lpi_header$PrimaryKey <- lpi_header$PlotKey
+
+  lpi_detail <- dplyr::left_join(
+    x = lpi_detail,
+    y = lpi_header %>% dplyr::select(PrimaryKey, GlobalID),
+    by = c("ParentGlobalID" = "GlobalID")
+  ) %>%
+    dplyr::select(-"ParentGlobalID", -"GlobalID")
+
+
+  # Make a tall data frame with the hit codes by layer and the checkbox designation
+  lpi_hits_tall <- lpi_detail %>%
+    dplyr::mutate_if(is.factor, as.character) %>%
+    dplyr::select(
+      "PrimaryKey",
+      "PointLoc",
+      "PointNbr",
+      "RecKey",
+      "ShrubShape",
+      "TopCanopy",
+      "SoilSurface", dplyr::matches("^Lower")
+    ) %>%
+    tidyr::gather(
+      key = "layer",
+      value = "code",
+      "TopCanopy", "SoilSurface", dplyr::matches("^Lower")
+    )
+
+  # Remove all records where no hit was recorded (e.g., "None", "NA"
+
+  lpi_hits_tall <- dplyr::filter(
+    .data = lpi_hits_tall,
+    !is.na(code),
+    code != "",
+    code != "N",
+    code != "None",
+    !is.na(PrimaryKey),
+    !is.na(RecKey)
+  )
+
+
+  ## Make a tall data frame the checkbox status by layer
+
+  lpi_chkbox_tall <- lpi_detail %>%
+    dplyr::select(
+      "PrimaryKey",
+      "PointLoc",
+      "PointNbr",
+      "RecKey",
+      dplyr::matches("^Chkbox")
+    ) %>%
+    tidyr::gather(
+      key = "layer",
+      value = "chckbox",
+      dplyr::matches("^Chkbox")
+    )
+
+  # Remove Woody and Herbaceous Checkbox
+  lpi_chkbox_tall <- lpi_chkbox_tall[!(lpi_chkbox_tall$chckbox %in%
+                                         c(
+                                           "ChckboxWoody",
+                                           "ChckboxHerbaceous"
+                                         )), ]
+
+  ## Make the names in the layer variable match
+  lpi_chkbox_tall$layer <- gsub(lpi_chkbox_tall$layer,
+                                pattern = "^Chkbox",
+                                replacement = ""
+  )
+
+  lpi_chkbox_tall$layer[lpi_chkbox_tall$layer == "Top"] <- "TopCanopy"
+  lpi_chkbox_tall$layer[lpi_chkbox_tall$layer == "Soil"] <- "SoilSurface"
+
+  # Print update because this function can take a while
+  message("Merging LPI Header and LPI Detail tables")
+
+  # Merge checkbox and hit data as well as the header data
+  lpi_tall <- dplyr::left_join(
+    x = lpi_hits_tall,
+    y = lpi_chkbox_tall,
+    by = c("PrimaryKey", "PointLoc", "PointNbr", "RecKey", "layer")
+  ) %>%
+    dplyr::left_join(
+      x =
+
+        dplyr::select(
+        lpi_header,
+        "PrimaryKey",
+        "LineKey",
+        "DBKey",
+        "FormDate",
+        "Direction"#,
+        # "Measure", # Missing but necessary data
+        # "LineLengthAmount",
+        # "SpacingIntervalAmount",
+        # "SpacingType",
+        # "HeightOption",
+        # "HeightUOM",
+        # "ShowCheckBox",
+        # "CheckboxLabel",
+      ),
+      y = .,
+      by = c("PrimaryKey")
+    )
+
+  # Check for duplicate PrimaryKeys
+  dupkeys <- lpi_tall$PrimaryKey[lpi_tall(header$PrimaryKey)]
+  if(length(dupkeys) > 0){
+    dupnames <- paste(dupkeys, collapse = ", ")
+    warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+  }
+
+  # Find date fields & convert to character
+  # Find fields that are in a Date structure
+  change_vars <- names(lpi_tall)[class(lpi_tall) %in%
+                                   c("POSIXct", "POSIXt")]
+
+  # Update fields
+  lpi_tall <- dplyr::mutate_at(
+    lpi_tall, dplyr::all_of(dplyr::vars(all_of(change_vars))),
+    list(as.character)
+  )
+
+
+  ## drops
+  lpi_tall <- lpi_tall %>% dplyr::select_if(!names(.) %in% c(
+
+    "DateModified", "FormType", "FormType",
+    "DataEntry", "DataErrorChecking", "DateVisited")
+  )
+
+
+  return(lpi_tall)
+  ## Output the list
+}
+
+
+
 #' @export gather_lpi
 #' @rdname gather_lpi
 
@@ -393,7 +566,9 @@ gather_lpi <- function(dsn = NULL,
                        source,
                        tblLPIDetail = NULL,
                        tblLPIHeader = NULL,
-                       PINTERCEPT = NULL) {
+                       PINTERCEPT = NULL,
+                       LPI_0 = NULL,
+                       LPIDetail_1 = NULL) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     lpi <- gather_lpi_terradat(dsn = dsn,
@@ -404,6 +579,9 @@ gather_lpi <- function(dsn = NULL,
                           file_type = file_type,
                           PINTERCEPT = PINTERCEPT)
     lpi$chckbox <- NA
+  } else if(toupper(source) == "SURVEY123"){
+    lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
+                                LPIDetail_1 = LPIDetail_1)
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
@@ -418,9 +596,9 @@ gather_lpi <- function(dsn = NULL,
   ## date fields
   if (any(class(lpi) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(lpi)[do.call(rbind, vapply(lpi,
-                                                     class))[, 1] %in% c("POSIXct", "POSIXt")]
+                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
     lpi <- dplyr::mutate_at(lpi, dplyr::vars(change_vars),
-                             dplyr::funs(as.character))
+                            dplyr::funs(as.character))
   }
   ## text field
   lpi$LineKey <- as.character(lpi$LineKey)

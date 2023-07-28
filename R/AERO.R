@@ -11,7 +11,7 @@
 #' @export aero
 #' @rdname AERO
 
-aero<- function (lpi_tall,
+aero <- function(lpi_tall,
                  gap_tall,
                  height_tall,
                  header,

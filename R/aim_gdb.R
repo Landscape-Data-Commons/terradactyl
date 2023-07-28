@@ -400,7 +400,7 @@ gather_header_survey123 <- function(PlotChar, speciesstate, ...){
       # Filter using the filtering expression specified by user
       dplyr::filter(!!!filter_exprs)
 
-    # Add these fields if missing, to match terradat formatting
+    # Add these fields, to match terradat formatting
     header$Design <- NA
     header$DesignFlag <- NA
     header$Purpose <- NA
@@ -411,20 +411,27 @@ gather_header_survey123 <- function(PlotChar, speciesstate, ...){
     header$County <- NA
     header$DateLoadedInDb <- NA
     header$SpeciesState <- speciesstate
+    header$PrimaryKey <- header$PlotKey
+
 
     header <- header %>%
       # Select the field names we need in the final feature class
-      dplyr::select(PrimaryKey = PlotKey, PlotID, PlotKey, DBKey,
+      dplyr::select(PrimaryKey, PlotID, PlotKey, DBKey, DateVisited = DateFormat,
                     EcologicalSiteId = Ecolsite, Latitude_NAD83 = y, Longitude_NAD83 = x, State, SpeciesState,
-                    Elevation,
                     County, DateEstablished = EstabDate,
                     DateLoadedInDb,
-                    Design, DesignFlag, Purpose, PurposeFlag,
-                    ProjectName
+                    Design, DesignFlag, Purpose, PurposeFlag
       ) %>%
 
       # If there are any Sites with no PrimaryKeys, delete them
       subset(!is.na(PrimaryKey))
+
+    # alert to  duplicate primary keys
+    dupkeys <- header$PrimaryKey[duplicated(header$PrimaryKey)]
+    if(length(dupkeys) > 0){
+      dupnames <- paste(dupkeys, collapse = ", ")
+      warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+    }
 
     # Return the header file
     return(header)

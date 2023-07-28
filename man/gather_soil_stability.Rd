@@ -4,6 +4,7 @@
 \alias{gather_soil_stability}
 \alias{gather_soil_stability_terradat}
 \alias{gather_soil_stability_lmf}
+\alias{gather_soil_stability_survey123}
 \title{Convert soil stability data into tall, tidy data frame}
 \usage{
 gather_soil_stability_terradat(
@@ -13,6 +14,8 @@ gather_soil_stability_terradat(
 )
 
 gather_soil_stability_lmf(dsn = NULL, file_type = "gdb", SOILDISAG = NULL)
+
+gather_soil_stability_survey123(dsn = NULL, SoilStability_0 = NULL)
 
 gather_soil_stability(
   dsn = NULL,
