@@ -525,7 +525,7 @@ gather_lpi_survey123 <- function(dsn = NULL,
     )
 
   # Check for duplicate PrimaryKeys
-  dupkeys <- lpi_tall$PrimaryKey[lpi_tall(header$PrimaryKey)]
+  dupkeys <- lpi_tall$PrimaryKey[duplicated(lpi_tall$PrimaryKey)]
   if(length(dupkeys) > 0){
     dupnames <- paste(dupkeys, collapse = ", ")
     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))

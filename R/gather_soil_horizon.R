@@ -265,8 +265,14 @@ gather_soil_horizon_survey123 <- function(dsn = NULL,
   }
 
   # Survey123 data uses PlotKey instead of PrimaryKey
-  dplyr::left_join(hz_raw, plotchar_raw %>% dplyr::select(PrimaryKey = PlotKey, GlobalID), by = c("ParentGlobalID" = "GlobalID"))
+  hz_raw <- dplyr::left_join(hz_raw, plotchar_raw %>% dplyr::select(PrimaryKey = PlotKey, GlobalID), by = c("ParentGlobalID" = "GlobalID"))
 
+  # Check for duplicate PrimaryKeys
+  dupkeys <- hz_raw$PrimaryKey[duplicated(hz_raw$PrimaryKey)]
+  if(length(dupkeys) > 0){
+    dupnames <- paste(dupkeys, collapse = ", ")
+    warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+  }
 
   horizons <- hz_raw %>%
     ### select ###

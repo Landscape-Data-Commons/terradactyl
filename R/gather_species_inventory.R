@@ -245,7 +245,7 @@ gather_species_inventory_survey123 <- function(dsn = NULL,
   species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
 
   # Check for duplicate PrimaryKeys
-  dupkeys <- species_detail_tall$PrimaryKey[species_detail_tall(header$PrimaryKey)]
+  dupkeys <- species_detail_tall$PrimaryKey[duplicated(species_detail_tall$PrimaryKey)]
   if(length(dupkeys) > 0){
     dupnames <- paste(dupkeys, collapse = ", ")
     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))

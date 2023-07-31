@@ -514,7 +514,7 @@ gather_gap_survey123 <- function(Gap_0, GapDetail_1) {
     dplyr::select(-"GlobalID.y", -"GlobalID")
 
   # Check for duplicate PrimaryKeys
-  dupkeys <- gap_tall$PrimaryKey[gap_tall(header$PrimaryKey)]
+  dupkeys <- gap_tall$PrimaryKey[duplicated(gap_tall$PrimaryKey)]
   if(length(dupkeys) > 0){
     dupnames <- paste(dupkeys, collapse = ", ")
     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))

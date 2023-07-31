@@ -383,6 +383,15 @@ gather_height_survey123 <- function(LPI_0,
     lpi_height_tall_woody,
     lpi_height_tall_herb
   )
+
+  # Check for duplicate PrimaryKeys
+  dupkeys <- lpi_height$PrimaryKey[duplicated(lpi_height$PrimaryKey)]
+  if(length(dupkeys) > 0){
+    dupnames <- paste(dupkeys, collapse = ", ")
+    warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+  }
+
+
   lpi_height <- lpi_height %>%
     dplyr::full_join(x = ., y = lpi_header, by = c("PrimaryKey", "DBKey")) %>%
     subset(., !is.na(Height))

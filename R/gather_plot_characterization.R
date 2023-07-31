@@ -210,7 +210,7 @@ gather_plot_characterization_survey123 <- function(dsn = NULL,
   plot_raw$DBKey <- NA
 
   # Check for duplicate PrimaryKeys
-  dupkeys <- plot_raw$PrimaryKey[plot_raw(header$PrimaryKey)]
+  dupkeys <- plot_raw$PrimaryKey[duplicated(plot_raw$PrimaryKey)]
   if(length(dupkeys) > 0){
     dupnames <- paste(dupkeys, collapse = ", ")
     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
