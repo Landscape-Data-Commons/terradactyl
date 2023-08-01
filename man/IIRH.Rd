@@ -4,6 +4,7 @@
 \alias{gather_rangeland_health}
 \alias{gather_rangeland_health_terradat}
 \alias{gather_rangeland_health_lmf}
+\alias{gather_rangeland_health_survey123}
 \title{Convert Interpreting Indicators of Rangeland Health (IIRH) data into a tall,
 tidy data frame}
 \usage{
@@ -14,6 +15,8 @@ gather_rangeland_health_terradat(
 )
 
 gather_rangeland_health_lmf(dsn = NULL, file_type = NULL, RANGEHEALTH = NULL)
+
+gather_rangeland_health_survey123(PlotObservation_0 = NULL)
 
 gather_rangeland_health(
   dsn = NULL,
