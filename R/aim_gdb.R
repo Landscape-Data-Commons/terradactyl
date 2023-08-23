@@ -429,7 +429,7 @@ gather_header_survey123 <- function(PlotChar, speciesstate, ...){
     # alert to  duplicate primary keys
     dupkeys <- header$PrimaryKey[duplicated(header$PrimaryKey)]
     if(length(dupkeys) > 0){
-      dupnames <- paste(dupkeys, collapse = ", ")
+      dupnames <- paste(unique(dupkeys), collapse = ", ")
       warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
     }
 
@@ -456,7 +456,7 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
     "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
     "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
     "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
-    "SURVEY123" = gather_header_survey123(PlotChar = PlotChar123, speciesstate = speciesstate)
+    "SURVEY123" = gather_header_survey123(PlotChar = PlotChar_0, speciesstate = speciesstate)
   )
 
   header$source <- source
@@ -1302,56 +1302,7 @@ build_terradat_indicators <- function(header, source, dsn,
     dplyr::filter(source %in% c("AIM", "TerrADat"))
 
   # # Join all indicator calculations together
-  # indicators <- list(
-  #   header,
-  #   # LPI
-  #   lpi_calc(
-  #     lpi_tall = lpi_tall,
-  #     header = header,
-  #     source = source,
-  #     species_file = species_file,
-  #     dsn = dsn
-  #   ),
-  #   # Gap
-  #   gap_calc(
-  #     gap_tall = gap_tall,
-  #     header = header
-  #   ),
-  #   # # Height
-  #   height_calc(
-  #     height_tall = height_tall,
-  #     header = header,
-  #     source = source,
-  #     species_file = species_file
-  #   ),
-  #   # # Species Inventory
-  #   spp_inventory_calc(
-  #     spp_inventory_tall = spp_inventory_tall,
-  #     header = header,
-  #     species_file = species_file,
-  #     source = source
-  #   ),
-  #   # # Soil Stability
-  #   soil_stability_calc(
-  #     soil_stability_tall = soil_stability_tall,
-  #     header = header
-  #   ) %>%
-  #   # Remove RecKey field
-  #   dplyr::select_if(!names(.) %in% c("RecKey"))
-  # )
-  #
-  #   # Rangeland Health
-  #   rh <- gather_rangeland_health(dsn,
-  #     source = source
-  #   ) %>%
-  #     dplyr::select_if(!names(.) %in% c("RecKey"))
-  #
-  #   if(nrow(rh) > 0){
-  #     indicators <- c(indicators, list(rh))
-  #   }
-
   # Calculate all indicators and send them to a list, to later be reduced
-
   # If a method is not provided (ie the path to the table provided as NULL)
   # then we need a NULL variable to go into the list
   if(!is.null(lpi_tall)){

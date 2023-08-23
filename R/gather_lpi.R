@@ -390,28 +390,15 @@ gather_lpi_survey123 <- function(dsn = NULL,
                                  LPI_0 = NULL,
                                  LPIDetail_1 = NULL) {
 
-  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-  if (!is.null(LPI_0) & !is.null(LPIDetail_1)) {
-    lpi_detail <- LPIDetail_1
-    lpi_header <- LPI_0
-  } else if(!is.null(dsn)){
+  # This code copy-and-paste from terradat gather
+  lpi_detail <- LPIDetail_1
+  lpi_header <- LPI_0
 
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
-    }
-
-    lpi_detail <- suppressWarnings(sf::st_read(
-      dsn = dsn,
-      layer = "tblLPIDetail",
-      stringsAsFactors = FALSE, quiet = T
-    ))
-    lpi_header <- suppressWarnings(sf::st_read(
-      dsn = dsn,
-      layer = "tblLPIHeader",
-      stringsAsFactors = FALSE, quiet = T
-    ))
-  } else {
-    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing those tables")
+  # Check for duplicate PrimaryKeys
+  dupkeys <- lpi_header$PlotKey[duplicated(lpi_header$PlotKey) & duplicated(lpi_header$LineKey)]
+  if(length(dupkeys) > 0){
+    dupnames <- paste(unique(dupkeys), collapse = ", ")
+    warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
   }
 
   # Add null DBKey column if not present
@@ -523,13 +510,6 @@ gather_lpi_survey123 <- function(dsn = NULL,
       y = .,
       by = c("PrimaryKey")
     )
-
-  # Check for duplicate PrimaryKeys
-  dupkeys <- lpi_tall$PrimaryKey[duplicated(lpi_tall$PrimaryKey)]
-  if(length(dupkeys) > 0){
-    dupnames <- paste(dupkeys, collapse = ", ")
-    warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
-  }
 
   # Find date fields & convert to character
   # Find fields that are in a Date structure
