@@ -957,9 +957,9 @@ gap_calc <- function(header, gap_tall) {
   )$percent %>%
     dplyr::rowwise() %>%
     dplyr::select(PrimaryKey,
-      GapCover_25_50 = "25-51",
-      GapCover_51_100 = "51-101",
-      GapCover_101_200 = "101-201",
+      GapCover_25_50 = "25-50",
+      GapCover_51_100 = "51-100",
+      GapCover_101_200 = "101-200",
       GapCover_200_plus = "201-Inf"
     ) %>%
 
