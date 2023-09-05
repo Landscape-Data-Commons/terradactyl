@@ -4,14 +4,11 @@
 \alias{gather_lpi}
 \alias{gather_lpi_terradat}
 \alias{gather_lpi_lmf}
-\alias{gather_lpi_survey123}
 \title{Convert line-point intercept (LPI) data into a tall, tidy data frame}
 \usage{
 gather_lpi_terradat(dsn = NULL, tblLPIDetail = NULL, tblLPIHeader = NULL)
 
 gather_lpi_lmf(dsn = NULL, file_type = "gdb", PINTERCEPT = NULL)
-
-gather_lpi_survey123(dsn = NULL, LPI_0 = NULL, LPIDetail_1 = NULL)
 
 gather_lpi(
   dsn = NULL,

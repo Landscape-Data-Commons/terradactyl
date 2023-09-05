@@ -4,7 +4,6 @@
 \alias{gather_plot_characterization}
 \alias{gather_plot_characterization_terradat}
 \alias{gather_plot_characterization_lmf}
-\alias{gather_plot_characterization_survey123}
 \title{Convert plot data into a tall, tidy data frame}
 \usage{
 gather_plot_characterization_terradat(dsn = NULL, tblPlots = NULL)
@@ -17,8 +16,6 @@ gather_plot_characterization_lmf(
   ESFSG = NULL,
   file_type = NULL
 )
-
-gather_plot_characterization_survey123(dsn = NULL, PlotChar_0 = NULL)
 
 gather_plot_characterization(
   dsn = NULL,

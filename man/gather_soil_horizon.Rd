@@ -4,18 +4,11 @@
 \alias{gather_soil_horizon}
 \alias{gather_soil_horizon_terradat}
 \alias{gather_soil_horizon_lmf}
-\alias{gather_soil_horizon_survey123}
 \title{Convert horizon data into a tall, tidy data frame}
 \usage{
 gather_soil_horizon_terradat(dsn = NULL, tblSoilPitHorizons = NULL)
 
 gather_soil_horizon_lmf(dsn = NULL, SOILHORIZON = NULL)
-
-gather_soil_horizon_survey123(
-  dsn = NULL,
-  PlotChar_0 = NULL,
-  SoilPitHorizons_1 = NULL
-)
 
 gather_soil_horizon(
   dsn = NULL,
