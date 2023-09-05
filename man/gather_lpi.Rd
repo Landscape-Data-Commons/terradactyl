@@ -16,7 +16,9 @@ gather_lpi(
   source,
   tblLPIDetail = NULL,
   tblLPIHeader = NULL,
-  PINTERCEPT = NULL
+  PINTERCEPT = NULL,
+  LPI_0 = NULL,
+  LPIDetail_1 = NULL
 )
 }
 \arguments{

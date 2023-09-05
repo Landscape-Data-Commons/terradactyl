@@ -149,7 +149,7 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
                                                        "W" = "270",
                                                        "NW" = "315")))
     # get MLRA from ecological site id
-    )
+  )
 
   # get gis data from POINTCOORDINATES
   coord_lmf <- coord_lmf_raw %>% dplyr::select(
@@ -190,6 +190,60 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
   return(plot_lmf)
 }
 
+#' export gather_plot_characterization_survey123
+#' rdname gather_plot_characterization
+# gather_plot_characterization_survey123 <- function(dsn = NULL,
+#                                                    PlotChar_0 = NULL){
+#
+#   if(!is.null(PlotChar_0)){
+#     plot_raw <- PlotChar_0
+#   } else if(!is.null(dsn)){
+#     plot_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblPlots", stringsAsFactors = FALSE, quiet = T))
+#   } else {
+#     stop("Supply either tblPlots or the path to a GDB containing that table")
+#   }
+#
+#   # Rename plotkey to primarykey
+#   plot_raw$PrimaryKey <- plot_raw$PlotKey
+#
+#   # Add null DBKey
+#   plot_raw$DBKey <- NA
+#
+#   # Check for duplicate PrimaryKeys
+#   dupkeys <- plot_raw$PrimaryKey[duplicated(plot_raw$PrimaryKey)]
+#   if(length(dupkeys) > 0){
+#     dupnames <- paste(unique(dupkeys), collapse = ", ")
+#     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+#   }
+#
+#   plot_tall <- plot_raw %>%
+#     dplyr::select(
+#       PrimaryKey, DBKey, # ProjectKey,
+#       # SpeciesState,
+#       Latitude_NAD83 = y, Longitude_NAD83 = x,
+#       # State, County,
+#       EcolSite = Ecolsite, ParentMaterial, Slope, Elevation, Aspect, #ESD_SlopeShape,
+#       SLopeShapeVertical = vertshape, SlopeShapeHorizontal = horizshape,
+#       LandscapeType, LandscapeTypeSecondary, #HillslopeType,
+#       SoilSeries = ESD_Series,
+#       # Observer, Recorder,
+#       EstablishDate = EstabDate
+#       # ESD_Investigators
+#     ) %>%
+#     dplyr::mutate(
+#       Aspect = suppressWarnings(as.numeric(Aspect)),
+#       Slope = suppressWarnings(as.numeric(Slope)),
+#       Latitude_NAD83 = suppressWarnings(as.numeric(Latitude_NAD83)),
+#       Longitude_NAD83 = suppressWarnings(as.numeric(Longitude_NAD83)),
+#       PrimaryKey = as.character(PrimaryKey),
+#       MLRA = substr(EcolSite, 2, 5) %>% gsub("NKNO", NA, .))
+#
+#   return(plot_tall)
+# }
+
+
+
+
 #' @export gather_plot_characterization
 #' @rdname gather_plot_characterization
 gather_plot_characterization <- function(dsn = NULL,
@@ -199,6 +253,7 @@ gather_plot_characterization <- function(dsn = NULL,
                                          POINTCOORDINATES = NULL,
                                          GPS = NULL,
                                          ESFSG = NULL,
+                                         PlotChar_0 = NULL,
                                          file_type = "gdb"){
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -211,8 +266,11 @@ gather_plot_characterization <- function(dsn = NULL,
                                                  POINTCOORDINATES = POINTCOORDINATES,
                                                  GPS = GPS,
                                                  ESFSG = ESFSG)
+  } else if(toupper(source) == "SURVEY123"){
+    plotchar <- gather_plot_characterization_survey123(dsn = dsn,
+                                                       PlotChar_0 = PlotChar_0)
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+    stop("source must be AIM, TerrADat, DIMA, LMF, Survey123, or NRI (all case independent)")
   }
 
   # plotchar$source <- toupper(source)

@@ -386,14 +386,65 @@ gather_header_nri <- function(dsn = NULL, ...) {
   # Return the point_ESD as the header file
   return(point_ESD)
 }
+
+# Build the header portion of the Survey123 table
+#' export gather_header_survey123
+#' rdname aim_gdb
+# gather_header_survey123 <- function(PlotChar, speciesstate, ...){
+#     # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
+#     filter_exprs <- rlang::quos(...)
+#
+#     header <- PlotChar %>%
+#       as.data.frame() %>%
+#
+#       # Filter using the filtering expression specified by user
+#       dplyr::filter(!!!filter_exprs)
+#
+#     # Add these fields, to match terradat formatting
+#     header$Design <- NA
+#     header$DesignFlag <- NA
+#     header$Purpose <- NA
+#     header$PurposeFlag <- NA
+#     header$ProjectName <- NA
+#     header$State <- NA
+#     header$DBKey <- NA
+#     header$County <- NA
+#     header$DateLoadedInDb <- NA
+#     header$SpeciesState <- speciesstate
+#     header$PrimaryKey <- header$PlotKey
+#
+#
+#     header <- header %>%
+#       # Select the field names we need in the final feature class
+#       dplyr::select(PrimaryKey, PlotID, PlotKey, DBKey, DateVisited = DateFormat,
+#                     EcologicalSiteId = Ecolsite, Latitude_NAD83 = y, Longitude_NAD83 = x, State, SpeciesState,
+#                     County, DateEstablished = EstabDate,
+#                     DateLoadedInDb,
+#                     Design, DesignFlag, Purpose, PurposeFlag
+#       ) %>%
+#
+#       # If there are any Sites with no PrimaryKeys, delete them
+#       subset(!is.na(PrimaryKey))
+#
+#     # alert to  duplicate primary keys
+#     dupkeys <- header$PrimaryKey[duplicated(header$PrimaryKey)]
+#     if(length(dupkeys) > 0){
+#       dupnames <- paste(unique(dupkeys), collapse = ", ")
+#       warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+#     }
+#
+#     # Return the header file
+#     return(header)
+# }
+#
 # Build the header wrapper
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, ...) {
+gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, PlotChar_0 = NULL, speciesstate = NULL, ...) {
   # Error check
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI", "SURVEY123")) {
     stop("No valid source provided")
   })
 
@@ -404,7 +455,8 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
     "NRI" = gather_header_nri(dsn = dsn, ...),
     "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
     "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...)
+    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
+    "SURVEY123" = gather_header_survey123(PlotChar = PlotChar_0, speciesstate = speciesstate)
   )
 
   header$source <- source
@@ -905,9 +957,9 @@ gap_calc <- function(header, gap_tall) {
   )$percent %>%
     dplyr::rowwise() %>%
     dplyr::select(PrimaryKey,
-      GapCover_25_50 = "25-51",
-      GapCover_51_100 = "51-101",
-      GapCover_101_200 = "101-201",
+      GapCover_25_50 = "25-50",
+      GapCover_51_100 = "51-100",
+      GapCover_101_200 = "101-200",
       GapCover_200_plus = "201-Inf"
     ) %>%
 
@@ -1250,56 +1302,7 @@ build_terradat_indicators <- function(header, source, dsn,
     dplyr::filter(source %in% c("AIM", "TerrADat"))
 
   # # Join all indicator calculations together
-  # indicators <- list(
-  #   header,
-  #   # LPI
-  #   lpi_calc(
-  #     lpi_tall = lpi_tall,
-  #     header = header,
-  #     source = source,
-  #     species_file = species_file,
-  #     dsn = dsn
-  #   ),
-  #   # Gap
-  #   gap_calc(
-  #     gap_tall = gap_tall,
-  #     header = header
-  #   ),
-  #   # # Height
-  #   height_calc(
-  #     height_tall = height_tall,
-  #     header = header,
-  #     source = source,
-  #     species_file = species_file
-  #   ),
-  #   # # Species Inventory
-  #   spp_inventory_calc(
-  #     spp_inventory_tall = spp_inventory_tall,
-  #     header = header,
-  #     species_file = species_file,
-  #     source = source
-  #   ),
-  #   # # Soil Stability
-  #   soil_stability_calc(
-  #     soil_stability_tall = soil_stability_tall,
-  #     header = header
-  #   ) %>%
-  #   # Remove RecKey field
-  #   dplyr::select_if(!names(.) %in% c("RecKey"))
-  # )
-  #
-  #   # Rangeland Health
-  #   rh <- gather_rangeland_health(dsn,
-  #     source = source
-  #   ) %>%
-  #     dplyr::select_if(!names(.) %in% c("RecKey"))
-  #
-  #   if(nrow(rh) > 0){
-  #     indicators <- c(indicators, list(rh))
-  #   }
-
   # Calculate all indicators and send them to a list, to later be reduced
-
   # If a method is not provided (ie the path to the table provided as NULL)
   # then we need a NULL variable to go into the list
   if(!is.null(lpi_tall)){
@@ -1355,7 +1358,7 @@ build_terradat_indicators <- function(header, source, dsn,
   }
 
   # Rangeland health
-  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn))){
+  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
     print("Gathering rangeland health indicators from dsn")
     rh <- gather_rangeland_health(dsn, source = source) %>%
       # Remove RecKey field, which is not applicable at the indicator level
