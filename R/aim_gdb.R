@@ -388,55 +388,55 @@ gather_header_nri <- function(dsn = NULL, ...) {
 }
 
 # Build the header portion of the Survey123 table
-#' @export gather_header_survey123
-#' @rdname aim_gdb
-gather_header_survey123 <- function(PlotChar, speciesstate, ...){
-    # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
-    filter_exprs <- rlang::quos(...)
-
-    header <- PlotChar %>%
-      as.data.frame() %>%
-
-      # Filter using the filtering expression specified by user
-      dplyr::filter(!!!filter_exprs)
-
-    # Add these fields, to match terradat formatting
-    header$Design <- NA
-    header$DesignFlag <- NA
-    header$Purpose <- NA
-    header$PurposeFlag <- NA
-    header$ProjectName <- NA
-    header$State <- NA
-    header$DBKey <- NA
-    header$County <- NA
-    header$DateLoadedInDb <- NA
-    header$SpeciesState <- speciesstate
-    header$PrimaryKey <- header$PlotKey
-
-
-    header <- header %>%
-      # Select the field names we need in the final feature class
-      dplyr::select(PrimaryKey, PlotID, PlotKey, DBKey, DateVisited = DateFormat,
-                    EcologicalSiteId = Ecolsite, Latitude_NAD83 = y, Longitude_NAD83 = x, State, SpeciesState,
-                    County, DateEstablished = EstabDate,
-                    DateLoadedInDb,
-                    Design, DesignFlag, Purpose, PurposeFlag
-      ) %>%
-
-      # If there are any Sites with no PrimaryKeys, delete them
-      subset(!is.na(PrimaryKey))
-
-    # alert to  duplicate primary keys
-    dupkeys <- header$PrimaryKey[duplicated(header$PrimaryKey)]
-    if(length(dupkeys) > 0){
-      dupnames <- paste(unique(dupkeys), collapse = ", ")
-      warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
-    }
-
-    # Return the header file
-    return(header)
-}
-
+#' export gather_header_survey123
+#' rdname aim_gdb
+# gather_header_survey123 <- function(PlotChar, speciesstate, ...){
+#     # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
+#     filter_exprs <- rlang::quos(...)
+#
+#     header <- PlotChar %>%
+#       as.data.frame() %>%
+#
+#       # Filter using the filtering expression specified by user
+#       dplyr::filter(!!!filter_exprs)
+#
+#     # Add these fields, to match terradat formatting
+#     header$Design <- NA
+#     header$DesignFlag <- NA
+#     header$Purpose <- NA
+#     header$PurposeFlag <- NA
+#     header$ProjectName <- NA
+#     header$State <- NA
+#     header$DBKey <- NA
+#     header$County <- NA
+#     header$DateLoadedInDb <- NA
+#     header$SpeciesState <- speciesstate
+#     header$PrimaryKey <- header$PlotKey
+#
+#
+#     header <- header %>%
+#       # Select the field names we need in the final feature class
+#       dplyr::select(PrimaryKey, PlotID, PlotKey, DBKey, DateVisited = DateFormat,
+#                     EcologicalSiteId = Ecolsite, Latitude_NAD83 = y, Longitude_NAD83 = x, State, SpeciesState,
+#                     County, DateEstablished = EstabDate,
+#                     DateLoadedInDb,
+#                     Design, DesignFlag, Purpose, PurposeFlag
+#       ) %>%
+#
+#       # If there are any Sites with no PrimaryKeys, delete them
+#       subset(!is.na(PrimaryKey))
+#
+#     # alert to  duplicate primary keys
+#     dupkeys <- header$PrimaryKey[duplicated(header$PrimaryKey)]
+#     if(length(dupkeys) > 0){
+#       dupnames <- paste(unique(dupkeys), collapse = ", ")
+#       warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+#     }
+#
+#     # Return the header file
+#     return(header)
+# }
+#
 # Build the header wrapper
 #' @export gather_header
 #' @rdname aim_gdb
