@@ -85,7 +85,7 @@ gap_cover <- function(gap_tall,
   if(type == "canopy"){
     nogap <- sapply(gap_tall$PrimaryKey, function(p){
       gap <- dplyr::filter(gap_tall, PrimaryKey == p)
-      t <- all(all(gap$NoCanopyGaps) & !is.na(gap$NoCanopyGaps)) & (is.na(gap$Gap) | gap$Gap == 0)
+      t <- all(all(gap$NoCanopyGaps) & !is.na(gap$NoCanopyGaps)) & all(is.na(gap$Gap) | gap$Gap == 0)
       l <- unique(gap$total_line_length)
       out <- data.frame(PrimaryKey = p,
                         total_line_length = l,
@@ -108,7 +108,7 @@ gap_cover <- function(gap_tall,
   } else if(type == "basal"){
     nogap <- sapply(gap_tall$PrimaryKey, function(p){
       gap <- dplyr::filter(gap_tall, PrimaryKey == p)
-      t <- all(all(gap$NoBasalGaps) & !is.na(gap$NoBasalGaps)) & (is.na(gap$Gap) | gap$Gap == 0)
+      t <- all(all(gap$NoBasalGaps) & !is.na(gap$NoBasalGaps)) & all(is.na(gap$Gap) | gap$Gap == 0)
       l <- unique(gap$total_line_length)
       out <- data.frame(PrimaryKey = p,
                         total_line_length = l,
