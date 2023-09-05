@@ -282,127 +282,127 @@ gather_soil_stability_lmf <- function(dsn = NULL,
   return(soil_stability_tidy)
 }
 
-#' @export gather_soil_stability_survey123
-#' @rdname gather_soil_stability
-gather_soil_stability_survey123 <- function(dsn = NULL,
-                                            SoilStability_0 = NULL) {
-
-
-  if(!is.null(SoilStability_0)){
-    soil_stability_detail = SoilStability_0
-  } else if (!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing tblSoilStabDetail and tblSoilStabHeader")
-    }
-    soil_stability_detail <-
-      suppressWarnings(sf::st_read(dsn,
-                                   layer = "tblSoilStabDetail",
-                                   stringsAsFactors = FALSE, quiet = T
-      ))
-
-    soil_stability_header <-
-      suppressWarnings(sf::st_read(dsn,
-                                   layer = "tblSoilStabHeader",
-                                   stringsAsFactors = FALSE, quiet = T
-      ))
-  } else {
-    stop("Supply either tblSoilStabDetail and tblSoilStabHeader, or a path to a GDB containing those tables")
-  }
-
-  # Turn PlotKey into PrimaryKey
-  soil_stability_detail$PrimaryKey <- soil_stability_detail$PlotKey
-
-  # Pare down columns to only necessary ones
-  soil_stability_detail <- soil_stability_detail %>%
-    dplyr::select(
-      PrimaryKey, Veg1:Hydro6
-    )
-
-  # In some cases (due to bad DIMA defaults) empty rows may exist in DIMA data. Remove them.
-  soil_stability_detail <- soil_stability_detail %>%
-    dplyr::filter(
-      !(is.na(Rating1) & is.na(Rating2) & is.na(Rating3) & is.na(Rating4) & is.na(Rating5) & is.na(Rating6)))
-
-  # remove orphaned records
-  soil_stability_detail <-
-    soil_stability_detail[!is.na(soil_stability_detail$PrimaryKey), ]
-
-  # If DBKey Key exists, remove it
-  if ("DBKey" %in% colnames(soil_stability_detail)) {
-    soil_stability_detail <- dplyr::select(soil_stability_detail, -DBKey)
-  }
-
-  gathered <- soil_stability_detail %>%
-    # Remove standard columns (In and Dip Times and Date Downloaded in DB)
-    dplyr::select(.,
-                  match = -dplyr::starts_with("In"),
-                  -dplyr::starts_with("Dip"),
-                  -dplyr::starts_with("DateLoaded")
-    ) %>%
-
-    # Convert to tall format
-    tidyr::gather(.,
-                  key = variable, value = value,
-                  -PrimaryKey, na.rm = TRUE
-    )
-
-  # Remove blank values
-  gathered <- subset(gathered, value != "")
-
-  # Separate numerical suffixes from field type
-  gathered$key <- stringr::str_extract(
-    string = gathered$variable,
-    pattern = "^[A-z]+"
-  )
-  gathered$Position <- stringr::str_extract(
-    string = gathered$variable,
-    pattern = "[0-9]+"
-  )
-
-  gathered <- subset(gathered, select = -c(variable, BoxNum))
-
-  # Remove Hydro = 0
-  gathered <- gathered %>% subset(!(key == "Hydro" & value != 0))
-
-  # Spread the gathered data so that Line, Rating, Vegetation,
-  # and Hydro are all different variables
-
-  soil_stability_detail_list <- lapply(
-    X = as.list(unique(gathered$key)),
-    FUN = function(k = as.list(unique(gathered$key)), df = gathered) {
-      test <- df[df$key == k, ] %>%
-        dplyr::mutate(id = 1:dplyr::n()) %>%
-        tidyr::spread(key = key, value = value) %>%
-        dplyr::select(-id)
-    }
-  )
-  # create a single tidy dataframe
-  soil_stability_detail_tidy <- purrr::reduce(
-    soil_stability_detail_list,
-    dplyr::full_join, by = c("RecKey", "PrimaryKey", "Position")
-  ) %>% unique()
-
-  soil_stability_detail_tidy$Rating <- soil_stability_detail_tidy$Rating %>%
-    as.numeric()
-
-  # Merge soil stability detail and header tables
-  soil_stability_tall <- dplyr::left_join(
-    soil_stability_header,
-    soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
-  ) %>% dplyr::select_if(!names(.) %in% c(
-    'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb'
-  )
-  )
-
-  # In some cases, the Hydro variable is lost. Add it back in
-  if (!"Hydro" %in% colnames(soil_stability_tall)){
-    soil_stability_tall$Hydro <- NA
-  }
-
-  # Return final merged file
-  return(soil_stability_tall)
-}
-
+#' export gather_soil_stability_survey123
+#' rdname gather_soil_stability
+# gather_soil_stability_survey123 <- function(dsn = NULL,
+#                                             SoilStability_0 = NULL) {
+#
+#
+#   if(!is.null(SoilStability_0)){
+#     soil_stability_detail = SoilStability_0
+#   } else if (!is.null(dsn)){
+#     if (!file.exists(dsn)) {
+#       stop("dsn must be a valid filepath to a geodatabase containing tblSoilStabDetail and tblSoilStabHeader")
+#     }
+#     soil_stability_detail <-
+#       suppressWarnings(sf::st_read(dsn,
+#                                    layer = "tblSoilStabDetail",
+#                                    stringsAsFactors = FALSE, quiet = T
+#       ))
+#
+#     soil_stability_header <-
+#       suppressWarnings(sf::st_read(dsn,
+#                                    layer = "tblSoilStabHeader",
+#                                    stringsAsFactors = FALSE, quiet = T
+#       ))
+#   } else {
+#     stop("Supply either tblSoilStabDetail and tblSoilStabHeader, or a path to a GDB containing those tables")
+#   }
+#
+#   # Turn PlotKey into PrimaryKey
+#   soil_stability_detail$PrimaryKey <- soil_stability_detail$PlotKey
+#
+#   # Pare down columns to only necessary ones
+#   soil_stability_detail <- soil_stability_detail %>%
+#     dplyr::select(
+#       PrimaryKey, Veg1:Hydro6
+#     )
+#
+#   # In some cases (due to bad DIMA defaults) empty rows may exist in DIMA data. Remove them.
+#   soil_stability_detail <- soil_stability_detail %>%
+#     dplyr::filter(
+#       !(is.na(Rating1) & is.na(Rating2) & is.na(Rating3) & is.na(Rating4) & is.na(Rating5) & is.na(Rating6)))
+#
+#   # remove orphaned records
+#   soil_stability_detail <-
+#     soil_stability_detail[!is.na(soil_stability_detail$PrimaryKey), ]
+#
+#   # If DBKey Key exists, remove it
+#   if ("DBKey" %in% colnames(soil_stability_detail)) {
+#     soil_stability_detail <- dplyr::select(soil_stability_detail, -DBKey)
+#   }
+#
+#   gathered <- soil_stability_detail %>%
+#     # Remove standard columns (In and Dip Times and Date Downloaded in DB)
+#     dplyr::select(.,
+#                   match = -dplyr::starts_with("In"),
+#                   -dplyr::starts_with("Dip"),
+#                   -dplyr::starts_with("DateLoaded")
+#     ) %>%
+#
+#     # Convert to tall format
+#     tidyr::gather(.,
+#                   key = variable, value = value,
+#                   -PrimaryKey, na.rm = TRUE
+#     )
+#
+#   # Remove blank values
+#   gathered <- subset(gathered, value != "")
+#
+#   # Separate numerical suffixes from field type
+#   gathered$key <- stringr::str_extract(
+#     string = gathered$variable,
+#     pattern = "^[A-z]+"
+#   )
+#   gathered$Position <- stringr::str_extract(
+#     string = gathered$variable,
+#     pattern = "[0-9]+"
+#   )
+#
+#   gathered <- subset(gathered, select = -c(variable, BoxNum))
+#
+#   # Remove Hydro = 0
+#   gathered <- gathered %>% subset(!(key == "Hydro" & value != 0))
+#
+#   # Spread the gathered data so that Line, Rating, Vegetation,
+#   # and Hydro are all different variables
+#
+#   soil_stability_detail_list <- lapply(
+#     X = as.list(unique(gathered$key)),
+#     FUN = function(k = as.list(unique(gathered$key)), df = gathered) {
+#       test <- df[df$key == k, ] %>%
+#         dplyr::mutate(id = 1:dplyr::n()) %>%
+#         tidyr::spread(key = key, value = value) %>%
+#         dplyr::select(-id)
+#     }
+#   )
+#   # create a single tidy dataframe
+#   soil_stability_detail_tidy <- purrr::reduce(
+#     soil_stability_detail_list,
+#     dplyr::full_join, by = c("RecKey", "PrimaryKey", "Position")
+#   ) %>% unique()
+#
+#   soil_stability_detail_tidy$Rating <- soil_stability_detail_tidy$Rating %>%
+#     as.numeric()
+#
+#   # Merge soil stability detail and header tables
+#   soil_stability_tall <- dplyr::left_join(
+#     soil_stability_header,
+#     soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
+#   ) %>% dplyr::select_if(!names(.) %in% c(
+#     'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb'
+#   )
+#   )
+#
+#   # In some cases, the Hydro variable is lost. Add it back in
+#   if (!"Hydro" %in% colnames(soil_stability_tall)){
+#     soil_stability_tall$Hydro <- NA
+#   }
+#
+#   # Return final merged file
+#   return(soil_stability_tall)
+# }
+#
 
 # Wrapper function for all soil stability gather functions
 #' @export gather_soil_stability

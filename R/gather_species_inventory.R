@@ -202,48 +202,48 @@ gather_species_inventory_lmf <- function(dsn = NULL,
   return(species_inventory)
 }
 
-#' @export gather_species_inventory_survey123
-#' @rdname gather_species_inventory
-gather_species_inventory_survey123 <- function(SpeciesRichness_0 = NULL,
-                                               SpecRichDetail_1 = NULL) {
-
-  species_inventory_detail <- SpecRichDetail_1
-  species_inventory_header <- SpeciesRichness_0
-
-  # Check for duplicate PrimaryKeys
-  dupkeys <- species_inventory_header$PlotKey[duplicated(species_inventory_header$PlotKey)]
-  if(length(dupkeys) > 0){
-    dupnames <- paste(unique(dupkeys), collapse = ", ")
-    warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
-  }
-
-  # Add null DBKey column if not present
-  if(!("DBKey" %in% colnames(species_inventory_header))) species_inventory_header$DBKey <- NA
-  if(!("DBKey" %in% colnames(species_inventory_detail))) species_inventory_detail$DBKey <- NA
-
-  # Convert PlotKey to PrimaryKey and attach to detail
-  species_inventory_header$PrimaryKey <- species_inventory_header$PlotKey
-  species_inventory_detail <- dplyr::left_join(species_inventory_detail,
-                                               species_inventory_header %>% dplyr::select(PrimaryKey, GlobalID),
-                                               by = c("ParentGlobalID" = "GlobalID"))
-
-  # Make Species Inventory Detail  a tall dataframe
-  species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
-
-  # Join with header data and strip out NA codes
-  species_inventory_tall <- dplyr::left_join(
-    x = species_inventory_header,
-    y = species_detail_tall#,
-    # by = c("RecKey", "PrimaryKey")
-  ) %>%
-    subset(!is.na(Species)) %>%
-    dplyr::select_if(!names(.) %in%
-                       c("DateModified", "FormType", "DataEntry",
-                         "DataErrorChecking", "DateLoadedInDb", "created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID")
-    )
-
-  return(species_inventory_tall)
-}
+#' export gather_species_inventory_survey123
+#' rdname gather_species_inventory
+# gather_species_inventory_survey123 <- function(SpeciesRichness_0 = NULL,
+#                                                SpecRichDetail_1 = NULL) {
+#
+#   species_inventory_detail <- SpecRichDetail_1
+#   species_inventory_header <- SpeciesRichness_0
+#
+#   # Check for duplicate PrimaryKeys
+#   dupkeys <- species_inventory_header$PlotKey[duplicated(species_inventory_header$PlotKey)]
+#   if(length(dupkeys) > 0){
+#     dupnames <- paste(unique(dupkeys), collapse = ", ")
+#     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+#   }
+#
+#   # Add null DBKey column if not present
+#   if(!("DBKey" %in% colnames(species_inventory_header))) species_inventory_header$DBKey <- NA
+#   if(!("DBKey" %in% colnames(species_inventory_detail))) species_inventory_detail$DBKey <- NA
+#
+#   # Convert PlotKey to PrimaryKey and attach to detail
+#   species_inventory_header$PrimaryKey <- species_inventory_header$PlotKey
+#   species_inventory_detail <- dplyr::left_join(species_inventory_detail,
+#                                                species_inventory_header %>% dplyr::select(PrimaryKey, GlobalID),
+#                                                by = c("ParentGlobalID" = "GlobalID"))
+#
+#   # Make Species Inventory Detail  a tall dataframe
+#   species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
+#
+#   # Join with header data and strip out NA codes
+#   species_inventory_tall <- dplyr::left_join(
+#     x = species_inventory_header,
+#     y = species_detail_tall#,
+#     # by = c("RecKey", "PrimaryKey")
+#   ) %>%
+#     subset(!is.na(Species)) %>%
+#     dplyr::select_if(!names(.) %in%
+#                        c("DateModified", "FormType", "DataEntry",
+#                          "DataErrorChecking", "DateLoadedInDb", "created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID")
+#     )
+#
+#   return(species_inventory_tall)
+# }
 
 
 #' Species Inventory Gather wrapper
