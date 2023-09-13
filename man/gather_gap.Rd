@@ -17,9 +17,7 @@ gather_gap(
   tblGapHeader = NULL,
   tblGapDetail = NULL,
   POINT = NULL,
-  GINTERCEPT = NULL,
-  Gap_0 = NULL,
-  GapDetail_1 = NULL
+  GINTERCEPT = NULL
 )
 }
 \arguments{

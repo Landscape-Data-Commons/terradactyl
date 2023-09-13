@@ -595,9 +595,10 @@ gather_gap <- function(dsn = NULL,
                        tblGapHeader = NULL,
                        tblGapDetail = NULL,
                        POINT = NULL,
-                       GINTERCEPT = NULL,
-                       Gap_0 = NULL,
-                       GapDetail_1 = NULL) {
+                       GINTERCEPT = NULL#,
+                       # Gap_0 = NULL,
+                       # GapDetail_1 = NULL
+                       ) {
 
   # Gather gap using the appropriate method
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -609,10 +610,10 @@ gather_gap <- function(dsn = NULL,
                           file_type = file_type,
                           POINT = POINT,
                           GINTERCEPT = GINTERCEPT)
-  } else if(toupper(source) %in% c("SURVEY123")){
-    gap <- gather_gap_survey123(Gap_0 = Gap_0, GapDetail_1 = GapDetail_1)
+  # } else if(toupper(source) %in% c("SURVEY123")){
+    # gap <- gather_gap_survey123(Gap_0 = Gap_0, GapDetail_1 = GapDetail_1)
   } else {
-    stop("source must be AIM, TerrADat, Survey123, DIMA, LMF, or NRI (all case independent)")
+    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
 
   gap$source <- source

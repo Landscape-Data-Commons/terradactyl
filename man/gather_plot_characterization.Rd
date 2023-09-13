@@ -25,7 +25,6 @@ gather_plot_characterization(
   POINTCOORDINATES = NULL,
   GPS = NULL,
   ESFSG = NULL,
-  PlotChar_0 = NULL,
   file_type = "gdb"
 )
 }

@@ -26,8 +26,6 @@ gather_species_inventory(
   tblSpecRichDetail = NULL,
   tblSpecRichHeader = NULL,
   PLANTCENSUS = NULL,
-  SpeciesRichness_0 = NULL,
-  SpecRichDetail_1 = NULL,
   file_type = "gdb"
 )
 }

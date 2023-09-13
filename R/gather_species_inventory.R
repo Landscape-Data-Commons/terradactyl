@@ -254,8 +254,8 @@ gather_species_inventory <- function(dsn = NULL,
                                      tblSpecRichDetail = NULL,
                                      tblSpecRichHeader = NULL,
                                      PLANTCENSUS = NULL,
-                                     SpeciesRichness_0 = NULL,
-                                     SpecRichDetail_1 = NULL,
+                                     # SpeciesRichness_0 = NULL,
+                                     # SpecRichDetail_1 = NULL,
                                      file_type = "gdb") {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -269,11 +269,11 @@ gather_species_inventory <- function(dsn = NULL,
       dsn = dsn, file_type = file_type,
       PLANTCENSUS = PLANTCENSUS
     )
-  } else if (toupper(source) == "SURVEY123"){
-    species_inventory <- gather_species_inventory_survey123(
-      SpeciesRichness_0 = SpeciesRichness_0,
-      SpecRichDetail_1 = SpecRichDetail_1
-    )
+  # } else if (toupper(source) == "SURVEY123"){
+  #   species_inventory <- gather_species_inventory_survey123(
+  #     SpeciesRichness_0 = SpeciesRichness_0,
+  #     SpecRichDetail_1 = SpecRichDetail_1)
+
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
