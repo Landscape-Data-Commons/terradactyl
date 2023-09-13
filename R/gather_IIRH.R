@@ -220,7 +220,7 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
   return(IIRH_clean)
 }
 
-#' export gather_rangeland_health_terradat
+#' export gather_rangeland_health_survey123
 #' rdname IIRH
 # gather_rangeland_health_survey123 <- function(PlotObservation_0 = NULL) {
 #

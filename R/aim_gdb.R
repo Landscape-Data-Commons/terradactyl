@@ -441,10 +441,11 @@ gather_header_nri <- function(dsn = NULL, ...) {
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, PlotChar_0 = NULL, speciesstate = NULL, ...) {
+gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, #PlotChar_0 = NULL,
+                          speciesstate = NULL, ...) {
   # Error check
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI", "SURVEY123")) {
+  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
     stop("No valid source provided")
   })
 
@@ -455,8 +456,8 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
     "NRI" = gather_header_nri(dsn = dsn, ...),
     "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
     "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
-    "SURVEY123" = gather_header_survey123(PlotChar = PlotChar_0, speciesstate = speciesstate)
+    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...)#,
+    # "SURVEY123" = gather_header_survey123(PlotChar = PlotChar_0, speciesstate = speciesstate)
   )
 
   header$source <- source
@@ -1301,6 +1302,11 @@ build_terradat_indicators <- function(header, source, dsn,
     dplyr::filter(!!!filter_exprs) %>%
     dplyr::filter(source %in% c("AIM", "TerrADat"))
 
+  # Check header for data
+  if(nrow(header) == 0){
+    stop("No rows in header file")
+  }
+
   # # Join all indicator calculations together
   # Calculate all indicators and send them to a list, to later be reduced
   # If a method is not provided (ie the path to the table provided as NULL)
@@ -1407,10 +1413,14 @@ build_lmf_indicators <- function(header, source, dsn,
     dplyr::filter(!!!filter_exprs) %>%
     dplyr::filter(source %in% c("LMF", "NRI"))
 
+  # Check header for data
+  if(nrow(header) == 0){
+    stop("No rows in header file")
+  }
+
   # Join all indicator calculations together
   indicators <- list(
     header,
-    # LPI
     # LPI
     lpi_calc(
       lpi_tall = lpi_tall,
@@ -1444,7 +1454,7 @@ build_lmf_indicators <- function(header, source, dsn,
       header = header
     ),
     # Rangeland Health
-    IIRH <- gather_rangeland_health(dsn, source = source)
+    gather_rangeland_health(dsn, source = source)
   )
 
   all_indicators <- Reduce(dplyr::left_join, indicators)

@@ -546,9 +546,10 @@ gather_lpi <- function(dsn = NULL,
                        source,
                        tblLPIDetail = NULL,
                        tblLPIHeader = NULL,
-                       PINTERCEPT = NULL,
-                       LPI_0 = NULL,
-                       LPIDetail_1 = NULL) {
+                       PINTERCEPT = NULL#,
+                       # LPI_0 = NULL,
+                       # LPIDetail_1 = NULL
+                       ) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     lpi <- gather_lpi_terradat(dsn = dsn,
@@ -559,9 +560,9 @@ gather_lpi <- function(dsn = NULL,
                           file_type = file_type,
                           PINTERCEPT = PINTERCEPT)
     lpi$chckbox <- NA
-  } else if(toupper(source) == "SURVEY123"){
-    lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
-                                LPIDetail_1 = LPIDetail_1)
+  # } else if(toupper(source) == "SURVEY123"){
+  #   lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
+  #                               LPIDetail_1 = LPIDetail_1)
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }

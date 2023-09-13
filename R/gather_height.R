@@ -437,9 +437,10 @@ gather_height <- function(dsn = NULL,
                           source,
                           tblLPIDetail = NULL,
                           tblLPIHeader = NULL,
-                          PASTUREHEIGHTS = NULL,
-                          LPI_0 = NULL,
-                          LPIDetail_1 = NULL) {
+                          PASTUREHEIGHTS = NULL#,
+                          # LPI_0 = NULL,
+                          # LPIDetail_1 = NULL
+                          ) {
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     height <- gather_height_terradat(
       dsn = dsn,
@@ -451,13 +452,13 @@ gather_height <- function(dsn = NULL,
       dsn = dsn, file_type = file_type,
       PASTUREHEIGHTS = PASTUREHEIGHTS
     )
-  } else if(toupper(source) %in% c("SURVEY123")){
-    height <- gather_height_survey123(
-      LPI_0 = LPI_0,
-      LPIDetail_1 = LPIDetail_1
-    )
+  # } else if(toupper(source) %in% c("SURVEY123")){
+  #   height <- gather_height_survey123(
+  #     LPI_0 = LPI_0,
+  #     LPIDetail_1 = LPIDetail_1
+  #   )
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, Survey123, or NRI (all case independent)")
+    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
 
   # height$source <- toupper(source)

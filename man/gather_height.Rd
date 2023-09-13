@@ -16,9 +16,7 @@ gather_height(
   source,
   tblLPIDetail = NULL,
   tblLPIHeader = NULL,
-  PASTUREHEIGHTS = NULL,
-  LPI_0 = NULL,
-  LPIDetail_1 = NULL
+  PASTUREHEIGHTS = NULL
 )
 }
 \arguments{

@@ -253,7 +253,7 @@ gather_plot_characterization <- function(dsn = NULL,
                                          POINTCOORDINATES = NULL,
                                          GPS = NULL,
                                          ESFSG = NULL,
-                                         PlotChar_0 = NULL,
+                                         # PlotChar_0 = NULL,
                                          file_type = "gdb"){
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -266,11 +266,11 @@ gather_plot_characterization <- function(dsn = NULL,
                                                  POINTCOORDINATES = POINTCOORDINATES,
                                                  GPS = GPS,
                                                  ESFSG = ESFSG)
-  } else if(toupper(source) == "SURVEY123"){
-    plotchar <- gather_plot_characterization_survey123(dsn = dsn,
-                                                       PlotChar_0 = PlotChar_0)
+  # } else if(toupper(source) == "SURVEY123"){
+    # plotchar <- gather_plot_characterization_survey123(dsn = dsn,
+                                                       # PlotChar_0 = PlotChar_0)
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, Survey123, or NRI (all case independent)")
+    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
 
   # plotchar$source <- toupper(source)
