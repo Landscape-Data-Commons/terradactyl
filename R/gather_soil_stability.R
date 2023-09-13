@@ -411,8 +411,8 @@ gather_soil_stability <- function(dsn = NULL,
                                   source,
                                   file_type = "gdb",
                                   tblSoilStabDetail = NULL,
-                                  tblSoilStabHeader = NULL#,
-                                  # SOILDISAG = NULL
+                                  tblSoilStabHeader = NULL,
+                                  SOILDISAG = NULL
 ) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
