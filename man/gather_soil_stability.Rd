@@ -19,7 +19,8 @@ gather_soil_stability(
   source,
   file_type = "gdb",
   tblSoilStabDetail = NULL,
-  tblSoilStabHeader = NULL
+  tblSoilStabHeader = NULL,
+  SOILDISAG = NULL
 )
 }
 \arguments{
