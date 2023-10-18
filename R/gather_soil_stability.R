@@ -163,7 +163,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
   ) %>% dplyr::select_if(!names(.) %in% c(
     'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb'
-    )
+  )
   )
 
   # In some cases, the Hydro variable is lost. Add it back in
@@ -436,14 +436,26 @@ gather_soil_stability <- function(dsn = NULL,
 
   if (any(class(soil_stability) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(soil_stability)[do.call(rbind, vapply(soil_stability,
-                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+                                                               class))[, 1] %in% c("POSIXct", "POSIXt")]
     soil_stability <- dplyr::mutate_at(soil_stability, dplyr::vars(change_vars),
-                            dplyr::funs(as.character))
+                                       dplyr::funs(as.character))
   }
 
   # reorder so that primary key is leftmost column
   soil_stability <- soil_stability %>%
     dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # Drop rows with no data
+  soil_stability <- soil_stability %>%
+    dplyr::filter(!(is.na(Hydro) &
+                      is.na(Line) &
+                      is.na(LineKey) &
+                      is.na(Pos) &
+                      is.na(Position) &
+                      is.na(Rating) &
+                      is.na(SoilStabSubSurface) &
+                      is.na(Veg)
+    ))
 
   return(soil_stability)
 }

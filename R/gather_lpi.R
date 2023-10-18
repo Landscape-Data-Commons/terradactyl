@@ -588,5 +588,25 @@ gather_lpi <- function(dsn = NULL,
   lpi <- lpi %>%
     dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
 
+  # Drop rows with no data
+  lpi <- lpi %>%
+    dplyr::filter(!(is.na(LineKey) &
+                      is.na(RecKey) &
+                      is.na(layer) &
+                      is.na(code) &
+                      is.na(chckbox) &
+                      is.na(ShrubShape) &
+                      is.na(FormType) &
+                      is.na(FormDate) &
+                      is.na(Direction) &
+                      is.na(Measure) &
+                      is.na(LineLengthAmount) &
+                      is.na(SpacingIntervalAmount) &
+                      is.na(SpacingType) &
+                      is.na(ShowCheckbox) &
+                      is.na(CheckboxLabel) &
+                      is.na(PointLoc) &
+                      is.na(PointNbr))
+
   return(lpi)
 }

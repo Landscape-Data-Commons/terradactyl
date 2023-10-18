@@ -476,6 +476,29 @@ gather_height <- function(dsn = NULL,
   height <- height %>%
     dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
 
+  # Drop rows with no data
+  height <- height %>%
+    dplyr::filter(!(is.na(CheckboxLabel) &
+                      is.na(Chkbox) &
+                      is.na(Direction) &
+                      is.na(FormDate) &
+                      is.na(FormType) &
+                      is.na(GrowthHabit_measured) &
+                      is.na(Height) &
+                      is.na(HeightOption) &
+                      is.na(HeightUOM) &
+                      is.na(LineKey) &
+                      is.na(LineLengthAmount) &
+                      is.na(Measure) &
+                      is.na(PointLoc) &
+                      is.na(PointNbr) &
+                      is.na(ShowCheckbox) &
+                      is.na(source) &
+                      is.na(SpacingIntervalAmount) &
+                      is.na(SpacingType) &
+                      is.na(Species) &
+                      is.na(type)))
+
   # Output height
   return(height)
 }

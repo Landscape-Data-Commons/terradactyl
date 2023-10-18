@@ -631,5 +631,36 @@ gather_gap <- function(dsn = NULL,
   gap <- gap %>%
     dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
 
+  # Drop rows with no data
+  gap <- gap %>%
+    dplyr::filter(!(is.na(AnnualForbsBasal) &
+                      is.na(AnnualForbsCanopy) &
+                      is.na(AnnualGrassesBasal) &
+                      is.na(AnnualGrassesCanopy) &
+                      is.na(DateLoadedInDb) &
+                      is.na(DBKey) &
+                      is.na(Direction) &
+                      is.na(FormDate) &
+                      is.na(FormType) &
+                      is.na(Gap) &
+                      is.na(GapData) &
+                      is.na(GapEnd) &
+                      is.na(GapMin) &
+                      is.na(GapStart) &
+                      is.na(LineKey) &
+                      is.na(LineLengthAmount) &
+                      is.na(Measure) &
+                      is.na(NoBasalGaps) &
+                      is.na(NoCanopyGaps) &
+                      is.na(Notes) &
+                      is.na(OtherBasal) &
+                      is.na(OtherCanopy) &
+                      is.na(PerennialsBasal) &
+                      is.na(PerennialsCan) &
+                      is.na(RecKey) &
+                      is.na(RecType) &
+                      is.na(SeqNo))
+    )))
+
   return(gap)
 }
