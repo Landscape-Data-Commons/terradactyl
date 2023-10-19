@@ -660,7 +660,7 @@ gather_gap <- function(dsn = NULL,
                       is.na(RecKey) &
                       is.na(RecType) &
                       is.na(SeqNo)))
-    )))
+
 
   return(gap)
 }
