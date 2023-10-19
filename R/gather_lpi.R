@@ -606,7 +606,7 @@ gather_lpi <- function(dsn = NULL,
                       is.na(ShowCheckbox) &
                       is.na(CheckboxLabel) &
                       is.na(PointLoc) &
-                      is.na(PointNbr))
+                      is.na(PointNbr)))
 
   return(lpi)
 }
