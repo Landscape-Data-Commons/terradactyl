@@ -447,13 +447,9 @@ gather_soil_stability <- function(dsn = NULL,
 
   # Drop rows with no data
   soil_stability <- soil_stability %>%
-    dplyr::filter(!(is.na(Hydro) &
-                      is.na(Line) &
-                      is.na(LineKey) &
-                      is.na(Pos) &
+    dplyr::filter(!(
                       is.na(Position) &
                       is.na(Rating) &
-                      is.na(SoilStabSubSurface) &
                       is.na(Veg)
     ))
 
