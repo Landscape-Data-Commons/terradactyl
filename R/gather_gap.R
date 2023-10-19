@@ -659,7 +659,7 @@ gather_gap <- function(dsn = NULL,
                       is.na(PerennialsCan) &
                       is.na(RecKey) &
                       is.na(RecType) &
-                      is.na(SeqNo))
+                      is.na(SeqNo)))
     )))
 
   return(gap)
