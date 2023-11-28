@@ -249,7 +249,7 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
 # Build the header portion of the LMF table
 #' @export gather_header_nri
 #' @rdname aim_gdb
-gather_header_nri <- function(dsn = NULL, ...) {
+gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -382,6 +382,11 @@ gather_header_nri <- function(dsn = NULL, ...) {
     EcologicalSiteId = stringr::str_trim(EcologicalSiteId)
   )
 
+  # Attach SpeciesState
+  point_ESD$SpeciesState <- speciesstate
+
+  # Create PlotID, which is needed in later functions
+  point_ESD <- point_ESD %>% dplyr::mutate(PlotID = PrimaryKey)
 
   # Return the point_ESD as the header file
   return(point_ESD)
@@ -453,7 +458,7 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
 
   header <- switch(toupper(source),
     "LMF" = gather_header_lmf(dsn = dsn, ...),
-    "NRI" = gather_header_nri(dsn = dsn, ...),
+    "NRI" = gather_header_nri(dsn = dsn, speciesstate = speciesstate, ...),
     "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
     "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
     "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...)#,

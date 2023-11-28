@@ -283,6 +283,8 @@ gather_height_lmf <- function(dsn = NULL,
   # remove NA values
   height <- subset(height, !is.na(HEIGHT))
 
+  # Remove plus signs
+  height <- gsub("+", "", height)
 
   # The height units are concatenated in the field,
   # separate so that we can convert to metric appopriately

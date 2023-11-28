@@ -59,11 +59,11 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
   plot_tall <- plot_raw %>%
     dplyr::select_if(names(.) %in% c(
       'PrimaryKey', 'DBKey', 'ProjectKey',
-      'SpeciesState',
+      #'SpeciesState',
       'Latitude', 'Longitude',
       'State', 'County',
       'EcolSite', 'ParentMaterial', 'Slope', 'Elevation', 'Aspect', 'ESD_SlopeShape',
-      'LandscapeType', 'LandscapeTypeSecondary', 'HillslopeType',
+      'LandscapeType', 'LandscapeTypeSecondary', #'HillslopeType',
       'ESD_Series',
       # 'Observer', 'Recorder',
       'EstablishDate'
