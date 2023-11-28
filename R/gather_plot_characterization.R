@@ -190,8 +190,8 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
   return(plot_lmf)
 }
 
-#' export gather_plot_characterization_survey123
-#' rdname gather_plot_characterization
+# export gather_plot_characterization_survey123
+# rdname gather_plot_characterization
 # gather_plot_characterization_survey123 <- function(dsn = NULL,
 #                                                    PlotChar_0 = NULL){
 #
