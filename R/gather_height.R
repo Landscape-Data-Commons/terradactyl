@@ -284,13 +284,17 @@ gather_height_lmf <- function(dsn = NULL,
   height <- subset(height, !is.na(HEIGHT))
 
   # Remove plus signs
-  height <- gsub("+", "", height)
+  height <- height |>
+    dplyr::mutate(HEIGHT = HEIGHT |> stringr::str_remove_all(pattern = "[+]"))
 
   # The height units are concatenated in the field,
-  # separate so that we can convert to metric appopriately
-  height <- tidyr::separate(height, "HEIGHT", c("HEIGHT", "UOM"),
-                            sep = " ", extra = "drop", fill = "right"
-  )
+  # separate so that we can convert to metric appropriately
+  height <- tidyr::separate_wider_delim(data = height,
+                    cols = "HEIGHT",
+                    names = c("HEIGHT", "UOM"),
+                    delim = " ",
+                    too_few = "align_start")
+
 
   # Convert to metric
   height$HEIGHT <- suppressWarnings(as.numeric(height$HEIGHT))
