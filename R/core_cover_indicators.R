@@ -306,5 +306,6 @@ core_cover_indicators <- function(lpi_species) {
   if("AH_NACover" %in% names(lpi_cover)){
     lpi_cover <- lpi_cover %>% dplyr::select(-AH_NACover)
   }
+  return(lp_cover) # in this case we need the return otherwise the if state returns a null value if FALSE
 }
 
