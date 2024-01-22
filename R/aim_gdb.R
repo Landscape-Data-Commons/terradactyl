@@ -1631,6 +1631,8 @@ build_indicators <- function(header, source, dsn = NULL, lpi_tall,
 
     if(!is.null(spp_inventory_tall)){
       missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+    } else {
+      return(all_indicators)
     }
   } else {
     return(all_indicators)

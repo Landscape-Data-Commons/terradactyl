@@ -273,8 +273,6 @@ accumulated_species <- function (header,
   # if a species list is provided, join to species list
   if (species_file != "") {
     all_species_header <- species_join(data = all_species_header,
-                                           data_code = "Species",
-                                           species_file = species_file)
                                        data_code = "Species",
                                        generic_species_file = generic_species_file,
                                        species_file = species_file)
