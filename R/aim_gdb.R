@@ -1629,8 +1629,11 @@ build_indicators <- function(header, source, dsn = NULL, lpi_tall,
       final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
       return(final_feature_class)
 
-    if(!is.null(spp_inventory_tall)){
-      missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+      if(!is.null(spp_inventory_tall)){
+        missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+      } else {
+        return(all_indicators)
+      }
     } else {
       return(all_indicators)
     }
