@@ -28,9 +28,15 @@ accumulated_species <- function (header,
                                  species_file = "",
                                  dead = TRUE,
                                  source = c("TerrADat", "AIM", "LMF", "NRI"),
-                                 ...) {
+                                 ...,
+                                 generic_species_file = NULL) {
   # Set the filter expressions
   filter_exprs <- rlang::quos(...)
+
+  # If generic_species_file is not provided, assume it is the same as species_file
+  if(is.null(generic_species_file)){
+    generic_species_file <- species_file
+  }
 
   # Subset the header by the filter expressions
   header_sub <- readRDS(header) %>% dplyr::filter(!!!filter_exprs) %>%
@@ -54,6 +60,7 @@ accumulated_species <- function (header,
     lpi_species <- species_join(
       data = lpi_tall_header,
       species_file = species_file,
+      generic_species_file = generic_species_file,
       overwrite_generic_species = dplyr::if_else("TerrADat" %in% source,
                                                  TRUE,
                                                  FALSE)
@@ -115,6 +122,7 @@ accumulated_species <- function (header,
       data = height,
       data_code = "Species",
       species_file = species_file,
+      generic_species_file = generic_species_file,
       overwrite_generic_species = dplyr::if_else("TerrADat" %in% source,
                                                  TRUE,
                                                  FALSE)
@@ -199,6 +207,7 @@ accumulated_species <- function (header,
       data = species_inventory,
       data_code = "Species",
       species_file = species_file,
+      generic_species_file = generic_species_file,
       overwrite_generic_species = dplyr::if_else("TerrADat" %in% source,
                                                  TRUE,
                                                  FALSE)
@@ -266,6 +275,9 @@ accumulated_species <- function (header,
     all_species_header <- species_join(data = all_species_header,
                                            data_code = "Species",
                                            species_file = species_file)
+                                       data_code = "Species",
+                                       generic_species_file = generic_species_file,
+                                       species_file = species_file)
   }
 
   # if either height or LPI is not provided, columns will be missing

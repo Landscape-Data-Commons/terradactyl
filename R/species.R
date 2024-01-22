@@ -324,7 +324,7 @@ species_join <- function(data, # field data,
                                         dplyr::select(
                                           species_list, data_code,
                                           UpdatedSpeciesCode, SpeciesState
-                                        ),
+                                        ) %>% unique(),
                                         by = join_by
         )
       } else {
@@ -332,7 +332,7 @@ species_join <- function(data, # field data,
                                         dplyr::select(
                                           species_list, data_code,
                                           UpdatedSpeciesCode
-                                        ),
+                                        ) %>% unique(),
                                         by = join_by
         )
       }
@@ -388,6 +388,11 @@ species_join <- function(data, # field data,
   ## Remove any duplicate values
   species_generic <- species_generic %>% dplyr::distinct()
 
+  # If species are entered more than once but with different data (eg Family is missing once), it wont be removed by the above
+  species_generic <-
+    species_generic[!duplicated(species_generic %>%
+                                  dplyr::select(all_of(join_by))),]
+
   # Add species information to data
   data_species <- dplyr::left_join(
     x = data %>% dplyr::mutate_at(dplyr::vars(data_code), toupper),
@@ -397,15 +402,22 @@ species_join <- function(data, # field data,
 
   data_species <- data_species %>% dplyr::distinct()
 
-
   # Overwrite generic species assignments with provided table
   if (overwrite_generic_species) {
+    ext <- substr(species_file, (nchar(species_file) - 2), nchar(species_file))
+    if(ext == "gdb"){
+      tbl_species_generic <- sf::st_read(
+        dsn = generic_species_file,
+        layer = "tblSpeciesGeneric",
+        stringsAsFactors = FALSE
+      )
+    } else if (ext == "csv"){
+      tbl_species_generic <- read.csv(generic_species_file)
+    } else {
+      stop("Unknown generic species list format. Must be a path to a geodatabase (.gdb) or comma-separated values file (.csv)")
+    }
     # Read tblSpeciesGeneric
-    tbl_species_generic <- sf::st_read(
-      dsn = species_file,
-      layer = "tblSpeciesGeneric",
-      stringsAsFactors = FALSE
-    ) %>%
+    tbl_species_generic <- tbl_species_generic %>%
       # Select only the needed fields
       dplyr::select(
         SpeciesCode, DBKey, GrowthHabitCode,

@@ -261,15 +261,5 @@ pct_cover <- function(lpi_tall,
       ))
   }
 
-  # quarantined 8/26 by joe brehm; for this to work the digits parameter needs to be added to every function that calls pct_cover
-  # # Round results
-  # # Be warned! This doesn't care if about grouping variables and will round them
-  # # too if they're numeric
-  # summary <- summary %>%
-  #   dplyr::mutate(dplyr::across(where(is.numeric),
-  #                               round,
-  #                               digits = digits))
-
-
   return(summary)
 }
