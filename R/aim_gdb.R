@@ -1667,7 +1667,7 @@ tdact_remove_empty <- function(indata, datatype){
   message(paste("Removing rows with no data in all of these columns:", paste(datacols, collapse = ", ")))
 
   # Select only data columns and count how many are NA
-  data_datacols_only <- indata[,datacols] %>% dplyr::mutate(nNA = rowSums(is.na(.)))
+  data_datacols_only <- data.frame(indata[,datacols]) %>% dplyr::mutate(nNA = rowSums(is.na(.)))
 
   # Rows where all essential values are NA must be eliminated
   vec_hasdata <- data_datacols_only$nNA != length(datacols)
