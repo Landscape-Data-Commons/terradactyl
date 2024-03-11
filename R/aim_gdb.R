@@ -1658,8 +1658,10 @@ tdact_remove_empty <- function(indata, datatype){
     ## Not necessary for geoIndicators or header
   )
 
-  if(datacols == "unknown"){
-    stop("datacols value not recognized")
+  if(length(datacols) == 1){ # if datacols is a vector of length >1 (it usually is) this line is needed
+    if(datacols == "unknown"){
+      stop("datacols value not recognized")
+    }
   }
 
   message(paste("Removing rows with no data in all of these columns:", paste(datacols, collapse = ", ")))
