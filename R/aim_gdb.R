@@ -1593,9 +1593,9 @@ build_indicators <- function(header, source, dsn, lpi_tall,
 }
 
 
-# Remove duplicate helper function
+#' Remove duplicate helper function
 #' @description Helper function used to remove duplicates
-#' @noRD
+#' @noRd
 
 tdact_remove_duplicates <- function(indata) {
 
@@ -1631,9 +1631,9 @@ tdact_remove_duplicates <- function(indata) {
   return(outdata)
 }
 
-# Remove no data row helper function
+#' Remove no data row helper function
 #' @description Hidden helper function used to remove rows with no data
-#' @noRD
+#' @noRd
 
 tdact_remove_empty <- function(indata, datatype){
 
