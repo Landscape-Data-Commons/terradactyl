@@ -305,7 +305,8 @@ gather_rangeland_health <- function(dsn = NULL,
                                     file_type = NULL,
                                     tblQualHeader = NULL,
                                     tblQualDetail = NULL,
-                                    RANGEHEALTH = NULL) {
+                                    RANGEHEALTH = NULL,
+                                    autoQC = TRUE) {
 
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -335,6 +336,12 @@ gather_rangeland_health <- function(dsn = NULL,
   # reorder so that primary key is leftmost column
   IIRH <- IIRH %>%
     dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    IIRH <- IIRH %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "rh")
+  }
 
   return(IIRH)
 }

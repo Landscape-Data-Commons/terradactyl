@@ -432,7 +432,8 @@ gather_soil_horizon_lmf <- function(dsn = NULL,
 gather_soil_horizon <- function(dsn = NULL,
                                 source,
                                 SOILHORIZON = NULL,
-                                tblSoilPitHorizons = NULL) {
+                                tblSoilPitHorizons = NULL,
+                                autoQC = TRUE) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT")) {
     soil <- gather_soil_horizon_terradat(dsn = dsn, tblSoilPitHorizons = tblSoilPitHorizons)
@@ -458,6 +459,12 @@ gather_soil_horizon <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
     dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    soil <- soil %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilhz")
+  }
 
   return(soil)
 }

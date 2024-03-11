@@ -546,7 +546,8 @@ gather_lpi <- function(dsn = NULL,
                        source,
                        tblLPIDetail = NULL,
                        tblLPIHeader = NULL,
-                       PINTERCEPT = NULL#,
+                       PINTERCEPT = NULL,
+                       autoQC = TRUE
                        # LPI_0 = NULL,
                        # LPIDetail_1 = NULL
                        ) {
@@ -595,6 +596,12 @@ gather_lpi <- function(dsn = NULL,
                       is.na(code) &
                       is.na(ShrubShape) &
                       is.na(PointNbr)))
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    lpi <- lpi %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "lpi")
+  }
 
   return(lpi)
 }

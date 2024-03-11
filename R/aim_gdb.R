@@ -447,7 +447,7 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
 #' @rdname aim_gdb
 # Header build wrapper function
 gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, #PlotChar_0 = NULL,
-                          speciesstate = NULL, ...) {
+                          speciesstate = NULL, ..., autoQC = TRUE) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -469,7 +469,11 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
 
   if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
 
-  header <- header %>% unique()
+  # Apply QC helper functions to remove duplicates
+  if(autoQC){
+    message("Removing duplicated rows. Disable by adding the parameter 'autoQC = FALSE'")
+    header <- tdact_remove_duplicates(header)
+  }
 
   return(header)
 }
@@ -1586,4 +1590,92 @@ build_indicators <- function(header, source, dsn, lpi_tall,
   } else {
     return(all_indicators)
   }
+}
+
+
+# Remove duplicate helper function
+#' @description Helper function used to remove duplicates
+#' @noRD
+
+tdact_remove_duplicates <- function(indata) {
+
+  cols_to_exclude_from_duplicate_check <- c("DBKey", "DateLoadedInDb")
+  data_check <- indata[,!(colnames(indata) %in% cols_to_exclude_from_duplicate_check)]
+
+  # For runspeed, drop columns that are all identical
+  vec_constant_cols <- vapply(data_check, function(x) length(unique(x)) > 1, logical(1L))
+  vec_constant_cols["PrimaryKey"] <- TRUE # Needed if only one primary key is in the input data
+  data_varied_cols_only <- data_check[vapply(data_check, function(x) length(unique(x)) > 1, logical(1L))]
+
+  # get just duplicated rows
+  data_duplicated_columns <-
+    data_varied_cols_only[duplicated(data_varied_cols_only) | duplicated(data_varied_cols_only, fromLast = T),]
+
+  # give a warning if duplicated rows are found
+  if(nrow(data_duplicated_columns) > 0){
+    message("Duplicate rows found in input data (columns not printed have no variation in all input data)")
+
+    # Print the data, including DBKey and DateLoaded, but not columsn with only one value in the whole table
+    print(indata %>% dplyr::filter(PrimaryKey %in% data_duplicated_columns$PrimaryKey) %>%
+            dplyr::select(c(colnames(data_duplicated_columns), cols_to_exclude_from_duplicate_check)) %>%
+            dplyr::arrange(PrimaryKey))
+
+    # drop duplicates from output data
+    n_duplicates <- sum(duplicated(data_varied_cols_only))
+    warning(paste(n_duplicates, "duplicates removed"))
+    outdata <- indata[!duplicated(data_varied_cols_only),]
+  } else {
+    outdata <- indata
+  }
+
+  return(outdata)
+}
+
+# Remove no data row helper function
+#' @description Hidden helper function used to remove rows with no data
+#' @noRD
+
+tdact_remove_empty <- function(indata, datatype){
+
+  # Create vector to select which fields are essential
+  datacols <- switch(datatype,
+    "gap" = c("GapStart", "GapEnd", "Gap"),
+    "height" = c("Height"), # Species field is very important but not used by all early projects
+    "hzflux" = c("sedimentWeight", "sedimentGperDayByInlet", "sedimentGperDay"),
+    "lpi" = c("layer", "code"),
+    "soilhz" = c("HorizonDepthUpper", "HorizonDepthLower"),
+    "soilstab" = c("Veg", "Rating"),
+    "specinv" = c("Species"),
+    "geosp" = c("Species"),
+    "rh" = c("RH_WaterFlowPatterns", "RH_PedestalsTerracettes", "RH_BareGround",
+             "RH_Gullies", "RH_WindScouredAreas", "RH_LitterMovement",
+             "RH_SoilSurfResisErosion", "RH_SoilSurfLossDeg",
+             "RH_PlantCommunityComp", "RH_Compaction", "RH_FuncSructGroup",
+             "RH_DeadDyingPlantParts", "RH_LitterAmount", "RH_AnnualProd",
+             "RH_InvasivePlants", "RH_ReprodCapabilityPeren",
+             "RH_SoilSiteStability", "RH_BioticIntegrity", "RH_HydrologicFunction"),
+    "unknown"
+    ## Not necessary for geoIndicators or header
+  )
+
+  if(datacols == "unknown"){
+    stop("datacols value not recognized")
+  }
+
+  message(paste("Removing rows with no data in all of these columns:", paste(datacols, collapse = ", ")))
+
+  # Select only data columns and count how many are NA
+  data_datacols_only <- indata[,datacols] %>% dplyr::mutate(nNA = rowSums(is.na(.)))
+
+  # Rows where all essential values are NA must be eliminated
+  vec_hasdata <- data_datacols_only$nNA != length(datacols)
+
+  if(sum(vec_hasdata) < nrow(indata)){
+    n_missing <- sum(!vec_hasdata)
+    warning(paste(n_missing, "row(s) with no essential data removed"))
+  }
+
+  outdata <- indata[vec_hasdata,]
+
+  return(outdata)
 }

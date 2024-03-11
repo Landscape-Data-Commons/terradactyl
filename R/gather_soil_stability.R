@@ -412,7 +412,8 @@ gather_soil_stability <- function(dsn = NULL,
                                   file_type = "gdb",
                                   tblSoilStabDetail = NULL,
                                   tblSoilStabHeader = NULL,
-                                  SOILDISAG = NULL
+                                  SOILDISAG = NULL,
+                                  autoQC = TRUE
 ) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -452,6 +453,12 @@ gather_soil_stability <- function(dsn = NULL,
                       is.na(Rating) &
                       is.na(Veg)
     ))
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    soil_stability <- soil_stability %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilstab")
+  }
 
   return(soil_stability)
 }

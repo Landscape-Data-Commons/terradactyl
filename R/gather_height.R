@@ -443,7 +443,8 @@ gather_height <- function(dsn = NULL,
                           source,
                           tblLPIDetail = NULL,
                           tblLPIHeader = NULL,
-                          PASTUREHEIGHTS = NULL#,
+                          PASTUREHEIGHTS = NULL,
+                          autoQC = TRUE#,
                           # LPI_0 = NULL,
                           # LPIDetail_1 = NULL
                           ) {
@@ -482,15 +483,11 @@ gather_height <- function(dsn = NULL,
   height <- height %>%
     dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
 
-  # Drop rows with no data
-  height <- height %>%
-    dplyr::filter(!(is.na(GrowthHabit_measured) &
-                      is.na(Height) &
-                      is.na(HeightUOM) &
-                      is.na(LineKey) &
-                      is.na(PointNbr) &
-                      is.na(Species) &
-                      is.na(type)))
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    height <- height %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "height")
+  }
 
   # Output height
   return(height)
