@@ -471,7 +471,7 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
 
   # Apply QC helper functions to remove duplicates
   if(autoQC){
-    message("Removing duplicated rows. Disable by adding the parameter 'autoQC = FALSE'")
+    message("Checking for duplicated rows. Disable by adding the parameter 'autoQC = FALSE'")
     header <- tdact_remove_duplicates(header)
   }
 
@@ -1099,7 +1099,7 @@ height_calc <- function(header, height_tall,
   )
 
   # For TerrADat only
-  if (source %in% c("TerrADat", "AIM")) {
+  if (source %in% c("TerrADat", "AIM", "DIMA")) {
     # Live sagebrush heights
     height_calc <- rbind(
       height_calc,
@@ -1603,9 +1603,9 @@ tdact_remove_duplicates <- function(indata) {
   data_check <- indata[,!(colnames(indata) %in% cols_to_exclude_from_duplicate_check)]
 
   # For runspeed, drop columns that are all identical
-  vec_constant_cols <- vapply(data_check, function(x) length(unique(x)) > 1, logical(1L))
-  vec_constant_cols["PrimaryKey"] <- TRUE # Needed if only one primary key is in the input data
-  data_varied_cols_only <- data_check[vapply(data_check, function(x) length(unique(x)) > 1, logical(1L))]
+  vec_varied_cols <- vapply(data_check, function(x) length(unique(x)) > 1, logical(1L))
+  vec_varied_cols["PrimaryKey"] <- TRUE # Needed if only one primary key is in the input data
+  data_varied_cols_only <- data_check[,vec_varied_cols]
 
   # get just duplicated rows
   data_duplicated_columns <-
@@ -1617,7 +1617,7 @@ tdact_remove_duplicates <- function(indata) {
 
     # Print the data, including DBKey and DateLoaded, but not columsn with only one value in the whole table
     print(indata %>% dplyr::filter(PrimaryKey %in% data_duplicated_columns$PrimaryKey) %>%
-            dplyr::select(c(colnames(data_duplicated_columns), cols_to_exclude_from_duplicate_check)) %>%
+            dplyr::select(dplyr::any_of(c(colnames(data_duplicated_columns), cols_to_exclude_from_duplicate_check))) %>%
             dplyr::arrange(PrimaryKey))
 
     # drop duplicates from output data
@@ -1664,7 +1664,7 @@ tdact_remove_empty <- function(indata, datatype){
     }
   }
 
-  message(paste("Removing rows with no data in all of these columns:", paste(datacols, collapse = ", ")))
+  message(paste("Checking for rows with no data in all of these columns:", paste(datacols, collapse = ", ")))
 
   # Select only data columns and count how many are NA
   data_datacols_only <- data.frame(indata[,datacols]) %>% dplyr::mutate(nNA = rowSums(is.na(.)))
