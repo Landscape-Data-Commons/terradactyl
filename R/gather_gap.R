@@ -595,7 +595,8 @@ gather_gap <- function(dsn = NULL,
                        tblGapHeader = NULL,
                        tblGapDetail = NULL,
                        POINT = NULL,
-                       GINTERCEPT = NULL#,
+                       GINTERCEPT = NULL,
+                       autoQC = TRUE#,
                        # Gap_0 = NULL,
                        # GapDetail_1 = NULL
                        ) {
@@ -630,6 +631,24 @@ gather_gap <- function(dsn = NULL,
   # reorder so that primary key is leftmost column
   gap <- gap %>%
     dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
+
+  # Drop rows with no data
+  gap <- gap %>%
+    dplyr::filter(!(is.na(Gap) &
+                      is.na(GapEnd) &
+                      is.na(GapMin) &
+                      is.na(GapStart) &
+                      is.na(LineKey) &
+                      is.na(LineLengthAmount) &
+                      is.na(Measure) &
+                      is.na(RecType) &
+                      is.na(SeqNo)))
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    gap <- gap %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "gap")
+  }
 
   return(gap)
 }

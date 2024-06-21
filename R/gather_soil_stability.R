@@ -163,7 +163,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
   ) %>% dplyr::select_if(!names(.) %in% c(
     'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb'
-    )
+  )
   )
 
   # In some cases, the Hydro variable is lost. Add it back in
@@ -412,7 +412,8 @@ gather_soil_stability <- function(dsn = NULL,
                                   file_type = "gdb",
                                   tblSoilStabDetail = NULL,
                                   tblSoilStabHeader = NULL,
-                                  SOILDISAG = NULL
+                                  SOILDISAG = NULL,
+                                  autoQC = TRUE
 ) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -436,14 +437,28 @@ gather_soil_stability <- function(dsn = NULL,
 
   if (any(class(soil_stability) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(soil_stability)[do.call(rbind, vapply(soil_stability,
-                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+                                                               class))[, 1] %in% c("POSIXct", "POSIXt")]
     soil_stability <- dplyr::mutate_at(soil_stability, dplyr::vars(change_vars),
-                            dplyr::funs(as.character))
+                                       dplyr::funs(as.character))
   }
 
   # reorder so that primary key is leftmost column
   soil_stability <- soil_stability %>%
     dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # Drop rows with no data
+  soil_stability <- soil_stability %>%
+    dplyr::filter(!(
+                      is.na(Position) &
+                      is.na(Rating) &
+                      is.na(Veg)
+    ))
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    soil_stability <- soil_stability %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilstab")
+  }
 
   return(soil_stability)
 }

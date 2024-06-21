@@ -20,7 +20,8 @@ gather_soil_stability(
   file_type = "gdb",
   tblSoilStabDetail = NULL,
   tblSoilStabHeader = NULL,
-  SOILDISAG = NULL
+  SOILDISAG = NULL,
+  autoQC = TRUE
 )
 }
 \arguments{
@@ -76,7 +77,6 @@ Other <gather>:
 \code{\link{gather_plot_characterization}()},
 \code{\link{gather_rangeland_health}()},
 \code{\link{gather_soil_horizon}()},
-\code{\link{gather_soil_summary}()},
 \code{\link{gather_species_inventory}()}
 }
 \concept{<gather>}
