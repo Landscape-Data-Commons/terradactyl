@@ -61,20 +61,20 @@ Given wide format IIRH data, create a tall format data frame
 usable by other terradactyl functions.
 }
 \examples{
-gather_IIRH(dsn = "Path/To/AIM_Geodatabase.gdb",
-            source = "AIM")
-gather_IIRH(dsn = "Path/To/LMF_Geodatabase.gdb",
-            source = "LMF")
+gather_rangeland_health(dsn = "Path/To/AIM_Geodatabase.gdb",
+                        source = "AIM")
+gather_rangeland_health(dsn = "Path/To/LMF_Geodatabase.gdb",
+                        source = "LMF")
 
 aim_rhdetail <- read.csv("Path/To/tblQualDetail.csv")
 aim_rhheader <- read.csv("Path/To/tblQualHeader.csv")
-gather_IIRH(source = "AIM",
-            tblQualDetail = aim_rhdetail,
-            tblQualHeader = aim_rhheader)
+gather_rangeland_health(source = "AIM",
+                        tblQualDetail = aim_rhdetail,
+                        tblQualHeader = aim_rhheader)
 
 lmf_rh <- read.csv("Path/To/RANGEHEALTH.csv")
-gather_IIRH(source = "LMF",
-            RANGEHEALTH = lmf_rh)
+gather_rangeland_health(source = "LMF",
+                        RANGEHEALTH = lmf_rh)
 }
 \seealso{
 Other <gather>: 

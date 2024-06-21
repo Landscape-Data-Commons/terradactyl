@@ -27,17 +27,35 @@ gather_header(
   tblPlots = NULL,
   date_tables = NULL,
   speciesstate = NULL,
-  ...,
-  autoQC = TRUE
+  ...
 )
 
-lpi_calc(header, lpi_tall, species_file, source, dsn)
+lpi_calc(
+  header,
+  lpi_tall,
+  species_file,
+  source,
+  dsn,
+  generic_species_file = NULL
+)
 
 gap_calc(header, gap_tall)
 
-height_calc(header, height_tall, species_file = species_file, source)
+height_calc(
+  header,
+  height_tall,
+  species_file = species_file,
+  source,
+  generic_species_file = NULL
+)
 
-spp_inventory_calc(header, spp_inventory_tall, species_file, source)
+spp_inventory_calc(
+  header,
+  spp_inventory_tall,
+  species_file,
+  source,
+  generic_species_file = NULL
+)
 
 soil_stability_calc(header, soil_stability_tall)
 
@@ -51,7 +69,8 @@ build_terradat_indicators(
   height_tall,
   spp_inventory_tall,
   soil_stability_tall,
-  ...
+  ...,
+  generic_species_file = NULL
 )
 
 build_lmf_indicators(
@@ -64,20 +83,22 @@ build_lmf_indicators(
   height_tall,
   spp_inventory_tall,
   soil_stability_tall,
-  ...
+  ...,
+  generic_species_file = NULL
 )
 
 build_indicators(
   header,
   source,
-  dsn,
+  dsn = NULL,
   lpi_tall,
   species_file,
   gap_tall,
   height_tall,
   spp_inventory_tall,
   soil_stability_tall,
-  ...
+  ...,
+  generic_species_file = NULL
 )
 }
 \arguments{

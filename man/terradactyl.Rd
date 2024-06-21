@@ -2,8 +2,8 @@
 % Please edit documentation in R/terradactyl.R
 \docType{package}
 \name{terradactyl}
-\alias{terradactyl}
 \alias{terradactyl-package}
+\alias{terradactyl}
 \title{terrdactyl: A package for terrestrial data commons tools}
 \description{
 This package provides functionality for gathering terrestrial core methods
