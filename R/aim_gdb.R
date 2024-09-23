@@ -546,7 +546,7 @@ lpi_calc <- function(header,
   )] <- "NonWoody"
 
   lpi_species$GrowthHabit[lpi_species$GrowthHabitSub %in%
-                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb")] <- "ForbGrass"
+                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb")] <- "ForbGraminoid"
 
   # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
   lpi_species$GrowthHabit[grepl(
@@ -560,9 +560,9 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabit
   )] <- "NA"
 
-
+# keeping sedges since we are now doing Graminoid calculations
   # For the purposes of cover calcs, Non-Woody==Forb & Grass != Sedge, so we need to remove sedges
-  lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
+  # lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
 
   # Correct the Sub-shrub to SubShrub
   lpi_species$GrowthHabitSub[grepl(
@@ -639,7 +639,7 @@ lpi_calc <- function(header,
 
     # Remove "FH_" from the BareSoilCover indicator
     dplyr::mutate(indicator = indicator %>%
-                    stringr::str_replace(., "FH_BareSoilCover", "BareSoilCover"))
+                    stringr::str_replace(., "FH_BareSoilCover", "BareSoil"))
 
   # Because the renaming processing lumps categories,
   # we need to get a summed value (e.g., Soil =S+FG+LM_CM+AG)
@@ -716,7 +716,7 @@ lpi_calc <- function(header,
     "ANNUAL" = "Ann",
     "PERENNIAL" = "Peren",
     "[[:punct:]]" = "",
-    "GRAMINOID" = "Grass",
+    "GRAMINOID" = "Graminoid",
     "FORB" = "Forb",
     "NON" = "No",
     "SUBSHRUB" = "SubShrub",
@@ -726,7 +726,7 @@ lpi_calc <- function(header,
     " " = "",
     "STATURE" = "",
     "SAGEBRUSH" = "Sagebrush",
-    "GRASS" = "Grass",
+    "GRASS" = "Graminoid",
     "SHORT" = "Short",
     "TALL" = "Tall",
     "0" = "Live",
@@ -1029,7 +1029,7 @@ height_calc <- function(header, height_tall,
   # Add a forb and grass category
   height_species$pgpf[height_species$Duration == "Perennial" &
                         height_species$GrowthHabitSub %in%
-                        c("Forb/herb", "Forb", "Graminoid", "Grass")] <- "PerenForbGrass"
+                        c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb", "Sedge")] <- "PerenForbGraminoid"
 
   # Height calculations----
   height_calc <- rbind(
@@ -1051,7 +1051,7 @@ height_calc <- function(header, height_tall,
       by_line = FALSE,
       tall = TRUE,
       GrowthHabitSub
-    ) %>% subset(indicator %in% c("Forb", "Graminoid", "Shrub")),
+    ) %>% subset(indicator %in% c("Forb", "Graminoid", "Grass", "Forb/herb", "Forb/Herb", "Sedge")),
 
     # Perennial Forb or Grass
     mean_height(
@@ -1071,7 +1071,7 @@ height_calc <- function(header, height_tall,
       by_line = FALSE,
       tall = TRUE,
       pgpf
-    ) %>% subset(indicator == "PerenForbGrass"),
+    ) %>% subset(indicator == "PerenForbGraminoid"),
 
     # Perennial grass by Noxious/NonNoxious
     mean_height(
@@ -1123,7 +1123,7 @@ height_calc <- function(header, height_tall,
                       "\\bYES\\b" = "Nox",
                       "\\bNO\\b" = "NonNox",
                       "Forb/herb" = "Forb",
-                      "Graminoid" = "Grass",
+                      "Graminoid" = "Graminoid",
                       "0" = "_Live",
                       "\\." = "",
                       " " = "",
