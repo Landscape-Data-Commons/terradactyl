@@ -576,6 +576,12 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabitSub
   )] <- "ShrubSucculent"
 
+  # Add a Forb Graminoid field
+  lpi_species$ForbGraminoid[grepl(
+    pattern = "Forb|Forb/herb|Forb/Herb|Grass|Graminoid",
+    x = lpi_species$GrowthHabitSub
+  )] <- "ForbGraminoid"
+
   # Calculate Total Foliar Cover ----
   total_foliar <- pct_cover_total_foliar(
     lpi_tall = lpi_species,
@@ -812,6 +818,13 @@ lpi_calc <- function(header,
               hit = "any",
               by_line = FALSE,
               ShrubSucculent
+    ),
+    # Forb Graminoid Cover by Duration
+    pct_cover(lpi_species,
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              Duration, ForbGraminoid
     )
   )
 
