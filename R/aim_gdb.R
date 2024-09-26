@@ -545,8 +545,10 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabit
   )] <- "NonWoody"
 
-  lpi_species$GrowthHabit[lpi_species$GrowthHabitSub %in%
-                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb")] <- "ForbGraminoid"
+  # Add a Forb Graminoid field
+  lpi_species$ForbGraminoid[lpi_species$GrowthHabitSub %in%
+                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb",
+                             "FORB", "FORB/HERB", "GRAMINOID", "GRASS")] <- "ForbGraminoid"
 
   # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
   lpi_species$GrowthHabit[grepl(
@@ -575,12 +577,6 @@ lpi_calc <- function(header,
     pattern = "SubShrub|Shrub|Succulent",
     x = lpi_species$GrowthHabitSub
   )] <- "ShrubSucculent"
-
-  # Add a Forb Graminoid field
-  lpi_species$ForbGraminoid[grepl(
-    pattern = "Forb|Forb/herb|Forb/Herb|Grass|Graminoid",
-    x = lpi_species$GrowthHabitSub
-  )] <- "ForbGraminoid"
 
   # Calculate Total Foliar Cover ----
   total_foliar <- pct_cover_total_foliar(
