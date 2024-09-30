@@ -24,6 +24,14 @@
 #' @param file_type Character string that denotes the source file type of the
 #' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
 #' AIM/DIMA/TerrADat, or if GINTERCEPT and POINT are provided.
+#' @param auto_qc Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
+#' checked for non-unique and orphaned records before doing processing. If any
+#' are found, a warning will be triggered but the gather will still be carried
+#' out. It is strongly recommended that any identified issues be addressed to
+#' avoid incorrect records in the output. Defaults to \code{TRUE}.
+#' @param verbose Logical. If \code{TRUE} then the function will report back
+#' diagnostic information as console messages while it works. Defaults to
+#' \code{FALSE}.
 #' @importFrom magrittr %>%
 #' @name gather_gap
 #' @family <gather>
@@ -52,6 +60,9 @@
 gather_gap_terradat <- function(dsn = NULL,
                                 tblGapDetail = NULL,
                                 tblGapHeader = NULL) {
+                                tblGapHeader = NULL,
+                                auto_qc_warnings = TRUE,
+                                verbose = FALSE) {
 
   ### switch by input types
   if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
@@ -77,6 +88,10 @@ gather_gap_terradat <- function(dsn = NULL,
         'DateLoadedInDB',
         "rid"
       ))
+    if (verbose) {
+      if (!is.null(dsn)) {
+        message("Using the provided data frames. The provided dsn value is being ignored.")
+      }
   } else if(!is.null(dsn)){
     if (!file.exists(dsn)) {
       stop("dsn must be a valid filepath to a geodatabase containing tblGapDetail and tblGapHeader")
@@ -148,6 +163,23 @@ gather_gap_terradat <- function(dsn = NULL,
       NoCanopyGaps = tidyr::replace_na(NoCanopyGaps, replace = 0),
       NoBasalGaps = tidyr::replace_na(NoBasalGaps, replace = 0)
     )
+  if (auto_qc_warnings) {
+    if (verbose) {
+      message("Running automatic QC checks for duplicated or orphaned records.")
+    }
+    auto_qc_warning(header_data = header,
+                    detail_data = detail,
+                    uid_variables = list(header = c("PrimaryKey",
+                                                    "RecKey"),
+                                         detail = c("PrimaryKey",
+                                                    "RecKey",
+                                                    "RecType",
+                                                    "GapStart",
+                                                    "GapEnd",
+                                                    "Gap")),
+                    joining_variables = c("PrimaryKey",
+                                          "RecKey"))
+  }
 
   ## Add zero values where there is no canopy gap present on line
   gap_tall[gap_tall$NoCanopyGaps == 1, ] <- gap_tall %>%

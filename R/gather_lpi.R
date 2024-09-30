@@ -22,6 +22,14 @@
 #' @param file_type Character string that denotes the source file type of the
 #' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
 #' AIM/DIMA/TerrADat, or if PINTERCEPT is provided.
+#' @param auto_qc Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
+#' checked for non-unique and orphaned records before doing processing. If any
+#' are found, a warning will be triggered but the gather will still be carried
+#' out. It is strongly recommended that any identified issues be addressed to
+#' avoid incorrect records in the output. Defaults to \code{TRUE}.
+#' @param verbose Logical. If \code{TRUE} then the function will report back
+#' diagnostic information as console messages while it works. Defaults to
+#' \code{FALSE}.
 #' @importFrom magrittr %>%
 #' @name gather_lpi
 #' @family <gather>
@@ -48,11 +56,19 @@
 gather_lpi_terradat <- function(dsn = NULL,
                                 tblLPIDetail = NULL,
                                 tblLPIHeader = NULL) {
+                                tblLPIHeader = NULL,
+                                auto_qc_warnings = TRUE,
+                                verbose = FALSE) {
 
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
     lpi_detail <- tblLPIDetail
     lpi_header <- tblLPIHeader
+    if (verbose) {
+      if (!is.null(dsn)) {
+        message("Using the provided data frames. The provided dsn value is being ignored.")
+      }
+    }
   } else if(!is.null(dsn)){
 
     if(!file.exists(dsn)){
@@ -123,6 +139,20 @@ gather_lpi_terradat <- function(dsn = NULL,
       value = "chckbox",
       dplyr::matches("^Chkbox")
     )
+  if (auto_qc_warnings) {
+    if (verbose) {
+      message("Running automatic QC checks for duplicated or orphaned records.")
+    }
+    auto_qc_warning(header_data = header,
+                    detail_data = detail,
+                    uid_variables = list(header = c("PrimaryKey",
+                                                    "RecKey"),
+                                         detail = c("PrimaryKey",
+                                                    "RecKey",
+                                                    "PointNbr")),
+                    joining_variables = c("PrimaryKey",
+                                          "RecKey"))
+  }
 
   # Remove Woody and Herbaceous Checkbox
   lpi_chkbox_tall <- lpi_chkbox_tall[!(lpi_chkbox_tall$chckbox %in%
@@ -179,6 +209,9 @@ gather_lpi_terradat <- function(dsn = NULL,
     "DataEntry", "DataErrorChecking", "DateVisited")
   )
 
+  if (verbose) {
+    message("Merging the header and detail tables")
+  }
 
   return(lpi_tall)
   ## Output the list

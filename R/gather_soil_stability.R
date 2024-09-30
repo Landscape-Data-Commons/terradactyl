@@ -17,6 +17,14 @@
 #' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from LMF/NRI
 #' database with the addition of PrimaryKey and DBKey fields. Use when data
 #' source is LMF or NRI; alternately provide dsn.
+#' @param auto_qc Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
+#' checked for non-unique and orphaned records before doing processing. If any
+#' are found, a warning will be triggered but the gather will still be carried
+#' out. It is strongly recommended that any identified issues be addressed to
+#' avoid incorrect records in the output. Defaults to \code{TRUE}.
+#' @param verbose Logical. If \code{TRUE} then the function will report back
+#' diagnostic information as console messages while it works. Defaults to
+#' \code{FALSE}.
 #' @importFrom magrittr %>%
 #' @name gather_soil_stability
 #' @family <gather>
@@ -43,6 +51,9 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                            tblSoilStabDetail = NULL,
                                            tblSoilStabHeader = NULL) {
 
+                                           tblSoilStabHeader = NULL,
+                                           auto_qc_warnings = TRUE,
+                                           verbose = FALSE) {
 
   if(!is.null(tblSoilStabDetail) & !is.null(tblSoilStabHeader)){
     soil_stability_detail <- tblSoilStabDetail
@@ -146,13 +157,20 @@ gather_soil_stability_terradat <- function(dsn = NULL,
         dplyr::mutate(id = 1:dplyr::n()) %>%
         tidyr::spread(key = key, value = value) %>%
         dplyr::select(-id)
+  if (auto_qc_warnings) {
+    if (verbose) {
+      message("Running automatic QC checks for duplicated or orphaned records.")
     }
-  )
-  # create a single tidy dataframe
-  soil_stability_detail_tidy <- purrr::reduce(
-    soil_stability_detail_list,
-    dplyr::full_join, by = c("RecKey", "PrimaryKey", "Position")
-  ) %>% unique()
+    auto_qc_warning(header_data = lpi_header,
+                    detail_data = lpi_detail,
+                    uid_variables = list(header = c("PrimaryKey",
+                                                    "RecKey"),
+                                         detail = c("PrimaryKey",
+                                                    "RecKey",
+                                                    "BoxNum")),
+                    joining_variables = c("PrimaryKey",
+                                          "RecKey"))
+  }
 
   soil_stability_detail_tidy$Rating <- soil_stability_detail_tidy$Rating %>%
     as.numeric()

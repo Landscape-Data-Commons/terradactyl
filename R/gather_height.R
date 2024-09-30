@@ -21,6 +21,14 @@
 #' @param file_type Character string that denotes the source file type of the
 #' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
 #' AIM/DIMA/TerrADat, or if PASTUREHEIGHTS is provided.
+#' @param auto_qc Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
+#' checked for non-unique and orphaned records before doing processing. If any
+#' are found, a warning will be triggered but the gather will still be carried
+#' out. It is strongly recommended that any identified issues be addressed to
+#' avoid incorrect records in the output. Defaults to \code{TRUE}.
+#' @param verbose Logical. If \code{TRUE} then the function will report back
+#' diagnostic information as console messages while it works. Defaults to
+#' \code{FALSE}.
 #' @importFrom magrittr %>%
 #' @name gather_height
 #' @family <gather>
@@ -51,8 +59,14 @@ gather_height_terradat <- function(dsn = NULL,
   if(!is.null(tblLPIDetail) & !is.null(tblLPIHeader)){
     lpi_detail <- tblLPIDetail
     lpi_header <- tblLPIHeader
+                                   tblLPIHeader = NULL,
+                                   auto_qc_warnings = TRUE,
+                                   verbose = FALSE) {
   } else if(!is.null(dsn)){
     if (!file.exists(dsn)) {
+    if (verbose) {
+      message("Attempting to use the provided dsn value.")
+    }
       stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
     }
 
@@ -151,6 +165,48 @@ gather_height_terradat <- function(dsn = NULL,
   # Remove orphaned records and duplicates, if they exist
   lpi_height <- unique(lpi_height)
   lpi_height <- lpi_height[!is.na(lpi_height$PrimaryKey), ]
+  if (auto_qc_warnings) {
+    if (verbose) {
+      message("Running automatic QC checks for duplicated or orphaned records.")
+    }
+    auto_qc_warning(header_data = header,
+                    detail_data = detail,
+                    uid_variables = list(header = c("PrimaryKey",
+                                                    "RecKey"),
+                                         detail = c("PrimaryKey",
+                                                    "RecKey",
+                                                    "PointNbr")),
+                    joining_variables = c("PrimaryKey",
+                                          "RecKey"))
+  }
+
+  # Warn about introducing NAs by coercion.
+  nas_by_coercion <- sapply(X = c(woody = "Woody",
+                                  herbaceous = "Herbaceous",
+                                  'lower herbaceous' = "LowerHerb"),
+                            detail = detail,
+                            FUN = function(X, detail){
+                              if (class(detail[[paste0("Height", X)]]) %in% c("integer",
+                                                                                  "numeric")) {
+                                0
+                              } else {
+                                tidyr::replace_na(data = detail[[paste0("Height", X)]],
+                                                  replace = "placeholder") |>
+                                  as.numeric() |>
+                                  suppressWarnings() |>
+                                  is.na() |>
+                                  sum()
+                              }
+                            })
+  nas_by_coercion <- nas_by_coercion[nas_by_coercion > 0]
+  if (length(nas_by_coercion) > 0) {
+    warning(paste0("There are non-numeric values in at least one height variable in tblLPIDetail. There will be ",
+                   sum(nas_by_coercion),
+                   " invalid height values replaced with NA across the following height types: ",
+                   paste(names(nas_by_coercion),
+                         collapse = ", "),
+                   ". Any records with a height value of NA will be dropped from the output during processing."))
+  }
 
   # Make sure height is a numeric field
   lpi_height$Height <- suppressWarnings(as.numeric(lpi_height$Height))
