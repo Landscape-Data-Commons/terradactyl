@@ -214,10 +214,10 @@ check_uniqueness <- function(data,
 #' @returns A named list of lists of data frame. The "nonuniques" list will contain named data frames with all records which were not unique. The "orphaned" list will contain named data frames with all records which didn't correspond to any records in their companion table. Data frames for tables which held only unique records or had no orphaned records will contain no values.
 #' @export
 check_terradat_data <- function(dsn,
-                           data_types = c("lpi", "gap", "soilstability", "heights"),
-                           output_path = NULL,
-                           make_directory = FALSE,
-                           verbose = FALSE){
+                                data_types = c("lpi", "gap", "soilstability", "heights"),
+                                output_path = NULL,
+                                make_directory = FALSE,
+                                verbose = FALSE){
   valid_data_types <- c("lpi" = "LPI",
                         "gap" = "Gap",
                         "soilstability" = "SoilStab",
@@ -369,9 +369,9 @@ check_terradat_data <- function(dsn,
                                             "to find orphaned records."))
                             }
                             output <- check_orphaned_records(x = data_list[[X[1]]],
-                                                   y = data_list[[X[2]]],
-                                                   joining_variables = joining_variables_list[c(X[1], X[2])],
-                                                   symmetric = TRUE)
+                                                             y = data_list[[X[2]]],
+                                                             joining_variables = joining_variables_list[c(X[1], X[2])],
+                                                             symmetric = TRUE)
                             names(output) <- X
                             output
                           })
@@ -420,4 +420,44 @@ check_terradat_data <- function(dsn,
   }
 
   output
+}
+
+# This one's a wrapper for check_uniqueness() and check_orphaned_records() so
+# we can quickly and easily generate warnings.
+# This will only fire off a warning if there's anything to report.
+auto_qc_warning <- function(header_data,
+                            detail_data,
+                            uid_variables,
+                            joining_variables) {
+    warning_strings <- c(base_warning = "The following data issues will almost certainly produce erroneous or unexpected data in the function output.")
+    header_nonuniques <- check_uniqueness(data = header_data,
+                                          uid_variables = uid_variables[["header"]])
+    if (nrow(header_nonuniques) > 0) {
+      warning_strings["header_nonuniques"] <- paste("There are", length(unique(header_nonuniques$id_nonunique_group)),
+                                                    "instances of duplicated header records.")
+    }
+    detail_nonuniques <- check_uniqueness(data = lpi_detail,
+                                          uid_variables = uid_variables[["detail"]])
+    if (nrow(detail_nonuniques) > 0) {
+      warning_strings["detail_nonuniques"] <- paste("There are", length(unique(detail_nonuniques$id_nonunique_group)),
+                                                    "instances of duplicated detail records.")
+    }
+    orphaned_records_list <- check_orphaned_records(x = detail,
+                                                    y = header,
+                                                    joining_variables = joining_variables,
+                                                    symmetric = TRUE)
+    if (nrow(orphaned_records_list[["y"]]) > 0) {
+      warning_strings["header_orphaned"] <- paste("There are", nrow(orphaned_records_list[["y"]]),
+                                                  "header records which do not correspond to any detail records.")
+    }
+    if (nrow(orphaned_records_list[["x"]]) > 0) {
+      warning_strings["detail_orphaned"] <- paste("There are", nrow(orphaned_records_list[["x"]]),
+                                                  "orphaned detail records with no corresponding header records.")
+    }
+
+    if (length(warning_strings) > 1) {
+      warning(paste(paste(warning_strings,
+                          collapse = " "),
+                    "Strongly consider cleaning your data (the functions check_uniqueness() and check_orphaned_records() can help) and rerunning this function."))
+    }
 }
