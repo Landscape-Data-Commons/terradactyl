@@ -55,90 +55,64 @@
 #' @rdname gather_lpi
 gather_lpi_terradat <- function(dsn = NULL,
                                 tblLPIDetail = NULL,
-                                tblLPIHeader = NULL) {
                                 tblLPIHeader = NULL,
                                 auto_qc_warnings = TRUE,
                                 verbose = FALSE) {
 
+  # These are used for data management within a geodatabase and we're going to
+  # drop them.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
-    lpi_detail <- tblLPIDetail
-    lpi_header <- tblLPIHeader
     if (verbose) {
       if (!is.null(dsn)) {
         message("Using the provided data frames. The provided dsn value is being ignored.")
       }
     }
+    detail <- tblLPIDetail
+    header <- tblLPIHeader
   } else if(!is.null(dsn)){
-
+    if (verbose) {
+      message("Attempting to use the provided dsn value.")
+    }
     if(!file.exists(dsn)){
       stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
     }
-
-    lpi_detail <- suppressWarnings(sf::st_read(
-      dsn = dsn,
-      layer = "tblLPIDetail",
-      stringsAsFactors = FALSE, quiet = T
-    ))
-    lpi_header <- suppressWarnings(sf::st_read(
-      dsn = dsn,
-      layer = "tblLPIHeader",
-      stringsAsFactors = FALSE, quiet = T
-    ))
+    # The suppressWarnings() here are so that it doesn't complain about pulling
+    # tables without geometry. We know that's what should be happening.
+    detail <- suppressWarnings(sf::st_read(dsn = dsn,
+                                               layer = "tblLPIDetail",
+                                               stringsAsFactors = FALSE,
+                                               quiet = TRUE))
+    header <- suppressWarnings(sf::st_read(dsn = dsn,
+                                               layer = "tblLPIHeader",
+                                               stringsAsFactors = FALSE,
+                                               quiet = TRUE))
   } else {
-    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing those tables")
+    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
   }
 
-  # Add null DBKey column if not present
-  if(!("DBKey" %in% colnames(lpi_header))) lpi_header$DBKey <- NA
-  if(!("DBKey" %in% colnames(lpi_detail))) lpi_detail$DBKey <- NA
+  # Clean these up!
+  detail <- dplyr::select(.data = detail,
+                              -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
 
-  # Make a tall data frame with the hit codes by layer and the checkbox designation
-  lpi_hits_tall <- lpi_detail %>%
-    dplyr::mutate_if(is.factor, as.character) %>%
-    dplyr::select(
-      "PrimaryKey",
-      "PointLoc",
-      "PointNbr",
-      "RecKey",
-      "ShrubShape",
-      "TopCanopy",
-      "SoilSurface", dplyr::matches("^Lower")
-    ) %>%
-    tidyr::gather(
-      key = "layer",
-      value = "code",
-      "TopCanopy", "SoilSurface", dplyr::matches("^Lower")
-    )
+  header <- dplyr::select(.data = header,
+                              -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
 
-  # Remove all records where no hit was recorded (e.g., "None", "NA"
-
-  lpi_hits_tall <- dplyr::filter(
-    .data = lpi_hits_tall,
-    !is.na(code),
-    code != "",
-    code != "N",
-    code != "None",
-    !is.na(PrimaryKey),
-    !is.na(RecKey)
-  )
-
-
-  ## Make a tall data frame the checkbox status by layer
-
-  lpi_chkbox_tall <- lpi_detail %>%
-    dplyr::select(
-      "PrimaryKey",
-      "PointLoc",
-      "PointNbr",
-      "RecKey",
-      dplyr::matches("^Chkbox")
-    ) %>%
-    tidyr::gather(
-      key = "layer",
-      value = "chckbox",
-      dplyr::matches("^Chkbox")
-    )
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -154,67 +128,124 @@ gather_lpi_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
-  # Remove Woody and Herbaceous Checkbox
-  lpi_chkbox_tall <- lpi_chkbox_tall[!(lpi_chkbox_tall$chckbox %in%
-                                         c(
-                                           "ChckboxWoody",
-                                           "ChckboxHerbaceous"
-                                         )), ]
+  # Make a tall data frame with the hit codes by layer.
+  lpi_hits_tall <- dplyr::mutate(.data = detail,
+                                 # Make sure we don't have factors in play.
+                                 dplyr::across(.cols = tidyselect::where(fn = is.factor),
+                                               .fns = ~ as.character(.x))) |>
+    # Get just the variables we need for this particular data frame.
+    dplyr::select(.data = _,
+                  PrimaryKey, RecKey,
+                  PointLoc, PointNbr,
+                  ShrubShape,
+                  TopCanopy,
+                  tidyselect::matches(match = "^Lower\\d$"),
+                  SoilSurface) |>
+    # Pivot it to be long (tall, in the older terminology).
+    tidyr::pivot_longer(data = _,
+                        # All those messy lower layer variable names are
+                        # sandwiched between TopCanopy and SoilSurface, which
+                        # makes it easy to do this and still snag them all.
+                        cols = TopCanopy:SoilSurface,
+                        names_to = "layer",
+                        values_to = "code") |>
+    # Dropping the values we can't work with because no valid hit was recorded.
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey),
+                  !is.na(RecKey),
+                  !code %in% c(NA, "N", "None", "")) |>
+    dplyr::distinct(.data = _)
 
-  ## Make the names in the layer variable match
-  lpi_chkbox_tall$layer <- gsub(lpi_chkbox_tall$layer,
-                                pattern = "^Chkbox",
-                                replacement = ""
-  )
+  # test <- dplyr::full_join(x = dplyr::mutate(lpi_hits_tall,
+  #                                            original = TRUE),
+  #                          y = dplyr::mutate(lpi_hits_tall_test,
+  #                                            test = TRUE))
+  # any(is.na(test$original))
+  # any(is.na(test$test))
 
-  lpi_chkbox_tall$layer[lpi_chkbox_tall$layer == "Top"] <- "TopCanopy"
-  lpi_chkbox_tall$layer[lpi_chkbox_tall$layer == "Soil"] <- "SoilSurface"
+  # Make a tall data frame the checkbox status by layer.
+  lpi_chkbox_tall <- dplyr::mutate(.data = detail,
+                                   # Make sure we don't have factors in play.
+                                   dplyr::across(.cols = tidyselect::where(fn = is.factor),
+                                                 .fns = ~ as.character(.x))) |>
+    # Get just the variables we need for this particular data frame.
+    dplyr::select(.data = _,
+                  PrimaryKey, RecKey,
+                  PointLoc, PointNbr,
+                  # We only want the chkbox values for the top, soil, and
+                  # numbered layers. This will exclude the woody and herbaceous
+                  # ones.
+                  tidyselect::matches(match = "^Chkbox(Top|Soil|Lower\\d)$")) |>
+    # Pivot it to be long (tall, in the older terminology).
+    tidyr::pivot_longer(data = _,
+                        cols = tidyselect::matches(match = "^Chkbox"),
+                        names_to = "layer",
+                        # Removing the prefix so that these values will match
+                        # the ones in our other tall data frame created above.
+                        names_prefix = "^Chkbox",
+                        values_to = "chckbox") |>
+    # Remove the records with invalid checkbox values.
+    dplyr::filter(.data = _,
+                  chckbox %in% c(1, 0)) |>
+    # And adjusting so that the non-numbered layers match those values we expect
+    dplyr::mutate(.data = _,
+                  layer = dplyr::case_when(layer == "Top" ~ "TopCanopy",
+                                           layer == "Soil" ~ "SoilSurface",
+                                           .default = layer)) |>
+    dplyr::distinct(.data = _)
+
+  # test <- dplyr::full_join(x = dplyr::mutate(lpi_chkbox_tall,
+  #                                            original = TRUE),
+  #                          y = dplyr::mutate(lpi_chkbox_tall_test,
+  #                                            test = TRUE))
+  # any(is.na(test$original))
+  # any(is.na(test$test))
+
 
   # Print update because this function can take a while
-  message("Merging LPI Header and LPI Detail tables")
-
-  # Merge checkbox and hit data as well as the header data
-  lpi_tall <- suppressWarnings(dplyr::left_join(
-    x = lpi_hits_tall,
-    y = lpi_chkbox_tall,
-    by = c("PrimaryKey", "PointLoc", "PointNbr", "RecKey", "layer")
-  ) %>%
-    dplyr::left_join(
-      x = dplyr::select(
-        lpi_header,
-        "LineKey":"CheckboxLabel",
-        "PrimaryKey",
-        "DBKey"
-      ),
-      y = .,
-      by = c("PrimaryKey", "RecKey")
-    ))
-
-  # Find date fields & convert to character
-  # Find fields that are in a Date structure
-  change_vars <- names(lpi_tall)[class(lpi_tall) %in%
-                                   c("POSIXct", "POSIXt")]
-
-  # Update fields
-  lpi_tall <- dplyr::mutate_at(
-    lpi_tall, dplyr::all_of(dplyr::vars(all_of(change_vars))),
-    list(as.character)
-  )
-
-
-  ## drops
-  lpi_tall <- lpi_tall %>% dplyr::select_if(!names(.) %in% c(
-
-    "DateModified", "FormType", "FormType",
-    "DataEntry", "DataErrorChecking", "DateVisited")
-  )
-
   if (verbose) {
     message("Merging the header and detail tables")
   }
 
-  return(lpi_tall)
-  ## Output the list
+  # Join the header information to the hit and checkbox data.
+  # The suppressWarnings() and lack of defined relationships in the joins are to
+  # allow the user to run this with data that have not been adequately cleaned.
+  lpi_tall <- suppressWarnings(dplyr::left_join(x = lpi_hits_tall,
+                                                y = lpi_chkbox_tall,
+                                                # relationship = "one-to-one",
+                                                by = c("PrimaryKey", "RecKey",
+                                                       "PointLoc", "PointNbr",
+                                                       "layer")) |>
+                                 dplyr::left_join(x = dplyr::select(.data = header,
+                                                                    LineKey:CheckboxLabel,
+                                                                    PrimaryKey, DBKey),
+                                                  y = _,
+                                                  # relationship = "one-to-many",
+                                                  by = c("PrimaryKey", "RecKey")))
+
+  # We want to coerce dates into character strings.
+  # Find variables with a date class.
+  date_vars <- which(sapply(X = names(lpi_tall),
+                            lpi_tall = lpi_tall,
+                            FUN = function(X, lpi_tall){
+                              any(c("POSIXct", "POSIXt") %in% class(lpi_tall[[X]]))
+                            }))
+  # And then coerce the date values in those variables to strings.
+  lpi_tall <- dplyr::mutate(.data = lpi_tall,
+                            dplyr::across(.cols = tidyselect::all_of(date_vars),
+                                          .fns = as.character))
+
+
+  # Remove some of the header variables
+  lpi_tall <- dplyr::select(.data = lpi_tall,
+                            -tidyselect::any_of(c("DateModified",
+                                                  "FormType",
+                                                  "DataEntry",
+                                                  "DataErrorChecking",
+                                                  "DateVisited")))
+
+
+  lpi_tall
 }
 
 #' @export gather_lpi_lmf
@@ -582,7 +613,7 @@ gather_lpi <- function(dsn = NULL,
                        PINTERCEPT = NULL#,
                        # LPI_0 = NULL,
                        # LPIDetail_1 = NULL
-                       ) {
+) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     lpi <- gather_lpi_terradat(dsn = dsn,
@@ -593,9 +624,9 @@ gather_lpi <- function(dsn = NULL,
                           file_type = file_type,
                           PINTERCEPT = PINTERCEPT)
     lpi$chckbox <- NA
-  # } else if(toupper(source) == "SURVEY123"){
-  #   lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
-  #                               LPIDetail_1 = LPIDetail_1)
+    # } else if(toupper(source) == "SURVEY123"){
+    #   lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
+    #                               LPIDetail_1 = LPIDetail_1)
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
@@ -604,16 +635,23 @@ gather_lpi <- function(dsn = NULL,
   # lpi$source <- toupper(source)
   lpi$source <- source
 
-  if("sf" %in% class(lpi)) lpi <- sf::st_drop_geometry(lpi)
-
-  # Set classes
-  ## date fields
-  if (any(class(lpi) %in% c("POSIXct", "POSIXt"))) {
-    change_vars <- names(lpi)[do.call(rbind, vapply(lpi,
-                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
-    lpi <- dplyr::mutate_at(lpi, dplyr::vars(change_vars),
-                            dplyr::funs(as.character))
+  if("sf" %in% class(lpi)){
+    lpi <- sf::st_drop_geometry(lpi)
   }
+
+  # Find date fields & convert to character
+  # Find fields that are in a Date structure
+  date_vars <- which(sapply(X = setNames(object = names(lpi),
+                                         nm = names(lpi)),
+                            lpi = lpi,
+                            FUN = function(X, lpi){
+                              any(c("POSIXct", "POSIXt") %in% class(lpi[[X]]))
+                            }))
+
+  # Update fields
+  lpi <- dplyr::mutate(.data = lpi,
+                            dplyr::across(.cols = tidyselect::all_of(date_vars),
+                                          .fns = as.character))
   ## text field
   lpi$LineKey <- as.character(lpi$LineKey)
 
