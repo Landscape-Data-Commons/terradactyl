@@ -59,110 +59,85 @@
 #' @rdname gather_gap
 gather_gap_terradat <- function(dsn = NULL,
                                 tblGapDetail = NULL,
-                                tblGapHeader = NULL) {
                                 tblGapHeader = NULL,
                                 auto_qc_warnings = TRUE,
                                 verbose = FALSE) {
 
+  # These are used for data management within a geodatabase and we're going to
+  # drop them.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+
   ### switch by input types
   if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
-    gap_detail <- tblGapDetail %>%
-      dplyr::select_if(!names(.) %in% c(
-        'GlobalID',
-        'created_user',
-        'created_date',
-        'last_edited_user',
-        'last_edited_date',
-        'DateLoadedInDb',
-        'DateLoadedinDB',
-        "rid"
-      ))
-    gap_header <- tblGapHeader %>%
-      dplyr::select_if(!names(.) %in% c(
-        'GlobalID',
-        'created_user',
-        'created_date',
-        'last_edited_user',
-        'last_edited_date',
-        'DateLoadedInDb',
-        'DateLoadedInDB',
-        "rid"
-      ))
     if (verbose) {
       if (!is.null(dsn)) {
         message("Using the provided data frames. The provided dsn value is being ignored.")
       }
+    }
+    detail <- tblGapDetail
+    header <- tblGapHeader
   } else if(!is.null(dsn)){
     if (!file.exists(dsn)) {
       stop("dsn must be a valid filepath to a geodatabase containing tblGapDetail and tblGapHeader")
     }
+    # The suppressWarnings() here are so that it doesn't complain about pulling
+    # tables without geometry. We know that's what should be happening.
     # Read tblGapDetail
-    gap_detail <- suppressWarnings(sf::st_read(
-      dsn = dsn,
-      layer = "tblGapDetail",
-      stringsAsFactors = FALSE, quiet = T
-    )) %>%
-
-      # Remove database management fields that aren't relevant
-      dplyr::select_if(!names(.) %in% c(
-        'GlobalID',
-        'created_user',
-        'created_date',
-        'last_edited_user',
-        'last_edited_date',
-        'DateLoadedInDb',
-        'DateLoadedInDB',
-        'rid'
-      ))
+    detail <- suppressWarnings(sf::st_read(dsn = dsn,
+                                           layer = "tblGapDetail",
+                                           stringsAsFactors = FALSE,
+                                           quiet = TRUE))
 
     # Read tblGapHeader
-    gap_header <- suppressWarnings(sf::st_read(
-      dsn = dsn,
-      layer = "tblGapHeader",
-      stringsAsFactors = FALSE, quiet = T
-    )) %>%
-
-      # Remove database management fields that aren't relevant
-      dplyr::select_if(!names(.) %in% c(
-        'GlobalID',
-        'created_user',
-        'created_date',
-        'last_edited_user',
-        'last_edited_date',
-        'DateLoadedInDb',
-        'DateLoadedInDB',
-        'rid'
-      ))
+    header <- suppressWarnings(sf::st_read(dsn = dsn,
+                                           layer = "tblGapHeader",
+                                           stringsAsFactors = FALSE,
+                                           quiet = TRUE))
 
   } else {
-    stop("Provide either tblGapDetail and tblGapHeader, or the path to a GDB containing those tables")
+    stop("Provide both tblGapDetail and tblGapHeader or the path to a GDB containing those tables.")
   }
-  # add null DBKey field if not present
-  if(!"DBKey" %in% colnames(gap_header)) gap_header$DBKey <- NA
-  if(!"DBKey" %in% colnames(gap_detail)) gap_detail$DBKey <- NA
 
-  ## ensure that gap, gapstart, and gapend are numeric
-  gap_detail$GapStart <- as.numeric(gap_detail$GapStart)
-  gap_detail$GapEnd <- as.numeric(gap_detail$GapEnd)
-  gap_detail$Gap <- as.numeric(gap_detail$Gap)
-  ##
+  # Clean these up!
+  detail <- dplyr::select(.data = detail,
+                          -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey)) |>
+    dplyr::distinct()
 
-  # Merge header and detail data together
-  gap_tall <- dplyr::left_join(
-    x = gap_header,
-    y = gap_detail,
-    by = c("RecKey", "PrimaryKey", "DBKey")
-  )
+  header <- dplyr::select(.data = header,
+                          -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey)) |>
+    dplyr::distinct()
 
-  ## Remove all orphaned records
-  gap_tall <- gap_tall[!is.na(gap_tall$PrimaryKey), ]
+  # # add null DBKey field if not present
+  # if(!"DBKey" %in% colnames(header)) header$DBKey <- NA
+  # if(!"DBKey" %in% colnames(detail)) detail$DBKey <- NA
 
-  # Look for NA values in NoCanopyGaps and NoBasalGaps, we assume they are 0
-  gap_tall <- gap_tall %>%
-    dplyr::mutate(
-      NoCanopyGaps = tidyr::replace_na(NoCanopyGaps, replace = 0),
-      NoBasalGaps = tidyr::replace_na(NoBasalGaps, replace = 0)
-    )
+  # Make sure that Gap, GapStart, and GapEnd are all numeric.
+  not_numeric_vars <- which(sapply(X = c(GapStart = "GapStart",
+                                         GapEnd = "GapEnd",
+                                         Gap = "Gap"),
+                                   detail = detail,
+                                   FUN = function(X, detail){
+                                     class(detail[[X]]) != "numeric"
+                                   }))
+  detail <- dplyr::mutate(.data = detail,
+                          dplyr::across(.cols = tidyselect::all_of(names(not_numeric_vars)),
+                                        .fns = as.numeric))
+
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -181,76 +156,104 @@ gather_gap_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
-  ## Add zero values where there is no canopy gap present on line
-  gap_tall[gap_tall$NoCanopyGaps == 1, ] <- gap_tall %>%
-    dplyr::filter(NoCanopyGaps == 1) %>%
-    tidyr::replace_na(list(
-      RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1
-    ))
-  gap_tall$NoCanopyGaps <- as.numeric(gap_tall$NoCanopyGaps)
-  gap_tall$NoBasalGaps <- as.numeric(gap_tall$NoBasalGaps)
 
-  ## Add zero values where there is no canopy gap present on the line, AND there is basal gap on the line
-  # Find missing records
-  gap_tall_missing_c <-
-    gap_tall %>%
-    dplyr::filter(NoCanopyGaps == 1,
-                  RecType != "C") %>%
-    dplyr::select(PrimaryKey, LineKey, RecKey, NoBasalGaps, NoCanopyGaps) %>%
-    unique() %>%
-    dplyr::mutate(RecType = "C", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
+  # Merge header and detail data together.
+  # We're suppressing warnings and not enforcing the relationship so that the
+  # user can move ahead without cleaning their data first.
+  # Because we have the orphaned headers from above, we'll do an inner join here
+  # and use those to add in whatever else we need.
+  gap_tall <- suppressWarnings(dplyr::inner_join(x = header,
+                                                 y = detail,
+                                                 # relationship = "one-to-many",
+                                                 by = c("PrimaryKey",
+                                                        "RecKey")))
 
-  # Append them to gap_tall
-  gap_tall <-
-    dplyr::bind_rows(gap_tall, gap_tall_missing_c)
+  # This bit corrects (or at least replaces) NA values in a few of the variables
+  gap_tall <- dplyr::mutate(.data = gap_tall,
+                            # Make sure that any NA values in the variables
+                            # NoCanopyGaps and NoBasalGaps are assumed to
+                            # be 0.
+                            dplyr::across(.cols = tidyselect::all_of(c("NoCanopyGaps",
+                                                                       "NoBasalGaps")),
+                                          .fns = ~ as.numeric(tidyr::replace_na(data = .x,
+                                                                                replace = 0))),
+                            # For any records where we don't know the
+                            # RecType value and NoCanopyGaps is 1, assume
+                            # that RecType should be "C"
+                            RecType = dplyr::case_when(NoCanopyGaps == 1 ~ tidyr::replace_na(RecType,
+                                                                                             "C"),
+                                                       .default = RecType),
+                            # For any records where we don't know the
+                            # Measure value and NoCanopyGaps is 1, assume
+                            # that Measure should be 1
+                            Measure = dplyr::case_when(NoCanopyGaps == 1 ~ tidyr::replace_na(Measure,
+                                                                                             1),
+                                                       .default = Measure),
+                            # Make sure that any NA values in the variables
+                            # GapStart, GapEnd, and Gap are 0 when the
+                            # relevant No*Gaps and RecType values say there
+                            # should be no gaps.
+                            dplyr::across(.cols = tidyselect::all_of(c("GapStart",
+                                                                       "GapEnd",
+                                                                       "Gap")),
+                                          .fns = ~ dplyr::case_when(NoCanopyGaps == 1 & RecType == "C" ~ tidyr::replace_na(data = .x,
+                                                                                                                           replace = 0),
+                                                                    NoBasalGaps == 1 & RecType == "B" ~ tidyr::replace_na(data = .x,
+                                                                                                                          replace = 0),
+                                                                    .default  = .x)))
 
-  ## Add zero values where there is no basal gap present on line
-  gap_tall[gap_tall$NoBasalGaps == 1, ] <- gap_tall %>%
-    dplyr::filter(NoBasalGaps == 1) %>%
-    tidyr::replace_na(list(
-      RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1
-    ))
 
-  ## Add zero values where there is no basal gap present on the line, AND there is canopy gap on the line
-  # Find missing records
-  gap_tall_missing_b <-
-    gap_tall %>%
-    dplyr::filter(NoBasalGaps == 1,
-                  RecType != "B" | is.na(RecType)) %>%
-    dplyr::select(PrimaryKey, LineKey, RecKey, NoCanopyGaps, NoBasalGaps) %>%
-    unique() %>%
-    dplyr::mutate(RecType = "B", GapStart = 0, GapEnd = 0, Gap = 0, Measure = 1)
 
-  # Append them to gap_tall
-  gap_tall <-
-    dplyr::bind_rows(gap_tall, gap_tall_missing_b)
+  # Create records to represent the 0 values for situations where we have no
+  # canopy or basal gaps but don't already have 0 values.
+  # The function here is reframe() and not summarize() because some of the
+  # combinations of values in the "by" variables don't have any qualifying
+  # records and summarize() complains about it.
+  missing_records <- dplyr::reframe(.data = gap_tall,
+                                    # .by = 1:PrimaryKey,
+                                    .by = tidyselect::all_of(c("PrimaryKey",
+                                                               "LineKey",
+                                                               "RecKey",
+                                                               "NoCanopyGaps",
+                                                               "NoBasalGaps")),
+                                    needs_canopy = !("C" %in% RecType) & NoCanopyGaps == 1,
+                                    needs_basal = !("B" %in% RecType) & NoBasalGaps == 1) |>
+    dplyr::filter(.data = _,
+                  needs_canopy | needs_basal) |>
+    dplyr::mutate(.data = _,
+                  RecType = dplyr::case_when(needs_canopy ~ "C",
+                                             needs_basal ~ "B",
+                                             .default = NA),
+                  GapStart = 0,
+                  GapEnd = 0,
+                  Gap = 0,
+                  Measure = 1) |>
+    dplyr::select(.data = _,
+                  -needs_canopy,
+                  -needs_basal) |>
+    dplyr::left_join(x = _,
+                     y = dplyr::select(.data = header,
+                                       -LineKey,
+                                       -DBKey,
+                                       -Measure,
+                                       -NoCanopyGaps,
+                                       -NoBasalGaps),
+                     by = c("PrimaryKey", "RecKey"))
 
-  ## Identify which gaps are perennial gaps vs all canopy gaps. Perennial
-  ## gaps are those with only PerennialsCanopy == 1
-  gap_tall <- gap_tall %>% dplyr::mutate(RecType = as.character(RecType))
+  gap_tall <- dplyr::bind_rows(gap_tall,
+                               missing_records) |>
+    dplyr::distinct()
 
-  gap_tall$RecType[gap_tall$PerennialsCanopy == 1 &
-                     gap_tall$AnnualForbsCanopy == 0 &
-                     gap_tall$AnnualGrassesCanopy == 0 &
-                     gap_tall$OtherCanopy == 0] <- "P"
+  # Make sure that RecType is "P" for records where only perennial vegetation
+  # was considered when evaluating if there was sufficient canopy to end a gap.
+  gap_tall <- dplyr::mutate(.data = gap_tall,
+                            RecType = dplyr::case_when(PerennialsCanopy == 1 &
+                                                         AnnualForbsCanopy == 0 &
+                                                         AnnualGrassesCanopy == 0 &
+                                                         OtherCanopy == 0 ~ "P",
+                                                       .default = RecType))
 
-  ## last round drop
-  gap_tall <- gap_tall %>% dplyr::select_if(!names(.) %in%
-                                       c('DateLoadedInDb',
-                                         'DateLoadedInDB',
-                                         'DataErrorChecking',
-                                         'DataEntry',
-                                         'DateModified',
-                                         'FormType')
-  ) %>%
-    # make sure data types are numeric when needed
-    dplyr::mutate(
-      GapStart = suppressWarnings(as.numeric(GapStart)),
-      GapEnd = suppressWarnings(as.numeric(GapEnd)),
-      Gap = suppressWarnings(as.numeric(Gap))
-    )
-
-  return(gap_tall)
+  gap_tall
 }
 
 #' @export gather_gap_lmf
@@ -478,12 +481,12 @@ gather_gap_lmf <- function(dsn = NULL,
       'GlobalID',
       'X'
     )) %>%
-  # make sure data types are numeric when needed
-   dplyr::mutate(
-     GapStart = suppressWarnings(as.numeric(GapStart)),
-     GapEnd = suppressWarnings(as.numeric(GapEnd)),
-     Gap = suppressWarnings(as.numeric(Gap))
-   )
+    # make sure data types are numeric when needed
+    dplyr::mutate(
+      GapStart = suppressWarnings(as.numeric(GapStart)),
+      GapEnd = suppressWarnings(as.numeric(GapEnd)),
+      Gap = suppressWarnings(as.numeric(Gap))
+    )
 
   return(gap)
 }
@@ -630,7 +633,7 @@ gather_gap <- function(dsn = NULL,
                        GINTERCEPT = NULL#,
                        # Gap_0 = NULL,
                        # GapDetail_1 = NULL
-                       ) {
+) {
 
   # Gather gap using the appropriate method
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -642,7 +645,7 @@ gather_gap <- function(dsn = NULL,
                           file_type = file_type,
                           POINT = POINT,
                           GINTERCEPT = GINTERCEPT)
-  # } else if(toupper(source) %in% c("SURVEY123")){
+    # } else if(toupper(source) %in% c("SURVEY123")){
     # gap <- gather_gap_survey123(Gap_0 = Gap_0, GapDetail_1 = GapDetail_1)
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
