@@ -49,120 +49,79 @@
 #' @rdname gather_soil_stability
 gather_soil_stability_terradat <- function(dsn = NULL,
                                            tblSoilStabDetail = NULL,
-                                           tblSoilStabHeader = NULL) {
-
                                            tblSoilStabHeader = NULL,
                                            auto_qc_warnings = TRUE,
                                            verbose = FALSE) {
 
+  # These are used for data management within a geodatabase and we're going to
+  # drop them.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+
   if(!is.null(tblSoilStabDetail) & !is.null(tblSoilStabHeader)){
-    soil_stability_detail <- tblSoilStabDetail
-    soil_stability_header <- tblSoilStabHeader
+    detail <- tblSoilStabDetail
+    header <- tblSoilStabHeader
   } else if (!is.null(dsn)){
     if (!file.exists(dsn)) {
       stop("dsn must be a valid filepath to a geodatabase containing tblSoilStabDetail and tblSoilStabHeader")
     }
-    soil_stability_detail <-
-      suppressWarnings(sf::st_read(dsn,
-                                   layer = "tblSoilStabDetail",
-                                   stringsAsFactors = FALSE, quiet = T
-      ))
+    # The suppressWarnings() here are so that it doesn't complain about pulling
+    # tables without geometry. We know that's what should be happening.
+    detail <- suppressWarnings(sf::st_read(dsn = dsn,
+                                           layer = "tblSoilStabDetail",
+                                           stringsAsFactors = FALSE,
+                                           quiet = TRUE))
 
-    soil_stability_header <-
-      suppressWarnings(sf::st_read(dsn,
-                                   layer = "tblSoilStabHeader",
-                                   stringsAsFactors = FALSE, quiet = T
-      ))
+    header <-suppressWarnings(sf::st_read(dsn = dsn,
+                                          layer = "tblSoilStabHeader",
+                                          stringsAsFactors = FALSE,
+                                          quiet = TRUE))
   } else {
-    stop("Supply either tblSoilStabDetail and tblSoilStabHeader, or a path to a GDB containing those tables")
+    stop("Supply either both tblSoilStabDetail and tblSoilStabHeader or a path to a GDB containing those tables.")
   }
 
-  soil_stability_detail <- soil_stability_detail %>%
-    dplyr::select_if(!names(.) %in% c(
-      "created_user",
-      "created_date",
-      "last_edited_user",
-      "last_edited_date",
-      "GlobalID",
-      "rid"
-    ))
+  # Clean these up!
+  detail <- dplyr::select(.data = detail,
+                          -tidyselect::any_of(internal_gdb_vars),
+                          -tidyselect::any_of("DBKey"),
+                          # These are some book-keeping variables and don't
+                          # contain relevant data.
+                          -dplyr::matches(match = "^(In)|(Dip)|(DateLoaded)")) |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey)) |>
+    dplyr::distinct()
 
-  # In some cases (due to bad DIMA defaults) empty rows may exist in DIMA data. Remove them.
-  soil_stability_detail <- soil_stability_detail %>%
-    dplyr::filter(
-      !(is.na(Rating1) & is.na(Rating2) & is.na(Rating3) & is.na(Rating4) & is.na(Rating5) &
-          is.na(Rating6) & is.na(Rating7) & is.na(Rating8) & is.na(Rating9) & is.na(Rating10) &
-          is.na(Rating11) & is.na(Rating12) & is.na(Rating13) & is.na(Rating14) & is.na(Rating15) &
-          is.na(Rating16) & is.na(Rating17) & is.na(Rating18)))
+  header <- dplyr::select(.data = header,
+                          -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey)) |>
+    dplyr::distinct()
 
-  soil_stability_header <- soil_stability_header %>%
-    dplyr::select_if(!names(.) %in% c(
-      "created_user",
-      "created_date",
-      "last_edited_user",
-      "last_edited_date",
-      "GlobalID",
-      "rid"
-    ))
+  # In some cases (due to bad DIMA defaults) empty rows may exist in DIMA data.
+  # This finds all the records where there were no valid ratings and drops them.
+  detail <- detail[which(apply(X = dplyr::select(.data = detail,
+                                                 tidyselect::matches(match = "^Rating\\d+$")),
+                               MARGIN = 1,
+                               FUN = function(X){
+                                 !all(is.na(as.vector(X)))
+                               })), ]
 
-
-  # remove orphaned records
-  soil_stability_detail <-
-    soil_stability_detail[!is.na(soil_stability_detail$PrimaryKey), ]
-
-  # If DBKey Key exists, remove it
-  if ("DBKey" %in% colnames(soil_stability_detail)) {
-    soil_stability_detail <- dplyr::select(soil_stability_detail, -DBKey)
-  }
-
-  gathered <- soil_stability_detail %>%
-    # Remove standard columns (In and Dip Times and Date Downloaded in DB)
-    dplyr::select(.,
-                  match = -dplyr::starts_with("In"),
-                  -dplyr::starts_with("Dip"),
-                  -dplyr::starts_with("DateLoaded")
-    ) %>%
-
-    # Convert to tall format
-    tidyr::gather(.,
-                  key = variable, value = value,
-                  -PrimaryKey, -BoxNum, -RecKey, na.rm = TRUE
-    )
-
-  # Remove blank values
-  gathered <- subset(gathered, value != "")
-
-  # Separate numerical suffixes from field type
-  gathered$key <- stringr::str_extract(
-    string = gathered$variable,
-    pattern = "^[A-z]+"
-  )
-  gathered$Position <- stringr::str_extract(
-    string = gathered$variable,
-    pattern = "[0-9]+"
-  )
-
-  gathered <- subset(gathered, select = -c(variable, BoxNum))
-
-  # Remove Hydro = 0
-  gathered <- gathered %>% subset(!(key == "Hydro" & value != 0))
-
-  # Spread the gathered data so that Line, Rating, Vegetation,
-  # and Hydro are all different variables
-
-  soil_stability_detail_list <- lapply(
-    X = as.list(unique(gathered$key)),
-    FUN = function(k = as.list(unique(gathered$key)), df = gathered) {
-      test <- df[df$key == k, ] %>%
-        dplyr::mutate(id = 1:dplyr::n()) %>%
-        tidyr::spread(key = key, value = value) %>%
-        dplyr::select(-id)
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
     }
-    auto_qc_warning(header_data = lpi_header,
-                    detail_data = lpi_detail,
+    auto_qc_warning(header_data = header,
+                    detail_data = detail,
                     uid_variables = list(header = c("PrimaryKey",
                                                     "RecKey"),
                                          detail = c("PrimaryKey",
@@ -172,22 +131,110 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
-  soil_stability_detail_tidy$Rating <- soil_stability_detail_tidy$Rating %>%
-    as.numeric()
+  # Convert to tall format
+  gathered <- tidyr::gather(detail,
+                            key = variable,
+                            value = value,
+                            -PrimaryKey, -BoxNum, -RecKey,
+                            na.rm = TRUE) |>
+    dplyr::filter(.data = _,
+                  value != "")
+
+  detail_tall <- tidyr::pivot_longer(data = detail,
+                                     cols = -tidyselect::all_of(c("PrimaryKey",
+                                                                  "RecKey",
+                                                                  "BoxNum")),
+                                     names_to = c("variable",
+                                                  "Position"),
+                                     # This is a goofy regex, but the first
+                                     # group, (^.*), will snag everything
+                                     # prior to the second group,
+                                     # ((?<=[A-z])\\d+$), which finds all the
+                                     # digits between the last letter and the
+                                     # end of the string. That first group
+                                     # is the variable and the second is the
+                                     # variable position in the sampling box.
+                                     names_pattern = "(^.*)((?<=[A-z])\\d+$)",
+                                     values_to = "value",
+                                     # We have to coerce everything to character to
+                                     # accommodate the cover values which are
+                                     # character strings.
+                                     values_transform = as.character,
+                                     values_drop_na = TRUE) |>
+    dplyr::filter(.data = _,
+                  value != "",
+                  # We're removing all records where variable is "Hydro" and the
+                  # associated value is "0". Unclear why, but this is what the
+                  # older version of the code *tried* to do, but I don't think
+                  # it was because it was checking for the numerical 0 when all
+                  # the values in the variable value were character.
+                  !(variable == "Hydro" & value != "0")) |>
+    dplyr::distinct()
+
+  # This will make things wider. We can't just use tidyr::pivot_wider() because
+  # we don't have unique identifiers for the values which means that the value
+  # variable would contain a list, which is unhelpful for how people want to use
+  # these. So we'll make a list and join them together.
+  # The lapply() works through the values in "variable" (Rating, Veg, etc.) and
+  # grabs only the records with identical "variable" values. It then renames the
+  # "value" variable to use whatever the "variable" value is for that set of
+  # data and drops the "variable" variable.
+  detail_tidy <- lapply(X = unique(detail_tall$variable),
+                        detail_tall = detail_tall,
+                        FUN = function(X, detail_tall){
+                          # Renaming the "value" variable and then
+                          # dropping the "variable" variable.
+                          dplyr::filter(.data = detail_tall,
+                                        variable == X) |>
+                            # A little clunky, but this way we
+                            # don't have to hardcode any
+                            # "variable" values.
+                            dplyr::rename(.data = _,
+                                          tidyselect::all_of(setNames(object = c("value"),
+                                                                      nm = X))) |>
+                            dplyr::select(.data = _,
+                                          -variable)
+                        }) |>
+    # The purrr::reduce() then binds all those together according to the
+    # identifying variables. The use of a full_join() makes sure we don't drop
+    # anything that had incomplete data. Yet.
+    purrr::reduce(.x = _,
+                  .f = dplyr::full_join,
+                  by = c("RecKey",
+                         "PrimaryKey",
+                         "Position",
+                         "BoxNum")) |>
+    #However, there are likely going to be records in the source data where
+    # there were no ratings but somehow there were other kinds of values, so
+    # those get dropped.
+    dplyr::filter(.data = _,
+                  !is.na(Rating)) |>
+    # And the last bit is coercing things to numeric.
+    dplyr::mutate(.data = _,
+                  dplyr::across(.cols = -tidyselect::all_of(c("RecKey",
+                                                              "PrimaryKey")),
+                                # Can't trust the variables to be coercible to
+                                # numeric without introducing NAs. Even though
+                                # that'd be possible in a pristine data set,
+                                # you'll probably never have one. So, we check
+                                # to see if coercion does violence and only
+                                # coerce variables we won't damage.
+                                .fns = ~ if(any(suppressWarnings(is.na(as.numeric(.x))))) {
+                                  .x
+                                } else {
+                                  as.numeric(.x)
+                                }))
 
   # Merge soil stability detail and header tables
-  soil_stability_tall <- dplyr::left_join(
-    soil_stability_header,
-    soil_stability_detail_tidy, by = c("RecKey", "PrimaryKey")
-  ) %>% dplyr::select_if(!names(.) %in% c(
-    'PlotKey', 'DateModified', 'FormType', 'DataEntry', 'DataErrorChecking', 'DateLoadedInDb'
-    )
-  )
-
-  # In some cases, the Hydro variable is lost. Add it back in
-  if (!"Hydro" %in% colnames(soil_stability_tall)){
-    soil_stability_tall$Hydro <- NA
-  }
+  soil_stability_tall <- suppressWarnings(dplyr::left_join(x = header,
+                                                           y = detail_tidy,
+                                                           # Not enforcing this relationship
+                                                           # because there may be duplicate
+                                                           # records and the user can go ahead
+                                                           # with this anyway.
+                                                           # relationship = "one-to-many",
+                                                           by = c("RecKey",
+                                                                  "PrimaryKey")))
 
   # Return final merged file
   return(soil_stability_tall)
