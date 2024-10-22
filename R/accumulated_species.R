@@ -43,7 +43,7 @@ accumulated_species <- function (header,
     dplyr::select("PrimaryKey", "PlotID", "DBKey", "State", "SpeciesState","Latitude_NAD83", "Longitude_NAD83", "source")
 
   if(!is.null(lpi_tall)){
-    
+
     # read in LPI and join to species table
     lpi_tall_header <- readRDS(lpi_tall) %>%
       dplyr::left_join(dplyr::select(
@@ -56,7 +56,7 @@ accumulated_species <- function (header,
       .,
       by = c("PrimaryKey", "DBKey")
       )
-    
+
     lpi_species <- species_join(
       data = lpi_tall_header,
       species_file = species_file,
@@ -65,12 +65,12 @@ accumulated_species <- function (header,
                                                  TRUE,
                                                  FALSE)
     ) %>% dplyr::distinct()
-    
+
     # calculate cover by species
     species_cover <- pct_cover_species(lpi_tall = lpi_species)%>%
       # Omit 0 cover species
       subset(percent > 0)
-    
+
     # If dead == TRUE then calculate live and dead hits as well
     if(dead) {
       species_cover_live_dead <- pct_cover_live(lpi_tall = readRDS(lpi_tall) %>%
@@ -87,12 +87,12 @@ accumulated_species <- function (header,
         # Pivot to wide so that Live and Dead are separate fields
         tidyr::pivot_wider(names_from = status,
                            values_from = percent)
-      
+
       # merge back with species_cover
       species_cover <- dplyr::left_join(species_cover,
                                         species_cover_live_dead_split)
     }
-    
+
     # add n of hits
     species_cover <- lpi_species %>%
       subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
@@ -102,21 +102,21 @@ accumulated_species <- function (header,
       dplyr::left_join(species_cover, .,
                        by = c("PrimaryKey", "Species" = "code")) %>%
       dplyr::rename("AH_SpeciesCover_n" = "n",)
-    
-  
+
+
   } else {
     print("No LPI data provided")
     species_cover <- NULL
   }
 
   if(!is.null(height_tall)){
-    
+
     # Read in height and join species
     height <- readRDS(height_tall) %>%
-      
+
       # subset by PK and add the SpeciesState from the header
       dplyr::left_join(dplyr::select(header_sub, PrimaryKey, SpeciesState), .)
-    
+
     # Join to species list
     height_species <- species_join(
       data = height,
@@ -127,18 +127,18 @@ accumulated_species <- function (header,
                                                  TRUE,
                                                  FALSE)
     )
-    
+
     # Correct the Non-Woody to NonWoody
     height_species$GrowthHabit[grepl(
       pattern = "Non-woody|Nonwoody|Non-Woody",
       x = height_species$GrowthHabit
     )] <- "NonWoody"
-    
+
     # For any unresolved height errors, change height to "0" so
     # they are omitted from the calculations
     height_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
-    
-    
+
+
     # calculate height by species
     species_height <- mean_height(height_tall = height_species,
                                   method = "mean",
@@ -146,7 +146,7 @@ accumulated_species <- function (header,
                                   omit_zero = TRUE,
                                   tall = TRUE,
                                   Species)
-    
+
     # add n of samples for each calculation
     species_height <- height_species %>%
       subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
@@ -157,7 +157,7 @@ accumulated_species <- function (header,
 
       # remove "None" codes
       subset(Species != "None")
-    
+
     if(dead) {
       species_height_live_dead <- mean_height(height_tall = readRDS(height_tall) %>%
                                                 subset(PrimaryKey %in% header_sub$PrimaryKey),
@@ -179,29 +179,29 @@ accumulated_species <- function (header,
         # Pivot to wide so that Live and Dead are separate fields
         tidyr::pivot_wider(names_from = status,
                            values_from = percent)
-      
+
       # merge back with species_cover
       species_height <- dplyr::left_join(species_height_live_dead_split,
                                          species_height,
                                          by = c("Species", # = "indicator",
                                                 "PrimaryKey"))
-      
+
     }
-    
+
   } else {
     print("No height data provided")
     species_height <- NULL
   }
 
   if(!is.null(spp_inventory_tall)){
-    
+
     # read species inventory data and join species list
     species_inventory <- readRDS(spp_inventory_tall) %>%
       # Join to the header to get the relevant PrimaryKeys and SpeciesSate
       dplyr::left_join(dplyr::select(header_sub, PrimaryKey, SpeciesState), .,
                        by = "PrimaryKey"
       )
-    
+
     # Join to State Species List
     spp_inventory_species <- species_join(
       data = species_inventory,
@@ -212,7 +212,7 @@ accumulated_species <- function (header,
                                                  TRUE,
                                                  FALSE)
     )
-    
+
     # get list of species occurring in species inventory
     species_inventory <- spp_inventory_species %>%
       dplyr::select(PrimaryKey, Species) %>%
@@ -221,10 +221,10 @@ accumulated_species <- function (header,
     print("No species inventory data provided")
     species_inventory <- NULL
   }
-  
-  
+
+
   # Join height and cover calculations together
-  # If both species_cover and species_height are present, do a full join. 
+  # If both species_cover and species_height are present, do a full join.
   if(!is.null(species_cover) & !is.null(species_height)){
     species <- dplyr::full_join(species_cover, species_height,
                                 by = c("PrimaryKey", "Species"))
@@ -240,7 +240,7 @@ accumulated_species <- function (header,
 
   # find the species that do not occur from the joined species list but are
   # present in the species inventory table and append those to the species list
-  # If both species and species_inventory are present, do a full join. 
+  # If both species and species_inventory are present, do a full join.
   if(!is.null(species) & !is.null(species_inventory)){
     all_species <- dplyr::anti_join(species_inventory, species,
                                     by = c("PrimaryKey", "Species")) %>%
@@ -267,7 +267,7 @@ accumulated_species <- function (header,
       "AH_SpeciesCover" = "percent",
       "Hgt_Species_Avg" = "mean_height"
     )))
-    
+
 
 
   # if a species list is provided, join to species list

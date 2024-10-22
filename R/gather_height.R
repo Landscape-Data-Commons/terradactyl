@@ -273,8 +273,8 @@ gather_height_lmf <- function(dsn = NULL,
       colnames <- subset(
         terradactyl::nri.data.column.explanations,
         TABLE.NAME == "PASTUREHEIGHTS"
-      ) %>%
-        dplyr::pull(FIELD.NAME) %>%
+      ) |>
+        dplyr::pull(FIELD.NAME) |>
         unique()
 
       vegheight <- vegheight[seq_len(length(colnames))]
@@ -317,9 +317,9 @@ gather_height_lmf <- function(dsn = NULL,
     TRANSECT,
     DISTANCE,
     dplyr::matches("^W")
-  ) %>% dplyr::mutate(
-    type = "woody",
-    GrowthHabit_measured = "Woody"
+  ) |> dplyr::mutate(.data = _
+                     type = "woody",
+                     GrowthHabit_measured = "Woody"
   )
   # remove the "W" from the names
   names(height_woody) <- stringr::str_replace_all(
@@ -335,9 +335,9 @@ gather_height_lmf <- function(dsn = NULL,
     TRANSECT,
     DISTANCE,
     dplyr::matches("^H")
-  ) %>% dplyr::mutate(
-    type = "herbaceous",
-    GrowthHabit_measured = "NonWoody"
+  ) |> dplyr::mutate(.data = _
+                     type = "herbaceous",
+                     GrowthHabit_measured = "NonWoody"
   )
 
   # remove the "H" from the "HPLANT" field
@@ -504,7 +504,7 @@ gather_height <- function(dsn = NULL,
                           PASTUREHEIGHTS = NULL#,
                           # LPI_0 = NULL,
                           # LPIDetail_1 = NULL
-                          ) {
+) {
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     height <- gather_height_terradat(
       dsn = dsn,
@@ -537,8 +537,9 @@ gather_height <- function(dsn = NULL,
                                dplyr::funs(as.character))
   }
 
-  height <- height %>%
-    dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
+  height <- dplyr::select(.data = height,
+                          PrimaryKey, DBKey, LineKey,
+                          tidyselect::everything())
 
   # Output height
   return(height)

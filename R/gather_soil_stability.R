@@ -298,8 +298,13 @@ gather_soil_stability_lmf <- function(dsn = NULL,
   soildisag[soildisag == ""] <- NA
 
   # Convert to tall format
-  soil_tall <- dplyr::select(soildisag, VEG1:STABILITY18, PrimaryKey, DBKey) %>%
-    tidyr::gather(., key = variable, value = value, -PrimaryKey, -DBKey)
+  soil_tall <- dplyr::select(.data = soildisag,
+                             VEG1:STABILITY18,
+                             PrimaryKey, DBKey) |>
+    tidyr::gather(.data = _,
+                  key = variable,
+                  value = value,
+                  -PrimaryKey, -DBKey)
 
   # Remove NAs
   gathered <- soil_tall[!is.na(soil_tall$value), ]
@@ -309,12 +314,14 @@ gather_soil_stability_lmf <- function(dsn = NULL,
                               into = c("type", "Position"),
                               sep = "[[:alpha:]]+",
                               remove = FALSE
-  ) %>%
-    dplyr::mutate(variable = stringr::str_extract(
-      string = gathered$variable,
-      pattern = "^[A-z]+"
-    )) %>%
-    dplyr::select(-type)
+  ) |>
+    dplyr::mutate(.data = _,
+                  variable = stringr::str_extract(
+                    string = gathered$variable,
+                    pattern = "^[A-z]+"
+                  )) |>
+    dplyr::select(.data = _,
+                  -type)
 
 
   # Spread the gathered data so that Line, Rating, Vegetation,
@@ -322,13 +329,15 @@ gather_soil_stability_lmf <- function(dsn = NULL,
   soil_stability_tidy <- lapply(
     X = as.list(unique(gathered$variable)),
     FUN = function(k = as.list(unique(gathered$variable)), df = gathered) {
-      df[df$variable == k, ] %>%
-        dplyr::mutate(id = 1:dplyr::n()) %>%
-        tidyr::spread(key = variable, value = value) %>%
+      df[df$variable == k, ] |>
+        dplyr::mutate(id = 1:dplyr::n()) |>
+        tidyr::spread(key = variable, value = value) |>
         dplyr::select(-id)
     }
     #) %>% Reduce(dplyr::left_join, ., by = c("RecKey", "PrimaryKey", "Position"))
-  ) %>% purrr::reduce(dplyr::left_join, by = c("PrimaryKey", "DBKey", "Position")
+  ) |> purrr::reduce(.x = _,
+                     .f = dplyr::left_join,
+                     by = c("PrimaryKey", "DBKey", "Position")
   )
 
   # Rename fields
@@ -341,7 +350,7 @@ gather_soil_stability_lmf <- function(dsn = NULL,
   soil_stability_tidy$Rating <- as.numeric(soil_stability_tidy$Rating)
 
   # Remove 0 values
-  soil_stability_tidy <- soil_stability_tidy %>% subset(Rating > 0)
+  soil_stability_tidy <- soil_stability_tidy |> subset(Rating > 0)
 
   # Return final merged file
   return(soil_stability_tidy)
@@ -501,14 +510,15 @@ gather_soil_stability <- function(dsn = NULL,
 
   if (any(class(soil_stability) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(soil_stability)[do.call(rbind, vapply(soil_stability,
-                                                    class))[, 1] %in% c("POSIXct", "POSIXt")]
+                                                               class))[, 1] %in% c("POSIXct", "POSIXt")]
     soil_stability <- dplyr::mutate_at(soil_stability, dplyr::vars(change_vars),
-                            dplyr::funs(as.character))
+                                       dplyr::funs(as.character))
   }
 
   # reorder so that primary key is leftmost column
-  soil_stability <- soil_stability %>%
-    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+  soil_stability <- dplyr::select(.data = soil_stability,
+                                  PrimaryKey, DBKey,
+                                  tidyselect::everything())
 
   return(soil_stability)
 }

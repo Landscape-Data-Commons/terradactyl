@@ -12,7 +12,8 @@ accumulated_species(
   species_file = "",
   dead = TRUE,
   source = c("TerrADat", "AIM", "LMF", "NRI"),
-  ...
+  ...,
+  generic_species_file = NULL
 )
 }
 \arguments{
