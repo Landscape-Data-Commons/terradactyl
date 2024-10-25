@@ -163,12 +163,10 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                      values_drop_na = TRUE) |>
     dplyr::filter(.data = _,
                   value != "",
-                  # We're removing all records where variable is "Hydro" and the
-                  # associated value is "0". Unclear why, but this is what the
-                  # older version of the code *tried* to do, but I don't think
-                  # it was because it was checking for the numerical 0 when all
-                  # the values in the variable value were character.
-                  !(variable == "Hydro" & value != "0")) |>
+                  # Correctly remove non-hydrophobic records with 0 values
+                  # and hydrophobic records with non-zero values
+                  !(variable == "Hydro" & value != "0"),
+                  !(variable != "Hydro" & value == "0")) |>
     dplyr::distinct()
 
   # This will make things wider. We can't just use tidyr::pivot_wider() because
