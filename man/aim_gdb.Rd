@@ -15,27 +15,20 @@
 \alias{build_indicators}
 \title{Build AIM Indicators Tables and Feature Classes}
 \usage{
-gather_header_terradat(
-  dsn = NULL,
-  tblPlots = NULL,
-  tblLPIHeader = NULL,
-  tblGapHeader = NULL,
-  tblSpecRichHeader = NULL,
-  ...
-)
+gather_header_terradat(dsn = NULL, tblPlots = NULL, date_tables = NULL, ...)
 
 gather_header_lmf(dsn = NULL, ...)
 
-gather_header_nri(dsn = NULL, ...)
+gather_header_nri(dsn = NULL, speciesstate, ...)
 
 gather_header(
   dsn = NULL,
   source,
   tblPlots = NULL,
-  tblLPIHeader = NULL,
-  tblGapHeader = NULL,
-  tblSpecRichHeader = NULL,
-  ...
+  date_tables = NULL,
+  speciesstate = NULL,
+  ...,
+  autoQC = TRUE
 )
 
 lpi_calc(header, lpi_tall, species_file, source, dsn)
@@ -101,4 +94,7 @@ A \code{tbl} of indicators of either tall or wide format.
 }
 \description{
 Build AIM Indicators Tables and Feature Classes
+
+export gather_header_survey123
+rdname aim_gdb
 }

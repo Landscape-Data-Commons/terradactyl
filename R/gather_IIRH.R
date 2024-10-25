@@ -29,20 +29,20 @@
 #' @return A tall data frame containing the data from the rangeland health
 #' measurements.
 #' @examples
-#' gather_IIRH(dsn = "Path/To/AIM_Geodatabase.gdb",
-#'             source = "AIM")
-#' gather_IIRH(dsn = "Path/To/LMF_Geodatabase.gdb",
-#'             source = "LMF")
+#' gather_rangeland_health(dsn = "Path/To/AIM_Geodatabase.gdb",
+#'                         source = "AIM")
+#' gather_rangeland_health(dsn = "Path/To/LMF_Geodatabase.gdb",
+#'                         source = "LMF")
 #'
 #' aim_rhdetail <- read.csv("Path/To/tblQualDetail.csv")
 #' aim_rhheader <- read.csv("Path/To/tblQualHeader.csv")
-#' gather_IIRH(source = "AIM",
-#'             tblQualDetail = aim_rhdetail,
-#'             tblQualHeader = aim_rhheader)
+#' gather_rangeland_health(source = "AIM",
+#'                         tblQualDetail = aim_rhdetail,
+#'                         tblQualHeader = aim_rhheader)
 #'
 #' lmf_rh <- read.csv("Path/To/RANGEHEALTH.csv")
-#' gather_IIRH(source = "LMF",
-#'             RANGEHEALTH = lmf_rh)
+#' gather_rangeland_health(source = "LMF",
+#'                         RANGEHEALTH = lmf_rh)
 
 #' @export gather_rangeland_health_terradat
 #' @rdname IIRH
@@ -117,9 +117,9 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
                         RH_SoilSiteStability = SSSVxWRatingFinal,
                         RH_CommentsBI = CommentBI,
                         RH_CommentsHF = CommentHF,
-                        RH_CommentsSS = CommentSSS,
-                        Observer,
-                        Recorder
+                        RH_CommentsSS = CommentSSS#,
+                        # Observer,
+                        # Recorder
   ) %>%
 
     # Add the indicators
@@ -136,7 +136,7 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
 #' @export gather_rangeland_health_lmf
 #' @rdname IIRH
 gather_rangeland_health_lmf <- function(dsn = NULL,
-                                        file_type = "gdb",
+                                        file_type = NULL,
                                         RANGEHEALTH = NULL) {
 
   if(!is.null(RANGEHEALTH)){
@@ -146,6 +146,18 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
 
     if (!file.exists(dsn)) {
       stop("dsn must be a valid filepath to a geodatabase containing RHSUMMARY or the filepath to a text file containing RHSUMMARY")
+    }
+
+    # if file type is NULL, define it by checking the extension of dsn
+    if(is.null(file_type)){
+      extension <- substr(dsn, nchar(dsn)-2, nchar(dsn))
+      if(extension == "csv") {
+        file_type <- "csv"
+      } else if(extension == "gdb") {
+        file_type <- "gdb"
+      } else {
+        file_type <- "txt"
+      }
     }
 
     # Read in the data as .txt or .gdb
@@ -208,15 +220,93 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
   return(IIRH_clean)
 }
 
+#' export gather_rangeland_health_survey123
+#' rdname IIRH
+# gather_rangeland_health_survey123 <- function(PlotObservation_0 = NULL) {
+#
+#   # Clean up the Indicators Table
+#   rangeland_health_indicators <- PlotObservation_0 %>%
+#     dplyr::select(PrimaryKey = PlotKey,
+#                   FormDate,
+#                   RH_Rills = Rills,
+#                   RH_Gullies = Gullies,
+#                   RH_PedestalsTerracettes = Pedestals,
+#                   RH_WindScouredAreas = Deposition)
+#     dplyr::mutate(
+#       indicator = Seq %>%
+#         as.character() %>%
+#         # Rename Seq from a number to an Indicator name
+#         stringr::str_replace_all(c(
+#           "\\b1\\b" = "RH_Rills",
+#           "\\b2\\b" = "RH_WaterFlowPatterns",
+#           "\\b3\\b" = "RH_PedestalsTerracettes",
+#           "\\b4\\b" = "RH_BareGround",
+#           "\\b5\\b" = "RH_Gullies",
+#           "\\b6\\b" = "RH_WindScouredAreas", #
+#           "\\b7\\b" = "RH_LitterMovement", #
+#           "\\b8\\b" = "RH_SoilSurfResisErosion", #
+#           "\\b9\\b" = "RH_SoilSurfLossDeg", #
+#           "\\b10\\b" = "RH_PlantCommunityComp", #
+#           "\\b11\\b" = "RH_Compaction", #
+#           "\\b12\\b" = "RH_FuncSructGroup", #
+#           "\\b13\\b" = "RH_DeadDyingPlantParts", #
+#           "\\b14\\b" = "RH_LitterAmount", #
+#           "\\b15\\b" = "RH_AnnualProd", #
+#           "\\b16\\b" = "RH_InvasivePlants", #
+#           "\\b17\\b" = "RH_ReprodCapabilityPeren"
+#         )),
+#       Rating = Rating %>%
+#         as.character() %>%
+#         stringr::str_replace_all(c(
+#           "1" = "NS",
+#           "2" = "SM",
+#           "3" = "M",
+#           "4" = "ME",
+#           "5" = "ET",
+#           "0" = NA
+#         ))
+#     ) %>%
+#     subset(!is.na(Rating)) %>%
+#     dplyr::select(RecKey, indicator, Rating) %>%
+#     dplyr::distinct() %>%
+#     tidyr::spread(key = indicator, value = Rating)
+#
+#   # Attributes and then joined to Indicators
+#   IIRH <- dplyr::select(IIRH_header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
+#                         RH_HydrologicFunction = HFVxWRatingFinal,
+#                         RH_BioticIntegrity = BIVxWRatingFinal,
+#                         RH_SoilSiteStability = SSSVxWRatingFinal,
+#                         RH_CommentsBI = CommentBI,
+#                         RH_CommentsHF = CommentHF,
+#                         RH_CommentsSS = CommentSSS#,
+#                         # Observer,
+#                         # Recorder
+#   ) %>%
+#
+#     # Add the indicators
+#     dplyr::left_join(rangeland_health_indicators, by = "RecKey")
+#
+#   ## last drop
+#   IIRH <- IIRH %>% dplyr::select(
+#     -c(DateLoadedInDb)
+#   )
+#
+#   return(IIRH)
+# }
+
+
+
+
 #' @export gather_rangeland_health
 #' @rdname IIRH
 #'
 gather_rangeland_health <- function(dsn = NULL,
                                     source,
-                                    file_type = "gdb",
+                                    file_type = NULL,
                                     tblQualHeader = NULL,
                                     tblQualDetail = NULL,
-                                    RANGEHEALTH = NULL) {
+                                    RANGEHEALTH = NULL,
+                                    autoQC = TRUE) {
 
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -245,7 +335,13 @@ gather_rangeland_health <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   IIRH <- IIRH %>%
-    dplyr::select(PrimaryKey, DBKey, RecKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    IIRH <- IIRH %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "rh")
+  }
 
   return(IIRH)
 }

@@ -68,6 +68,9 @@ gather_species_inventory_terradat <- function(dsn = NULL,
     stop("Supply either tblSpecRichDetail and tblSpecRichHeader, or the path to a GDB containing those tables")
   }
 
+  # Add null DBKey column if not present
+  if(!("DBKey" %in% colnames(species_inventory_header))) species_inventory_header$DBKey <- NA
+  if(!("DBKey" %in% colnames(species_inventory_detail))) species_inventory_detail$DBKey <- NA
 
   # Make Species Inventory Detail  a tall dataframe
   species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
@@ -75,14 +78,14 @@ gather_species_inventory_terradat <- function(dsn = NULL,
   # Join with header data and strip out NA codes
   species_inventory_tall <- dplyr::left_join(
     x = species_inventory_header,
-    y = species_detail_tall,
-    by = c("RecKey", "PrimaryKey")
+    y = species_detail_tall#,
+    # by = c("RecKey", "PrimaryKey")
   ) %>%
     subset(!is.na(Species)) %>%
     dplyr::select_if(!names(.) %in%
-    c("DateModified", "FormType", "DataEntry",
-       "DataErrorChecking", "DateLoadedInDb", "created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID")
-  )
+                       c("DateModified", "FormType", "DataEntry",
+                         "DataErrorChecking", "DateLoadedInDb", "created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID")
+    )
 
   return(species_inventory_tall)
 }
@@ -144,8 +147,8 @@ tall_species <- function(species_inventory_detail) {
 #' @export gather_species_inventory_lmf
 #' @rdname gather_species_inventory
 gather_species_inventory_lmf <- function(dsn = NULL,
-                               file_type = "gdb",
-                               PLANTCENSUS = NULL) {
+                                         file_type = "gdb",
+                                         PLANTCENSUS = NULL) {
   if(!is.null(PLANTCENSUS)){
     plantcensus <- PLANTCENSUS
   } else if(!is.null(dsn)){
@@ -194,21 +197,67 @@ gather_species_inventory_lmf <- function(dsn = NULL,
                                      Species = CPLANT
   ) %>% dplyr::select(., -c(SURVEY:SEQNUM)) %>%
     dplyr::select_if(!names(.) %in% c("GlobalID", "created_user",
-                            "created_date", "last_edited_user", "last_edited_date"))
+                                      "created_date", "last_edited_user", "last_edited_date"))
 
   return(species_inventory)
 }
 
+#' export gather_species_inventory_survey123
+#' rdname gather_species_inventory
+# gather_species_inventory_survey123 <- function(SpeciesRichness_0 = NULL,
+#                                                SpecRichDetail_1 = NULL) {
+#
+#   species_inventory_detail <- SpecRichDetail_1
+#   species_inventory_header <- SpeciesRichness_0
+#
+#   # Check for duplicate PrimaryKeys
+#   dupkeys <- species_inventory_header$PlotKey[duplicated(species_inventory_header$PlotKey)]
+#   if(length(dupkeys) > 0){
+#     dupnames <- paste(unique(dupkeys), collapse = ", ")
+#     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+#   }
+#
+#   # Add null DBKey column if not present
+#   if(!("DBKey" %in% colnames(species_inventory_header))) species_inventory_header$DBKey <- NA
+#   if(!("DBKey" %in% colnames(species_inventory_detail))) species_inventory_detail$DBKey <- NA
+#
+#   # Convert PlotKey to PrimaryKey and attach to detail
+#   species_inventory_header$PrimaryKey <- species_inventory_header$PlotKey
+#   species_inventory_detail <- dplyr::left_join(species_inventory_detail,
+#                                                species_inventory_header %>% dplyr::select(PrimaryKey, GlobalID),
+#                                                by = c("ParentGlobalID" = "GlobalID"))
+#
+#   # Make Species Inventory Detail  a tall dataframe
+#   species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
+#
+#   # Join with header data and strip out NA codes
+#   species_inventory_tall <- dplyr::left_join(
+#     x = species_inventory_header,
+#     y = species_detail_tall#,
+#     # by = c("RecKey", "PrimaryKey")
+#   ) %>%
+#     subset(!is.na(Species)) %>%
+#     dplyr::select_if(!names(.) %in%
+#                        c("DateModified", "FormType", "DataEntry",
+#                          "DataErrorChecking", "DateLoadedInDb", "created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID")
+#     )
+#
+#   return(species_inventory_tall)
+# }
+
+
 #' Species Inventory Gather wrapper
 #' @export gather_species_inventory
 #' @rdname gather_species_inventory
-
 gather_species_inventory <- function(dsn = NULL,
                                      source,
                                      tblSpecRichDetail = NULL,
                                      tblSpecRichHeader = NULL,
                                      PLANTCENSUS = NULL,
-                                     file_type = "gdb") {
+                                     # SpeciesRichness_0 = NULL,
+                                     # SpecRichDetail_1 = NULL,
+                                     file_type = "gdb",
+                                     autoQC = TRUE) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     species_inventory <- gather_species_inventory_terradat(
@@ -221,6 +270,11 @@ gather_species_inventory <- function(dsn = NULL,
       dsn = dsn, file_type = file_type,
       PLANTCENSUS = PLANTCENSUS
     )
+  # } else if (toupper(source) == "SURVEY123"){
+  #   species_inventory <- gather_species_inventory_survey123(
+  #     SpeciesRichness_0 = SpeciesRichness_0,
+  #     SpecRichDetail_1 = SpecRichDetail_1)
+
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
@@ -233,14 +287,20 @@ gather_species_inventory <- function(dsn = NULL,
 
   if (any(class(species_inventory) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(species_inventory)[do.call(rbind, vapply(species_inventory,
-                                                       class))[, 1] %in% c("POSIXct", "POSIXt")]
+                                                                  class))[, 1] %in% c("POSIXct", "POSIXt")]
     species_inventory <- dplyr::mutate_at(species_inventory, dplyr::vars(change_vars),
-                               dplyr::funs(as.character))
+                                          dplyr::funs(as.character))
   }
 
   # reorder so that primary key is leftmost column
   species_inventory <- species_inventory %>%
-    dplyr::select(PrimaryKey, DBKey, LineKey, RecKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    species_inventory <- species_inventory %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "specinv")
+  }
 
   return(species_inventory)
 }

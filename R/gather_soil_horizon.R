@@ -56,46 +56,24 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
     dplyr::select(
       PrimaryKey, DBKey, HorizonKey, HorizonDepthUpper, HorizonDepthLower,
       DepthUOM = DepthMeasure, HorizonName = ESD_Horizon,
-      RockFragments, Texture, TextureModifier = ESD_HorizonModifier,
+      Texture, TextureModifier = ESD_HorizonModifier,
       pH = ESD_pH, EC = ESD_EC, Effervescence = Effer,
       ClayPct = ESD_PctClay, SandPct = ESD_PctSand,
 
       StructureGrade = ESD_Grade, StructureSize = ESD_Size, StructureType = ESD_Structure,
-      StructureGrade2 = ESD_Grade2, StructureSize2 = ESD_Size2, StructureType2 = ESD_Structure2,
+      # StructureGrade2 = ESD_Grade2, StructureSize2 = ESD_Size2, StructureType2 = ESD_Structure2,
       StructureQuality = ESD_StructQual,
 
-      PetrocalcicRubble = ESD_PetrocalcicRubble, Gypsic = ESD_Gypsic, ClayFilm = ESD_ClayFilm,
+      # PetrocalcicRubble = ESD_PetrocalcicRubble, Gypsic = ESD_Gypsic,
+      # ClayFilm = ESD_ClayFilm,
       Hue = ESD_Hue, Value = ESD_Value, Chroma = ESD_Chroma, ColorMoistDry = ESD_Color,
-      RootSize = ESD_RootSize, RootQty = ESD_RootQty,
+      # RootSize = ESD_RootSize, RootQty = ESD_RootQty,
 
       Fragment1VolPct = ESD_FragVolPct,  Fragment1Type = ESD_FragmentType,
       Fragment2VolPct = ESD_FragVolPct2, Fragment2Type = ESD_FragmentType2,
       Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3,
 
-      HorizonNotes = ESD_Notes,
-
-      ### all of these variables arent present in the ldc data as of v0.9. Disable now delete later
-      # RuptureResistance = ESD_RuptureResistance, # data almost entirely missing
-      # sar = ESD_NAabsorptionRatio, # NAabsorptionRatio = ESD_NAabsorptionRatio,
-      # caco3 = ESD_CaCO3EquivPct, #CaCO3EquivalentPct = ESD_CaCO3EquivPct, ## caco3 data not present
-      # sandvf = ESD_SandFractPctVeryFine, #SandFractPctVeryFine = "ESD_SandFractPctVeryFine",
-      # sandfine = ESD_SandFractPctFine, #SandFractPctFine = "ESD_SandFractPctFine",
-      # sandmed = ESD_SandFractPctMed, #SandFractPctMed = "ESD_SandFractPctMed",
-      # sandco = ESD_SandFractPctCoarse, # SandFractPctCoarse = "ESD_SandFractPctCoarse",
-      # sandvc = ESD_SandFractPctVeryCoarse, # SandFractPctVeryCoarse = "ESD_SandFractPctVeryCoarse",
-      # gypsum = ESD_GypsumPct, #Gypsum_Pct = ESD_GypsumPct,
-      # fraground = ESD_FragmentRoundness, #FragmentRoundness = "ESD_FragmentRoundness",
-      # poresize = ESD_PoresSize, #PoresSize = "ESD_PoresSize",
-      # poreqty = ESD_PoresQty, #PoresQty = "ESD_PoresQty",
-      # CarbonateStage = ESD_CarbonateStage,
-      # GravelClassPctFine = ESD_GravelClassPctFine,
-      # GravelClassPctMed = ESD_GravelClassPctMed,
-      # GravelClassPctCoarse = ESD_GravelClassPctCoarse,
-      # GravelCarbonateCoatPct = ESD_GravelCarbonateCoatPct,
-      # sandtotal_psa = ESD_PSAPctSand, #PSA_SandPct = ESD_PSAPctSand,
-      # silttotal_psa = ESD_PSAPctSilt, #PSA_SiltPct = ESD_PSAPctSilt,
-      # claytotal_psa = ESD_PSAPctClay #PSA_ClayPct = ESD_PSAPctClay,
-
+      HorizonNotes = ESD_Notes
 
       ### cleaning ###
     ) %>%
@@ -109,11 +87,11 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
                               "1" = "Weak",
                               "2" = "Moderate",
                               "3" = "Strong"),
-      StructureGrade2 = dplyr::recode(StructureGrade2,
-                               "0" = "Structureless",
-                               "1" = "Weak",
-                               "2" = "Moderate",
-                               "3" = "Strong"),
+      # StructureGrade2 = dplyr::recode(StructureGrade2,
+      #                          "0" = "Structureless",
+      #                          "1" = "Weak",
+      #                          "2" = "Moderate",
+      #                          "3" = "Strong"),
       StructureSize = dplyr::recode(StructureSize %>% tolower(),
                              "vf" = "Very fine",
                              "vn" = "Very thin",
@@ -125,17 +103,17 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
                              "vc" = "Very coarse",
                              "vk" = "Very thick",
                              "ec" = "Extremely coarse"),
-      StructureSize2 = dplyr::recode(StructureSize2 %>% tolower(),
-                              "vf" = "Very fine",
-                              "vn" = "Very thin",
-                              "f"  = "Fine",
-                              "tn" = "Thin",
-                              "m"  = "Medium",
-                              "co" = "Coarse",
-                              "tk" = "Thick",
-                              "vc" = "Very coarse",
-                              "vk" = "Very thick",
-                              "ec" = "Extremely coarse"),
+      # StructureSize2 = dplyr::recode(StructureSize2 %>% tolower(),
+      #                         "vf" = "Very fine",
+      #                         "vn" = "Very thin",
+      #                         "f"  = "Fine",
+      #                         "tn" = "Thin",
+      #                         "m"  = "Medium",
+      #                         "co" = "Coarse",
+      #                         "tk" = "Thick",
+      #                         "vc" = "Very coarse",
+      #                         "vk" = "Very thick",
+      #                         "ec" = "Extremely coarse"),
       StructureType = dplyr::recode(StructureType %>% tolower(),
                              "gr"  = "Granular",
                              "abk" = "Angular blocky",
@@ -148,80 +126,46 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
                              "ma"  = "Massive",
                              "cdy" = "Cloddy",
                              "other" = "Other"),
-      StructureType2 = dplyr::recode(StructureType2 %>% tolower(),
-                              "gr"  = "Granular",
-                              "abk" = "Angular blocky",
-                              "sbk" = "Subangular blocky",
-                              "pl"  = "Platy",
-                              "weg" = "Wedge",
-                              "pr"  = "Prismatic",
-                              "col" = "Columnar",
-                              "sg"  = "Single grain",
-                              "ma"  = "Massive",
-                              "cdy" = "Cloddy",
-                              "other" = "Other"),
-      ## these columns unused. preserved code just in case
-      # fraground = recode(fraground %>% tolower(),
-      #                    "va" = "Very angular",
-      #                    "an" = "Angular",
-      #                    "sa" = "Subangular",
-      #                    "sr" = "Subrounded",
-      #                    "ro" = "Rounded",
-      #                    "wr" = "Well rounded"),
-      # poresize = recode(poresize %>% tolower(),
-      #                   "vf" = "Very fine",
-      #                   "f"  = "Fine",
-      #                   "m"  = "Medium",
-      #                   "c"  = "Coarse",
-      #                   "vc" = "Very coarse"),
-      # RuptureResistance = recode(RuptureResistance %>% tolower(),
-      #                            "ef" = "Extr. Firm",
-      #                            "eh" = "Extr. Hard",
-      #                            "fi" =	"Firm",
-      #                            "fr" =	"Friable",
-      #                            "ha" =	"Hard",
-      #                            "l"  =	"Loose",
-      #                            "mh" =	"Mod. Hard",
-      #                            "r"  =	"Rigid",
-      #                            "s"  =	"Soft",
-      #                            "sh" =	"Slightly Hard",
-      #                            "sr" =	"Slightly Rigid",
-      #                            "vfi" =	"Very Firm",
-      #                            "vfr" =	"Very Friable",
-      #                            "vh" =	"Very Hard",
-      #                            "vr" =	"Very Rigid",
-      #
-      #                            # "" = NA_character_ # "" returns a zero-l varname error. Why?
-      #                            # workaround may be over-general. This will eliminate any data validation errs that could be fixed (eg mispellings)
-      #                            .default = NA_character_),
+      # StructureType2 = dplyr::recode(StructureType2 %>% tolower(),
+      #                         "gr"  = "Granular",
+      #                         "abk" = "Angular blocky",
+      #                         "sbk" = "Subangular blocky",
+      #                         "pl"  = "Platy",
+      #                         "weg" = "Wedge",
+      #                         "pr"  = "Prismatic",
+      #                         "col" = "Columnar",
+      #                         "sg"  = "Single grain",
+      #                         "ma"  = "Massive",
+      #                         "cdy" = "Cloddy",
+      #                         "other" = "Other"),
     ) %>%
     ### complex mutates that depend on >1 var ###
     dplyr::mutate(
       SiltPct = 100 - (as.numeric(SandPct) + as.numeric(ClayPct)),
       FragVolGravel = dplyr::case_when(
-        Fragment1Type == "1" ~ Fragment1VolPct,
-        Fragment2Type == "1" ~ Fragment2VolPct,
-        Fragment3Type == "1" ~ Fragment3VolPct
+        Fragment1Type %in% c("GR", "Gravel", "1") ~ Fragment1VolPct,
+        Fragment2Type %in% c("GR", "Gravel", "1") ~ Fragment2VolPct,
+        Fragment3Type %in% c("GR", "Gravel", "1") ~ Fragment3VolPct
       ),
       FragVolCobble = dplyr::case_when(
-        Fragment1Type == "2" ~ Fragment1VolPct,
-        Fragment2Type == "2" ~ Fragment2VolPct,
-        Fragment3Type == "2" ~ Fragment3VolPct
+        Fragment1Type %in% c("CB", "Cobble", "2") ~ Fragment1VolPct,
+        Fragment2Type %in% c("CB", "Cobble", "2") ~ Fragment2VolPct,
+        Fragment3Type %in% c("CB", "Cobble", "2") ~ Fragment3VolPct
       ),
       FragVolStone = dplyr::case_when(
-        Fragment1Type == "6" ~ Fragment1VolPct,
-        Fragment2Type == "6" ~ Fragment2VolPct,
-        Fragment3Type == "6" ~ Fragment3VolPct
+        Fragment1Type %in% c("ST", "Stone", "6") ~ Fragment1VolPct,
+        Fragment2Type %in% c("ST", "Stone", "6") ~ Fragment2VolPct,
+        Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct
       ),
       FragVolNodule = dplyr::case_when(
-        Fragment1Type == "8" ~ Fragment1VolPct,
-        Fragment2Type == "8" ~ Fragment2VolPct,
-        Fragment3Type == "8" ~ Fragment3VolPct
+        Fragment1Type %in% c("8", "Nodule") ~ Fragment1VolPct,
+        Fragment2Type %in% c("8", "Nodule") ~ Fragment2VolPct,
+        Fragment3Type %in% c("8", "Nodule") ~ Fragment3VolPct
       ),
       FragVolDurinode = dplyr::case_when(
-        Fragment1Type == "9" ~ Fragment1VolPct,
-        Fragment2Type == "9" ~ Fragment2VolPct,
-        Fragment3Type == "9" ~ Fragment3VolPct
+        Fragment1Type %in% c("9", "Durinode") ~ Fragment1VolPct,
+        Fragment2Type %in% c("9", "Durinode") ~ Fragment2VolPct,
+        Fragment3Type %in% c("9", "Durinode") ~ Fragment3VolPct
       ),
       HorizonDepthLower = dplyr::case_when(
         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
@@ -239,25 +183,20 @@ gather_soil_horizon_terradat <- function(dsn = NULL,
       -Fragment1VolPct,
       -Fragment2VolPct,
       -Fragment3VolPct,
-     # HorizonKey,
-
-    )   %>% # new 10/8
+    )   %>%
     dplyr::arrange(PrimaryKey, HorizonDepthUpper) %>%
     dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
       PrimaryKey
     ) %>%
 
     dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
-           across(c(#caco3,gypsum #  data seems to not be used, disabled
-             RockFragments), ~ suppressWarnings(as.integer(.x))),
-           across(c(#sar, sandvf,
-             pH, # sandfine, sandmed, sandco, sandvc,
+           # across(c(RockFragments), ~ suppressWarnings(as.integer(.x))),
+           across(c(pH,
              EC, ClayPct, SandPct, SiltPct, # poreqty,
              FragVolGravel, FragVolCobble, FragVolStone, FragVolNodule,
              FragVolDurinode, HorizonDepthUpper, HorizonDepthLower,
-             #sandtotal_psa, silttotal_psa, claytotal_psa,
            ), ~ suppressWarnings(as.double(.x))),
-           across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
+           # across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
     )
   horizons_aim <- as.data.frame(horizons_aim)
 
@@ -304,18 +243,201 @@ gather_soil_horizon_lmf <- function(dsn = NULL,
 
   return(horizons_lmf)
 }
+#' export gather_soil_horizon_survey123
+#' rdname gather_soil_horizon
+# gather_soil_horizon_survey123 <- function(dsn = NULL,
+#                                           PlotChar_0 = NULL,
+#                                           SoilPitHorizons_1 = NULL){
+#
+#   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+#   if (!is.null(SoilPitHorizons_1) & !is.null(PlotChar_0)) {
+#     hz_raw <- SoilPitHorizons_1
+#     plotchar_raw <- PlotChar_0
+#   } else if(!is.null(dsn)){
+#     if(!file.exists(dsn)){
+#       stop("dsn must be a valid filepath to a geodatabase containing tblSoilPitHorizons")
+#     }
+#
+#     hz_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblSoilPitHorizons",
+#                                                stringsAsFactors = FALSE, quiet = T))
+#   } else {
+#     stop("Supply either tblSoilPitHorizons, or the path to a GDB containing those tables")
+#   }
+#
+#   # Survey123 data uses PlotKey instead of PrimaryKey
+#   hz_raw <- dplyr::left_join(hz_raw, plotchar_raw %>% dplyr::select(PrimaryKey = PlotKey, GlobalID), by = c("ParentGlobalID" = "GlobalID"))
+#
+#   # Check for duplicate PrimaryKeys
+#   dupkeys <- hz_raw$PrimaryKey[duplicated(hz_raw$PrimaryKey)]
+#   if(length(dupkeys) > 0){
+#     dupnames <- paste(unique(dupkeys), collapse = ", ")
+#     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+#   }
+#
+#   horizons <- hz_raw %>%
+#     ### select ###
+#     dplyr::select(
+#       PrimaryKey, DBKey, HorizonKey, HorizonDepthUpper, HorizonDepthLower,
+#       DepthUOM = DepthMeasure, HorizonName = ESD_Horizon,
+#       Texture, TextureModifier = ESD_HorizonModifier,
+#       pH = ESD_pH, EC = ESD_EC, Effervescence = Effer,
+#       ClayPct = ESD_PctClay, SandPct = ESD_PctSand,
+#
+#       StructureGrade = ESD_Grade, StructureSize = ESD_Size, StructureType = ESD_Structure,
+#       # StructureGrade2 = ESD_Grade2, StructureSize2 = ESD_Size2, StructureType2 = ESD_Structure2,
+#       StructureQuality = ESD_StructQual,
+#
+#       # PetrocalcicRubble = ESD_PetrocalcicRubble, Gypsic = ESD_Gypsic,
+#       # ClayFilm = ESD_ClayFilm,
+#       Hue = ESD_Hue, Value = ESD_Value, Chroma = ESD_Chroma, ColorMoistDry = ESD_Color,
+#       # RootSize = ESD_RootSize, RootQty = ESD_RootQty,
+#
+#       Fragment1VolPct = ESD_FragVolPct,  Fragment1Type = ESD_FragmentType,
+#       Fragment2VolPct = ESD_FragVolPct2, Fragment2Type = ESD_FragmentType2,
+#       Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3,
+#
+#       HorizonNotes = ESD_Notes
+#
+#       ### cleaning ###
+#     ) %>%
+#     dplyr::mutate_all(
+#       stringr::str_trim # defensive, early qc seems to catch this well
+#     ) %>%
+#     ### recode class data###
+#     dplyr::mutate(
+#       StructureGrade = dplyr::recode(StructureGrade,
+#                                      "0" = "Structureless",
+#                                      "1" = "Weak",
+#                                      "2" = "Moderate",
+#                                      "3" = "Strong"),
+#       # StructureGrade2 = dplyr::recode(StructureGrade2,
+#       #                          "0" = "Structureless",
+#       #                          "1" = "Weak",
+#       #                          "2" = "Moderate",
+#       #                          "3" = "Strong"),
+#       StructureSize = dplyr::recode(StructureSize %>% tolower(),
+#                                     "vf" = "Very fine",
+#                                     "vn" = "Very thin",
+#                                     "f"  = "Fine",
+#                                     "tn" = "Thin",
+#                                     "m"  = "Medium",
+#                                     "co" = "Coarse",
+#                                     "tk" = "Thick",
+#                                     "vc" = "Very coarse",
+#                                     "vk" = "Very thick",
+#                                     "ec" = "Extremely coarse"),
+#       # StructureSize2 = dplyr::recode(StructureSize2 %>% tolower(),
+#       #                         "vf" = "Very fine",
+#       #                         "vn" = "Very thin",
+#       #                         "f"  = "Fine",
+#       #                         "tn" = "Thin",
+#       #                         "m"  = "Medium",
+#       #                         "co" = "Coarse",
+#       #                         "tk" = "Thick",
+#       #                         "vc" = "Very coarse",
+#       #                         "vk" = "Very thick",
+#       #                         "ec" = "Extremely coarse"),
+#       StructureType = dplyr::recode(StructureType %>% tolower(),
+#                                     "gr"  = "Granular",
+#                                     "abk" = "Angular blocky",
+#                                     "sbk" = "Subangular blocky",
+#                                     "pl"  = "Platy",
+#                                     "weg" = "Wedge",
+#                                     "pr"  = "Prismatic",
+#                                     "col" = "Columnar",
+#                                     "sg"  = "Single grain",
+#                                     "ma"  = "Massive",
+#                                     "cdy" = "Cloddy",
+#                                     "other" = "Other"),
+#       # StructureType2 = dplyr::recode(StructureType2 %>% tolower(),
+#       #                         "gr"  = "Granular",
+#       #                         "abk" = "Angular blocky",
+#       #                         "sbk" = "Subangular blocky",
+#       #                         "pl"  = "Platy",
+#       #                         "weg" = "Wedge",
+#       #                         "pr"  = "Prismatic",
+#       #                         "col" = "Columnar",
+#       #                         "sg"  = "Single grain",
+#       #                         "ma"  = "Massive",
+#       #                         "cdy" = "Cloddy",
+#       #                         "other" = "Other"),
+#     ) %>%
+#     ### complex mutates that depend on >1 var ###
+#     dplyr::mutate(
+#       SiltPct = 100 - (as.numeric(SandPct) + as.numeric(ClayPct)),
+#       FragVolGravel = dplyr::case_when(
+#         Fragment1Type %in% c("GR", "Gravel", "1") ~ Fragment1VolPct,
+#         Fragment2Type %in% c("GR", "Gravel", "1") ~ Fragment2VolPct,
+#         Fragment3Type %in% c("GR", "Gravel", "1") ~ Fragment3VolPct
+#       ),
+#       FragVolCobble = dplyr::case_when(
+#         Fragment1Type %in% c("CB", "Cobble", "2") ~ Fragment1VolPct,
+#         Fragment2Type %in% c("CB", "Cobble", "2") ~ Fragment2VolPct,
+#         Fragment3Type %in% c("CB", "Cobble", "2") ~ Fragment3VolPct
+#       ),
+#       FragVolStone = dplyr::case_when(
+#         Fragment1Type %in% c("ST", "Stone", "6") ~ Fragment1VolPct,
+#         Fragment2Type %in% c("ST", "Stone", "6") ~ Fragment2VolPct,
+#         Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct
+#       ),
+#       FragVolNodule = dplyr::case_when(
+#         Fragment1Type %in% c("8", "Nodule") ~ Fragment1VolPct,
+#         Fragment2Type %in% c("8", "Nodule") ~ Fragment2VolPct,
+#         Fragment3Type %in% c("8", "Nodule") ~ Fragment3VolPct
+#       ),
+#       FragVolDurinode = dplyr::case_when(
+#         Fragment1Type %in% c("9", "Durinode") ~ Fragment1VolPct,
+#         Fragment2Type %in% c("9", "Durinode") ~ Fragment2VolPct,
+#         Fragment3Type %in% c("9", "Durinode") ~ Fragment3VolPct
+#       ),
+#       HorizonDepthLower = dplyr::case_when(
+#         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
+#         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthLower))),
+#       HorizonDepthUpper = dplyr::case_when(
+#         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54,
+#         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthUpper))),
+#       DepthUOM = "cm"
+#     ) %>%
+#     ### drop vars that are no longer relevant ###
+#     dplyr::select(
+#       -Fragment1Type,
+#       -Fragment2Type,
+#       -Fragment3Type,
+#       -Fragment1VolPct,
+#       -Fragment2VolPct,
+#       -Fragment3VolPct,
+#     )   %>%
+#     dplyr::arrange(PrimaryKey, HorizonDepthUpper) %>%
+#     dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
+#       PrimaryKey
+#     ) %>%
+#
+#     dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
+#                   # across(c(RockFragments), ~ suppressWarnings(as.integer(.x))),
+#                   across(c(pH,
+#                            EC, ClayPct, SandPct, SiltPct, # poreqty,
+#                            FragVolGravel, FragVolCobble, FragVolStone, FragVolNodule,
+#                            FragVolDurinode, HorizonDepthUpper, HorizonDepthLower,
+#                   ), ~ suppressWarnings(as.double(.x))),
+#                   # across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
+#     )
+#   horizons <- as.data.frame(horizons)
+#
+#   return(horizons)
+# }
+
 
 #' @export gather_soil_horizon
 #' @rdname gather_soil_horizon
 gather_soil_horizon <- function(dsn = NULL,
                                 source,
                                 SOILHORIZON = NULL,
-                                tblSoilPitHorizons = NULL) {
+                                tblSoilPitHorizons = NULL,
+                                autoQC = TRUE) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT")) {
     soil <- gather_soil_horizon_terradat(dsn = dsn, tblSoilPitHorizons = tblSoilPitHorizons)
   } else if(toupper(source) %in% c("LMF", "NRI")){
-    #print("a")
     soil <- gather_soil_horizon_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
   } else {
     stop("source must be AIM, TerraDat, DIMA, LMF, or NRI (all case independent)")
@@ -336,7 +458,13 @@ gather_soil_horizon <- function(dsn = NULL,
   soil <- as.data.frame(soil) %>%
 
   # reorder so that primary key is leftmost column
-    dplyr::select(PrimaryKey, DBKey, HorizonKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    soil <- soil %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilhz")
+  }
 
   return(soil)
 }

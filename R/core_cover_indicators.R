@@ -303,6 +303,9 @@ core_cover_indicators <- function(lpi_species) {
     tidyr::spread(key = indicator, value = percent, fill = 0)
 
   # Clean up fields
-  lpi_cover <- lpi_cover %>% dplyr::select(-AH_NACover)
+  if("AH_NACover" %in% names(lpi_cover)){
+    lpi_cover <- lpi_cover %>% dplyr::select(-AH_NACover)
+  }
+  return(lpi_cover) # in this case we need the return otherwise the if state returns a null value if FALSE
 }
 

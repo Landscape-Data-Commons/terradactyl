@@ -134,8 +134,8 @@ generic_growth_habits <- function(data,
 
 ) {
   generic_df <- data.frame(
-    SpeciesFixed = unique(data[, colnames(data) == data_code]),
-    SpeciesOriginal = unique(data[, colnames(data) == data_code])
+    SpeciesFixed = unique(data[[data_code]]),
+    SpeciesOriginal = unique(data[[data_code]])
   ) %>%
 
     # Clean up the species codes, remove white space
@@ -193,21 +193,18 @@ generic_growth_habits <- function(data,
 
   # Connect unknown codes to SpeciesState
   if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% colnames(data)) {
-    generic.code.df <- generic.code.df %>%
-      subset(!is.na(species_code)) %>%
-      dplyr::inner_join(., dplyr::select(
-        data, !!!dplyr::vars(data_code),
-        "SpeciesState"
-      ))
+    generic.code.df <- dplyr::inner_join(generic.code.df[!is.na(species_code), ],
+                                         dplyr::select(data, data_code, SpeciesState))
   } else {
     warning("Variable 'SpeciesState' is not present in either the data or the lookup table")
-    generic.code.df <- generic.code.df %>%
-      subset(!is.na(species_code)) %>%
-      dplyr::inner_join(., dplyr::select(
-        data, !!!dplyr::vars(data_code)
-      ))
+    generic.code.df <- dplyr::inner_join(generic.code.df[!is.na(species_code), ],
+                                         # We have to use dplyr::select() because that returns
+                                         # a data frame instead of a vector when there's only
+                                         # one variable being asked for
+                                         dplyr::select(data, data_code))
   }
 
+  generic.code.df <- unique(generic.code.df)
 
   # if there are records in generic.code.df
   if (nrow(generic.code.df) > 0) {
@@ -236,6 +233,15 @@ generic_growth_habits <- function(data,
   # Remove Code, Prefix, and PrimaryKey if they exist
   species_generic <- species_generic[, !colnames(species_generic) %in%
                                        c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
+
+  # remove GrowthHabit, GrowthHabitSub, and Duration if they are not the specified data columns
+  if(species_growth_habit_code != "GrowthHabitSub") {
+    species_generic <- species_generic %>% dplyr::select_if(!colnames(.) %in% c("GrowthHabit", "GrowthHabitSub"))
+  }
+
+  if(species_duration != "Duration") {
+    species_generic <- species_generic %>% dplyr::select_if(!colnames(.) %in% "Duration")
+  }
 
   # Remove NA in species list
   if ("SpeciesCode" %in% names(species_generic)) {
@@ -318,7 +324,7 @@ species_join <- function(data, # field data,
                                         dplyr::select(
                                           species_list, data_code,
                                           UpdatedSpeciesCode, SpeciesState
-                                        ),
+                                        ) %>% unique(),
                                         by = join_by
         )
       } else {
@@ -326,7 +332,7 @@ species_join <- function(data, # field data,
                                         dplyr::select(
                                           species_list, data_code,
                                           UpdatedSpeciesCode
-                                        ),
+                                        ) %>% unique(),
                                         by = join_by
         )
       }
@@ -382,6 +388,11 @@ species_join <- function(data, # field data,
   ## Remove any duplicate values
   species_generic <- species_generic %>% dplyr::distinct()
 
+  # If species are entered more than once but with different data (eg Family is missing once), it wont be removed by the above
+  species_generic <-
+    species_generic[!duplicated(species_generic %>%
+                                  dplyr::select(all_of(join_by))),]
+
   # Add species information to data
   data_species <- dplyr::left_join(
     x = data %>% dplyr::mutate_at(dplyr::vars(data_code), toupper),
@@ -391,15 +402,22 @@ species_join <- function(data, # field data,
 
   data_species <- data_species %>% dplyr::distinct()
 
-
   # Overwrite generic species assignments with provided table
   if (overwrite_generic_species) {
+    ext <- substr(species_file, (nchar(species_file) - 2), nchar(species_file))
+    if(ext == "gdb"){
+      tbl_species_generic <- sf::st_read(
+        dsn = generic_species_file,
+        layer = "tblSpeciesGeneric",
+        stringsAsFactors = FALSE
+      )
+    } else if (ext == "csv"){
+      tbl_species_generic <- read.csv(generic_species_file)
+    } else {
+      stop("Unknown generic species list format. Must be a path to a geodatabase (.gdb) or comma-separated values file (.csv)")
+    }
     # Read tblSpeciesGeneric
-    tbl_species_generic <- sf::st_read(
-      dsn = species_file,
-      layer = "tblSpeciesGeneric",
-      stringsAsFactors = FALSE
-    ) %>%
+    tbl_species_generic <- tbl_species_generic %>%
       # Select only the needed fields
       dplyr::select(
         SpeciesCode, DBKey, GrowthHabitCode,

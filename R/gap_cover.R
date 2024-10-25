@@ -29,6 +29,12 @@ gap_cover <- function(gap_tall,
     level <- rlang::quos(PrimaryKey)
   }
 
+  ## Convert breaks to desired column names
+  breaks <- c(breaks, Inf)
+  cols <- c()
+  for (i in 1:(length(breaks)-1)){
+    cols <- c(cols, paste0(breaks[i], "-", breaks[i+1] - 1))
+  }
 
   ## Convert the line lengths to the same units as the gaps
   # if metric (gap$Measure==1) then multiply by 100 to convert to centimeters
@@ -50,6 +56,7 @@ gap_cover <- function(gap_tall,
     gap_tall$GapMin[gap_tall$Measure == 2] <-
       gap_tall$MinGap[gap_tall$Measure == 2] * 2.54
   }
+
   ## Note if this is Basal or Canopy Gap by removing gaps from the opposite type.
   # "NA"s in RecType occur when there are no gaps
   if (type == "canopy") {
@@ -73,15 +80,71 @@ gap_cover <- function(gap_tall,
     # Merge back with original gap data
     dplyr::left_join(gap_tall, .)
 
-  # Find the interval class for each gap
-  breaks <- c(breaks, Inf)
-  gap_tall$interval <- cut(gap_tall$Gap, breaks = breaks, right = FALSE)
-  gap_tall$interval <- gap_tall$interval %>%
-    as.character() %>%
-    replace(., is.na(.), "NoGap")
+  # Find primary keys with no gaps, they will be removed by a filter later and
+  # must be added back on at the end
+  if(type == "canopy"){
+    nogap <- sapply(gap_tall$PrimaryKey, function(p){
+      gap <- dplyr::filter(gap_tall, PrimaryKey == p)
+      t <- all(all(gap$NoCanopyGaps) & !is.na(gap$NoCanopyGaps)) & all(is.na(gap$Gap) | gap$Gap == 0)
+      l <- unique(gap$total_line_length)
+      out <- data.frame(PrimaryKey = p,
+                        total_line_length = l,
+                        allnogap = t)
+      return(out)
+    }) %>% as.data.frame() %>% t() %>% unique() %>% as.data.frame()
 
-  # I want to clean up the interval labels
-  # They currently are formatted like "[25,51)" but we'd like them as "25-51"
+    nogap <- subset(nogap, unlist(nogap$allnogap)) %>% dplyr::select(-allnogap)
+    nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
+    nogap$total_line_length <- unlist(nogap$total_line_length)
+
+    # If there are no gap lines, they will need 0's filled in
+    if (nrow(nogap) > 0){
+      # Create columns matching the rest of the data
+      emptydf <- as.data.frame(matrix(0, nrow = nrow(nogap), ncol = length(breaks) - 1))
+      colnames(emptydf) <- cols
+      nogap <- cbind(nogap, emptydf[,colnames(emptydf)[!(colnames(emptydf) %in% colnames(nogap))]])
+    }
+
+  } else if(type == "basal"){
+    nogap <- sapply(gap_tall$PrimaryKey, function(p){
+      gap <- dplyr::filter(gap_tall, PrimaryKey == p)
+      t <- all(all(gap$NoBasalGaps) & !is.na(gap$NoBasalGaps)) & all(is.na(gap$Gap) | gap$Gap == 0)
+      l <- unique(gap$total_line_length)
+      out <- data.frame(PrimaryKey = p,
+                        total_line_length = l,
+                        allnogap = t)
+      return(out)
+    }) %>% as.data.frame() %>% t() %>% unique() %>% as.data.frame()
+
+    nogap <- subset(nogap, unlist(nogap$allnogap)) %>% dplyr::select(-allnogap)
+    nogap$PrimaryKey <- unlist(nogap$PrimaryKey)
+    nogap$total_line_length <- unlist(nogap$total_line_length)
+
+    # If there are no gap lines, they will need 0's filled in
+    if (nrow(nogap) > 0){
+      # Create columns matching the rest of the data
+      emptydf <- as.data.frame(matrix(0, nrow = nrow(nogap), ncol = length(breaks) - 1))
+      colnames(emptydf) <- cols
+      nogap <- cbind(nogap, emptydf[,colnames(emptydf)[!(colnames(emptydf) %in% colnames(nogap))]])
+    }
+
+  } else {
+    nogap <- data.frame(PrimaryKey = NA,
+                        total_line_length = NA)
+    emptydf <- as.data.frame(matrix(NA, nrow = nrow(nogap), ncol = length(breaks) - 1))
+    colnames(emptydf) <- cols
+    nogap <- cbind(nogap, emptydf[,colnames(emptydf)[!(colnames(emptydf) %in% colnames(nogap))]])
+  }
+
+  # Find the interval class for each gap
+  gap_tall$interval <- cut(gap_tall$Gap, breaks = breaks, right = FALSE)
+  # gap_tall$interval <- gap_tall$interval %>%
+  #   as.character() %>%
+  #   replace(., is.na(.), "NoGap")
+  gap_tall <- gap_tall %>%
+    dplyr::filter(!is.na(interval))
+
+  # Clean up the interval labels. They currently are formatted like "[25,51)" but we'd like them as "25-51"
   gap_tall$interval <- gsub(x = gap_tall$interval,
                             pattern = "^\\[",
                             replacement = "")
@@ -91,6 +154,11 @@ gap_cover <- function(gap_tall,
   gap_tall$interval <- gsub(x = gap_tall$interval,
                             pattern = "\\)$",
                             replacement = "")
+
+  # Subtract 1 from the right hand break point label, indicating which direction is inclusive/exclusive
+  m <- matrix(as.numeric(unlist(strsplit(gap_tall$interval, "-"))), ncol = 2, byrow = TRUE)
+  m[,2] <- m[,2] - 1
+  gap_tall$interval <- paste(m[,1], m[,2], sep = "-")
 
   # Summarize gaps by interval class
   gap_summary <- gap_tall %>%
@@ -113,7 +181,6 @@ gap_cover <- function(gap_tall,
       dplyr::select(PrimaryKey, total_line_length, interval, n, length, percent)
   }
 
-
   # constrain to 2 digits
   gap_summary$percent <- round(gap_summary$percent, digits = 2)
 
@@ -128,33 +195,76 @@ gap_cover <- function(gap_tall,
     dplyr::select(., -n, -percent) %>%
     tidyr::spread(key = interval, value = length, fill = 0)
 
+  # add absent columns (ie, the gap class is missing from the data)
+  for (c in cols){
+    if(!c %in% gap_summary$interval){
+      percent[[c]] <- 0
+      n[[c]] <- 0
+      length[[c]] <- 0
+    }
+  }
+
+  ## Add in 0's for the NoCanopyGap and NoBasalGap lines
+  if(nrow(nogap) > 0 & !is.null(nogap)){
+    percent <- dplyr::bind_rows(percent, nogap)
+    n <- dplyr::bind_rows(n, nogap)
+    length <- dplyr::bind_rows(length, nogap)
+  }
 
   ## If tall=FALSE, then convert to wide format
   if (!tall) {
     gap_summary <- list("percent" = percent, "n" = n, "length" = length)
   } else { # Convert back to tall, this adds zeros in needed columns
-    gap_summary <- percent %>% tidyr::gather(
-      key = gap_class,
-      value = percent,
-      -PrimaryKey,
-      -total_line_length
-    )
-    gap_summary <- n %>%
-      tidyr::gather(
+    if(by_line){
+      gap_summary <- percent %>% tidyr::gather(
         key = gap_class,
-        value = n,
+        value = percent,
         -PrimaryKey,
-        -total_line_length
-      ) %>%
-      merge(gap_summary, allow.cartesian = TRUE)
-    gap_summary <- length %>%
-      tidyr::gather(
+        -total_line_length,
+        -LineKey
+      )
+      gap_summary <- n %>%
+        tidyr::gather(
+          key = gap_class,
+          value = n,
+          -PrimaryKey,
+          -total_line_length,
+          -LineKey
+        ) %>%
+        merge(gap_summary, allow.cartesian = TRUE)
+      gap_summary <- length %>%
+        tidyr::gather(
+          key = gap_class,
+          value = length,
+          -PrimaryKey,
+          -total_line_length,
+          -LineKey
+        ) %>%
+        merge(gap_summary, allow.cartesian = TRUE)
+    } else {
+      gap_summary <- percent %>% tidyr::gather(
         key = gap_class,
-        value = length,
+        value = percent,
         -PrimaryKey,
-        -total_line_length
-      ) %>%
-      merge(gap_summary, allow.cartesian = TRUE)
+        -total_line_length,
+      )
+      gap_summary <- n %>%
+        tidyr::gather(
+          key = gap_class,
+          value = n,
+          -PrimaryKey,
+          -total_line_length,
+        ) %>%
+        merge(gap_summary, allow.cartesian = TRUE)
+      gap_summary <- length %>%
+        tidyr::gather(
+          key = gap_class,
+          value = length,
+          -PrimaryKey,
+          -total_line_length,
+        ) %>%
+        merge(gap_summary, allow.cartesian = TRUE)
+    }
   }
 
   return(gap_summary)

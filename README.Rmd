@@ -16,7 +16,7 @@ knitr::opts_chunk$set(message = F)
 # terradactyl <img src='man/figures/logo.png' align="right" height="120" />
 
 ``` r
-devtools::install_github('Landscape-Data-Commons/terradactyl')
+remotes::install_github("https://github.com/Landscape-Data-Commons/terradactyl")
 ```
 ``` {r}
 library(terradactyl)
@@ -25,8 +25,10 @@ library(terradactyl)
 `terradactyl` can be used to gather core rangeland monitoring data into a standard format, calculate standardized indicators, custom indicators, and produce consistent data models. There are also a few quality control scripts available to help users ensure that species data are handled correctly.
 The basic workflow of `terradactyl` is to first gather data into a standard format, also called a tall table. Then calculate indicators based on that format and grouping variables (if relevant). For some commonly calculated groups of indicators, such as for the AIM program or model inputs, there are also data model functions which take the tall table files and other data and produce data outputs specific to that user need. 
 
+Recommended Citation:
+McCord, S.E., J.R. Brehm, S.H. Burnett, C. Dietrich, B. Edwards, M. Hernandez-Narvaez, E. Kachergis, L.J. Metz, F. Pierson, K.S. Ramirez, N.G. Stauffer, N.P. Webb, C.E. Tweedie. A framework and toolset for standardizing ecosystem indicators. Ecological Indicators, vol 144, 2022. https://doi.org/10.1016/j.ecolind.2022.109511.
 
-![Visualization of terradactyl workflow](C:\Users\jrbrehm\Documents\GitHub\terradactyl\man\figures\data-flow.png)
+![Visualization of terradactyl workflow](C:/Users/jrbrehm/Documents/GitHub/terradactyl/man/figures/data-flow.png)
  
  
 `terradactyl` relies on a few common organizing principles across functions. “PrimaryKey” refers to the unique plot-visit identifier and allows us to join tall tables across methods. In many instances, “PrimaryKey” is built using a combination of the Plot ID and the visit date. In all instances, “PrimaryKey” values must be established prior to using `terradactyl.` “LineKey” is optional and refers to individual transects (subsamples) collected at a plot. “DBKey” refers to the original database file, which allows us to track data provenance during QC. 'source' refers to a particular format type. Common sources are AIM, TerrADat, LMF, NRI. Data may be of source = 'AIM' but not belong to the AIM program, it just notes the original data format type. 
@@ -86,7 +88,7 @@ To use `species_join` you must use the “data_code” parameter to specify the 
 It is important to QC the species list, as any species that are present in the analyzed data but not the species list will not be tallied by any indicators.
 
 ```{r  lpi species join}
-path_specieslist <- "C:/Users/jrbrehm/Documents/Data/tblStateSpecies.csv"
+path_specieslist <- terradactyl::species_list_sample
 
 header <- terradactyl::tall_header_sample
 header[1:6,1:4]
@@ -342,4 +344,4 @@ head(species_count_artemisia)
 `terradactyl` contains many functions to calculate many indicators, something that may seem overwhelming at first. By demonstrating each of the core functions, we hope to make the learning curve easier for all users. Fortunately, a few functions like pct_cover or gap_cover are powerful and flexible, granting the user access to wide suites of indicator data with only a few lines of code. `terradactyl` also contains data model functions which bring multiple indicator calculation functions into a single wrapper to produce specific data formats. These data model functions have specific inputs and outputs. For example, `build_indicators` is used by the BLM AIM program to calculate standard indicators for that program and relies on a geodatabase and species list of a certain schema. For erosion modelling, `AERO` and `RHEM` produce outputs specific to those model requirements. 
 
 ### Works Cited
-Herrick et al. *Monitoring Manual for Grassland, Shrubland, and Savanna Ecosystems Volume 1: Core Methods, 2nd edition.* Jornada Experimental Range, Las Cruces New Mexico, 2017, page 30 https://www.landscapetoolbox.org/wp-content/uploads/2016/02/MMGSSE_20170614.pdf
+Herrick et al. *Monitoring Manual for Grassland, Shrubland, and Savanna Ecosystems Volume 1: Core Methods, 2nd edition.* Jornada Experimental Range, Las Cruces New Mexico, 2017, page 30 https://jornada.nmsu.edu/files/Core_Methods.pdf

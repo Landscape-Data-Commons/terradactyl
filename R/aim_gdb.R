@@ -10,77 +10,98 @@
 #' @export gather_header_terradat
 #' @rdname aim_gdb
 gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
-                                   tblLPIHeader = NULL, tblGapHeader = NULL,
-                                   tblSpecRichHeader = NULL, ...) {
+                                   date_tables = NULL, ...) {
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
   # tblPlots provides the link between species tables
-  if(!is.null(tblPlots) & !is.null(tblLPIHeader) & !is.null(tblSpecRichHeader)){
+  if(!is.null(tblPlots)){
     header <- tblPlots
-    tblLPIHeader <- tblLPIHeader
-    tblGapHeader <- tblGapHeader
-    tblSpecRichHeader <- tblSpecRichHeader
   } else if (!is.null(dsn)){
     # (LPI, Height, Species Richness) and tblStateSpecies
     header <- sf::st_read(
       dsn = dsn, layer = "tblPlots",
       stringsAsFactors = FALSE
     )
-    tblLPIHeader <- sf::st_read(
-      dsn = dsn, layer = "tblLPIHeader",
-      stringsAsFactors = FALSE
-    )
-    tblGapHeader <- sf::st_read(
-      dsn = dsn, layer = "tblGapHeader",
-      stringsAsFactors = FALSE
-    )
-    tblSpecRichHeader <- sf::st_read(
-      dsn = dsn, layer = "tblSpecRichHeader",
-      stringsAsFactors = FALSE
-    )
   } else {
-    stop("Provide either tblPlots and tblLPIHeader or a path to a GDB containing them")
+    stop("Provide either tblPlots or a path to a GDB containing it")
   }
 
   header <- header %>%
     as.data.frame() %>%
 
     # Filter using the filtering expression specified by user
-    dplyr::filter(!!!filter_exprs) %>%
+    dplyr::filter(!!!filter_exprs)
 
+  # data from different sources / years capitalize this differently.
+  if("DateLoadedInDB" %in% colnames(header) | !("DateLoadedInDb" %in% colnames(header))) {
+    header$DateLoadedInDb <- header$DateLoadedInDB
+  }
+
+  # add these fields if missing
+  if(!("Design" %in% colnames(header))) header$Design <- NA
+  if(!("DesignFlag" %in% colnames(header))) header$DesignFlag <- NA
+  if(!("Purpose" %in% colnames(header))) header$Purpose <- NA
+  if(!("PurposeFlag" %in% colnames(header))) header$PurposeFlag <- NA
+  if(!("ProjectName" %in% colnames(header))) header$ProjectName <- NA
+
+  header <- header %>%
     # Select the field names we need in the final feature class
     dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey, DBKey,
-      EcologicalSiteId = EcolSite, Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, State,
-      County, DateEstablished = EstablishDate, DateLoadedInDb,
-      Design, DesignFlag, Purpose, PurposeFlag#,
-      #ProjectName
+                  EcologicalSiteId = EcolSite, Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, State,
+                  Elevation,
+                  County, DateEstablished = EstablishDate, DateLoadedInDb,
+                  Design, DesignFlag, Purpose, PurposeFlag,
+                  ProjectName
     ) %>%
 
     # If there are any Sites with no PrimaryKeys, delete them
     subset(!is.na(PrimaryKey))
 
-  # add datevisited column from LPI header and gap header.
-  tblDate1 <- tblLPIHeader %>%
-    dplyr::select(PrimaryKey, FormDate) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+  ## get date from all tables provided to date_tables
+  # if date_tables is not provided, load all of lpi gap and species richness headers, as present in the geodatabase
+  if(!is.null(dsn) & is.null(date_tables)){
+    layernames <- sf::st_layers(dsn)$name
+    if("tblLPIHeader" %in% layernames){
+      print("Reading dates from tblLPIHeader")
+      tblLPIHeader <- sf::st_read(dsn, "tblLPIHeader")
+    }
+    if("tblGapHeader" %in% layernames){
+      print("Reading dates from tblGapHeader")
+      tblGapHeader <- sf::st_read(dsn, "tblGapHeader")
+    }
+    if("tblSpecRichHeader" %in% layernames){
+      print("Reading dates from tblSpecRichHeader")
+      tblSpecRichHeader <- sf::st_read(dsn, "tblSpecRichHeader")
+    }
 
-  tblDate2 <- tblGapHeader %>%
-    dplyr::select(PrimaryKey, FormDate) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+    date_tables <- list(tblLPIHeader, tblGapHeader, tblSpecRichHeader)
+  }
 
-  tblDate3 <- tblSpecRichHeader %>%
-    dplyr::select(PrimaryKey, FormDate) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(FormDate, order_by = FormDate))
+  if(is.null(date_tables) & is.null(dsn)){
+    stop("date_tables must be provided if dsn is not. Provide a list of tables containing FormDate or collectDate")
+  }
 
-  tblDate <-
-    rbind(tblDate1, tblDate2) %>%
-    rbind(tblDate3) %>%
+  if(class(date_tables) != "list"){
+    stop("date_tables must be a list of minimum length 1")
+  }
+
+
+  # tblHorizontalFlux uses collectDate, most other tables use FormDate
+  tblDate <- lapply(date_tables, function(date_table){
+    if("FormDate" %in% colnames(date_table)) {
+      out <- date_table %>% dplyr::select(PrimaryKey, Date = FormDate)
+    } else if("collectDate" %in% colnames(date_table)) {
+      out <- date_table %>% dplyr::select(PrimaryKey, Date = collectDate)
+    } else {
+      out <- data.frame()
+    }
+
+    return(out)
+  }) %>%
+    dplyr::bind_rows() %>%
     dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(DateVisited, order_by = DateVisited))
+    dplyr::summarize(DateVisited = dplyr::first(na.omit(Date), order_by = na.omit(Date)))
 
   header <- header %>% dplyr::left_join(tblDate, by = c("PrimaryKey"))
 
@@ -112,20 +133,20 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
 
   # County and State are referred to by number codes, let's use the name
   point <- sf::st_read(dsn,
-    layer = "COUNTYNM",
-    stringsAsFactors = FALSE
+                       layer = "COUNTYNM",
+                       stringsAsFactors = FALSE
   ) %>%
     dplyr::select(COUNTY, COUNTYNM, STATE) %>%
     dplyr::left_join(point, .,
-      by = c("COUNTY", "STATE")
+                     by = c("COUNTY", "STATE")
     ) %>%
     dplyr::distinct() %>%
 
 
     # Add state
     dplyr::left_join(sf::st_read(dsn,
-      layer = "STATENM",
-      stringsAsFactors = FALSE
+                                 layer = "STATENM",
+                                 stringsAsFactors = FALSE
     ),
     by = "STATE"
     ) %>%
@@ -144,7 +165,7 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     dplyr::mutate(PlotKey = PrimaryKey) %>%
     dplyr::distinct() %>%
 
-    # Populate DateLoadedInDb
+    # Populate DateLoadedInDB
     dplyr::mutate(DateLoadedInDb = DBKey)
 
   # Get the field coordinates
@@ -154,12 +175,12 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
   ) %>%
     as.data.frame() %>%
     dplyr::select(PrimaryKey,
-      Latitude_NAD83 = REPORT_LATITUDE,
-      Longitude_NAD83 = REPORT_LONGITUDE,
-      LocationType
+                  Latitude_NAD83 = REPORT_LATITUDE,
+                  Longitude_NAD83 = REPORT_LONGITUDE,
+                  LocationType
     ) %>%
     dplyr::left_join(point, .,
-      by = "PrimaryKey"
+                     by = "PrimaryKey"
     )
 
   # Add elevation data
@@ -168,25 +189,30 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     layer = "GPS"
   ) %>%
     dplyr::select(PrimaryKey,
-      DateVisited = CAPDATE, # The GPS capture date is the best approx
-      ELEVATION
+                  DateVisited = CAPDATE, # The GPS capture date is the best approx
+                  Elevation = ELEVATION
     ) %>%
     dplyr::left_join(point_coordinate, .,
-      by = "PrimaryKey"
+                     by = "PrimaryKey"
     ) %>%
 
     # Convert elevation to meters
-    dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
+    dplyr::mutate(Elevation = Elevation * 0.3048)
 
   # Add Ecological Site Id
-  point_ESD <- sf::st_read(dsn,
-    layer = "ESFSG",
-    stringsAsFactors = FALSE
-  ) %>%
+  point_ESD_raw <- sf::st_read(dsn,
+                               layer = "ESFSG",
+                               stringsAsFactors = FALSE
+  )
+
+  # add in ESFSG_PREFIX column to old data in order to keep up with LMF schema changes
+  if(!"ESFSG_PREFIX" %in% colnames(point_ESD_raw)) point_ESD_raw$ESFSG_PREFIX <- ""
+
+  point_ESD <- point_ESD_raw %>%
     dplyr::left_join(point_elevation, ., by = "PrimaryKey") %>%
 
     # If the ESD coverage !=all, figure what portion of the plot the dominant ESD
-    # is ion the plot by taking the End_Mark-Start_Mark and dividng by the line length
+    # is on the plot by taking the End_Mark-Start_Mark and dividng by the line length
     dplyr::mutate(
       ESD_coverage =
         dplyr::if_else(
@@ -194,8 +220,11 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
           true = as.integer(300),
           false = (END_MARK - START_MARK)
         ),
-      EcologicalSiteId =
-        paste(ESFSG_MLRA, ESFSG_SITE, ESFSG_STATE, sep = "")
+      # LMF schema is being updated to include F/R prefix under the column ESFSG_PREFIX
+      # replace NA's with "" in ESFSG_PREFIX
+      ESFSG_PREFIX = tidyr::replace_na(ESFSG_PREFIX, ""),
+      EcologicalSiteId = trimws(paste(ESFSG_PREFIX, ESFSG_MLRA, ESFSG_SITE, ESFSG_STATE, sep = "")),
+      MLRA = ESFSG_MLRA %>% gsub("^$", NA, .)
     ) %>%
 
     # Add up the coverage on each plot and get the percent coverage
@@ -220,14 +249,14 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
 # Build the header portion of the LMF table
 #' @export gather_header_nri
 #' @rdname aim_gdb
-gather_header_nri <- function(dsn = NULL, ...) {
+gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
   # if(!is.null(POINT)){
   #   point <- POINT
   # } else if(!is.null(dsn)){
-    point <- read.csv(file.path(dsn, "POINT.csv"), stringsAsFactors = FALSE)
+  point <- read.csv(file.path(dsn, "POINT.csv"), stringsAsFactors = FALSE)
   # } else {
   #   stop("Provide either POINT or a path to a folder containing it")
   # }
@@ -248,14 +277,14 @@ gather_header_nri <- function(dsn = NULL, ...) {
   point <- read.csv(file.path(dsn, "COUNTYNM.csv"), stringsAsFactors = FALSE) %>%
     dplyr::select(COUNTY, COUNTYNM, STATE) %>%
     dplyr::left_join(point, .,
-      by = c("COUNTY", "STATE")
+                     by = c("COUNTY", "STATE")
     ) %>%
     dplyr::distinct() %>%
 
 
     # Add state
     dplyr::left_join(read.csv(file.path(dsn, "STATENM.csv"), stringsAsFactors = FALSE),
-      by = c("STATE", "DBKey")
+                     by = c("STATE", "DBKey")
     ) %>%
 
     # pair down to needed fields
@@ -267,12 +296,12 @@ gather_header_nri <- function(dsn = NULL, ...) {
     ) %>%
     dplyr::distinct() %>%
 
-    # Populate DateLoadedInDb
-    dplyr::mutate(DateLoadedInDb = DBKey)
+    # Populate DateLoadedInDB
+    dplyr::mutate(DateLoadedInDB = DBKey)
 
   # Get the field coordinates
   point_coordinate <- read.csv(file.path(dsn, "POINTCOORDINATES.csv"),
-    stringsAsFactors = FALSE
+                               stringsAsFactors = FALSE
   ) %>%
     dplyr::mutate(
       Latitude_NAD83 = dplyr::coalesce(
@@ -292,20 +321,20 @@ gather_header_nri <- function(dsn = NULL, ...) {
       LocationType
     ) %>%
     dplyr::left_join(point, .,
-      by = "PrimaryKey"
+                     by = "PrimaryKey"
     )
 
   # Add elevation data
   point_elevation <- read.csv(file.path(dsn, "GPS.csv"),
-    stringsAsFactors = FALSE
+                              stringsAsFactors = FALSE
   ) %>%
     dplyr::select(PrimaryKey,
-      DateVisited = CAPDATE, # The GPS capture date is the best approx
-      ELEVATION,
-      DBKey
+                  DateVisited = CAPDATE, # The GPS capture date is the best approx
+                  ELEVATION,
+                  DBKey
     ) %>%
     dplyr::left_join(point_coordinate, .,
-      by = c("PrimaryKey", "DBKey")
+                     by = c("PrimaryKey", "DBKey")
     ) %>%
 
     # Convert elevation to meters
@@ -313,7 +342,7 @@ gather_header_nri <- function(dsn = NULL, ...) {
 
   # Add Ecological Site Id
   point_ESD <- read.csv(file.path(dsn, "ESFSG.csv"),
-    stringsAsFactors = FALSE
+                        stringsAsFactors = FALSE
   ) %>%
     dplyr::left_join(point_elevation, ., by = c("PrimaryKey", "DBKey")) %>%
     dplyr::distinct() %>%
@@ -353,15 +382,72 @@ gather_header_nri <- function(dsn = NULL, ...) {
     EcologicalSiteId = stringr::str_trim(EcologicalSiteId)
   )
 
+  # Attach SpeciesState
+  point_ESD$SpeciesState <- speciesstate
+
+  # Create PlotID, which is needed in later functions
+  point_ESD <- point_ESD %>% dplyr::mutate(PlotID = PrimaryKey)
 
   # Return the point_ESD as the header file
   return(point_ESD)
 }
+
+# Build the header portion of the Survey123 table
+#' export gather_header_survey123
+#' rdname aim_gdb
+# gather_header_survey123 <- function(PlotChar, speciesstate, ...){
+#     # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
+#     filter_exprs <- rlang::quos(...)
+#
+#     header <- PlotChar %>%
+#       as.data.frame() %>%
+#
+#       # Filter using the filtering expression specified by user
+#       dplyr::filter(!!!filter_exprs)
+#
+#     # Add these fields, to match terradat formatting
+#     header$Design <- NA
+#     header$DesignFlag <- NA
+#     header$Purpose <- NA
+#     header$PurposeFlag <- NA
+#     header$ProjectName <- NA
+#     header$State <- NA
+#     header$DBKey <- NA
+#     header$County <- NA
+#     header$DateLoadedInDb <- NA
+#     header$SpeciesState <- speciesstate
+#     header$PrimaryKey <- header$PlotKey
+#
+#
+#     header <- header %>%
+#       # Select the field names we need in the final feature class
+#       dplyr::select(PrimaryKey, PlotID, PlotKey, DBKey, DateVisited = DateFormat,
+#                     EcologicalSiteId = Ecolsite, Latitude_NAD83 = y, Longitude_NAD83 = x, State, SpeciesState,
+#                     County, DateEstablished = EstabDate,
+#                     DateLoadedInDb,
+#                     Design, DesignFlag, Purpose, PurposeFlag
+#       ) %>%
+#
+#       # If there are any Sites with no PrimaryKeys, delete them
+#       subset(!is.na(PrimaryKey))
+#
+#     # alert to  duplicate primary keys
+#     dupkeys <- header$PrimaryKey[duplicated(header$PrimaryKey)]
+#     if(length(dupkeys) > 0){
+#       dupnames <- paste(unique(dupkeys), collapse = ", ")
+#       warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+#     }
+#
+#     # Return the header file
+#     return(header)
+# }
+#
 # Build the header wrapper
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn = NULL, source, tblPlots = NULL, tblLPIHeader = NULL, tblGapHeader = NULL, tblSpecRichHeader = NULL, ...) {
+gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, #PlotChar_0 = NULL,
+                          speciesstate = NULL, ..., autoQC = TRUE) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -371,18 +457,23 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, tblLPIHeader = NU
   # Apply appropriate header function
 
   header <- switch(toupper(source),
-    "LMF" = gather_header_lmf(dsn = dsn, ...),
-    "NRI" = gather_header_nri(dsn = dsn, ...),
-    "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...),
-    "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...),
-    "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, tblLPIHeader = tblLPIHeader, tblGapHeader = tblGapHeader, tblSpecRichHeader = tblSpecRichHeader, ...)
+                   "LMF" = gather_header_lmf(dsn = dsn, ...),
+                   "NRI" = gather_header_nri(dsn = dsn, speciesstate = speciesstate, ...),
+                   "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
+                   "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
+                   "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...)#,
+                   # "SURVEY123" = gather_header_survey123(PlotChar = PlotChar_0, speciesstate = speciesstate)
   )
 
   header$source <- source
 
   if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
 
-  header <- header %>% dplyr::mutate(EcologicalSiteId = ecosite_qc(EcologicalSiteId))
+  # Apply QC helper functions to remove duplicates
+  if(autoQC){
+    message("Checking for duplicated rows. Disable by adding the parameter 'autoQC = FALSE'")
+    header <- tdact_remove_duplicates(header)
+  }
 
   return(header)
 }
@@ -454,8 +545,10 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabit
   )] <- "NonWoody"
 
-  lpi_species$GrowthHabit[lpi_species$GrowthHabitSub %in%
-    c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb")] <- "ForbGrass"
+  # Add a Forb Graminoid field
+  lpi_species$ForbGraminoid[lpi_species$GrowthHabitSub %in%
+                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb",
+                             "FORB", "FORB/HERB", "GRAMINOID", "GRASS")] <- "ForbGraminoid"
 
   # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
   lpi_species$GrowthHabit[grepl(
@@ -469,9 +562,9 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabit
   )] <- "NA"
 
-
+# keeping sedges since we are now doing Graminoid calculations
   # For the purposes of cover calcs, Non-Woody==Forb & Grass != Sedge, so we need to remove sedges
-  lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
+  # lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
 
   # Correct the Sub-shrub to SubShrub
   lpi_species$GrowthHabitSub[grepl(
@@ -541,14 +634,14 @@ lpi_calc <- function(header,
   between.plant.cover <- between.plant.cover %>%
     # Substitute the field names for those that are human readable
     dplyr::mutate(indicator = indicator %>%
-      stringr::str_replace_all(., between.plant.replace)) %>%
+                    stringr::str_replace_all(., between.plant.replace)) %>%
 
     # Add FH to the beginning of the indicator to signify "any hit"
     dplyr::mutate(indicator = paste("FH_", indicator, "Cover", sep = "")) %>%
 
     # Remove "FH_" from the BareSoilCover indicator
     dplyr::mutate(indicator = indicator %>%
-      stringr::str_replace(., "FH_BareSoilCover", "BareSoilCover"))
+                    stringr::str_replace(., "FH_BareSoilCover", "BareSoil"))
 
   # Because the renaming processing lumps categories,
   # we need to get a summed value (e.g., Soil =S+FG+LM_CM+AG)
@@ -593,10 +686,10 @@ lpi_calc <- function(header,
     )
 
   litter <- pct_cover(lpi_species_litter,
-    tall = TRUE,
-    by_line = FALSE,
-    hit = "any",
-    Litter
+                      tall = TRUE,
+                      by_line = FALSE,
+                      hit = "any",
+                      Litter
   ) %>%
     dplyr::mutate(indicator = dplyr::case_when(
       indicator == "HERBLITTER" ~ "HerbLitter",
@@ -604,10 +697,10 @@ lpi_calc <- function(header,
     ))
 
   total_litter <- pct_cover(lpi_species_litter,
-    tall = TRUE,
-    hit = "any",
-    by_line = FALSE,
-    TotalLitter
+                            tall = TRUE,
+                            hit = "any",
+                            by_line = FALSE,
+                            TotalLitter
   ) %>%
     dplyr::mutate(indicator = indicator %>% dplyr::recode("TOTALLITTER" = "TotalLitter"))
 
@@ -618,14 +711,14 @@ lpi_calc <- function(header,
   # Species Group Cover ----
   # Set the replacement values for valid indicator names ----
   spp.cover.replace <- c(
-     "NON" = "Non",
+    "NON" = "Non",
     "^NO\\." = "NonNox",
     "NO$" = "NonNox",
     "^YES" = "Nox",
     "ANNUAL" = "Ann",
     "PERENNIAL" = "Peren",
     "[[:punct:]]" = "",
-    "GRAMINOID" = "Grass",
+    "GRAMINOID" = "Graminoid",
     "FORB" = "Forb",
     "NON" = "No",
     "SUBSHRUB" = "SubShrub",
@@ -635,76 +728,76 @@ lpi_calc <- function(header,
     " " = "",
     "STATURE" = "",
     "SAGEBRUSH" = "Sagebrush",
-    "GRASS" = "Grass",
+    "GRASS" = "Graminoid",
     "SHORT" = "Short",
     "TALL" = "Tall",
     "0" = "Live",
     "1" = "Dead",
     "PREFERRED" = "Preferred",
     "WOODY" = "Woody"
-    )
+  )
 
 
   # Any hit cover ----
   ah_spp_group_cover <- dplyr::bind_rows(
     # cover by Noxious, Duration, and GrowthHabitSub combination
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "any",
-      by_line = FALSE,
-      Noxious, Duration, GrowthHabitSub
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              Noxious, Duration, GrowthHabitSub
     ),
     # Add the indicators are only based on Duration and GrowthHabitSub only
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "any",
-      by_line = FALSE,
-      Duration, GrowthHabitSub
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              Duration, GrowthHabitSub
     ),
     # Cover by GrowthHabitSub only
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "any",
-      by_line = FALSE,
-      GrowthHabitSub
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              GrowthHabitSub
     ),
     # Cover by Noxious and GrowthHabitSub combo
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "any",
-      by_line = FALSE,
-      Noxious, GrowthHabitSub
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              Noxious, GrowthHabitSub
     ),
     # Cover by Noxious status
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "any",
-      by_line = FALSE,
-      Noxious
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              Noxious
     ) %>% dplyr::mutate(indicator = paste(indicator, ".", sep = "")),
 
     # Cover by Noxious, Duration, GrowthHabit status
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "any",
-      by_line = FALSE,
-      Noxious, Duration, GrowthHabit
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              Noxious, Duration, GrowthHabit
     ),
 
     # Sage Grouse Groups
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "any",
-      by_line = FALSE,
-      SG_Group
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              SG_Group
     ),
 
     # Cover Duration and GrowthHabit
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "any",
-      by_line = FALSE,
-      Duration, GrowthHabit
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              Duration, GrowthHabit
     ),
 
     # Cover by GrowthHabit
@@ -721,6 +814,13 @@ lpi_calc <- function(header,
               hit = "any",
               by_line = FALSE,
               ShrubSucculent
+    ),
+    # Forb Graminoid Cover by Duration
+    pct_cover(lpi_species,
+              tall = TRUE,
+              hit = "any",
+              by_line = FALSE,
+              Duration, ForbGraminoid
     )
   )
 
@@ -730,10 +830,10 @@ lpi_calc <- function(header,
     ah_spp_group_cover <- dplyr::bind_rows(
       ah_spp_group_cover,
       pct_cover(lpi_species,
-        tall = TRUE,
-        hit = "any",
-        by_line = FALSE,
-        SG_Group, chckbox
+                tall = TRUE,
+                hit = "any",
+                by_line = FALSE,
+                SG_Group, chckbox
       )
     )
   }
@@ -743,75 +843,75 @@ lpi_calc <- function(header,
   ah_spp_group_cover <- ah_spp_group_cover %>%
     # Substitute "NonNox" for "NO
     dplyr::mutate(indicator = indicator %>%
-      stringr::str_replace_all(., spp.cover.replace)) %>%
+                    stringr::str_replace_all(., spp.cover.replace)) %>%
 
     # Add AH to the beginning of the indicator to signify "any hit"
     dplyr::mutate(indicator = paste("AH_", indicator, "Cover", sep = "") %>%
-      # Change the Sagebrush Live indicator name it's slightly different
-      stringr::str_replace_all(
-        string = .,
-        pattern = "AH_SagebrushLiveCover",
-        replacement = "AH_SagebrushCover_Live"
-      ))
+                    # Change the Sagebrush Live indicator name it's slightly different
+                    stringr::str_replace_all(
+                      string = .,
+                      pattern = "AH_SagebrushLiveCover",
+                      replacement = "AH_SagebrushCover_Live"
+                    ))
 
 
   # First hit cover ----
   fh_spp_group_cover <- rbind(
     # cover by Noxious, Duration, and GrowthHabitSub combination
-   pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "first",
-      by_line = FALSE,
-      Noxious, Duration, GrowthHabitSub
+    pct_cover(lpi_species,
+              tall = TRUE,
+              hit = "first",
+              by_line = FALSE,
+              Noxious, Duration, GrowthHabitSub
     ),
     # Add the indicators are only based on Duration and GrowthHabitSub only
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "first",
-      by_line = FALSE,
-      Duration, GrowthHabitSub
+              tall = TRUE,
+              hit = "first",
+              by_line = FALSE,
+              Duration, GrowthHabitSub
     ),
     # Cover by GrowthHabitSub only
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "first",
-      by_line = FALSE,
-      GrowthHabitSub
+              tall = TRUE,
+              hit = "first",
+              by_line = FALSE,
+              GrowthHabitSub
     ),
     # Cover by Noxious and GrowthHabitSub combo
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "first",
-      by_line = FALSE,
-      Noxious, GrowthHabitSub
+              tall = TRUE,
+              hit = "first",
+              by_line = FALSE,
+              Noxious, GrowthHabitSub
     ),
     # Cover by Noxious status
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "first",
-      by_line = FALSE,
-      Noxious
+              tall = TRUE,
+              hit = "first",
+              by_line = FALSE,
+              Noxious
     ),
     # Cover by Noxious, Duration, GrowthHabit status
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "first",
-      by_line = FALSE,
-      Noxious, Duration, GrowthHabit
+              tall = TRUE,
+              hit = "first",
+              by_line = FALSE,
+              Noxious, Duration, GrowthHabit
     ),
     # Sage Grouse Groupings
     pct_cover(lpi_species,
-      tall = TRUE,
-      hit = "first",
-      by_line = FALSE,
-      SG_Group
+              tall = TRUE,
+              hit = "first",
+              by_line = FALSE,
+              SG_Group
     )
   )
 
   fh_spp_group_cover <- fh_spp_group_cover %>%
     # Substitute for Field friendly names
     dplyr::mutate(indicator = indicator %>%
-      stringr::str_replace_all(., spp.cover.replace)) %>%
+                    stringr::str_replace_all(., spp.cover.replace)) %>%
 
     # Add FH to the beginning of the indicator to signify "any hit"
     dplyr::mutate(indicator = paste("FH_", indicator, "Cover", sep = ""))
@@ -849,25 +949,9 @@ lpi_calc <- function(header,
   )
 
   lpi_indicators <- dplyr::left_join(lpi_cover,
-    sagebrush_shape_calc,
-    by = "PrimaryKey"
+                                     sagebrush_shape_calc,
+                                     by = "PrimaryKey"
   )
-
-  # quarantined 8/19/22 by joe brehm. Was causing an error with build_indicators, where this date field sometimes different from date as assigned by gather_header(), resulting in NA LPI data
-  # # For TerrADat only, get the data visited from the first line in LPI
-  # if (source %in% c("TerrADat", "AIM")) {
-  #   lpi_indicators <- lpi_species %>%
-  #     dplyr::select(PrimaryKey, FormDate, DBKey) %>%
-  #     dplyr::group_by(PrimaryKey, DBKey) %>%
-  #     dplyr::summarize(DateVisited = dplyr::first(FormDate,
-  #       order_by = FormDate
-  #     )) %>%
-  #       # as.POSIXct()) %>%
-  #     # Join to the lpi.cover data
-  #     dplyr::left_join(lpi_indicators, ., by = "PrimaryKey")
-  # }
-
-
 
   # Return lpi_indicators
   return(lpi_indicators)
@@ -892,10 +976,10 @@ gap_calc <- function(header, gap_tall) {
   )$percent %>%
     dplyr::rowwise() %>%
     dplyr::select(PrimaryKey,
-      GapCover_25_50 = "[25,51)",
-      GapCover_51_100 = "[51,101)",
-      GapCover_101_200 = "[101,201)",
-      GapCover_200_plus = "[201,1e+05)"
+                  GapCover_25_50 = "25-50",
+                  GapCover_51_100 = "51-100",
+                  GapCover_101_200 = "101-200",
+                  GapCover_200_plus = "201-Inf"
     ) %>%
 
     # Calculate the summation indicator
@@ -953,8 +1037,8 @@ height_calc <- function(header, height_tall,
 
   # Add a forb and grass category
   height_species$pgpf[height_species$Duration == "Perennial" &
-    height_species$GrowthHabitSub %in%
-      c("Forb/herb", "Forb", "Graminoid", "Grass")] <- "PerenForbGrass"
+                        height_species$GrowthHabitSub %in%
+                        c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb", "Sedge")] <- "PerenForbGraminoid"
 
   # Height calculations----
   height_calc <- rbind(
@@ -976,7 +1060,7 @@ height_calc <- function(header, height_tall,
       by_line = FALSE,
       tall = TRUE,
       GrowthHabitSub
-    ) %>% subset(indicator %in% c("Forb", "Graminoid", "Shrub")),
+    ) %>% subset(indicator %in% c("Forb", "Graminoid", "Grass", "Forb/herb", "Forb/Herb", "Sedge")),
 
     # Perennial Forb or Grass
     mean_height(
@@ -996,7 +1080,7 @@ height_calc <- function(header, height_tall,
       by_line = FALSE,
       tall = TRUE,
       pgpf
-    ) %>% subset(indicator == "PerenForbGrass"),
+    ) %>% subset(indicator == "PerenForbGraminoid"),
 
     # Perennial grass by Noxious/NonNoxious
     mean_height(
@@ -1024,7 +1108,7 @@ height_calc <- function(header, height_tall,
   )
 
   # For TerrADat only
-  if (source %in% c("TerrADat", "AIM")) {
+  if (source %in% c("TerrADat", "AIM", "DIMA")) {
     # Live sagebrush heights
     height_calc <- rbind(
       height_calc,
@@ -1042,20 +1126,20 @@ height_calc <- function(header, height_tall,
   # Reformat for Indicator Field Name ----
   height_calc <- height_calc %>%
     dplyr::mutate(indicator = indicator %>%
-      stringr::str_replace_all(c(
-        "woody" = "Woody",
-        "herbaceous" = "Herbaceous",
-        "\\bYES\\b" = "Nox",
-        "\\bNO\\b" = "NonNox",
-        "Forb/herb" = "Forb",
-        "Graminoid" = "Grass",
-        "0" = "_Live",
-        "\\." = "",
-        " " = "",
-        "Perennial" = "Peren",
-        "Stature" = ""
-      )) %>%
-      paste("Hgt_", ., "_Avg", sep = ""))
+                    stringr::str_replace_all(c(
+                      "woody" = "Woody",
+                      "herbaceous" = "Herbaceous",
+                      "\\bYES\\b" = "Nox",
+                      "\\bNO\\b" = "NonNox",
+                      "Forb/herb" = "Forb",
+                      "Graminoid" = "Graminoid",
+                      "0" = "_Live",
+                      "\\." = "",
+                      " " = "",
+                      "Perennial" = "Peren",
+                      "Stature" = ""
+                    )) %>%
+                    paste("Hgt_", ., "_Avg", sep = ""))
 
   # Spread to wide format and return
   height_calc_wide <- height_calc %>% tidyr::spread(
@@ -1079,7 +1163,7 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source)
   spp_inventory_tall <- readRDS(spp_inventory_tall) %>%
     # Join to the header to get the relevant PrimaryKeys and SpeciesSate
     dplyr::left_join(dplyr::select(header, PrimaryKey, SpeciesState), .,
-      by = "PrimaryKey"
+                     by = "PrimaryKey"
     )
 
   # Join to State Species List
@@ -1099,21 +1183,21 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source)
     # Noxious & Non-Noxious
     species_count(spp_inventory_species, Noxious) %>%
       dplyr::mutate(indicator = indicator %>%
-        stringr::str_replace_all(c(
-          "YES" = "NoxPlant",
-          "\\bNO\\b" = "NonNoxPlant"
-        )) %>%
-        stringr::str_replace_na(
-          string = .,
-          replacement = "NonNoxPlant"
-        )),
+                      stringr::str_replace_all(c(
+                        "YES" = "NoxPlant",
+                        "\\bNO\\b" = "NonNoxPlant"
+                      )) %>%
+                      stringr::str_replace_na(
+                        string = .,
+                        replacement = "NonNoxPlant"
+                      )),
 
     # Preferred Forb
     species_count(spp_inventory_species, SG_Group) %>%
       # Subset to only Preferred Forb
       subset(indicator == "PreferredForb") %>%
       dplyr::mutate(indicator = indicator %>%
-        stringr::str_replace_all(c(" " = "")))
+                      stringr::str_replace_all(c(" " = "")))
   ) %>%
     # Format for appropriat indicator name
     dplyr::mutate(indicator = paste("NumSpp_", indicator, sep = ""))
@@ -1131,19 +1215,19 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source)
     dplyr::distinct() %>%
     dplyr::group_by(PrimaryKey, SG_Group) %>%
     dplyr::summarize(list = toString(Species) %>%
-      stringr::str_replace_all(
-        pattern = ",",
-        replacement = ";"
-      )) %>%
+                       stringr::str_replace_all(
+                         pattern = ",",
+                         replacement = ";"
+                       )) %>%
     # Format field names
     subset(!is.na(SG_Group)) %>%
     dplyr::mutate(indicator = SG_Group %>%
-      stringr::str_replace_all(c(
-        "Perennial" = "Peren",
-        " " = "",
-        "Stature" = ""
-      )) %>%
-      paste("Spp_", ., sep = "")) %>%
+                    stringr::str_replace_all(c(
+                      "Perennial" = "Peren",
+                      " " = "",
+                      "Stature" = ""
+                    )) %>%
+                    paste("Spp_", ., sep = "")) %>%
     dplyr::select(-SG_Group) %>%
     # Output in wide format
     tidyr::spread(key = indicator, value = list, fill = NA)
@@ -1153,27 +1237,28 @@ spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source)
     dplyr::distinct() %>%
     dplyr::group_by(PrimaryKey, Noxious) %>%
     dplyr::summarize(list = toString(Species) %>%
-      stringr::str_replace_all(
-        pattern = ",",
-        replacement = ";"
-      )) %>%
+                       stringr::str_replace_all(
+                         pattern = ",",
+                         replacement = ";"
+                       )) %>%
     # Format field names
     subset(!is.na(Noxious)) %>%
     dplyr::mutate(indicator = Noxious %>%
-      stringr::str_replace_all(c(
-        "NO" = "NonNox",
-        "YES" = "Nox",
-        " " = ""
-      )) %>%
-      paste("Spp_", ., sep = "")) %>%
+                    stringr::str_replace_all(c(
+                      "NO" = "NonNox",
+                      "YES" = "Nox",
+                      " " = ""
+                    )) %>%
+                    paste("Spp_", ., sep = "")) %>%
     dplyr::select(-Noxious) %>%
     # Output in wide format
     tidyr::spread(key = indicator, value = list, fill = NA)
 
   spp_list <- dplyr::full_join(spp_list_sg, spp_list_nox)
 
-  # Join with spp_inventory and return
-  spp_inventory <- dplyr::full_join(spp_inventory_wide, spp_list)
+  # Join with spp_inventory, drop columns, and return
+  spp_inventory <- dplyr::full_join(spp_inventory_wide, spp_list) %>%
+    dplyr::select_if(!names(.) %in% c("DBKey"))
 
   return(spp_inventory)
 }
@@ -1194,7 +1279,7 @@ soil_stability_calc <- function(header, soil_stability_tall) {
 
 
   soil_stability_calcs <- soil_stability(soil_stability_tall,
-    cover = TRUE
+                                         cover = TRUE
   )
   if(all(c('all', 'uncovered', 'covered') %in% colnames(soil_stability_calcs))) {
     soil_stability_calcs <- soil_stability_calcs  %>%
@@ -1233,61 +1318,89 @@ build_terradat_indicators <- function(header, source, dsn,
   header <- readRDS(header) %>%
     # Filter using the filtering expression specified by user
     dplyr::filter(!!!filter_exprs) %>%
-    dplyr::filter(source %in% c("AIM", "TerrADat")) #%>%
-    # dplyr::select_if(!names(.) %in% c("DateVisited"))
-    # the general header file for LMF has date visited in it, for TerrADat we get that from LPI
-    # dplyr::select(-DateVisited)
+    dplyr::filter(source %in% c("AIM", "TerrADat"))
 
-  # Join all indicator calculations together
-  indicators <- list(
-    header,
+  # Check header for data
+  if(nrow(header) == 0){
+    stop("No rows in header file")
+  }
+
+  # # Join all indicator calculations together
+  # Calculate all indicators and send them to a list, to later be reduced
+  # If a method is not provided (ie the path to the table provided as NULL)
+  # then we need a NULL variable to go into the list
+  if(!is.null(lpi_tall)){
     # LPI
-    lpi_calc(
-      lpi_tall = lpi_tall,
-      header = header,
-      source = source,
-      species_file = species_file,
-      dsn = dsn
-    ),
-    # Gap
-    gap_calc(
-      gap_tall = gap_tall,
-      header = header
-    ),
-    # # Height
-    height_calc(
-      height_tall = height_tall,
-      header = header,
-      source = source,
-      species_file = species_file
-    ),
-    # # Species Inventory
-    spp_inventory_calc(
-      spp_inventory_tall = spp_inventory_tall,
-      header = header,
-      species_file = species_file,
-      source = source
-    ),
-    # # Soil Stability
-    soil_stability_calc(
-      soil_stability_tall = soil_stability_tall,
-      header = header
-    ) %>%
-    # Remove RecKey field
-    dplyr::select_if(!names(.) %in% c("RecKey"))
-  )
+    lpi <- lpi_calc(lpi_tall = lpi_tall,
+                    header = header,
+                    source = source,
+                    species_file = species_file,
+                    dsn = dsn)
+  } else {
+    print("LPI data not provided")
+    lpi <- NULL
+  }
 
-    # Rangeland Health
-    rh <- gather_rangeland_health(dsn,
-      source = source
-    ) %>%
+  # Gap
+  if(!is.null(gap_tall)){
+    gap <- gap_calc(gap_tall = gap_tall,
+                    header = header)
+  } else {
+    print("Gap data not provided")
+    gap <- NULL
+  }
+
+  # Height
+  if(!is.null(height_tall)){
+    height <- height_calc(height_tall = height_tall,
+                          header = header,
+                          source = source,
+                          species_file = species_file)
+  } else {
+    print("Height data not provided")
+    height <- NULL
+  }
+
+  # Species Inventory
+  if(!is.null(spp_inventory_tall)){
+    spinv <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
+                                header = header,
+                                species_file = species_file,
+                                source = source)
+  } else {
+    print("Species inventory data not provided")
+    spinv <- NULL
+  }
+
+  # Soil Stability
+  if(!is.null(soil_stability_tall)){
+    sstab <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
+                                 header = header)
+  } else {
+    print("Soil stability data not provided")
+    sstab <- NULL
+  }
+
+  # Rangeland health
+  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
+    print("Gathering rangeland health indicators from dsn")
+    rh <- gather_rangeland_health(dsn, source = source) %>%
+      # Remove RecKey field, which is not applicable at the indicator level
       dplyr::select_if(!names(.) %in% c("RecKey"))
+  } else {
+    print("Rangeland health data not found")
+    rh <- NULL
+  }
 
-    if(nrow(rh) > 0){
-      indicators <- c(indicators, list(rh))
-    }
+  # Combine the indicators
+  l_indicators <- list(header, lpi, gap, height, spinv, sstab, rh)
+  # Drop unused methods
+  l_indicators_dropnull <- l_indicators[!sapply(l_indicators, is.null)]
 
-  all_indicators <- Reduce(dplyr::left_join, indicators)
+  # reduce the list to a data frame
+  all_indicators <- Reduce(dplyr::left_join, l_indicators_dropnull)
+
+  return(all_indicators)
 }
 
 # Build LMF Indicators
@@ -1318,10 +1431,14 @@ build_lmf_indicators <- function(header, source, dsn,
     dplyr::filter(!!!filter_exprs) %>%
     dplyr::filter(source %in% c("LMF", "NRI"))
 
+  # Check header for data
+  if(nrow(header) == 0){
+    stop("No rows in header file")
+  }
+
   # Join all indicator calculations together
   indicators <- list(
     header,
-    # LPI
     # LPI
     lpi_calc(
       lpi_tall = lpi_tall,
@@ -1355,7 +1472,7 @@ build_lmf_indicators <- function(header, source, dsn,
       header = header
     ),
     # Rangeland Health
-    IIRH <- gather_rangeland_health(dsn, source = source)
+    gather_rangeland_health(dsn, source = source)
   )
 
   all_indicators <- Reduce(dplyr::left_join, indicators)
@@ -1374,100 +1491,202 @@ build_indicators <- function(header, source, dsn, lpi_tall,
                              spp_inventory_tall,
                              soil_stability_tall, ...) {
   all_indicators <- switch(source,
-    "TerrADat" = build_terradat_indicators(
-      header = header,
-      dsn = dsn,
-      source = source,
-      lpi_tall = lpi_tall,
-      gap_tall = gap_tall,
-      height_tall = height_tall,
-      spp_inventory_tall = spp_inventory_tall,
-      soil_stability_tall = soil_stability_tall,
-      species_file = species_file,
-      ...
-    ),
-    "AIM" = build_terradat_indicators(
-      header = header,
-      dsn = dsn,
-      source = source,
-      lpi_tall = lpi_tall,
-      gap_tall = gap_tall,
-      height_tall = height_tall,
-      spp_inventory_tall = spp_inventory_tall,
-      soil_stability_tall = soil_stability_tall,
-      species_file = species_file,
-      ...
-    ),
-    "LMF" = build_lmf_indicators(
-      header = header,
-      dsn = dsn,
-      source = source,
-      lpi_tall = lpi_tall,
-      gap_tall = gap_tall,
-      height_tall = height_tall,
-      spp_inventory_tall = spp_inventory_tall,
-      soil_stability_tall = soil_stability_tall,
-      species_file = species_file,
-      ...
-    ),
-    "NRI" = build_lmf_indicators(
-      header = header,
-      dsn = dsn,
-      source = source,
-      lpi_tall = lpi_tall,
-      gap_tall = gap_tall,
-      height_tall = height_tall,
-      spp_inventory_tall = spp_inventory_tall,
-      soil_stability_tall = soil_stability_tall,
-      species_file = species_file,
-      ...
+                           "TerrADat" = build_terradat_indicators(
+                             header = header,
+                             dsn = dsn,
+                             source = source,
+                             lpi_tall = lpi_tall,
+                             gap_tall = gap_tall,
+                             height_tall = height_tall,
+                             spp_inventory_tall = spp_inventory_tall,
+                             soil_stability_tall = soil_stability_tall,
+                             species_file = species_file,
+                             ...
+                           ),
+                           "AIM" = build_terradat_indicators(
+                             header = header,
+                             dsn = dsn,
+                             source = source,
+                             lpi_tall = lpi_tall,
+                             gap_tall = gap_tall,
+                             height_tall = height_tall,
+                             spp_inventory_tall = spp_inventory_tall,
+                             soil_stability_tall = soil_stability_tall,
+                             species_file = species_file,
+                             ...
+                           ),
+                           "LMF" = build_lmf_indicators(
+                             header = header,
+                             dsn = dsn,
+                             source = source,
+                             lpi_tall = lpi_tall,
+                             gap_tall = gap_tall,
+                             height_tall = height_tall,
+                             spp_inventory_tall = spp_inventory_tall,
+                             soil_stability_tall = soil_stability_tall,
+                             species_file = species_file,
+                             ...
+                           ),
+                           "NRI" = build_lmf_indicators(
+                             header = header,
+                             dsn = dsn,
+                             source = source,
+                             lpi_tall = lpi_tall,
+                             gap_tall = gap_tall,
+                             height_tall = height_tall,
+                             spp_inventory_tall = spp_inventory_tall,
+                             soil_stability_tall = soil_stability_tall,
+                             species_file = species_file,
+                             ...
+                           )
+  )
+
+  # If target feature class is a gdb compare indicator field names with the names for a the target feature class
+  if(substr(dsn, nchar(dsn)-2, nchar(dsn)) == "gdb"){
+    print("Reading column names from dsn. Missing columns will be added to output.")
+    feature_class_field_names <- sf::st_read(dsn,
+                                             layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
     )
+
+    feature_class_field_names <- feature_class_field_names[
+      ,
+      !colnames(feature_class_field_names) %in%
+        c(
+          "created_user",
+          "created_date",
+          "last_edited_user",
+          "last_edited_date"
+        )
+    ]
+
+    #
+    indicator_field_names <- data.frame(
+      name = names(all_indicators),
+      calculated = "yes"
+    )
+
+    missing_names <- data.frame(
+      name = names(feature_class_field_names),
+      feature.class = "yes"
+    ) %>%
+      # Join feature class field names to indicator field names
+      dplyr::full_join(indicator_field_names) %>%
+
+      # get the field names where there is not corollary in calculated
+      subset(is.na(calculated), select = "name") %>%
+      dplyr::mutate(value = NA) %>%
+      # make into a data frame
+      tidyr::spread(key = name, value = value) %>%
+      dplyr::select(-Shape, -GlobalID)
+
+    # Add a row for each PrimaryKey inall_indicators
+    missing_names[nrow(all_indicators), ] <- NA
+    # For some indicators, the null value is 0 (to indicate the method was completed,
+    # but no data in that group were collected)
+    # Skip this if the method was not provided
+    if(!is.null(lpi_tall)){
+      missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
+    }
+
+    if(!is.null(spp_inventory_tall)){
+      missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+    }
+
+    # Merge back to indicator data to create a feature class for export
+    final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
+    return(final_feature_class)
+
+  } else {
+    return(all_indicators)
+  }
+}
+
+
+#' Remove duplicate helper function
+#' @description Helper function used to remove duplicates
+#' @noRd
+
+tdact_remove_duplicates <- function(indata) {
+
+  cols_to_exclude_from_duplicate_check <- c("DBKey", "DateLoadedInDb")
+  data_check <- indata[,!(colnames(indata) %in% cols_to_exclude_from_duplicate_check)]
+
+  # For runspeed, drop columns that are all identical
+  vec_varied_cols <- vapply(data_check, function(x) length(unique(x)) > 1, logical(1L))
+  vec_varied_cols["PrimaryKey"] <- TRUE # Needed if only one primary key is in the input data
+  data_varied_cols_only <- data_check[,vec_varied_cols]
+
+  # get just duplicated rows
+  data_duplicated_columns <-
+    data_varied_cols_only[duplicated(data_varied_cols_only) | duplicated(data_varied_cols_only, fromLast = T),]
+
+  # give a warning if duplicated rows are found
+  if(nrow(data_duplicated_columns) > 0){
+    message("Duplicate rows found in input data (columns not printed have no variation in all input data)")
+
+    # Print the data, including DBKey and DateLoaded, but not columsn with only one value in the whole table
+    print(indata %>% dplyr::filter(PrimaryKey %in% data_duplicated_columns$PrimaryKey) %>%
+            dplyr::select(dplyr::any_of(c(colnames(data_duplicated_columns), cols_to_exclude_from_duplicate_check))) %>%
+            dplyr::arrange(PrimaryKey))
+
+    # drop duplicates from output data
+    n_duplicates <- sum(duplicated(data_varied_cols_only))
+    warning(paste(n_duplicates, "duplicates removed"))
+    outdata <- indata[!duplicated(data_varied_cols_only),]
+  } else {
+    outdata <- indata
+  }
+
+  return(outdata)
+}
+
+#' Remove no data row helper function
+#' @description Hidden helper function used to remove rows with no data
+#' @noRd
+
+tdact_remove_empty <- function(indata, datatype){
+
+  # Create vector to select which fields are essential
+  datacols <- switch(datatype,
+                     "gap" = c("GapStart", "GapEnd", "Gap"),
+                     "height" = c("Height"), # Species field is very important but not used by all early projects
+                     "hzflux" = c("sedimentWeight", "sedimentGperDayByInlet", "sedimentGperDay"),
+                     "lpi" = c("layer", "code"),
+                     "soilhz" = c("HorizonDepthUpper", "HorizonDepthLower"),
+                     "soilstab" = c("Veg", "Rating"),
+                     "specinv" = c("Species"),
+                     "geosp" = c("Species"),
+                     "rh" = c("RH_WaterFlowPatterns", "RH_PedestalsTerracettes", "RH_BareGround",
+                              "RH_Gullies", "RH_WindScouredAreas", "RH_LitterMovement",
+                              "RH_SoilSurfResisErosion", "RH_SoilSurfLossDeg",
+                              "RH_PlantCommunityComp", "RH_Compaction", "RH_FuncSructGroup",
+                              "RH_DeadDyingPlantParts", "RH_LitterAmount", "RH_AnnualProd",
+                              "RH_InvasivePlants", "RH_ReprodCapabilityPeren",
+                              "RH_SoilSiteStability", "RH_BioticIntegrity", "RH_HydrologicFunction"),
+                     "unknown"
+                     ## Not necessary for geoIndicators or header
   )
 
-  # Compare indicator field names with the names for a the target feature class
-  feature_class_field_names <- sf::st_read(dsn,
-    layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
-  )
+  if(length(datacols) == 1){ # if datacols is a vector of length >1 (it usually is) this line is needed
+    if(datacols == "unknown"){
+      stop("datacols value not recognized")
+    }
+  }
 
-  feature_class_field_names <- feature_class_field_names[
-    ,
-    !colnames(feature_class_field_names) %in%
-      c(
-        "created_user",
-        "created_date",
-        "last_edited_user",
-        "last_edited_date"
-      )
-  ]
+  message(paste("Checking for rows with no data in all of these columns:", paste(datacols, collapse = ", ")))
 
-  #
-  indicator_field_names <- data.frame(
-    name = names(all_indicators),
-    calculated = "yes"
-  )
+  # Select only data columns and count how many are NA
+  data_datacols_only <- data.frame(indata[,datacols]) %>% dplyr::mutate(nNA = rowSums(is.na(.)))
 
-  missing_names <- data.frame(
-    name = names(feature_class_field_names),
-    feature.class = "yes"
-  ) %>%
-    # Join feature class field names to indicator field names
-    dplyr::full_join(indicator_field_names) %>%
+  # Rows where all essential values are NA must be eliminated
+  vec_hasdata <- data_datacols_only$nNA != length(datacols)
 
-    # get the field names where there is not corrollary in calculated
-    subset(is.na(calculated), select = "name") %>%
-    dplyr::mutate(value = NA) %>%
-    # make into a data frame
-    tidyr::spread(key = name, value = value) %>%
-    dplyr::select(-Shape, -GlobalID)
+  if(sum(vec_hasdata) < nrow(indata)){
+    n_missing <- sum(!vec_hasdata)
+    warning(paste(n_missing, "row(s) with no essential data removed"))
+  }
 
-  # Add a row for each PrimaryKey inall_indicators
-  missing_names[nrow(all_indicators), ] <- NA
-  # For some indicators, the null value is 0 (to indicate the method was completed,
-  # but no data in that group were collected)
-  missing_names[, grepl(names(missing_names), pattern = "^FH|^AH|^Num")] <- 0
+  outdata <- indata[vec_hasdata,]
 
-  # Merge back to indicator data to create a feature class for export
-  final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
-
-  return(final_feature_class)
+  return(outdata)
 }

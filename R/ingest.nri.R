@@ -83,7 +83,7 @@ nri_field_names <- function(dsn) {
 #' @rdname ingest_nri
 
 
-read_nri_text <- function(table_name, dsn, DBKey = "auto") {
+read_nri_text <- function(table_name, dsn, DBKey = "auto", schema) {
 
   # read text file to table
   data <- lapply(X = dsn, function(X) {
@@ -102,9 +102,9 @@ read_nri_text <- function(table_name, dsn, DBKey = "auto") {
 
       # Read the table from the dsn
       # Set the colClasses, which is the in nri.column.explanations
-      colClasses <- terradactyl::nri.data.column.explanations %>%
-        subset(TABLE.NAME == toupper(table_name) & DBKey == file.DBKey,
-          select = DATA.TYPE
+      colClasses <- schema %>%
+        subset(`Table name` == toupper(table_name),
+          select = `Data type`
         ) %>%
         unlist() %>%
         as.vector()
@@ -137,7 +137,7 @@ read_nri_text <- function(table_name, dsn, DBKey = "auto") {
           stringsAsFactors = FALSE,
           strip.white = TRUE,
           header = FALSE,
-          colClasses = colClasses,
+          # colClasses = colClasses,
           sep = "|",
           flush = TRUE,
           na.strings = c("", "."), quote = ""
@@ -145,9 +145,9 @@ read_nri_text <- function(table_name, dsn, DBKey = "auto") {
 
         # Add field names
         # Get the field names for the appropriate table as a vector
-        colnames <- terradactyl::nri.data.column.explanations %>%
-          subset(TABLE.NAME == toupper(table_name) & DBKey == file.DBKey,
-            select = FIELD.NAME
+        colnames <- schema %>%
+          subset(`Table name` == toupper(table_name) & `Field name` != "TABLE",# & DBKey == file.DBKey,
+            select = `Field name`
           ) %>%
           unlist() %>%
           as.vector()

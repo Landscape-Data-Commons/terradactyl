@@ -1,8 +1,9 @@
-Package: terradactyl
-Type: Package
-Title: Tools for Creating and Using TerrADat
-Version: 1.0.11
-Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
+citHeader("To cite terradactyl in publications use:")
+
+citEntry(
+  entry    = "Article",
+  title    = "Tools for Creating and Using TerrADat",
+  author   = c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
                person(given="Joseph R", family = "Brehm", role="aut"),
                person(given="Sarah H", family="Burnett", role="aut"),
                person(given="Chris", family="Dietrich", role="aut"),
@@ -15,35 +16,12 @@ Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email =
                person(given="Nelson G", family="Stauffer", role="aut"),
                person(given="Nicholas P", family="Webb", role="aut"),
                person(given="Craig E", family="Tweedie", role="aut")
-               )
-Maintainer: Sarah McCord <sarah.mccord@usda.gov>
-Description: Access, tidy, and calculate standard indicators for data from the BLM AIM program, the BLM LMF program, and the NRCS NRI monitoring programs.
-License: GPL-3
-Encoding: UTF-8
-LazyData: true
-RoxygenNote: 7.3.1
-Imports:
-    dplyr,
-    stringr,
-    tidyr, 
-    sf, 
-    magrittr, 
-    rlang,
-    utils,
-    stats
-Suggests: 
-    testthat,
-    knitr,
-    rmarkdown, 
-    RODBC, 
-    devtools,
-    odbc,
-    purrr,
-    raster,
-    readr,
-    rlist,
-    rstudioapi,
-    sp,
-    usethis
-Depends: R (>= 2.10)
-VignetteBuilder: knitr
+               ),
+  journal  = "Ecological Indicators",
+  year     = "2022",
+  volume   = "144",
+  url      = "https://doi.org/10.1016/j.ecolind.2022.109511.",
+  textVersion = paste(
+    "McCord, S.E., J.R. Brehm, S.H. Burnett, C. Dietrich, B. Edwards, M. Hernandez-Narvaez, E. Kachergis, L.J. Metz, F. Pierson, K.S. Ramirez, N.G. Stauffer, N.P. Webb, C.E. Tweedie. A framework and toolset for standardizing ecosystem indicators. Ecological Indicators, vol 144, 2022. https://doi.org/10.1016/j.ecolind.2022.109511."
+  )
+)

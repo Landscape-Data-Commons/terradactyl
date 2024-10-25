@@ -1,14 +1,14 @@
 # terradactyl <img src='man/figures/logo.png' align="right" height="120" />
 
 ``` r
-devtools::install_github('Landscape-Data-Commons/terradactyl')
-```
-``` {r}
+# To install
+remotes::install_github(repo = 'Landscape-Data-Commons/terradactyl')
 library(terradactyl)
 ```
 
 `terradactyl` can be used to gather core rangeland monitoring data into a standard format, calculate standardized indicators, custom indicators, and produce consistent data models. There are also a few quality control scripts available to help users ensure that species data are handled correctly.
-The basic workflow of `terradactyl` is to first gather data into a standard format, also called a tall table. Then calculate indicators based on that format and grouping variables (if relevant). For some commonly calculated groups of indicators, such as for the AIM program or model inputs, there are also data model functions which take the tall table files and other data and produce data outputs specific to that user need. 
+
+The basic workflow of `terradactyl` is to first gather data into a standard format, also called a tall table. Then calculate indicators based on that format and grouping variables (if relevant). For some commonly calculated groups of indicators, such as for the AIM program or model inputs, there are also data model functions which take the tall table files and other data and produce data outputs specific to that user need. ([McCord et al., 2022](https://doi.org/10.1016/j.ecolind.2022.109511))
 
 
 ![image](https://user-images.githubusercontent.com/13965706/173185966-37bece42-c23a-46e0-881e-9b573ee3c1cd.png)
@@ -327,4 +327,6 @@ head(species_count_artemisia)
 `terradactyl` contains many functions to calculate many indicators, something that may seem overwhelming at first. By demonstrating each of the core functions, we hope to make the learning curve easier for all users. Fortunately, a few functions like pct_cover or gap_cover are powerful and flexible, granting the user access to wide suites of indicator data with only a few lines of code. `terradactyl` also contains data model functions which bring multiple indicator calculation functions into a single wrapper to produce specific data formats. These data model functions have specific inputs and outputs. For example, `build_indicators` is used by the BLM AIM program to calculate standard indicators for that program and relies on a geodatabase and species list of a certain schema. For erosion modelling, `AERO` and `RHEM` produce outputs specific to those model requirements. 
 
 ### Works Cited
-Herrick et al. *Monitoring Manual for Grassland, Shrubland, and Savanna Ecosystems Volume 1: Core Methods, 2nd edition.* Jornada Experimental Range, Las Cruces New Mexico, 2017, page 30 https://www.landscapetoolbox.org/wp-content/uploads/2016/02/MMGSSE_20170614.pdf
+McCord et al. *A framework and toolset for standardizing agroecosystem indicators*. Ecological Indicators, Volume 144, 2022. [https://doi.org/10.1016/j.ecolind.2022.109511](https://doi.org/10.1016/j.ecolind.2022.109511)
+
+Herrick et al. *Monitoring Manual for Grassland, Shrubland, and Savanna Ecosystems Volume 1: Core Methods, 2nd edition*. Jornada Experimental Range, Las Cruces New Mexico, 2017, page 30. [Available here.](http://www.landscapetoolbox.org/wp-content/uploads/2023/01/MMGSSE_20200211.pdf)
