@@ -19,7 +19,7 @@ gather_header_terradat(dsn = NULL, tblPlots = NULL, date_tables = NULL, ...)
 
 gather_header_lmf(dsn = NULL, ...)
 
-gather_header_nri(dsn = NULL, ...)
+gather_header_nri(dsn = NULL, speciesstate, ...)
 
 gather_header(
   dsn = NULL,
@@ -27,7 +27,8 @@ gather_header(
   tblPlots = NULL,
   date_tables = NULL,
   speciesstate = NULL,
-  ...
+  ...,
+  autoQC = TRUE
 )
 
 lpi_calc(header, lpi_tall, species_file, source, dsn)

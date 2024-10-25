@@ -22,7 +22,8 @@ gather_height(
   source,
   tblLPIDetail = NULL,
   tblLPIHeader = NULL,
-  PASTUREHEIGHTS = NULL
+  PASTUREHEIGHTS = NULL,
+  autoQC = TRUE
 )
 }
 \arguments{
@@ -93,7 +94,6 @@ Other <gather>:
 \code{\link{gather_rangeland_health}()},
 \code{\link{gather_soil_horizon}()},
 \code{\link{gather_soil_stability}()},
-\code{\link{gather_soil_summary}()},
 \code{\link{gather_species_inventory}()}
 }
 \concept{<gather>}

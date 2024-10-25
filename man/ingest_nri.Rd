@@ -9,7 +9,7 @@
 \usage{
 nri_field_names(dsn)
 
-read_nri_text(table_name, dsn, DBKey = "auto")
+read_nri_text(table_name, dsn, DBKey = "auto", schema)
 
 ingest_nri(
   dsn,

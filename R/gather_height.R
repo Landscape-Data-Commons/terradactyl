@@ -347,12 +347,18 @@ gather_height_lmf <- function(dsn = NULL,
   # remove NA values
   height <- subset(height, !is.na(HEIGHT))
 
+  # Remove plus signs
+  height <- height |>
+    dplyr::mutate(HEIGHT = HEIGHT |> stringr::str_remove_all(pattern = "[+]"))
 
   # The height units are concatenated in the field,
-  # separate so that we can convert to metric appopriately
-  height <- tidyr::separate(height, "HEIGHT", c("HEIGHT", "UOM"),
-                            sep = " ", extra = "drop", fill = "right"
-  )
+  # separate so that we can convert to metric appropriately
+  height <- tidyr::separate_wider_delim(data = height,
+                    cols = "HEIGHT",
+                    names = c("HEIGHT", "UOM"),
+                    delim = " ",
+                    too_few = "align_start")
+
 
   # Convert to metric
   height$HEIGHT <- suppressWarnings(as.numeric(height$HEIGHT))
@@ -501,7 +507,8 @@ gather_height <- function(dsn = NULL,
                           source,
                           tblLPIDetail = NULL,
                           tblLPIHeader = NULL,
-                          PASTUREHEIGHTS = NULL#,
+                          PASTUREHEIGHTS = NULL,
+                          autoQC = TRUE#,
                           # LPI_0 = NULL,
                           # LPIDetail_1 = NULL
                           ) {
@@ -539,6 +546,12 @@ gather_height <- function(dsn = NULL,
 
   height <- height %>%
     dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    height <- height %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "height")
+  }
 
   # Output height
   return(height)
