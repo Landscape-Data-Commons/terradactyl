@@ -6,7 +6,13 @@
 \alias{gather_height_lmf}
 \title{Convert height data into a tall, tidy data frame}
 \usage{
-gather_height_terradat(dsn = NULL, tblLPIDetail = NULL, tblLPIHeader = NULL)
+gather_height_terradat(
+  dsn = NULL,
+  tblLPIDetail = NULL,
+  tblLPIHeader = NULL,
+  auto_qc_warnings = TRUE,
+  verbose = FALSE
+)
 
 gather_height_lmf(dsn = NULL, file_type = "gdb", PASTUREHEIGHTS = NULL)
 
@@ -36,15 +42,25 @@ DIMA database with the addition of PrimaryKey and DBKey fields. Use with
 tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide
 dsn.}
 
+\item{verbose}{Logical. If \code{TRUE} then the function will report back
+diagnostic information as console messages while it works. Defaults to
+\code{FALSE}.}
+
 \item{file_type}{Character string that denotes the source file type of the
 LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-AIM/DIMA/TerrADat, or if PASTUREHEIGHTS is provided.}
+AIM/DIMA/TerrADat, or if \code{PASTUREHEIGHTS} is provided.}
 
 \item{PASTUREHEIGHTS}{Dataframe of the data structure PASTUREHEIGHTS from the
-LMF/NRI database; alternately provide dsn.}
+LMF/NRI database; alternately provide \code{dsn}.}
 
 \item{source}{Character string. The data source format,
 \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
+
+\item{auto_qc}{Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
+checked for non-unique and orphaned records before doing processing. If any
+are found, a warning will be triggered but the gather will still be carried
+out. It is strongly recommended that any identified issues be addressed to
+avoid incorrect records in the output. Defaults to \code{TRUE}.}
 }
 \value{
 A tall data frame containing the data from the height measurements.

@@ -95,7 +95,10 @@ pct_cover <- function(lpi_tall,
   # (it'll be the same for every record associated with a plot)
   lpi_tall <- dplyr::left_join(
     x = lpi_tall,
-    y = point_totals
+    y = point_totals,
+    # It should automatically find the variables in common, but specifying them
+    # prevents a "Joining with 'by = join_by()'" message.
+    by = names(lpi_tall)[names(lpi_tall) %in% names(point_totals)]
   )
 
   # make sure layer is a character field
@@ -233,7 +236,7 @@ pct_cover <- function(lpi_tall,
       PrimaryKey = unique(lpi_tall$PrimaryKey),
       indicator = unique(summary$indicator)
     ) %>%
-      dplyr::left_join(., summary) %>%
+      dplyr::left_join(., summary, by = intersect(x = names(.), y = names(summary))) %>%
       dplyr::mutate_all(dplyr::funs(replace(., is.na(.), 0)))
   )
 

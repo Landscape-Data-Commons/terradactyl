@@ -9,7 +9,9 @@
 gather_soil_stability_terradat(
   dsn = NULL,
   tblSoilStabDetail = NULL,
-  tblSoilStabHeader = NULL
+  tblSoilStabHeader = NULL,
+  auto_qc_warnings = TRUE,
+  verbose = FALSE
 )
 
 gather_soil_stability_lmf(dsn = NULL, file_type = "gdb", SOILDISAG = NULL)
@@ -38,12 +40,22 @@ Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.}
 from the DIMA database with the addition of PrimaryKey and DBKey fields.
 Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.}
 
+\item{verbose}{Logical. If \code{TRUE} then the function will report back
+diagnostic information as console messages while it works. Defaults to
+\code{FALSE}.}
+
 \item{source}{Character string. The data source format, can be \code{"AIM"},
 \code{"TerrADat"}, \code{"DIMA"}, \code{"LMF"}, or \code{"NRI"} (case independent).}
 
 \item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from LMF/NRI
 database with the addition of PrimaryKey and DBKey fields. Use when data
 source is LMF or NRI; alternately provide dsn.}
+
+\item{auto_qc}{Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
+checked for non-unique and orphaned records before doing processing. If any
+are found, a warning will be triggered but the gather will still be carried
+out. It is strongly recommended that any identified issues be addressed to
+avoid incorrect records in the output. Defaults to \code{TRUE}.}
 }
 \value{
 A tall data frame containing soil horizon data.

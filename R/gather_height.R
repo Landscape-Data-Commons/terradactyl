@@ -17,10 +17,18 @@
 #' tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide
 #' dsn.
 #' @param PASTUREHEIGHTS Dataframe of the data structure PASTUREHEIGHTS from the
-#' LMF/NRI database; alternately provide dsn.
+#' LMF/NRI database; alternately provide \code{dsn}.
 #' @param file_type Character string that denotes the source file type of the
 #' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-#' AIM/DIMA/TerrADat, or if PASTUREHEIGHTS is provided.
+#' AIM/DIMA/TerrADat, or if \code{PASTUREHEIGHTS} is provided.
+#' @param auto_qc Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
+#' checked for non-unique and orphaned records before doing processing. If any
+#' are found, a warning will be triggered but the gather will still be carried
+#' out. It is strongly recommended that any identified issues be addressed to
+#' avoid incorrect records in the output. Defaults to \code{TRUE}.
+#' @param verbose Logical. If \code{TRUE} then the function will report back
+#' diagnostic information as console messages while it works. Defaults to
+#' \code{FALSE}.
 #' @importFrom magrittr %>%
 #' @name gather_height
 #' @family <gather>
@@ -46,122 +54,178 @@
 #' @rdname gather_height
 gather_height_terradat <- function(dsn = NULL,
                                    tblLPIDetail= NULL,
-                                   tblLPIHeader = NULL) {
+                                   tblLPIHeader = NULL,
+                                   auto_qc_warnings = TRUE,
+                                   verbose = FALSE) {
 
-  if(!is.null(tblLPIDetail) & !is.null(tblLPIHeader)){
-    lpi_detail <- tblLPIDetail
-    lpi_header <- tblLPIHeader
+  # These are used for data management within a geodatabase and we're going to
+  # drop them.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+
+  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+  if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
+    if (verbose) {
+      if (!is.null(dsn)) {
+        message("Using the provided data frames. The provided dsn value is being ignored.")
+      }
+    }
+    detail <- tblLPIDetail
+    header <- tblLPIHeader
   } else if(!is.null(dsn)){
-    if (!file.exists(dsn)) {
+    if (verbose) {
+      message("Attempting to use the provided dsn value.")
+    }
+    if(!file.exists(dsn)){
       stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
     }
 
-    # Read in the LPI tables from the geodatabase
-    lpi_detail <- suppressWarnings(sf::st_read(
-      dsn = dsn, layer = "tblLPIDetail",
-      stringsAsFactors = FALSE, quiet = T
-    ))
-    lpi_header <- suppressWarnings(sf::st_read(
-      dsn = dsn, layer = "tblLPIHeader",
-      stringsAsFactors = FALSE, quiet = T
-    ))
+    # The suppressWarnings() here are so that it doesn't complain about pulling
+    # tables without geometry. We know that's what should be happening.
+    detail <- suppressWarnings(sf::st_read(dsn = dsn,
+                                           layer = "tblLPIDetail",
+                                           stringsAsFactors = FALSE,
+                                           quiet = TRUE))
+    header <- suppressWarnings(sf::st_read(dsn = dsn,
+                                           layer = "tblLPIHeader",
+                                           stringsAsFactors = FALSE,
+                                           quiet = TRUE))
   } else {
-    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing those tables")  }
-
-  if (any(colnames(lpi_header) %in% "DBKey")) {
-    levels <- rlang::quos(PrimaryKey, "DBKey")
-  } else {
-    levels <- rlang::quos(PrimaryKey)
+    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
   }
 
-  # we only want to carry a subset of the lpi_header fields forward
-  lpi_header <- dplyr::select(lpi_header, !!!levels, LineKey:CheckboxLabel)
+  # Clean these up!
+  # We're deliberating excluding some variables in both tables here. No sense
+  # in bogging down the munging with extraneous things we'll never use.
+  detail <- dplyr::select(.data = detail,
+                          PrimaryKey, RecKey,
+                          PointLoc, PointNbr,
+                          tidyselect::matches(match = "(Woody)|(Herbaceous)|(LowerHerb)$")) |>
+    dplyr::distinct()
 
-  # Add null DBKey column if not present
-  if(!("DBKey" %in% colnames(lpi_header))) lpi_header$DBKey <- NA
-  if(!("DBKey" %in% colnames(lpi_detail))) lpi_detail$DBKey <- NA
 
-  lpi_height_tall_woody <- dplyr::select(
-    .data = lpi_detail,
-    !!!levels,
-    PointLoc,
-    PointNbr,
-    RecKey,
-    DBKey,
-    dplyr::matches("Woody$")
-  ) %>% dplyr::mutate(type = "woody")
-  # Strip out the extra name stuff so woody and herbaceous variable names match.
-  names(lpi_height_tall_woody) <- stringr::str_replace_all(
-    string = names(lpi_height_tall_woody),
-    pattern = "Woody$",
-    replacement = ""
-  )
-  # Add observed growth habit field
-  lpi_height_tall_woody$GrowthHabit_measured <- "Woody"
+  header <- dplyr::select(.data = header,
+                          PrimaryKey,
+                          LineKey:CheckboxLabel,
+                          tidyselect::matches(match = "DBKey"),
+                          -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
 
-  # Herbaceous height
-  lpi_height_tall_herb <- dplyr::select(
-    .data = lpi_detail,
-    !!!levels,
-    PointLoc,
-    PointNbr,
-    RecKey,
-    DBKey,
-    dplyr::matches("Herbaceous$")
-  ) %>% dplyr::mutate(type = "herbaceous")
-  names(lpi_height_tall_herb) <- stringr::str_replace_all(
-    string = names(lpi_height_tall_herb),
-    pattern = "Herbaceous$",
-    replacement = ""
-  )
-  # Add observed growth habit field
-  lpi_height_tall_herb$GrowthHabit_measured <- "NonWoody"
 
-  # Gather lower herbaceous heights
-  lpi_height_tall_lower_herb <- dplyr::select(
-    .data = lpi_detail,
-    !!!levels,
-    PointLoc,
-    PointNbr,
-    RecKey,
-    DBKey,
-    dplyr::matches("LowerHerb$")
-  ) %>% dplyr::mutate(type = "lower.herbaceous")
-  names(lpi_height_tall_lower_herb) <- stringr::str_replace_all(
-    string = names(lpi_height_tall_lower_herb),
-    pattern = "LowerHerb$",
-    replacement = ""
-  )
-  # Add observed growth habit field
-  lpi_height_tall_lower_herb$GrowthHabit_measured <- "NonWoody"
+  if (auto_qc_warnings) {
+    if (verbose) {
+      message("Running automatic QC checks for duplicated or orphaned records.")
+    }
+    auto_qc_warning(header_data = header,
+                    detail_data = detail,
+                    uid_variables = list(header = c("PrimaryKey",
+                                                    "RecKey"),
+                                         detail = c("PrimaryKey",
+                                                    "RecKey",
+                                                    "PointNbr")),
+                    joining_variables = c("PrimaryKey",
+                                          "RecKey"))
+  }
 
-  # Merge all three gather types together
-  lpi_height <- rbind(
-    lpi_height_tall_woody,
-    lpi_height_tall_herb,
-    lpi_height_tall_lower_herb
-  )
-  lpi_height <- lpi_height %>%
-    dplyr::full_join(x = ., y = lpi_header, by = c("PrimaryKey", "DBKey", "RecKey")) %>%
-    subset(., !is.na(Height))
+  # Warn about introducing NAs by coercion.
+  nas_by_coercion <- sapply(X = c(woody = "Woody",
+                                  herbaceous = "Herbaceous",
+                                  'lower herbaceous' = "LowerHerb"),
+                            detail = detail,
+                            FUN = function(X, detail){
+                              if (class(detail[[paste0("Height", X)]]) %in% c("integer",
+                                                                              "numeric")) {
+                                0
+                              } else {
+                                tidyr::replace_na(data = detail[[paste0("Height", X)]],
+                                                  replace = "placeholder") |>
+                                  as.numeric() |>
+                                  suppressWarnings() |>
+                                  is.na() |>
+                                  sum()
+                              }
+                            })
+  nas_by_coercion <- nas_by_coercion[nas_by_coercion > 0]
+  if (length(nas_by_coercion) > 0) {
+    warning(paste0("There are non-numeric values in at least one height variable in tblLPIDetail. There will be ",
+                   sum(nas_by_coercion),
+                   " invalid height values replaced with NA across the following height types: ",
+                   paste(names(nas_by_coercion),
+                         collapse = ", "),
+                   ". Any records with a height value of NA will be dropped from the output during processing."))
+  }
 
-  # Add NA to fields with no species
-  lpi_height$Species[!grepl(pattern = "[[:digit:]]|[[:alpha:]]", lpi_height$Species)] <- NA
 
-  # Remove orphaned records and duplicates, if they exist
-  lpi_height <- unique(lpi_height)
-  lpi_height <- lpi_height[!is.na(lpi_height$PrimaryKey), ]
 
-  # Make sure height is a numeric field
-  lpi_height$Height <- suppressWarnings(as.numeric(lpi_height$Height))
+  # There are three height types that we're going to be working with here, so
+  # we'll deal with each independently and then mash them together with
+  # dplyr::bind_rows().
+  # This approach with the lapply() and renaming makes more sense than doing
+  # pivoting with tidyr functions because the value types are mixed (e.g., the
+  # species are stored as character strings but heights are numeric) so we can't
+  # put them all in one data frame variable when we pivot the data to a long
+  # format.
+  lpi_heights_tall <- lapply(X = c(woody = "Woody",
+                                   herbaceous = "Herbaceous",
+                                   lower_herbaceous = "LowerHerb"),
+                             detail = detail,
+                             FUN = function(X, detail){
+                               dplyr::select(.data = detail,
+                                             PrimaryKey, RecKey,
+                                             PointLoc, PointNbr,
+                                             tidyselect::ends_with(match = X)) |>
+                                 dplyr::rename_with(.data = _,
+                                                    .cols = tidyselect::ends_with(match = X),
+                                                    .fn = ~ stringr::str_extract(string = .x,
+                                                                                 pattern = paste0(".+(?=", X, "$)"))) |>
+                                 dplyr::mutate(.data = _,
+                                               # We're going to suppress
+                                               # warnings about introducing
+                                               # NAs in this coercion because we
+                                               # already warned the user above.
+                                               Height = suppressWarnings(as.numeric(Height)),
+                                               type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
+                                                                       .default = tolower(X)),
+                                               GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
+                                                                                       X %in% c("Herbaceous",
+                                                                                                "LowerHerb") ~ "NonWoody",
+                                                                                       .default = NA)) |>
+                                 dplyr::filter(.data = _,
+                                               !is.na(Height))
+                             }) |>
+    dplyr::bind_rows()
 
-  # final drop
-  lpi_height <- lpi_height %>%
-    dplyr::select_if(!names(.) %in% c(
-      'DataErrorChecking', 'DataEntry',
-       'DateModified', 'FormType')
-  )
+  lpi_height <- suppressWarnings(dplyr::left_join(x = lpi_heights_tall,
+                                                  y = header,
+                                                  # As per usual, not enforcing
+                                                  # the relationship because
+                                                  # we're letting the users move
+                                                  # ahead with not-quite-clean
+                                                  # data.
+                                                  # relationship = "many-to-one",
+                                                  by = c("PrimaryKey",
+                                                         "RecKey")))
 
+  # Make sure that the values in Species are either at least possibly a species
+  # code or NA
+  lpi_height <- dplyr::mutate(.data = lpi_height,
+                              Species = dplyr::case_when(stringr::str_detect(string = Species,
+                                                                             pattern = "[[:digit:]]|[[:alpha:]]") ~ Species,
+                                                         .default = NA))
+
+  # Make sure we don't have duplicates because that could totally happen,
+  # depending on the data quality.
+  lpi_height <- dplyr::distinct(.data = lpi_height)
 
   # Output the woody/herbaceous level data
   return(lpi_height)
@@ -459,11 +523,11 @@ gather_height <- function(dsn = NULL,
       dsn = dsn, file_type = file_type,
       PASTUREHEIGHTS = PASTUREHEIGHTS
     )
-  # } else if(toupper(source) %in% c("SURVEY123")){
-  #   height <- gather_height_survey123(
-  #     LPI_0 = LPI_0,
-  #     LPIDetail_1 = LPIDetail_1
-  #   )
+    # } else if(toupper(source) %in% c("SURVEY123")){
+    #   height <- gather_height_survey123(
+    #     LPI_0 = LPI_0,
+    #     LPIDetail_1 = LPIDetail_1
+    #   )
   } else {
     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
   }
