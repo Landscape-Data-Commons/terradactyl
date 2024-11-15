@@ -443,7 +443,7 @@ auto_qc_warning <- function(header_data,
       warning_strings["detail_nonuniques"] <- paste("There are", length(unique(detail_nonuniques$id_nonunique_group)),
                                                     "instances of duplicated detail records.")
     }
-    orphaned_records_list <- check_orphaned_records(x = detail,
+    orphaned_records_list <- check_orphaned_records(x = detail_data,
                                                     y = header,
                                                     joining_variables = joining_variables,
                                                     symmetric = TRUE)
@@ -453,7 +453,7 @@ auto_qc_warning <- function(header_data,
     }
     if (nrow(orphaned_records_list[["x"]]) > 0) {
       warning_strings["detail_orphaned"] <- paste("There are", nrow(orphaned_records_list[["x"]]),
-                                                  "orphaned detail records with no corresponding header records.")
+                                                  "detail records with no corresponding header records.")
     }
 
     if (length(warning_strings) > 1) {
