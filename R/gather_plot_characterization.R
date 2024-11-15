@@ -59,11 +59,10 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
   plot_tall <- plot_raw %>%
     dplyr::select_if(names(.) %in% c(
       'PrimaryKey', 'DBKey', 'ProjectKey',
-      'SpeciesState',
       'Latitude', 'Longitude',
       'State', 'County',
       'EcolSite', 'ParentMaterial', 'Slope', 'Elevation', 'Aspect', 'ESD_SlopeShape',
-      'LandscapeType', 'LandscapeTypeSecondary', 'HillslopeType',
+      'LandscapeType', 'LandscapeTypeSecondary', #'HillslopeType',
       'ESD_Series',
       # 'Observer', 'Recorder',
       'EstablishDate'
@@ -97,7 +96,7 @@ gather_plot_characterization_terradat <- function(dsn = NULL,
   return(plot_tall)
 }
 
-
+#' LMF plot characterization function
 #' @export gather_plot_characterization_lmf
 #' @rdname gather_plot_characterization
 gather_plot_characterization_lmf <-   function(dsn = NULL,
@@ -190,8 +189,8 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
   return(plot_lmf)
 }
 
-#' export gather_plot_characterization_survey123
-#' rdname gather_plot_characterization
+# export gather_plot_characterization_survey123
+# rdname gather_plot_characterization
 # gather_plot_characterization_survey123 <- function(dsn = NULL,
 #                                                    PlotChar_0 = NULL){
 #
@@ -219,7 +218,6 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
 #   plot_tall <- plot_raw %>%
 #     dplyr::select(
 #       PrimaryKey, DBKey, # ProjectKey,
-#       # SpeciesState,
 #       Latitude_NAD83 = y, Longitude_NAD83 = x,
 #       # State, County,
 #       EcolSite = Ecolsite, ParentMaterial, Slope, Elevation, Aspect, #ESD_SlopeShape,
@@ -243,7 +241,7 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
 
 
 
-
+#' Wrapper function
 #' @export gather_plot_characterization
 #' @rdname gather_plot_characterization
 gather_plot_characterization <- function(dsn = NULL,

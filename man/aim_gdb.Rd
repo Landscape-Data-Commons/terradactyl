@@ -27,7 +27,8 @@ gather_header(
   tblPlots = NULL,
   date_tables = NULL,
   speciesstate = NULL,
-  ...
+  ...,
+  autoQC = TRUE
 )
 
 lpi_calc(
