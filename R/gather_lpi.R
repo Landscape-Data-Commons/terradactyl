@@ -251,11 +251,10 @@ gather_lpi_terradat <- function(dsn = NULL,
 #' @export gather_lpi_lmf
 #' @rdname gather_lpi
 
-# Gather LPI data from the Landscape Monitoring Framework or NRI
 gather_lpi_lmf <- function(dsn = NULL,
                            file_type = "gdb",
                            PINTERCEPT = NULL) {
-
+  #### Reading and cleanup #####################################################
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(PINTERCEPT)) {
     pintercept <- PINTERCEPT
@@ -266,22 +265,25 @@ gather_lpi_lmf <- function(dsn = NULL,
     # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
     pintercept <- switch(file_type,
                          "gdb" = {
-                           suppressWarnings(sf::st_read(
-                             dsn = dsn, layer = "PINTERCEPT",
-                             stringsAsFactors = FALSE, quiet = T
-                           ))
+                           sf::st_read(dsn = dsn,
+                                       layer = "PINTERCEPT",
+                                       stringsAsFactors = FALSE,
+                                       quiet = TRUE) |>
+                             suppressWarnings()
                          },
                          "txt" = {
-                           utils::read.table(paste(dsn, "pintercept.txt", sep = ""),
+                           utils::read.table(file = file.path(dsn,
+                                                              "pintercept.txt"),
                                              stringsAsFactors = FALSE,
                                              strip.white = TRUE,
-                                             header = FALSE, sep = "|"
-                           )
+                                             header = FALSE,
+                                             sep = "|")
                          },
                          "csv" = {
-                           read.csv(file = dsn, header = TRUE, stringsAsFactors = FALSE)
-                         }
-    )
+                           read.csv(file = dsn,
+                                    header = TRUE,
+                                    stringsAsFactors = FALSE)
+                         })
 
     # if it is in a text file, there are no field names assigned.
     if (file_type == "txt") {
@@ -296,134 +298,146 @@ gather_lpi_lmf <- function(dsn = NULL,
     stop("Supply either PINTERCEPT or the path to a GDB containing that table")
   }
 
-  # remove any NA field names that may have been introduced
+  # Sometimes NAs might be introduced as variable names, but we can make sure to
+  # drop those.
   pintercept <- pintercept[, !is.na(colnames(pintercept))]
 
-  # For line point intercept data (cover calculations--
-  # point number 75 is recorded twice—once on each transect.
-  # We only want to use it once in the calculations.
-  # Prior to doing these calculations, it would be beneficial to
-  # remove one of the point 75’s from the data set.
-  # Remove the nesw transect—that would be all rows in pintercept
-  # where transect == “nesw” AND mark = 75.
-  pintercept <- pintercept[!(pintercept$TRANSECT == "nesw" & pintercept$MARK == 75), ]
+  ##### Making sure these are distinct records ---------------------------------
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
 
+  pintercept <- dplyr::select(.data = pintercept,
+                              -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
 
-  # Where there is a Soil hit, LMF records "None" in BASAL and leaves NONSOIL
-  # blank. Let's fill in an "S" to indicate soil
-  pintercept$NONSOIL[pintercept$BASAL == "None" &
-                       pintercept$NONSOIL == ""] <- "S"
-  pintercept$NONSOIL[pintercept$BASAL == "None" &
-                       is.na(pintercept$NONSOIL)] <- "S"
+  ##### Dealing with intersecting transects ------------------------------------
+  # The arrangement of the transects for an LMF point crosses in the middle of
+  # the transects (point 75) and so that intersection gets recorded twice, once
+  # per transect. We'll drop the 75th record on the northeast-southwest transect
+  # but we also want to warn the user that it's happening to any situations
+  # where the assumption that they're identical is violated.
+  duplicated_75mark_indices <- dplyr::filter(.data = pintercept,
+                                             MARK == 75) |>
+    dplyr::select(.data = _,
+                  -TRANSECT) |>
+    duplicated(x = _)
+  pintercept_75mark <- dplyr::filter(.data = pintercept,
+                                     MARK == 75)
+  pintercept_75mark[["duplicated"]] <- duplicated_75mark_indices
+  pintercept_75mark_summary <- dplyr::summarize(.data = pintercept_75mark,
+                                                .by = PrimaryKey,
+                                                n_records = dplyr::n(),
+                                                has_duplicate = any(duplicated))
+  if (any(!pintercept_75mark_summary$has_duplicate)) {
+    warning(paste0("There are ", sum(!pintercept_75mark_summary$has_duplicate),
+                   " plots where the LPI records at the 75th sampling locations on the two transects are not identical to each other despite being the intersection of those transects. The records associated with the 'nesw' transects will still be dropped for these plots."))
+  }
 
-  # where there is a soil code over BR, retain only the BR
-  pintercept$BASAL[pintercept$BASAL != "None" &
-                     pintercept$NONSOIL == "BR"] <- "None"
+  pintercept <- dplyr::filter(.data = pintercept,
+                              !(TRANSECT == "nesw" & MARK == 75))
 
+  ##### Harmonizing with expected values and variable names --------------------
+  # We don't need all the extra LMF-internal variables after this point, so
+  # we'll pare down and rename here.
+  pintercept <- dplyr::select(.data = pintercept,
+                              PrimaryKey,
+                              LineKey = TRANSECT,
+                              PointNbr = MARK,
+                              tidyselect::matches(match = "^HIT\\d$"),
+                              BASAL,
+                              NONSOIL,
+                              ShrubShape = SAGEBRUSH_SHAPE)
 
-  # Identify the pin drop variables
-  pin_drop <- c(
-    colnames(pintercept)[grepl(
-      pattern = "^HIT[1-9]$",
-      x = colnames(pintercept)
-    )],
-    "BASAL",
-    "NONSOIL"
-  )
+  # The way soil surface hits are recorded needs to be standardized.
+  pintercept <- dplyr::mutate(.data = pintercept,
+                              # When there's no basal hit recorded and
+                              # there's nothing in the NONSOIL variable,
+                              # that means that there was a surface hit on
+                              # soil. Otherwise we'll turn all the empty values
+                              # to NA to make it easier to merge BASAL and
+                              # NONSOIL into a single SoilSurface variable.
+                              NONSOIL = dplyr::case_when(BASAL %in% c("None") & NONSOIL %in% c("", NA) ~ "S",
+                                                         NONSOIL %in% c("") ~ NA,
+                                                         .default = NONSOIL),
+                              # If a basal hit was recorded over a NONSOIL
+                              # value of "BR" then the BASAL value should
+                              # actually be NA. Also, all "None" values should
+                              # be NA for the next step. Otherwise, leave the
+                              # BASAL values alone.
+                              BASAL = dplyr::case_when(!(BASAL %in% c("None")) & NONSOIL %in% c("BR") ~ NA,
+                                                       BASAL %in% c("None") ~ NA,
+                                                       .default = BASAL)) |>
+    # The BASAL and NONSOIL variables can be combined into SoilSurface and
+    # dropped.
+    dplyr::mutate(.data = _,
+                  SoilSurface = dplyr::coalesce(BASAL,
+                                                NONSOIL)) |>
+    dplyr::select(.data = _,
+                  -BASAL,
+                  -NONSOIL)
 
-  # Remove unneeded columns
-  pintercept <- pintercept[, !colnames(pintercept) %in% c(
-    "SURVEY", "COUNTY",
-    "PSU", "POINT",
-    "created_user",
-    "created_date",
-    "last_edited_user",
-    "last_edited_date",
-    "GlobalID", "X"
-  )]
+  # We also need to standardize the way that sagebrush shrub shapes are recorded
+  # because they're numeric values but we need them to be characters which
+  # represent the shape where 1 means columnar, 2 means spreading, 3 means
+  # mixed, and 0 means there was no shape to record.
+  pintercept <- dplyr::mutate(.data = pintercept,
+                              # I don't totally trust that this'll be numeric,
+                              # so we'll check for a numeric and a character.
+                              ShrubShape = dplyr::case_when(ShrubShape %in% c(1, "1") ~ "C",
+                                                            ShrubShape %in% c(2, "2") ~ "S",
+                                                            ShrubShape %in% c(3, "3") ~ "M",
+                                                            .default = NA))
 
+  # We need to rename the HIT variables to match the expectations.
+  # Get the appropriate variable names
+  hit_layer_rename_vector <- stringr::str_extract(string = names(pintercept),
+                                                  pattern = "^HIT\\d+$") |>
+    na.omit(object = _)
+  # Make sure that they're in ascending order and have the new names associated.
+  hit_layer_rename_vector <- hit_layer_rename_vector[stringr::str_extract(string = hit_layer_rename_vector,
+                                                                          pattern = "\\d+") |>
+                                                       as.numeric() |>
+                                                       order()] |>
+    setNames(object = _,
+             nm = c("TopCanopy",
+                    paste0("Lower",
+                           seq_len(length(hit_layer_rename_vector) - 1))))
+  # And use that vector to rename the variables.
+  pintercept <- dplyr::rename(.data = pintercept,
+                              tidyselect::all_of(hit_layer_rename_vector))
 
+  # Make sure that we don't have any dates as POSITX values and coerce them into
+  # character. This shouldn't be necessary, but just in case!
+  pintercept <- dplyr::mutate(.data = pintercept,
+                              dplyr::across(.cols = tidyselect::where(fn = ~ class(.x) %in% c("POSIXct", "POSIXt")),
+                                            .fns = as.character))
 
-  # Create a tall table
-  lpi_hits_tall <- tidyr::gather(
-    data = pintercept,
-    key = "layer",
-    value = "code",
-    dplyr::all_of(pin_drop)
-  )
+  #### Pivoting to long ########################################################
+  data_tall <- tidyr::pivot_longer(data = pintercept,
+                                   cols = tidyselect::all_of(c(names(hit_layer_rename_vector),
+                                                               "SoilSurface")),
+                                   names_to = "layer",
+                                   values_to = "code") |>
+    # Remove all the non-records!
+    dplyr::filter(.data = _,
+                  !(code %in% c("")))
 
-
-
-  # Remove blank fields with no data
-  lpi_hits_tall <- lpi_hits_tall %>% subset(code != "")
-
-  # Rename "BASAL" and "NONSOIL" to "SoilSurface"
-  lpi_hits_tall$layer <- stringr::str_replace_all(
-    string = lpi_hits_tall$layer,
-    pattern = "BASAL|NONSOIL",
-    replacement = "SoilSurface"
-  )
-
-  # Remove "None" and NA values from SoilSurface
-  lpi_hits_tall$code[lpi_hits_tall$layer == "SoilSurface" &
-                       lpi_hits_tall$code == "None"] <- NA
-  lpi_hits_tall <- lpi_hits_tall %>% subset(!is.na(code))
-
-  # Rename "Hit1" as "TopCanopy"
-  lpi_hits_tall$layer <- stringr::str_replace_all(
-    string = lpi_hits_tall$layer,
-    pattern = "HIT1",
-    replacement = "TopCanopy"
-  )
-
-  # rename Hit2-Hit6 as "LowerLayer
-  lpi_hits_tall$layer <- dplyr::recode(
-    lpi_hits_tall$layer,
-    "HIT2" = "Lower1",
-    "HIT3" = "Lower2",
-    "HIT4" = "Lower3",
-    "HIT5" = "Lower4",
-    "HIT6" = "Lower5",
-    "HIT7" = "Lower6",
-    "HIT8" = "Lower7",
-    "HIT9" = "Lower8"
-  )
-
-  # Change "Transect and Mark to common names to DIMA schema
-
-  lpi_hits_tall <- dplyr::rename(lpi_hits_tall,
-                                 "LineKey" = "TRANSECT",
-                                 "PointNbr" = "MARK",
-                                 "ShrubShape" = "SAGEBRUSH_SHAPE"
-  )
-
-  # # Convert to factor
-  # lpi_hits_tall <- lpi_hits_tall %>%
-  #   dplyr::mutate_if(is.character, list(factor))
-
-  # Convert ShrubShape values to be consistent with DIMA schema,
-  # 1==Columnar, 2=Spreading, 3=Mixed, 0 is NA
-  lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 1] <- "C"
-  lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 2] <- "S"
-  lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 3] <- "M"
-  lpi_hits_tall$ShrubShape[lpi_hits_tall$ShrubShape == 0] <- NA
-
-  # Find date fields & convert to character
-  # Find fields that are in a Date structure
-  change_vars <- names(lpi_hits_tall)[class(lpi_hits_tall) %in%
-                                        c("POSIXct", "POSIXt")]
-
-  # Update fields
-  lpi_hits_tall <- dplyr::mutate_at(
-    lpi_hits_tall, dplyr::all_of(dplyr::vars(all_of(change_vars))),
-    list(as.character)
-  )
-
-  lpi_hits_tall <- lpi_hits_tall %>% dplyr::select_if(!names(.) %in% c(
-    'STATE', 'PLOTKEY', "DateVisited")
-  )
-
-  return(lpi_hits_tall)
+  # Return only the unique records remaining!
+  dplyr::distinct(data_tall)
 }
 
 # Gather LPI data from NPS I&M networks

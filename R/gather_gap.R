@@ -263,6 +263,10 @@ gather_gap_lmf <- function(dsn = NULL,
                            GINTERCEPT = NULL,
                            POINT = NULL) {
 
+  #### Reading and cleanup #####################################################
+  # if file type is NULL, define it by checking the extension of dsn
+  valid_file_types <- c("csv", "gdb", "txt")
+
   # if file type is NULL, define it by checking the extension of dsn
   if(is.null(file_type)){
     extension <- substr(dsn, nchar(dsn)-2, nchar(dsn))
@@ -274,7 +278,6 @@ gather_gap_lmf <- function(dsn = NULL,
       file_type <- "txt"
     }
   }
-
 
   if(!is.null(GINTERCEPT) & !is.null(POINT)){
     gintercept <- GINTERCEPT
@@ -356,139 +359,300 @@ gather_gap_lmf <- function(dsn = NULL,
     stop("Supply either GINTERCEPT and POINT, or the path to a GDB containing those tables")
   }
 
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
+
+  gintercept <- dplyr::select(.data = gintercept,
+                              -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
+  point <- dplyr::select(.data = point,
+                         -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
+
   # Ensure START_GAP and END_GAP are numeric
-  gintercept$START_GAP <- as.numeric(gintercept$START_GAP)
-  gintercept$END_GAP <- as.numeric(gintercept$END_GAP)
+  gintercept <- dplyr::mutate(.data = gintercept,
+                              dplyr::across(.cols = tidyselect::all_of(c("START_GAP",
+                                                                         "END_GAP")),
+                                            .fns = as.numeric))
 
-  # Look at the point table and add blanks or substitute perennial gap for
-  # canopy gap
-  canopy_infer <- point[point$GAPS_DIFFERENT_NESW == "N" |
-                          point$GAPS_DIFFERENT_NWSE == "N", ] %>%
-    dplyr::select(
-      "PrimaryKey",
-      "GAPS_DIFFERENT_NESW",
-      "GAPS_DIFFERENT_NWSE"
-    ) %>%
+  if (any(gintercept$START_GAP > gintercept$END_GAP)) {
+    warning("There are some records with negative gap sizes. These will be dropped.")
+    gintercept <- dplyr::filter(.data = gintercept,
+                                START_GAP <= END_GAP)
+  }
 
-    # Gather so that we can query by lines
-    tidyr::gather(key = "TRANSECT", value = "different", -"PrimaryKey") %>%
+  #### Identical perennial and all-plant canopy ################################
+  # This takes the point table and identifies which transects at which points
+  # are marked as having identical perennial-only and all-plant canopies
+  # We'll use this to make records for the all-plant canopy values from the
+  # perennial-only ones where necessary.
 
-    # Select so that only values where canopy gap is not different
-    subset(different == "N") %>%
+  # Grab only the relevant variables, the PrimaryKey and the ones indicating if
+  # the gaps were different.
+  potential_canopy_transects <- dplyr::select(.data = point,
+                                              PrimaryKey,
+                                              tidyselect::starts_with(match = "GAPS_DIFFERENT_")) |>
+    # Pivot that so that there's one row for each PrimaryKey-transect
+    # combination and a logical variable indicating if the gaps were different.
+    tidyr::pivot_longer(data = _,
+                        cols = -PrimaryKey,
+                        names_to = "TRANSECT",
+                        # This takes the variable names and gets the transect ID
+                        # that's found in GINTERCEPT from them.
+                        names_transform = ~ tolower(stringr::str_extract(string = .x,
+                                                                         pattern = "[NSEW]{4}$")),
+                        values_to = "same",
+                        # This converts the character values into logical ones
+                        # where TRUE corresponds to the gaps being the same.
+                        values_transform = ~ .x %in% c("N")) |>
+    dplyr::filter(.data = _,
+                  same) |>
+    dplyr::select(.data = _,
+                  -same) |>
+    dplyr::distinct()
 
-    # Reduce line key to just line number
-    dplyr::mutate(TRANSECT = stringr::str_replace_all(TRANSECT,
-                                                      pattern = "GAPS_DIFFERENT_",
-                                                      replace = ""
-    ) %>% tolower())
+  # These are the data which *might* need inference, by which we mean copying
+  # the perennial-only records and changing the GAP_TYPE to "canopy".
+  potential_inference_data <- dplyr::left_join(x = potential_canopy_transects,
+                                               y = gintercept,
+                                               relationship = "one-to-many",
+                                               by = c("PrimaryKey",
+                                                      "TRANSECT"))
 
-  # select perennial gaps that are not different to canopy gaps and infer c
-  # canopy gaps
+  # Check to limit this to only transects where there's not already canopy data.
+  agreement_joining_vars <- c("PrimaryKey",
+                              "TRANSECT",
+                              "START_GAP",
+                              "END_GAP")
+  agreement_summary <- dplyr::full_join(x = dplyr::filter(.data = potential_inference_data,
+                                                          GAP_TYPE == "peren") |>
+                                          dplyr::select(.data = _,
+                                                        tidyselect::all_of(agreement_joining_vars)) |>
+                                          dplyr::mutate(.data = _,
+                                                        perennial = TRUE),
+                                        y = dplyr::filter(.data = potential_inference_data,
+                                                          GAP_TYPE == "canopy") |>
+                                          dplyr::select(.data = _,
+                                                        tidyselect::all_of(agreement_joining_vars)) |>
+                                          dplyr::mutate(.data = _,
+                                                        canopy = TRUE),
+                                        by = agreement_joining_vars)
 
-  canopy_infer <- dplyr::full_join(gintercept, canopy_infer,
-                                   by = c("PrimaryKey", "TRANSECT")
-  ) %>%
-    dplyr::filter(!is.na(different) & GAP_TYPE == "peren") %>%
+  # So, based on the agreement (or disagreement) we need to warn the user and
+  # take action.
+  if (any(is.na(agreement_summary$canopy)) | any(is.na(agreement_summary$perennial))) {
+    disagreeing_transects <- dplyr::summarize(.data = agreement_summary,
+                                              .by = tidyselect::all_of("PrimaryKey",
+                                                                       "TRANSECT"),
+                                              # We'll get the proportion of the
+                                              # GAP_TYPE records that're NA
+                                              # which should be the proportion
+                                              # of records which don't match
+                                              # between the gap types.
+                                              proportion_na_canopy = sum(is.na(canopy)) / dplyr::n(),
+                                              proportion_na_perennial = sum(is.na(perennial)) / dplyr::n())
+    # This identifies the places where there were no canopy records but there
+    # were perennial records. For those, we'll copy the perennial records and
+    # change GAP_TYPE to "canopy"
+    if (any(disagreeing_transects$proportion_na_canopy == 1)) {
+      warning("There are transects where it was indicated that perennial-only and all-plant canopy gaps were identical but only perennial records exist. The all-plant records will be inferred from the perennial-only records.")
+      inferred_canopy <- dplyr::left_join(x = dplyr::filter(.data = disagreeing_transects,
+                                                            proportion_na_canopy == 1) |>
+                                            dplyr::select(.data = _,
+                                                          PrimaryKey,
+                                                          TRANSECT),
+                                          y = potential_inference_data,
+                                          by = c("PrimaryKey",
+                                                 "TRANSECT")) |>
+        dplyr::mutate(.data = _,
+                      GAP_TYPE = "canopy")
+      gintercept <- dplyr::bind_rows(gintercept,
+                                     inferred_canopy)
+    }
 
-    # Code perennial to canopy
-    dplyr::mutate(GAP_TYPE = "canopy")
-
-  # Join canopy data back to gintercept
-
-  gintercept <- rbind(gintercept, dplyr::select(canopy_infer, -different))
-
-  ## Add zeros where no canopy gap data were recorded
-  zero_gap <- point %>%
-    dplyr::select(
-      "PrimaryKey",
-      "DBKey",
-      "BASAL_GAPS_NESW",
-      "CANOPY_GAPS_NESW",
-      "BASAL_GAPS_NWSE",
-      "CANOPY_GAPS_NWSE",
-      "PERENNIAL_CANOPY_GAPS_NESW",
-      "PERENNIAL_CANOPY_GAPS_NWSE"
-    ) %>%
-    tidyr::gather(key = "TRANSECT", value = "zero", -c("PrimaryKey", "DBKey")) %>%
-
-    # Filter for plots and lines where we need to insert zeros
-    dplyr::filter(zero == "N") %>%
-
-    # rework transect name
-    dplyr::mutate(
-      GAP_TYPE = stringr::str_replace(TRANSECT,
-                                      pattern = "_.*",
-                                      replacement = ""
-      ) %>%
-        # recode GAP_TYPE
-        dplyr::recode(
-          "CANOPY" = "canopy",
-          "PERENNIAL" = "peren",
-          "BASAL" = "basal"
-        ),
-      TRANSECT = stringr::str_sub(TRANSECT, -4) %>% tolower(),
-      START_GAP = 0,
-      END_GAP = 0
-    )
-
-
-  # Merge back to gintercept
-  gintercept <- dplyr::full_join(gintercept, zero_gap,
-                                 by = c("TRANSECT", "GAP_TYPE", "START_GAP",
-                                        "END_GAP", "PrimaryKey", "DBKey")) %>%
-    dplyr::select(-zero)
-
-  # convert to metric, original data are in decimal feet
-  gintercept$START_GAP <- gintercept$START_GAP * 30.48
-  gintercept$END_GAP <- gintercept$END_GAP * 30.48
-  gintercept$Gap <- abs(gintercept$END_GAP - gintercept$START_GAP)
+    # This does the same but for perennial-only records.
+    # This shouldn't happen based on how LMF is implemented in the field, but
+    # better safe than sorry.
+    if (any(disagreeing_transects$proportion_na_perennial == 1)) {
+      warning("There are transects where it was indicated that perennial-only and all-plant canopy gaps were identical but only canopy records exist. This is unexpected based on LMF data collection methods, but the perennial-only records will be inferred from the all-plant records.")
+      inferred_perennial <- dplyr::left_join(x = dplyr::filter(.data = disagreeing_transects,
+                                                               proportion_na_perennial == 1) |>
+                                               dplyr::select(.data = _,
+                                                             PrimaryKey,
+                                                             TRANSECT),
+                                             y = potential_inference_data,
+                                             by = c("PrimaryKey",
+                                                    "TRANSECT")) |>
+        dplyr::mutate(.data = _,
+                      GAP_TYPE = "peren")
+      gintercept <- dplyr::bind_rows(gintercept,
+                                     inferred_perennial)
+    }
 
 
-  # check for negative values and remove
-  gap <- gintercept %>% subset(Gap >= 0)
 
+    # This is where we warn the user if there were only partial mismatches.
+    # This really shouldn't happen if the values are expected to be the same!
+    partial_mismatches <- dplyr::filter(.data = disagreeing_transects,
+                                        proportion_na_canopy < 1,
+                                        proportion_na_canopy > 0,
+                                        proportion_na_perennial < 1,
+                                        proportion_na_perennial > 0) |>
+      dplyr::select(.data = _,
+                    PrimaryKey,
+                    TRANSECT) |>
+      dplyr::distinct()
+    if (nrow(partial_mismatches) > 0) {
+      warning(paste0("There are ", nrow(partial_mismatches), " transects representing ",
+                     length(unique(partial_mismatches$PrimaryKey)),
+                     " sampling locations where perennial-only and all-plant canopy were indicated to be identical but they are not. These records will be left as-is and calculations using those transects will produce different values for perennial-only and all-plant canopy."))
+    }
+  }
 
-  # recode gap type so that it fits the DIMA types
-  gap$GAP_TYPE <- as.character(gap$GAP_TYPE)
-  gap$GAP_TYPE[gap$GAP_TYPE == "peren"] <- "P"
-  gap$GAP_TYPE[gap$GAP_TYPE == "canopy"] <- "C"
-  gap$GAP_TYPE[gap$GAP_TYPE == "basal"] <- "B"
+  #### Zero canopy gaps ########################################################
+  # Find the places where there were supposedly no gaps, adding 0 records where
+  # appropriate and warning the user when there are unexpected non-zero records.
 
-  # rename fields so they can be merged with a DIMA/TerrADat type
-  gap <- dplyr::rename(gap,
-                       LineKey = TRANSECT, RecType = GAP_TYPE,
-                       GapStart = START_GAP, GapEnd = END_GAP, SeqNo = SEQNUM
-  )
+  # Identify the places where the point table indicates that there aren't gaps.
+  potential_zero_gap_transects <- dplyr::select(.data = point,
+                                                PrimaryKey,
+                                                tidyselect::matches(match = "_GAPS_[NSEW]{4}$")) |>
+    tidyr::pivot_longer(data = _,
+                        cols = tidyselect::matches(match = "_GAPS_[NSEW]{4}$"),
+                        names_to = c("GAP_TYPE",
+                                     "TRANSECT"),
+                        # This will produce the corresponding GAP_TYPE and
+                        # TRANSECT values from the variable names.
+                        names_pattern = "(^[A-Z]+).+([NSEW]{4})",
+                        names_transform = ~ stringr::str_extract(string = tolower(.x),
+                                                                 pattern = "basal|canopy|peren|[nesw]{4}"),
+                        values_to = "not_present",
+                        values_transform = ~ .x %in% c("N")) |>
+    dplyr::filter(.data = _,
+                  not_present) |>
+    dplyr::select(.data = _,
+                  -not_present) |>
+    dplyr::distinct()
 
-  # units are metric
-  gap$Measure <- 1
+  # Find the transects that claimed to not have data but actually do.
+  actually_present <- dplyr::left_join(x = potential_zero_gap_transects,
+                                       y = gintercept,
+                                       by = c("PrimaryKey",
+                                              "TRANSECT",
+                                              "GAP_TYPE")) |>
+    dplyr::filter(.data = _,
+                  # Assuming that gaps are always recorded with the GAP_END
+                  # value being larger than the START_GAP value, this will
+                  # limit records to only those where there were no 0-length
+                  # gaps
+                  !(END_GAP %in% c(0, NA)))
 
-  # line length of an NRI transect in meters
-  gap$LineLengthAmount <- 150 * 30.48 / 100
+  actually_present_summary <- dplyr::summarize(.data = actually_present,
+                                               .by = c("GAP_TYPE"),
+                                               pk_count = length(unique(PrimaryKey)),
+                                               transect_count = length(unique(TRANSECT)))
 
-  # minimum gap size
-  gap$GapMin <- 12 * 2.54
+  # If there were data where we didn't expect them, warn the user!
+  if (nrow(actually_present_summary) > 0) {
+    warning(paste0("There are ", sum(actually_present_summary$transect_count),
+                   " transects across ", sum(actually_present_summary$pk_count),
+                   " sampling locations which are flagged as not having gaps (perennial-only canopy, all-plant canopy, or basal) but which do have gaps recorded. These records will be left as-is."))
 
-  # Strip down fields
-  gap <- gap %>%
-    dplyr::select_if(!names(.) %in% c(
-      'SURVEY', 'COUNTY', 'STATE', 'PLOTKEY',
-      'PSU', 'POINT',
-      'created_user',
-      'created_date',
-      'last_edited_user',
-      'last_edited_date',
-      'GlobalID',
-      'X'
-    )) %>%
-    # make sure data types are numeric when needed
-    dplyr::mutate(
-      GapStart = suppressWarnings(as.numeric(GapStart)),
-      GapEnd = suppressWarnings(as.numeric(GapEnd)),
-      Gap = suppressWarnings(as.numeric(Gap))
-    )
+    # Remove the ones that have data from the set that we're making 0 records for
+    potential_zero_gap_transects <- dplyr::select(.data = actually_present,
+                                                  PrimaryKey,
+                                                  TRANSECT) |>
+      dplyr::distinct() |>
+      dplyr::mutate(.data = _,
+                    present = TRUE) |>
+      dplyr::left_join(x = potential_zero_gap_transects,
+                       y = _,
+                       by = c("PrimaryKey",
+                              "TRANSECT")) |>
+      dplyr::filter(.data = _,
+                    is.na(present)) |>
+      dplyr::select(.data = _,
+                    -present)
+  }
 
-  return(gap)
+  # Create the 0 records
+  if (nrow(potential_zero_gap_transects) > 0) {
+    zero_gaps <- dplyr::mutate(.data = potential_zero_gap_transects,
+                               SEQNUM = 1,
+                               START_GAP = 0,
+                               END_GAP = 0) |>
+      dplyr::left_join(x = _,
+                       y = dplyr::distinct(dplyr::select(.data = gintercept,
+                                                         -tidyselect::all_of(c("TRANSECT",
+                                                                               "SEQNUM",
+                                                                               "GAP_TYPE",
+                                                                               "START_GAP",
+                                                                               "END_GAP")))),
+                       by = c("PrimaryKey"))
+    gintercept <- dplyr::bind_rows(gintercept,
+                                   zero_gaps)
+  }
+
+  #### Cleanup and conversion ##################################################
+  # We need to reformat this so that it's in the standard format.
+
+  output <- dplyr::rename(.data = gintercept,
+                          LineKey = TRANSECT,
+                          RecType = GAP_TYPE,
+                          GapStart = START_GAP,
+                          GapEnd = END_GAP,
+                          SeqNo = SEQNUM) |>
+    dplyr::mutate(.data = _,
+                  # Convert from decimal feet to centimeters
+                  dplyr::across(.cols = tidyselect::all_of(c("GapStart",
+                                                             "GapEnd")),
+                                .fns = ~ .x * 12 * 2.54),
+                  # The abs() shouldn't be necessary, but just to be safe!
+                  Gap = abs(GapStart - GapEnd),
+                  RecType = dplyr::case_when(stringr::str_detect(string = RecType,
+                                                                 "peren") ~ "P",
+                                             stringr::str_detect(string = RecType,
+                                                                 "canopy") ~ "C",
+                                             stringr::str_detect(string = RecType,
+                                                                 "basal") ~ "B",
+                                             .default = RecType),
+                  # The 1 here indicates that units are metric
+                  Measure = 1,
+                  # LMF transects are always 150 feet, but we want that length
+                  # in meters.
+                  LineLengthAmount = 150 * 12 * 2.54 / 100,
+                  # The minimum gap size in LMF is 12 inches but we want cm
+                  GapMin = 12 * 2.54)
+
+  # Return only the variables we want and in an order we want.
+  output_vars <- c("PrimaryKey",
+                   "LineKey",
+                   "LineLengthAmount",
+                   "Measure",
+                   "GapMin",
+                   "RecType",
+                   "SeqNo",
+                   "GapStart",
+                   "GapEnd",
+                   "Gap")
+  output <- dplyr::select(.data = output,
+                          tidyselect::all_of(output_vars))
+
+  output
 }
 
 #' export gather_gap_survey123
