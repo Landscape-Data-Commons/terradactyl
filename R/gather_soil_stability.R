@@ -163,12 +163,10 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                      values_drop_na = TRUE) |>
     dplyr::filter(.data = _,
                   value != "",
-                  # We're removing all records where variable is "Hydro" and the
-                  # associated value is "0". Unclear why, but this is what the
-                  # older version of the code *tried* to do, but I don't think
-                  # it was because it was checking for the numerical 0 when all
-                  # the values in the variable value were character.
-                  !(variable == "Hydro" & value != "0")) |>
+                  # Correctly remove non-hydrophobic records with 0 values
+                  # and hydrophobic records with non-zero values
+                  !(variable == "Hydro" & value != "0"),
+                  !(variable != "Hydro" & value == "0")) |>
     dplyr::distinct()
 
   # This will make things wider. We can't just use tidyr::pivot_wider() because
@@ -244,10 +242,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
 #' @rdname gather_soil_stability
 gather_soil_stability_lmf <- function(dsn = NULL,
                                       file_type = "gdb",
-                                      SOILDISAG = NULL
-) {
-
-
+                                      SOILDISAG = NULL) {
+  #### Reading and cleanup #####################################################
   if(!is.null(SOILDISAG)) {
     soildisag <- SOILDISAG
   } else if(!is.null(dsn)){
@@ -285,75 +281,62 @@ gather_soil_stability_lmf <- function(dsn = NULL,
     stop("Supply either SOILDISAG or a path to a gdb containing that table")
   }
 
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
 
-  # Remove any database management fields
-  soildisag <- soildisag[!names(soildisag) %in% c(
-    "created_user",
-    "created_date",
-    "last_edited_user",
-    "last_edited_date"
-  )]
+  soildisag <- dplyr::select(.data = soildisag,
+                             -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
 
-  # convert white space to NA
-  soildisag[soildisag == ""] <- NA
-
-  # Convert to tall format
-  soil_tall <- dplyr::select(.data = soildisag,
-                             VEG1:STABILITY18,
-                             PrimaryKey, DBKey) |>
-    tidyr::gather(.data = _,
-                  key = variable,
-                  value = value,
-                  -PrimaryKey, -DBKey)
-
-  # Remove NAs
-  gathered <- soil_tall[!is.na(soil_tall$value), ]
-
-  gathered <- tidyr::separate(gathered,
-                              col = variable,
-                              into = c("type", "Position"),
-                              sep = "[[:alpha:]]+",
-                              remove = FALSE
-  ) |>
+  #### Pivoting longer and harmonizing #########################################
+  # This pares down the variables to only what we need and pivots to a long
+  # format. It also splits variables into type and position.
+  data_long <- dplyr::select(.data = soildisag,
+                             PrimaryKey,
+                             tidyselect::matches(match = "^VEG\\d+$"),
+                             tidyselect::matches(match = "^STABILITY\\d+$")) |>
+    tidyr::pivot_longer(data = _,
+                        cols = -tidyselect::all_of("PrimaryKey"),
+                        names_to = c("variable",
+                                     "Position"),
+                        # This just says that all the letters at the beginning
+                        # of the variable name go into "variable" and all the
+                        # digits at the end go into "Position"
+                        names_pattern = "(^[A-z]+)(\\d+)",
+                        values_to = "value",
+                        # This is just for now so that we can combine the two
+                        # classes of values (numeric and character).
+                        values_transform = as.character) |>
     dplyr::mutate(.data = _,
-                  variable = stringr::str_extract(
-                    string = gathered$variable,
-                    pattern = "^[A-z]+"
-                  )) |>
-    dplyr::select(.data = _,
-                  -type)
+                  variable = dplyr::case_when(variable == "VEG" ~ "Veg",
+                                              variable == "STABILITY" ~ "Rating")) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = variable) |>
+    # And this makes sure that the values that should be numeric are.
+    dplyr::mutate(.data = _,
+                  dplyr::across(.cols = tidyselect::all_of(c("Position",
+                                                             "Rating")),
+                                .fns = as.numeric))
 
-
-  # Spread the gathered data so that Line, Rating, Vegetation,
-  # and Hydro are all different variables
-  soil_stability_tidy <- lapply(
-    X = as.list(unique(gathered$variable)),
-    FUN = function(k = as.list(unique(gathered$variable)), df = gathered) {
-      df[df$variable == k, ] |>
-        dplyr::mutate(id = 1:dplyr::n()) |>
-        tidyr::spread(key = variable, value = value) |>
-        dplyr::select(-id)
-    }
-    #) %>% Reduce(dplyr::left_join, ., by = c("RecKey", "PrimaryKey", "Position"))
-  ) |> purrr::reduce(.x = _,
-                     .f = dplyr::left_join,
-                     by = c("PrimaryKey", "DBKey", "Position")
-  )
-
-  # Rename fields
-  soil_stability_tidy <- dplyr::rename(soil_stability_tidy,
-                                       Veg = VEG,
-                                       Rating = STABILITY
-  )
-
-  # Make sure the rating field is numeric
-  soil_stability_tidy$Rating <- as.numeric(soil_stability_tidy$Rating)
-
-  # Remove 0 values
-  soil_stability_tidy <- soil_stability_tidy |> subset(Rating > 0)
-
-  # Return final merged file
-  return(soil_stability_tidy)
+  # Return only valid records!
+  dplyr::filter(.data = data_long,
+                # Apparently we might have 0 ratings???
+                !(Rating %in% c(0, NA))) |>
+    dplyr::distinct()
 }
 
 #' export gather_soil_stability_survey123
@@ -486,7 +469,8 @@ gather_soil_stability <- function(dsn = NULL,
                                   file_type = "gdb",
                                   tblSoilStabDetail = NULL,
                                   tblSoilStabHeader = NULL,
-                                  SOILDISAG = NULL
+                                  SOILDISAG = NULL,
+                                  autoQC = TRUE
 ) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -519,6 +503,20 @@ gather_soil_stability <- function(dsn = NULL,
   soil_stability <- dplyr::select(.data = soil_stability,
                                   PrimaryKey, DBKey,
                                   tidyselect::everything())
+
+  # Drop rows with no data
+  soil_stability <- soil_stability %>%
+    dplyr::filter(!(
+                      is.na(Position) &
+                      is.na(Rating) &
+                      is.na(Veg)
+    ))
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    soil_stability <- soil_stability %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilstab")
+  }
 
   return(soil_stability)
 }

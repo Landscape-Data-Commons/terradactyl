@@ -256,7 +256,8 @@ gather_species_inventory <- function(dsn = NULL,
                                      PLANTCENSUS = NULL,
                                      # SpeciesRichness_0 = NULL,
                                      # SpecRichDetail_1 = NULL,
-                                     file_type = "gdb") {
+                                     file_type = "gdb",
+                                     autoQC = TRUE) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     species_inventory <- gather_species_inventory_terradat(
@@ -294,6 +295,12 @@ gather_species_inventory <- function(dsn = NULL,
   # reorder so that primary key is leftmost column
   species_inventory <- species_inventory %>%
     dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    species_inventory <- species_inventory %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "specinv")
+  }
 
   return(species_inventory)
 }

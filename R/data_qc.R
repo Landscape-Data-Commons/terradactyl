@@ -436,7 +436,7 @@ auto_qc_warning <- function(header_data,
       warning_strings["header_nonuniques"] <- paste("There are", length(unique(header_nonuniques$id_nonunique_group)),
                                                     "instances of duplicated header records.")
     }
-    detail_nonuniques <- check_uniqueness(data = lpi_detail,
+    detail_nonuniques <- check_uniqueness(data = detail_data,
                                           uid_variables = uid_variables[["detail"]])
     if (nrow(detail_nonuniques) > 0) {
       warning_strings["detail_nonuniques"] <- paste("There are", length(unique(detail_nonuniques$id_nonunique_group)),
