@@ -29,20 +29,20 @@
 #' @return A tall data frame containing the data from the rangeland health
 #' measurements.
 #' @examples
-#' gather_IIRH(dsn = "Path/To/AIM_Geodatabase.gdb",
-#'             source = "AIM")
-#' gather_IIRH(dsn = "Path/To/LMF_Geodatabase.gdb",
-#'             source = "LMF")
+#' gather_rangeland_health(dsn = "Path/To/AIM_Geodatabase.gdb",
+#'                         source = "AIM")
+#' gather_rangeland_health(dsn = "Path/To/LMF_Geodatabase.gdb",
+#'                         source = "LMF")
 #'
 #' aim_rhdetail <- read.csv("Path/To/tblQualDetail.csv")
 #' aim_rhheader <- read.csv("Path/To/tblQualHeader.csv")
-#' gather_IIRH(source = "AIM",
-#'             tblQualDetail = aim_rhdetail,
-#'             tblQualHeader = aim_rhheader)
+#' gather_rangeland_health(source = "AIM",
+#'                         tblQualDetail = aim_rhdetail,
+#'                         tblQualHeader = aim_rhheader)
 #'
 #' lmf_rh <- read.csv("Path/To/RANGEHEALTH.csv")
-#' gather_IIRH(source = "LMF",
-#'             RANGEHEALTH = lmf_rh)
+#' gather_rangeland_health(source = "LMF",
+#'                         RANGEHEALTH = lmf_rh)
 
 #' @export gather_rangeland_health_terradat
 #' @rdname IIRH
@@ -305,7 +305,8 @@ gather_rangeland_health <- function(dsn = NULL,
                                     file_type = NULL,
                                     tblQualHeader = NULL,
                                     tblQualDetail = NULL,
-                                    RANGEHEALTH = NULL) {
+                                    RANGEHEALTH = NULL,
+                                    autoQC = TRUE) {
 
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -335,6 +336,12 @@ gather_rangeland_health <- function(dsn = NULL,
   # reorder so that primary key is leftmost column
   IIRH <- IIRH %>%
     dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+  # remove duplicates and empty rows
+  if(autoQC){
+    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+    IIRH <- IIRH %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "rh")
+  }
 
   return(IIRH)
 }
