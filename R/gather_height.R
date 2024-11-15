@@ -238,7 +238,7 @@ gather_height_terradat <- function(dsn = NULL,
 gather_height_lmf <- function(dsn = NULL,
                               file_type = "gdb",
                               PASTUREHEIGHTS = NULL) {
-
+  #### Reading and cleanup #####################################################
   if(!is.null(PASTUREHEIGHTS)){
     vegheight <- PASTUREHEIGHTS
   } else if (!is.null(dsn)) {
@@ -300,84 +300,132 @@ gather_height_lmf <- function(dsn = NULL,
     stop("Supply either PASTUREHEIGHTS or a path to a gdb containing that table")
   }
 
-  # For height data
-  # point number 75 is recorded twice—once on each transect.
-  # We only want to use it once in the calculations.
-  # Prior to doing these calculations, it would be beneficial to
-  # remove one of the point 75’s from the data set.
-  # Remove the nesw transect—that would be all rows in pintercept
-  # where transect == “nesw” AND mark = 75.
-  vegheight <- vegheight[!(vegheight$TRANSECT == "nesw" & vegheight$DISTANCE == 75), ]
+  ##### Making sure these are distinct records ---------------------------------
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
 
+  vegheight <- dplyr::select(.data = vegheight,
+                             -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
 
-  height_woody <- dplyr::select(
-    .data = vegheight,
-    PrimaryKey,
-    DBKey,
-    TRANSECT,
-    DISTANCE,
-    dplyr::matches("^W")
-  ) |> dplyr::mutate(.data = _
-                     type = "woody",
-                     GrowthHabit_measured = "Woody"
-  )
-  # remove the "W" from the names
-  names(height_woody) <- stringr::str_replace_all(
-    string = names(height_woody),
-    pattern = "W",
-    replacement = ""
-  )
+  ##### Dealing with intersecting transects ------------------------------------
+  # The arrangement of the transects for an LMF point crosses in the middle of
+  # the transects (point 75) and so that intersection gets recorded twice, once
+  # per transect. We'll drop the 75th record on the northeast-southwest transect
+  # but we also want to warn the user that it's happening to any situations
+  # where the assumption that they're identical is violated.
+  duplicated_75mark_indices <- dplyr::filter(.data = vegheight,
+                                             DISTANCE == 75) |>
+    dplyr::select(.data = _,
+                  -TRANSECT) |>
+    duplicated(x = _)
+  vegheight_75mark <- dplyr::filter(.data = vegheight,
+                                    DISTANCE == 75)
+  vegheight_75mark[["duplicated"]] <- duplicated_75mark_indices
+  vegheight_75mark_summary <- dplyr::summarize(.data = vegheight_75mark,
+                                               .by = PrimaryKey,
+                                               n_records = dplyr::n(),
+                                               has_duplicate = any(duplicated))
+  if (any(!vegheight_75mark_summary$has_duplicate)) {
+    warning(paste0("There are ", sum(!vegheight_75mark_summary$has_duplicate),
+                   " plots where the height records at the 75th sampling locations on the two transects are not identical to each other despite being the intersection of those transects. The records associated with the 'nesw' transects will still be dropped for these plots."))
+  }
 
-  height_herbaceous <- dplyr::select(
-    .data = vegheight,
-    PrimaryKey,
-    DBKey,
-    TRANSECT,
-    DISTANCE,
-    dplyr::matches("^H")
-  ) |> dplyr::mutate(.data = _
-                     type = "herbaceous",
-                     GrowthHabit_measured = "NonWoody"
-  )
+  vegheight <- dplyr::filter(.data = vegheight,
+                             !(TRANSECT == "nesw" & DISTANCE == 75))
 
-  # remove the "H" from the "HPLANT" field
-  names(height_herbaceous)[names(height_herbaceous) == "HPLANT"] <- "PLANT"
-  height <- rbind(height_woody, height_herbaceous)
+  #### Reformatting and harmonizing ############################################
+  # Most of the heavy lifting!
+  # This will get us to the point where there's a separate record for each type
+  # of measurement (woody and nonwoody) but there's a little more to adjust
+  # after that.
+  data_long <- dplyr::select(.data = vegheight,
+                             PrimaryKey,
+                             LineKey = TRANSECT,
+                             PointNbr = DISTANCE,
+                             tidyselect::matches(match = "HEIGHT"),
+                             tidyselect::matches(match = "PLANT")) |>
+    # This splits the species and the heights into separate records, but that's
+    # actually fine for now.
+    tidyr::pivot_longer(data = _,
+                        cols = -tidyselect::all_of(c("PrimaryKey",
+                                                     "LineKey",
+                                                     "PointNbr")),
+                        names_to = "variable",
+                        values_to = "value") |>
+    # This removes all the records where there were no species or no heights.
+    # "None" is fine because we'll have a measure of 0 there.
+    dplyr::filter(.data = _,
+                  !(value %in% c(NA,
+                                 ""))) |>
+    dplyr::mutate(.data = _,
+                  # Add in the type and GrowthHabit_measured variables based on
+                  # whether the variable name was prefixed with a W, assuming
+                  # that if there's not a W that meant it was nonwoody.
+                  GrowthHabit_measured = dplyr::case_when(stringr::str_detect(string = variable,
+                                                                              pattern = "^W") ~ "Woody",
+                                                          .default = "NonWoody"),
+                  type = dplyr::case_when(GrowthHabit_measured == "Woody" ~ "woody",
+                                          .default = "herbaceous"),
+                  # Drop the prefixes from these values so that we can pivot
+                  # wider to combine the record types.
+                  variable = stringr::str_extract(string = variable,
+                                                  pattern = "PLANT|HEIGHT")) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = "variable",
+                       values_from = "value")
 
-  # remove NA values
-  height <- subset(height, !is.na(HEIGHT))
+  # Now we split the HEIGHT variable into one with the height and one with the
+  # units.
+  data_long <- dplyr::mutate(.data = data_long,
+                             # The pattern used will find numbers with decimal places
+                             # but they shouldn't be in there in the first place.
+                             Height = stringr::str_extract(string = HEIGHT,
+                                                           pattern = "^\\d+\\.?\\d*") |>
+                               as.numeric() |>
+                               tidyr::replace_na(data = _,
+                                                 replace = 0),
+                             HeightUOM = stringr::str_extract(string = HEIGHT,
+                                                              pattern = "[a-z]{2}$")) |>
+    dplyr::mutate(.data = _,
+                  # Convert to centimeters!!!
+                  Height = dplyr::case_when(HeightUOM %in% c("in") ~ Height * 2.54,
+                                            HeightUOM %in% c("ft") ~ Height * 2.54 * 12,
+                                            .default = Height),
+                  HeightUOM = "cm") |>
+    dplyr::select(.data = _,
+                  -HEIGHT)
 
+  # We'll also replace any "None" or "" values in PLANT with NA
+  data_long <- dplyr::mutate(.data = data_long,
+                             Species = dplyr::case_when(PLANT %in% c("", "None") ~ NA,
+                                                        .default = PLANT))
 
-  # The height units are concatenated in the field,
-  # separate so that we can convert to metric appopriately
-  height <- tidyr::separate(height, "HEIGHT", c("HEIGHT", "UOM"),
-                            sep = " ", extra = "drop", fill = "right"
-  )
-
-  # Convert to metric
-  height$HEIGHT <- suppressWarnings(as.numeric(height$HEIGHT))
-
-  # convert to centimeters
-  height$HEIGHT <- height$HEIGHT * 2.54
-  height$UOM[is.na(height$UOM) | height$UOM == "in"] <- "cm"
-  height$HEIGHT[height$UOM == "ft"] <- height$HEIGHT[height$UOM == "ft"] * 12
-  height$UOM <- "cm"
-
-
-  # rename field names
-  height <- dplyr::rename(height,
-                          LineKey = TRANSECT,
-                          PointNbr = DISTANCE,
-                          Height = HEIGHT,
-                          Species = PLANT,
-                          HeightUOM = UOM
-  )
-
-  # Make sure height is a numeric field
-  height$Height <- suppressWarnings(as.numeric(height$Height))
-
-  # return height
-  return(height)
+  # Return only the unique records and with the variables ordered how we'd like
+  dplyr::select(.data = data_long,
+                tidyselect::all_of(c("PrimaryKey",
+                                     "LineKey",
+                                     "PointNbr",
+                                     "Species",
+                                     "Height",
+                                     "HeightUOM",
+                                     "type",
+                                     "GrowthHabit_measured"))) |>
+    dplyr::distinct()
 }
 
 #' export gather_height_survey123
