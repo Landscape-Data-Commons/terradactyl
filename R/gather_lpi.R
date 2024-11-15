@@ -68,6 +68,7 @@ gather_lpi_terradat <- function(dsn = NULL,
                          "last_edited_date",
                          "DateLoadedInDb",
                          "DateLoadedinDB",
+                         "DBKey",
                          "rid",
                          "DataErrorChecking",
                          "DataEntry",
@@ -218,7 +219,7 @@ gather_lpi_terradat <- function(dsn = NULL,
                                                        "layer")) |>
                                  dplyr::left_join(x = dplyr::select(.data = header,
                                                                     LineKey:CheckboxLabel,
-                                                                    PrimaryKey, DBKey),
+                                                                    PrimaryKey),
                                                   y = _,
                                                   # relationship = "one-to-many",
                                                   by = c("PrimaryKey", "RecKey")))
@@ -672,7 +673,7 @@ gather_lpi <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   lpi <- lpi %>%
-    dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, LineKey, tidyselect::everything())
 
   # Drop rows with no data
   lpi <- lpi %>%

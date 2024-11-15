@@ -68,6 +68,7 @@ gather_height_terradat <- function(dsn = NULL,
                          "DateLoadedInDb",
                          "DateLoadedinDB",
                          "rid",
+                         "DBKey",
                          "DataErrorChecking",
                          "DataEntry",
                          "DateModified",
@@ -117,7 +118,7 @@ gather_height_terradat <- function(dsn = NULL,
   header <- dplyr::select(.data = header,
                           PrimaryKey,
                           LineKey:CheckboxLabel,
-                          tidyselect::matches(match = "DBKey"),
+                          # tidyselect::matches(match = "DBKey"),
                           -tidyselect::any_of(internal_gdb_vars)) |>
     dplyr::distinct()
 
@@ -587,7 +588,7 @@ gather_height <- function(dsn = NULL,
   }
 
   height <- dplyr::select(.data = height,
-                          PrimaryKey, DBKey, LineKey,
+                          PrimaryKey, LineKey,
                           tidyselect::everything())
 
   # remove duplicates and empty rows

@@ -830,7 +830,7 @@ gather_gap <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   gap <- gap %>%
-    dplyr::select(PrimaryKey, DBKey, LineKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, LineKey, tidyselect::everything())
 
   # Drop rows with no data
   gap <- gap %>%

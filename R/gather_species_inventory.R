@@ -294,7 +294,7 @@ gather_species_inventory <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   species_inventory <- species_inventory %>%
-    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+    dplyr::select(PrimaryKey, tidyselect::everything())
 
   # remove duplicates and empty rows
   if(autoQC){

@@ -62,6 +62,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                          "last_edited_date",
                          "DateLoadedInDb",
                          "DateLoadedinDB",
+                         "DBKey",
                          "rid",
                          "DataErrorChecking",
                          "DataEntry",
@@ -93,7 +94,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   # Clean these up!
   detail <- dplyr::select(.data = detail,
                           -tidyselect::any_of(internal_gdb_vars),
-                          -tidyselect::any_of("DBKey"),
+                          # -tidyselect::any_of("DBKey"),
                           # These are some book-keeping variables and don't
                           # contain relevant data.
                           -dplyr::matches(match = "^(In)|(Dip)|(DateLoaded)")) |>
@@ -501,7 +502,7 @@ gather_soil_stability <- function(dsn = NULL,
 
   # reorder so that primary key is leftmost column
   soil_stability <- dplyr::select(.data = soil_stability,
-                                  PrimaryKey, DBKey,
+                                  PrimaryKey,
                                   tidyselect::everything())
 
   # Drop rows with no data
