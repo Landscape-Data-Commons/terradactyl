@@ -47,7 +47,8 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
 
   header <- header %>%
     # Select the field names we need in the final feature class
-    dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey, DBKey,
+    dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey,
+                  # DBKey,
                   EcologicalSiteId = EcolSite, Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, State,
                   Elevation,
                   County, DateEstablished = EstablishDate, DateLoadedInDb,
@@ -128,7 +129,7 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     dplyr::filter(!!!filter_exprs) %>%
     dplyr::select(
       PrimaryKey, SpeciesState,
-      COUNTY, STATE, DBKey
+      COUNTY, STATE#, DBKey
     )
 
   # County and State are referred to by number codes, let's use the name
@@ -155,7 +156,7 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     dplyr::select(
       PrimaryKey = PrimaryKey.x,
       SpeciesState,
-      DBKey = DBKey.x,
+      # DBKey = DBKey.x,
       County = COUNTYNM,
       State = STABBR
     ) %>%
@@ -166,7 +167,7 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     dplyr::distinct() %>%
 
     # Populate DateLoadedInDB
-    dplyr::mutate(DateLoadedInDb = DBKey)
+    # dplyr::mutate(DateLoadedInDb = DBKey)
 
   # Get the field coordinates
   point_coordinate <- sf::st_read(
@@ -270,7 +271,7 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
     # dplyr::filter(!!!filter_exprs) %>%
     dplyr::select(
       PrimaryKey,
-      COUNTY, STATE, DBKey
+      COUNTY, STATE#, DBKey
     )
 
   # County and State are referred to by number codes, let's use the name
@@ -284,20 +285,21 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
 
     # Add state
     dplyr::left_join(read.csv(file.path(dsn, "STATENM.csv"), stringsAsFactors = FALSE),
-                     by = c("STATE", "DBKey")
+                     # by = c("STATE", "DBKey")
+                     by = "STATE"
     ) %>%
 
     # pair down to needed fields
     dplyr::select(
       PrimaryKey,
-      DBKey,
+      # DBKey,
       County = COUNTYNM,
       State = STABBR
     ) %>%
     dplyr::distinct() %>%
 
     # Populate DateLoadedInDB
-    dplyr::mutate(DateLoadedInDB = DBKey)
+    # dplyr::mutate(DateLoadedInDB = DBKey)
 
   # Get the field coordinates
   point_coordinate <- read.csv(file.path(dsn, "POINTCOORDINATES.csv"),
@@ -330,11 +332,12 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
   ) %>%
     dplyr::select(PrimaryKey,
                   DateVisited = CAPDATE, # The GPS capture date is the best approx
-                  ELEVATION,
-                  DBKey
+                  ELEVATION#,
+                  # DBKey
     ) %>%
     dplyr::left_join(point_coordinate, .,
-                     by = c("PrimaryKey", "DBKey")
+                     # by = c("PrimaryKey", "DBKey")
+                     by = "PrimaryKey"
     ) %>%
 
     # Convert elevation to meters
@@ -344,7 +347,9 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
   point_ESD <- read.csv(file.path(dsn, "ESFSG.csv"),
                         stringsAsFactors = FALSE
   ) %>%
-    dplyr::left_join(point_elevation, ., by = c("PrimaryKey", "DBKey")) %>%
+    dplyr::left_join(point_elevation, .,
+                     # by = c("PrimaryKey", "DBKey")
+                     by = "PrimaryKey") %>%
     dplyr::distinct() %>%
 
     # If the ESD coverage !=all, figure what portion of the plot the dominant ESD
@@ -361,17 +366,23 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
     ) %>%
 
     # Add up the coverage on each plot and get the percent coverage
-    dplyr::group_by(PrimaryKey, DBKey, EcologicalSiteId) %>%
+    dplyr::group_by(PrimaryKey,
+                    # DBKey,
+                    EcologicalSiteId) %>%
     dplyr::summarise(PercentCoveredByEcoSite = 100 * sum(ESD_coverage) / 300) %>%
 
     # Arrange by ESD_coverage and find the dominant ecological site
     dplyr::ungroup() %>%
-    dplyr::group_by(PrimaryKey, DBKey) %>%
+    dplyr::group_by(PrimaryKey#,
+                    # DBKey
+                    ) %>%
     dplyr::arrange(dplyr::desc(PercentCoveredByEcoSite), .by_group = TRUE) %>%
     dplyr::filter(dplyr::row_number() == 1) %>%
 
     # Join to point.elevation to build the final header
-    dplyr::left_join(point_elevation, ., by = c("PrimaryKey", "DBKey")) %>%
+    dplyr::left_join(point_elevation, .,
+                     # by = c("PrimaryKey", "DBKey")
+                     by = "PrimaryKey") %>%
     dplyr::distinct()
 
   # get a vector of which rows need prefixing
@@ -494,11 +505,12 @@ lpi_calc <- function(header,
     dplyr::left_join(dplyr::select(
       header,
       "PrimaryKey",
-      "DBKey",
+      # "DBKey",
       "SpeciesState"
     ),
     .,
-    by = c("PrimaryKey", "DBKey")
+    # by = c("PrimaryKey", "DBKey")
+    by = "PrimaryKey"
     )
 
   # check for generic species in Species list
