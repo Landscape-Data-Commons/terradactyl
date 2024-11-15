@@ -425,6 +425,7 @@ check_terradat_data <- function(dsn,
 # This one's a wrapper for check_uniqueness() and check_orphaned_records() so
 # we can quickly and easily generate warnings.
 # This will only fire off a warning if there's anything to report.
+#' @export
 auto_qc_warning <- function(header_data,
                             detail_data,
                             uid_variables,
