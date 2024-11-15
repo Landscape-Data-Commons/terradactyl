@@ -72,6 +72,7 @@ gather_gap_terradat <- function(dsn = NULL,
                          "last_edited_date",
                          "DateLoadedInDb",
                          "DateLoadedinDB",
+                         "DBKey",
                          "rid",
                          "DataErrorChecking",
                          "DataEntry",
@@ -160,9 +161,10 @@ gather_gap_terradat <- function(dsn = NULL,
   # Merge header and detail data together.
   # We're suppressing warnings and not enforcing the relationship so that the
   # user can move ahead without cleaning their data first.
-  # Because we have the orphaned headers from above, we'll do an inner join here
-  # and use those to add in whatever else we need.
-  gap_tall <- suppressWarnings(dplyr::inner_join(x = header,
+  # This is a left join so that we can properly include LineKeys that don't have
+  # associated gaps because there were none. That's critical for calculating
+  # gap percentages.
+  gap_tall <- suppressWarnings(dplyr::left_join(x = header,
                                                  y = detail,
                                                  # relationship = "one-to-many",
                                                  by = c("PrimaryKey",
@@ -234,7 +236,6 @@ gather_gap_terradat <- function(dsn = NULL,
     dplyr::left_join(x = _,
                      y = dplyr::select(.data = header,
                                        -LineKey,
-                                       -DBKey,
                                        -Measure,
                                        -NoCanopyGaps,
                                        -NoBasalGaps),
