@@ -497,7 +497,8 @@ lpi_calc <- function(header,
                      lpi_tall,
                      species_file,
                      source,
-                     dsn) {
+                     dsn,
+                     verbose = TRUE) {
 
   print("Beginning LPI indicator calculation")
   # Join the lpi data to the header PrimaryKeys and add the StateSpecies Key
