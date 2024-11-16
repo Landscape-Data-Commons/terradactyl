@@ -544,7 +544,7 @@ lpi_calc <- function(header,
   }
   # if (verbose) {
   lpi_species <- species_join(
-    data = current_data,
+    data = lpi_tall_header,
     species_file = species_file,
     overwrite_generic_species = dplyr::if_else(
       source == "TerrADat",
