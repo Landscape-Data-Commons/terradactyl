@@ -298,8 +298,8 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
     ) %>%
     dplyr::distinct() #%>%
 
-    # Populate DateLoadedInDB
-    # dplyr::mutate(DateLoadedInDB = DBKey)
+  # Populate DateLoadedInDB
+  # dplyr::mutate(DateLoadedInDB = DBKey)
 
   # Get the field coordinates
   point_coordinate <- read.csv(file.path(dsn, "POINTCOORDINATES.csv"),
@@ -375,7 +375,7 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
     dplyr::ungroup() %>%
     dplyr::group_by(PrimaryKey#,
                     # DBKey
-                    ) %>%
+    ) %>%
     dplyr::arrange(dplyr::desc(PercentCoveredByEcoSite), .by_group = TRUE) %>%
     dplyr::filter(dplyr::row_number() == 1) %>%
 
@@ -542,6 +542,7 @@ lpi_calc <- function(header,
   if (verbose) {
     message("Joining species information to the LPI data.")
   }
+  # if (verbose) {
   lpi_species <- species_join(
     data = current_data,
     species_file = species_file,
@@ -561,8 +562,8 @@ lpi_calc <- function(header,
 
   # Add a Forb Graminoid field
   lpi_species$ForbGraminoid[lpi_species$GrowthHabitSub %in%
-                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb",
-                             "FORB", "FORB/HERB", "GRAMINOID", "GRASS")] <- "ForbGraminoid"
+                              c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb",
+                                "FORB", "FORB/HERB", "GRAMINOID", "GRASS")] <- "ForbGraminoid"
 
   # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
   lpi_species$GrowthHabit[grepl(
@@ -576,7 +577,7 @@ lpi_calc <- function(header,
     x = lpi_species$GrowthHabit
   )] <- "NA"
 
-# keeping sedges since we are now doing Graminoid calculations
+  # keeping sedges since we are now doing Graminoid calculations
   # For the purposes of cover calcs, Non-Woody==Forb & Grass != Sedge, so we need to remove sedges
   # lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
 
