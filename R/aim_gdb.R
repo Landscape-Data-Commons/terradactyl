@@ -164,7 +164,7 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     # add PLOTKEY
     # TODO I'm still not convinced we need this
     dplyr::mutate(PlotKey = PrimaryKey) %>%
-    dplyr::distinct() %>%
+    dplyr::distinct() # %>%
 
     # Populate DateLoadedInDB
     # dplyr::mutate(DateLoadedInDb = DBKey)
@@ -296,7 +296,7 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
       County = COUNTYNM,
       State = STABBR
     ) %>%
-    dplyr::distinct() %>%
+    dplyr::distinct() #%>%
 
     # Populate DateLoadedInDB
     # dplyr::mutate(DateLoadedInDB = DBKey)
