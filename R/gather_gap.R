@@ -457,8 +457,8 @@ gather_gap_lmf <- function(dsn = NULL,
   # take action.
   if (any(is.na(agreement_summary$canopy)) | any(is.na(agreement_summary$perennial))) {
     disagreeing_transects <- dplyr::summarize(.data = agreement_summary,
-                                              .by = tidyselect::all_of("PrimaryKey",
-                                                                       "TRANSECT"),
+                                              .by = tidyselect::all_of(c("PrimaryKey",
+                                                                       "TRANSECT")),
                                               # We'll get the proportion of the
                                               # GAP_TYPE records that're NA
                                               # which should be the proportion
