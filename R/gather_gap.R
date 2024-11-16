@@ -653,7 +653,7 @@ gather_gap_lmf <- function(dsn = NULL,
   output <- dplyr::select(.data = output,
                           tidyselect::all_of(output_vars))
 
-  output
+  dplyr::distinct(output)
 }
 
 #' export gather_gap_survey123
@@ -850,5 +850,5 @@ gather_gap <- function(dsn = NULL,
     gap <- gap %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "gap")
   }
 
-  return(gap)
+  dplyr::distinct(gap)
 }
