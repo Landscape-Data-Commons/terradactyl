@@ -444,7 +444,7 @@ auto_qc_warning <- function(header_data,
                                                     "instances of duplicated detail records.")
     }
     orphaned_records_list <- check_orphaned_records(x = detail_data,
-                                                    y = header,
+                                                    y = header_data,
                                                     joining_variables = joining_variables,
                                                     symmetric = TRUE)
     if (nrow(orphaned_records_list[["y"]]) > 0) {
