@@ -441,7 +441,7 @@ species_join <- function(data, # field data,
     data_species_generic <- dplyr::left_join(
       x = data_species,
       y = tbl_species_generic,
-      by = c(data_code, "DBKey")
+      by = c(data_code)
     )
 
     # Convert GrowthHabitCode to GrowthHabit and GrowthHabitSub
