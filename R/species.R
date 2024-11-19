@@ -404,7 +404,10 @@ species_join <- function(data, # field data,
 
   # Overwrite generic species assignments with provided table
   if (overwrite_generic_species) {
-    ext <- substr(species_file, (nchar(species_file) - 2), nchar(species_file))
+    if (generic_species_file == "") {
+      generic_species_file <- species_file
+    }
+    ext <- tolower(x = tools::file_ext(x = generic_species_file))
     if(ext == "gdb"){
       tbl_species_generic <- sf::st_read(
         dsn = generic_species_file,
