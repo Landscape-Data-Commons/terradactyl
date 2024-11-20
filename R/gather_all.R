@@ -38,8 +38,12 @@
 #' @export gather_all
 #' @rdname gather_all
 
-gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", "rdata"),
-                       verbose = T, doLPI = T) {
+gather_all <- function(dsn = NULL,
+                       dflist = NULL,
+                       outfolder,
+                       outtype = c("csv", "rdata"),
+                       verbose = TRUE,
+                       doLPI = TRUE) {
   # prep ####
   outtype <- tolower(outtype)
 
@@ -395,7 +399,9 @@ gather_all <- function(dsn = NULL, dflist = NULL, outfolder, outtype = c("csv", 
   if(("tblPlots" %in% names_rda & "tblLPIHeader" %in% names_rda) |
      ("tblPlots" %in% names_gdb & "tblLPIHeader" %in% names_rda)){
     if(verbose) print("Gathering AIM Header")
-    header_aim <- gather_header(dsn = dsn, source = "AIM", tblPlots = tblPlots, tblLPIHeader = tblLPIHeader)
+    header_aim <- gather_header(dsn = dsn, source = "AIM",
+                                tblPlots = tblPlots,
+                                tblLPIHeader = tblLPIHeader)
 
 #
 #     if(verbose) print("Gathering AIM plot characterization")
