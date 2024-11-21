@@ -10,8 +10,27 @@
 # Build the header portion of the terradat table
 #' @export gather_header_terradat
 #' @rdname aim_gdb
-gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
-                                   date_tables = NULL, ...) {
+gather_header_terradat <- function(dsn = NULL,
+                                   tblPlots = NULL,
+                                   date_tables = NULL,
+                                   ...) {
+  # These are used for data management within a geodatabase and we're going to
+  # drop them.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         # For once these variables need to carry through!
+                         # "DateLoadedInDb",
+                         # "DateLoadedinDB",
+                         "DBKey",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -19,68 +38,100 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
   if(!is.null(tblPlots)){
     header <- tblPlots
   } else if (!is.null(dsn)){
-    # (LPI, Height, Species Richness) and tblStateSpecies
-    header <- sf::st_read(
-      dsn = dsn, layer = "tblPlots",
-      stringsAsFactors = FALSE
-    )
+    header <- sf::st_read(dsn = dsn,
+                          layer = "tblPlots",
+                          stringsAsFactors = FALSE,
+                          quiet = TRUE) |>
+      sf::st_drop_geometry(x = _)
   } else {
     stop("Provide either tblPlots or a path to a GDB containing it")
   }
 
-  header <- header %>%
-    as.data.frame() %>%
+  # Restrict only to records which match the filtering criteria.
+  header <- dplyr::filter(.data = header,
+                          !!!filter_exprs)
 
-    # Filter using the filtering expression specified by user
-    dplyr::filter(!!!filter_exprs)
+  # In the case that there's a DateLoadedInDB variable, make sure those values
+  # are in a variable called DateLoadedInDb instead.
+  header <- dplyr::select(.data = header,
+                          tidyselect::everything(),
+                          tidyselect::any_of(x = c(DateLoadedInDb = "DateLoadedInDB"))) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of("DateLoadedInDB"))
 
-  # data from different sources / years capitalize this differently.
-  if("DateLoadedInDB" %in% colnames(header) | !("DateLoadedInDb" %in% colnames(header))) {
-    header$DateLoadedInDb <- header$DateLoadedInDB
+  # These are variables which need to exist. If they don't, we'll just populate
+  # them with NA.
+  potentially_missing_vars <- c("Design",
+                                "DesignFlag",
+                                "Purpose",
+                                "PurposeFlag",
+                                "ProjectName")
+  # Perversely, this is easiest with a loop.
+  for (var_name in setdiff(x = potentially_missing_vars,
+                           y = names(header))) {
+    header[[var_name]] <- NA
   }
 
-  # add these fields if missing
-  if(!("Design" %in% colnames(header))) header$Design <- NA
-  if(!("DesignFlag" %in% colnames(header))) header$DesignFlag <- NA
-  if(!("Purpose" %in% colnames(header))) header$Purpose <- NA
-  if(!("PurposeFlag" %in% colnames(header))) header$PurposeFlag <- NA
-  if(!("ProjectName" %in% colnames(header))) header$ProjectName <- NA
+  # Narrow it down to the variables we actually need and rename them as
+  # necessary. If you're using tidyselect functions, you can use a named vector
+  # to rename as you select.
+  header <- dplyr::select(.data = header,
+                          tidyselect::all_of(c("PrimaryKey",
+                                               "SpeciesState",
+                                               "PlotID",
+                                               "PlotKey",
+                                               EcologicalSiteId = "EcolSite",
+                                               Latitude_NAD83 = "Latitude",
+                                               Longitude_NAD83 = "Longitude",
+                                               "State",
+                                               "Elevation",
+                                               "County",
+                                               DateEstablished = "EstablishDate",
+                                               "DateLoadedInDb",
+                                               "Design",
+                                               "DesignFlag",
+                                               "Purpose",
+                                               "PurposeFlag",
+                                               "ProjectName"))) |>
+    # We only want to keep records with PrimaryKey values.
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
-  header <- header %>%
-    # Select the field names we need in the final feature class
-    dplyr::select(PrimaryKey, SpeciesState, PlotID, PlotKey,
-                  # DBKey,
-                  EcologicalSiteId = EcolSite, Latitude_NAD83 = Latitude, Longitude_NAD83 = Longitude, State,
-                  Elevation,
-                  County, DateEstablished = EstablishDate, DateLoadedInDb,
-                  Design, DesignFlag, Purpose, PurposeFlag,
-                  ProjectName
-    ) %>%
-
-    # If there are any Sites with no PrimaryKeys, delete them
-    subset(!is.na(PrimaryKey))
-
-  ## get date from all tables provided to date_tables
-  # if date_tables is not provided, load all of lpi gap and species richness headers, as present in the geodatabase
+  # We need to grab dates from the other tables.
+  # If date_tables was provided, we'll work with that. Otherwise, we'll snag
+  # them from the GDB pointed to by dsn.
   if(!is.null(dsn) & is.null(date_tables)){
-    layernames <- sf::st_layers(dsn)$name
-    if("tblLPIHeader" %in% layernames){
-      print("Reading dates from tblLPIHeader")
-      tblLPIHeader <- sf::st_read(dsn, "tblLPIHeader")
-    }
-    if("tblGapHeader" %in% layernames){
-      print("Reading dates from tblGapHeader")
-      tblGapHeader <- sf::st_read(dsn, "tblGapHeader")
-    }
-    if("tblSpecRichHeader" %in% layernames){
-      print("Reading dates from tblSpecRichHeader")
-      tblSpecRichHeader <- sf::st_read(dsn, "tblSpecRichHeader")
-    }
+    available_layers <- sf::st_layers(dsn = dsn)$name
 
-    date_tables <- list(tblLPIHeader, tblGapHeader, tblSpecRichHeader)
+    desired_date_tables <- c("tblLPIHeader",
+                             "tblGapHeader",
+                             "tblSpecRichHeader")
+
+    if (length(base::intersect(x = desired_date_tables,
+                               y = available_layers)) > 0) {
+      date_tables <- lapply(X = base::intersect(x = desired_date_tables,
+                                                y = available_layers),
+                            dsn = dsn,
+                            FUN = function(X, dsn){
+                              message(paste("Reading dates from",
+                                            X))
+                              sf::st_read(dsn = dsn,
+                                          layer = X,
+                                          stringsAsFactors = FALSE,
+                                          quiet = TRUE) |>
+                                sf::st_drop_geometry() |>
+                                # This'll happen again in a bit, but just to
+                                # save on memory we'll pare it down here.
+                                dplyr::select(.data = _,
+                                              PrimaryKey,
+                                              tidyselect::any_of(c(Date = "FormDate",
+                                                                   Date = "CollectDate"))) |>
+                                dplyr::distinct()
+                            })
+    }
   }
 
-  if(is.null(date_tables) & is.null(dsn)){
+  if(is.null(date_tables)){
     stop("date_tables must be provided if dsn is not. Provide a list of tables containing FormDate or collectDate")
   }
 
@@ -88,39 +139,46 @@ gather_header_terradat <- function(dsn = NULL, tblPlots = NULL,
     stop("date_tables must be a list of minimum length 1")
   }
 
+  # Take all the tables and return a record for each PrimaryKey with the first
+  # valid date found in the provided data.
+  dates <- lapply(X = date_tables,
+                  FUN = function(X){
+                    dplyr::select(.data = X,
+                                  PrimaryKey,
+                                  tidyselect::any_of(c("Date",
+                                                       Date = "FormDate",
+                                                       Date = "CollectDate"))) |>
+                      dplyr::distinct()
+                  }) |>
+    dplyr::bind_rows() |>
+    dplyr::summarize(.data = _,
+                     .by = tidyselect::all_of(c("PrimaryKey")),
+                     DateVisited = dplyr::first(x = na.omit(Date),
+                                                order_by = na.omit(Date))) |>
+    dplyr::distinct()
 
-  # tblHorizontalFlux uses collectDate, most other tables use FormDate
-  tblDate <- lapply(date_tables, function(date_table){
-    if("FormDate" %in% colnames(date_table)) {
-      out <- date_table %>% dplyr::select(PrimaryKey, Date = FormDate)
-    } else if("collectDate" %in% colnames(date_table)) {
-      out <- date_table %>% dplyr::select(PrimaryKey, Date = collectDate)
-    } else {
-      out <- data.frame()
-    }
-
-    return(out)
-  }) %>%
-    dplyr::bind_rows() %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(DateVisited = dplyr::first(na.omit(Date), order_by = na.omit(Date)))
-
-  header <- header %>% dplyr::left_join(tblDate, by = c("PrimaryKey"))
-
-  # Return the header file
-  return(header)
+  # Return the header with the date added.
+  dplyr::left_join(x = header,
+                   y = dates,
+                   relationship = "one-to-one",
+                   by = "PrimaryKey") |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::distinct()
 }
 
 # Build the header portion of the LMF table
 #' @export gather_header_lmf
 #' @rdname aim_gdb
-gather_header_lmf <- function(dsn = NULL,  ...) {
+gather_header_lmf <- function(dsn = NULL,
+                              ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
   point <- sf::read_sf(dsn = dsn,
-                       layer = "POINT") |>
-    sf::st_drop_geometry(onj = _) |>
+                       layer = "POINT",
+                       quiet = TRUE) |>
+    sf::st_drop_geometry(x = _) |>
     # Filter using the filtering expression specified by user
     dplyr::filter(.data = _,
                   !!!filter_exprs) |>
@@ -133,7 +191,8 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
   # County and State are referred to by number codes, let's use the name
   point <- sf::st_read(dsn = dsn,
                        layer = "COUNTYNM",
-                       stringsAsFactors = FALSE) |>
+                       stringsAsFactors = FALSE,
+                       quiet = TRUE) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(c("COUNTY",
                                        "COUNTYNM",
@@ -148,10 +207,12 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
     dplyr::left_join(x = _,
                      y= sf::st_read(dsn = dsn,
                                     layer = "STATENM",
-                                    stringsAsFactors = FALSE) |>
+                                    stringsAsFactors = FALSE,
+                                    quiet = TRUE) |>
                        dplyr::select(.data = _,
                                      STATE,
-                                     STABBR),
+                                     STABBR) |>
+                       dplyr::distinct(),
                      relationship = "many-to-one",
                      by = "STATE") |>
     dplyr::rename(.data = _,
@@ -170,7 +231,8 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
   # Get the field coordinates
   point_coordinate <- sf::st_read(dsn = dsn,
                                   layer = "POINTCOORDINATES",
-                                  stringsAsFactors = FALSE) |>
+                                  stringsAsFactors = FALSE,
+                                  quiet = TRUE) |>
     sf::st_drop_geometry() |>
     dplyr::select(.data = _,
                   PrimaryKey,
@@ -183,66 +245,79 @@ gather_header_lmf <- function(dsn = NULL,  ...) {
                      by = "PrimaryKey")
 
   # Add elevation data
-  point_elevation <- sf::read_sf(
-    dsn = dsn,
-    layer = "GPS"
-  ) %>%
-    dplyr::select(PrimaryKey,
-                  DateVisited = CAPDATE, # The GPS capture date is the best approx
-                  Elevation = ELEVATION
-    ) %>%
-    dplyr::left_join(point_coordinate, .,
-                     by = "PrimaryKey"
-    ) %>%
-
+  point_elevation <- sf::read_sf(dsn = dsn,
+                                 layer = "GPS",
+                                 quiet = TRUE) |>
+    dplyr::select(.data = _,
+                  PrimaryKey,
+                  # The GPS capture date is the best approximation of the
+                  # sampling date.
+                  DateVisited = CAPDATE,
+                  Elevation = ELEVATION) |>
+    dplyr::left_join(x = point_coordinate,
+                     y = _,
+                     relationship = "one-to-one",
+                     by = "PrimaryKey") |>
     # Convert elevation to meters
-    dplyr::mutate(Elevation = Elevation * 0.3048)
+    dplyr::mutate(.data = _,
+                  Elevation = Elevation * 0.3048)
 
   # Add Ecological Site Id
-  point_ESD_raw <- sf::st_read(dsn,
+  point_ESD_raw <- sf::st_read(dsn = dsn,
                                layer = "ESFSG",
-                               stringsAsFactors = FALSE
-  )
+                               stringsAsFactors = FALSE,
+                               quiet = TRUE)
 
-  # add in ESFSG_PREFIX column to old data in order to keep up with LMF schema changes
-  if(!"ESFSG_PREFIX" %in% colnames(point_ESD_raw)) point_ESD_raw$ESFSG_PREFIX <- ""
+  # Add in ESFSG_PREFIX column to old data in order to keep up with LMF schema
+  # changes.
+  if(!"ESFSG_PREFIX" %in% colnames(point_ESD_raw)) {
+    point_ESD_raw$ESFSG_PREFIX <- ""
+  }
 
-  point_ESD <- point_ESD_raw %>%
-    dplyr::left_join(point_elevation, ., by = "PrimaryKey") %>%
-
-    # If the ESD coverage !=all, figure what portion of the plot the dominant ESD
-    # is on the plot by taking the End_Mark-Start_Mark and dividng by the line length
-    dplyr::mutate(
-      ESD_coverage =
-        dplyr::if_else(
-          condition = COVERAGE == "all",
-          true = as.integer(300),
-          false = (END_MARK - START_MARK)
-        ),
-      # LMF schema is being updated to include F/R prefix under the column ESFSG_PREFIX
-      # replace NA's with "" in ESFSG_PREFIX
-      ESFSG_PREFIX = tidyr::replace_na(ESFSG_PREFIX, ""),
-      EcologicalSiteId = trimws(paste(ESFSG_PREFIX, ESFSG_MLRA, ESFSG_SITE, ESFSG_STATE, sep = "")),
-      MLRA = ESFSG_MLRA %>% gsub("^$", NA, .)
-    ) %>%
-
+  point_ESD <- dplyr::left_join(x = point_elevation,
+                                y = point_ESD_raw,
+                                by = "PrimaryKey") |>
+    # If the ESD coverage !=all, figure what portion of the plot the dominant
+    # ESD is on the plot by taking END_MARK - START_MARK and dividing by the
+    # line length.
+    dplyr::mutate(.data = _,
+                  ESD_coverage = dplyr::if_else(condition = COVERAGE == "all",
+                                                true = as.integer(300),
+                                                false = (END_MARK - START_MARK)),
+                  # LMF schema is being updated to include F/R prefix under the
+                  # column ESFSG_PREFIX replace NA's with "" in ESFSG_PREFIX
+                  ESFSG_PREFIX = tidyr::replace_na(data = ESFSG_PREFIX,
+                                                   replace = ""),
+                  EcologicalSiteId = trimws(paste0(ESFSG_PREFIX,
+                                                   ESFSG_MLRA,
+                                                   ESFSG_SITE,
+                                                   ESFSG_STATE)),
+                  MLRA = gsub(x = ESFSG_MLRA,
+                              pattern = "^$",
+                              replacement = NA)) |>
     # Add up the coverage on each plot and get the percent coverage
-    dplyr::group_by(PrimaryKey, EcologicalSiteId) %>%
-    dplyr::summarise(PercentCoveredByEcoSite = 100 * sum(ESD_coverage) / 300) %>%
-
+    dplyr::group_by() |>
+    dplyr::summarize(.data = _,
+                     .by = tidyselect::all_of(c("PrimaryKey",
+                                                "EcologicalSiteId")),
+                     PercentCoveredByEcoSite = 100 * sum(ESD_coverage) / 300) |>
     # Arrange by ESD_coverage and find the dominant ecological site
-    dplyr::ungroup() %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::arrange(dplyr::desc(PercentCoveredByEcoSite), .by_group = TRUE) %>%
-    dplyr::filter(dplyr::row_number() == 1) %>%
-
+    dplyr::group_by(.data = _,
+                    PrimaryKey) |>
+    dplyr::arrange(.data = _,
+                   dplyr::desc(PercentCoveredByEcoSite),
+                   .by_group = TRUE) |>
+    dplyr::filter(.data = _,
+                  dplyr::row_number() == 1) |>
     # Join to point.elevation to build the final header
-    dplyr::left_join(point_elevation, ., by = "PrimaryKey")
+    dplyr::left_join(x = point_elevation,
+                     y = _,
+                     relationship = "one-to-one",
+                     by = "PrimaryKey") |>
+    dplyr::mutate(.data = _,
+                  PlotID = PrimaryKey)
 
-  # Return the point_ESD as the header file
-  point_ESD <- point_ESD %>% dplyr::mutate(PlotID = PrimaryKey)
-
-  return(point_ESD)
+  point_ESD
 }
 
 # Build the header portion of the LMF table
@@ -465,18 +540,29 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
 
   # Apply appropriate header function
 
-  header <- switch(toupper(source),
-                   "LMF" = gather_header_lmf(dsn = dsn, ...),
-                   "NRI" = gather_header_nri(dsn = dsn, speciesstate = speciesstate, ...),
-                   "TERRADAT" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
-                   "AIM" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...),
-                   "DIMA" = gather_header_terradat(dsn = dsn, tblPlots = tblPlots, date_tables = date_tables, ...)#,
-                   # "SURVEY123" = gather_header_survey123(PlotChar = PlotChar_0, speciesstate = speciesstate)
-  )
+  if (toupper(source) %in% c("TERRADAT", "AIM", "DIMA")) {
+    header <- gather_header_terradat(dsn = dsn,
+                                     tblPlots = tblPlots,
+                                     date_tables = date_tables,
+                                     ...)
+  } else if (toupper(source) == "LMF") {
+    header <- gather_header_lmf(dsn = dsn,
+                                ...)
+  } else if (toupper(source) == "NRI") {
+    gather_header_nri(dsn = dsn,
+                      speciesstate = speciesstate,
+                      ...)
+  } else {
+    stop("No valid source provided")
+  }
 
+  # Add the source value to the data.
   header$source <- source
 
-  if("sf" %in% class(header)) header <- sf::st_drop_geometry(header)
+  # Make sure there's no geometry associated with the data.
+  if("sf" %in% class(header)) {
+    header <- sf::st_drop_geometry(header)
+  }
 
   # Apply QC helper functions to remove duplicates
   if(autoQC){
@@ -484,7 +570,7 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
     header <- tdact_remove_duplicates(header)
   }
 
-  return(header)
+  header
 }
 
 
