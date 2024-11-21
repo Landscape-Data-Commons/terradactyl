@@ -1529,7 +1529,7 @@ gather_height_lmf <- function(dsn = NULL,
                                                has_duplicate = any(duplicated))
   if (any(!vegheight_75mark_summary$has_duplicate)) {
     warning(paste0("There are ", sum(!vegheight_75mark_summary$has_duplicate),
-                   " plots where the height records at the 75th sampling locations on the two transects are not identical to each other despite being the intersection of those transects. The records associated with the 'nesw' transects will still be dropped for these plots."))
+                   " plots where the height records at the 75th sampling locations on the two transects are not identical to each other despite being the intersection of those transects. This is not unexpected and the records associated with the 'nesw' transects will still be dropped for these plots."))
   }
 
   vegheight <- dplyr::filter(.data = vegheight,
@@ -2261,7 +2261,7 @@ gather_gap_lmf <- function(dsn = NULL,
     # were perennial records. For those, we'll copy the perennial records and
     # change GAP_TYPE to "canopy"
     if (any(disagreeing_transects$proportion_na_canopy == 1)) {
-      warning("There are transects where it was indicated that perennial-only and all-plant canopy gaps were identical but only perennial records exist. The all-plant records will be inferred from the perennial-only records.")
+      warning("There are transects where it was indicated that perennial-only and all-plant canopy gaps were identical but only perennial records exist. This is not unexpected and the all-plant records will be inferred from the perennial-only records.")
       inferred_canopy <- dplyr::left_join(x = dplyr::filter(.data = disagreeing_transects,
                                                             proportion_na_canopy == 1) |>
                                             dplyr::select(.data = _,
