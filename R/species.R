@@ -267,6 +267,7 @@ species_join <- function(data, # field data,
                          growth_habit_code = "Code",
                          overwrite_generic_species = FALSE,
                          generic_species_file = "",
+                         update_species_codes = TRUE,
                          by_species_key = TRUE) {
   # message
   message("Gathering species data")
