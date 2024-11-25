@@ -520,7 +520,7 @@ gap_calc <- function(header,
   # by the crew. This is really only detectable at this point when the gap
   # percentages sum to more than 100.
   too_much_gap <- dplyr::filter(.data = gap_indicators,
-                  total_gap > 100) |>
+                  GapCover_25_plus > 100) |>
     dplyr::pull(.data = _,
                 PrimaryKey)
 
