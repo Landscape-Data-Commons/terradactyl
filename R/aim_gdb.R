@@ -188,7 +188,7 @@ lpi_calc <- function(header,
   lpi_species_litter <- lpi_species %>%
     dplyr::mutate(
       Litter = dplyr::case_when(
-        code %in% c("HL", "L", "DN", "ER", "AM") ~ "HerbLitter",
+        code %in% c("HL", "L", "DN", "ER", "AM", "TH","DL") ~ "HerbLitter",
         code %in% "WL" ~ "WoodyLitter"
       ),
       TotalLitter = dplyr::case_when(
@@ -202,7 +202,9 @@ lpi_calc <- function(header,
           "NL",
           "EL",
           "HT",
-          "AL"
+          "AL",
+          "TH",
+          "DL"
         ) ~ "TotalLitter"
       )
     )
