@@ -513,7 +513,7 @@ gap_calc <- function(header,
                   GapCover_200_plus = "201-Inf"
     ) |>
     dplyr::mutate(.data = _,
-                  GapCover_25_plus = Gap_cover_25_50 +
+                  GapCover_25_plus = GapCover_25_50 +
                     GapCover_51_100 +
                     GapCover_101_200 +
                     GapCover_200_plus)
