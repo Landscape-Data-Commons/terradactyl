@@ -99,6 +99,7 @@ core_cover_indicators <- function(lpi_species) {
     "CM" = "BareSoil",
     "LM" = "BareSoil",
     "FG" = "BareSoil",
+    "PC" = "BareSoil",
     "BR" = "Rock",
     "\\bS\\b" = "BareSoil",
     "[[:punct:]]" = ""
@@ -140,7 +141,7 @@ core_cover_indicators <- function(lpi_species) {
   lpi_species_litter <- lpi_species %>%
     dplyr::mutate(
       Litter = dplyr::case_when(
-        code %in% c("HL", "L", "DN", "ER", "AM") ~ "HerbLitter",
+        code %in% c("HL", "L", "DN", "ER", "AM", "TH") ~ "HerbLitter",
         code %in% "WL" ~ "WoodyLitter"
       ),
       TotalLitter = dplyr::case_when(
@@ -155,7 +156,8 @@ core_cover_indicators <- function(lpi_species) {
           "EL",
           "HT",
           "AL",
-          "OM"
+          "OM",
+          "TH"
         ) ~ "TotalLitter"
       )
     )
