@@ -16,7 +16,7 @@ core_cover_indicators <- function(lpi_species) {
   )] <- "NonWoody"
 
   lpi_species$GrowthHabit[lpi_species$GrowthHabitSub %in%
-                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb")] <- "ForbGrass"
+                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb")] <- "ForbGraminoid"
 
   # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
   lpi_species$GrowthHabit[grepl(
@@ -47,6 +47,10 @@ core_cover_indicators <- function(lpi_species) {
     x = lpi_species$GrowthHabitSub
   )] <- "ShrubSucculent"
 
+  # Correct to Graminoid
+  lpi_species$GrowthHabitSub[grepl(pattern = "Grass|Graminoid|Sedge",
+                                   x = lpi_species$GrowthHabitSub)] <- "Graminoid"
+
   # Calculate Total Foliar Cover ----
   total_foliar <- pct_cover_total_foliar(
     lpi_tall = lpi_species,
@@ -70,6 +74,7 @@ core_cover_indicators <- function(lpi_species) {
     "AM" = "HerbLitter",
     "DN" = "HerbLitter",
     "ER" = "HerbLitter",
+    "TH" = "HerbLitter",
     "HT" = "NonVegLitter",
     "NL" = "NonVegLitter",
     "AL" = "NonVegLitter",
@@ -188,7 +193,7 @@ core_cover_indicators <- function(lpi_species) {
     "ANNUAL" = "Ann",
     "PERENNIAL" = "Peren",
     "[[:punct:]]" = "",
-    "GRAMINOID" = "Grass",
+    "GRAMINOID" = "Graminoid",
     "FORB" = "Forb",
     "NON" = "No",
     "SUBSHRUB" = "SubShrub",
@@ -198,7 +203,7 @@ core_cover_indicators <- function(lpi_species) {
     " " = "",
     "STATURE" = "",
     "SAGEBRUSH" = "Sagebrush",
-    "GRASS" = "Grass",
+    "GRASS" = "Graminoid",
     "SHORT" = "Short",
     "TALL" = "Tall",
     "0" = "Live",
@@ -210,7 +215,7 @@ core_cover_indicators <- function(lpi_species) {
     "EVERGREEN" = "Evergreen",
     "LICHENOUS" = "Lichenous",
     "VASCULAR" = "Vascular",
-    "SEDGE" = "Sedge"
+    "SEDGE" = "Graminoid"
   )
 
 
@@ -299,10 +304,19 @@ core_cover_indicators <- function(lpi_species) {
 
     dplyr::distinct() %>%
 
+    # Remove NULL columns
+    subset(!stringr::str_detect(indicator, "NULL")) |>
+
     # Spread to a wide format
-    tidyr::spread(key = indicator, value = percent, fill = 0)
+    tidyr::pivot_wider(names_from = indicator,
+                        values_from = percent,
+                        values_fill=0)
 
   # Clean up fields
+  if("AH_NACover" %in% names(lpi_cover)){
+    lpi_cover <- lpi_cover %>% dplyr::select(-AH_NACover)
+  }
+
   if("AH_NACover" %in% names(lpi_cover)){
     lpi_cover <- lpi_cover %>% dplyr::select(-AH_NACover)
   }
