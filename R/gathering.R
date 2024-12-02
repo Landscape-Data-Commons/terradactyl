@@ -2306,7 +2306,7 @@ gather_gap_lmf <- function(dsn = NULL,
   # These are the data which *might* need inference, by which we mean copying
   # the perennial-only records and changing the GAP_TYPE to "canopy".
   potential_inference_data <- dplyr::left_join(x = potential_canopy_transects,
-                                               y = gintercept,
+                                               y = gintercept |> subset(GAP_TYPE=="peren"),
                                                relationship = "one-to-many",
                                                by = c("PrimaryKey",
                                                       "TRANSECT"))
