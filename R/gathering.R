@@ -1341,6 +1341,20 @@ gather_height_terradat <- function(dsn = NULL,
                          "DateLoadedInDb",
                          "DateLoadedinDB",
                          "rid",
+                         "DBKey",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+
+   internal_gdb_vars_header <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         #"DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
                          #"DBKey",
                          "DataErrorChecking",
                          "DataEntry",
@@ -1392,7 +1406,7 @@ gather_height_terradat <- function(dsn = NULL,
                           PrimaryKey,
                           LineKey:CheckboxLabel,
                           # tidyselect::matches(match = "DBKey"),
-                          -tidyselect::any_of(internal_gdb_vars)) |>
+                          -tidyselect::any_of(internal_gdb_vars_header)) |>
     dplyr::distinct()
 
 
