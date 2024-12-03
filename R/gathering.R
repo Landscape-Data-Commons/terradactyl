@@ -24,7 +24,7 @@ gather_header_terradat <- function(dsn = NULL,
                          # For once these variables need to carry through!
                          # "DateLoadedInDb",
                          # "DateLoadedinDB",
-                         "DBKey",
+                         #"DBKey",
                          "rid",
                          "DataErrorChecking",
                          "DataEntry",
@@ -92,7 +92,8 @@ gather_header_terradat <- function(dsn = NULL,
                                                "DesignFlag",
                                                "Purpose",
                                                "PurposeFlag",
-                                               "ProjectName"))) |>
+                                               "ProjectName",
+                                              "DBKey"))) |>
     # We only want to keep records with PrimaryKey values.
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey))
