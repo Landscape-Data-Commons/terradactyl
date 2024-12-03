@@ -1338,20 +1338,6 @@ gather_height_terradat <- function(dsn = NULL,
                          "created_date",
                          "last_edited_user",
                          "last_edited_date",
-                         #"DateLoadedInDb",
-                         "DateLoadedinDB",
-                         "rid",
-                         #"DBKey",
-                         "DataErrorChecking",
-                         "DataEntry",
-                         "DateModified",
-                         "FormType")
-
-   internal_gdb_vars_header <- c("GlobalID",
-                         "created_user",
-                         "created_date",
-                         "last_edited_user",
-                         "last_edited_date",
                          "DateLoadedInDb",
                          "DateLoadedinDB",
                          "rid",
@@ -1406,7 +1392,7 @@ gather_height_terradat <- function(dsn = NULL,
                           PrimaryKey,
                           LineKey:CheckboxLabel,
                           # tidyselect::matches(match = "DBKey"),
-                          -tidyselect::any_of(internal_gdb_vars_header)) |>
+                          -tidyselect::any_of(internal_gdb_vars)) |>
     dplyr::distinct()
 
 
@@ -1962,20 +1948,6 @@ gather_gap_terradat <- function(dsn = NULL,
                          "created_date",
                          "last_edited_user",
                          "last_edited_date",
-                         #"DateLoadedInDb",
-                         "DateLoadedinDB",
-                         #"DBKey",
-                         "rid",
-                         "DataErrorChecking",
-                         "DataEntry",
-                         "DateModified",
-                         "FormType")
-
-   internal_gdb_vars_header <- c("GlobalID",
-                         "created_user",
-                         "created_date",
-                         "last_edited_user",
-                         "last_edited_date",
                          "DateLoadedInDb",
                          "DateLoadedinDB",
                          "DBKey",
@@ -2024,7 +1996,7 @@ gather_gap_terradat <- function(dsn = NULL,
     dplyr::distinct()
 
   header <- dplyr::select(.data = header,
-                          -tidyselect::any_of(internal_gdb_vars_header)) |>
+                          -tidyselect::any_of(internal_gdb_vars)) |>
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey)) |>
     dplyr::distinct()
