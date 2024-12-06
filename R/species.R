@@ -267,94 +267,121 @@ species_join <- function(data, # field data,
                          growth_habit_code = "Code",
                          overwrite_generic_species = FALSE,
                          generic_species_file = "",
+                         update_species_codes = TRUE,
                          by_species_key = TRUE) {
-
   # message
   message("Gathering species data")
 
   # Set join levels, so that we can flexibly include SpeciesState
+  join_by <- data_code
   if (by_species_key) {
     if ("SpeciesState" %in% names(data)) {
       join_by <- c(data_code, "SpeciesState")
-    } else {
-      join_by <- data_code
     }
-  } else {
-    join_by <- data_code
   }
 
 
-  # Some projects use "None" to indicate "No species". Convert those to N instead
-  data <- data %>% dplyr::mutate_at(
-    data_code,
-    ~ stringr::str_replace(
-      pattern = "None",
-      replacement = "N",
-      string = data[[data_code]]
-    )
-  )
-  ## Load species data
-  species_list <- gather_species(
-    species_file = species_file,
-    growth_habit_file = growth_habit_file,
-    growth_habit_code = growth_habit_code,
-    species_growth_habit_code = species_growth_habit_code
-  )
+  # Some projects use "None" to indicate "No species". Convert those to "N"
+  # instead.
+  data <- dplyr::mutate(.data = data,
+                        dplyr::across(.cols = tidyselect::all_of(data_code),
+                                      .fns = ~ stringr::str_replace(string = .x,
+                                                                    pattern = "None",
+                                                                    replacement = "N")))
 
-  # clean up NA values in species list
-  species_list <- species_list %>%
-    dplyr::mutate_if(is.character, list(~ dplyr::na_if(., ""))) %>%
-    dplyr::mutate_if(is.character, list(~ dplyr::na_if(., "NA")))
+  ## Load species data
+  species_list <- terradactyl::gather_species(species_file = species_file,
+                                              growth_habit_file = growth_habit_file,
+                                              growth_habit_code = growth_habit_code,
+                                              species_growth_habit_code = species_growth_habit_code)
+
+  # Clean up values in the species_list that should be NA.
+  # There are two passes because dplyr::na_if() can only compare vectors of
+  # identical lengths.
+  species_list <- dplyr::mutate(.data = species_list,
+                                dplyr::across(.cols = dplyr::where(fn = is.character),
+                                              .fns = ~ dplyr::na_if(x = .x,
+                                                                    y = "")),
+                                dplyr::across(.cols = dplyr::where(fn = is.character),
+                                              .fns = ~ dplyr::na_if(x = .x,
+                                                                    y = "NA")))
 
 
   # Look for UpdatedSpecies and Update the Observation codes, if necessary
-  if ("UpdatedSpeciesCode" %in% names(species_list)) {
+  if ("UpdatedSpeciesCode" %in% names(species_list) & update_species_codes) {
     if (any(!is.na(species_list$UpdatedSpeciesCode))) {
 
-      ## Rename column
-      species_list <- species_list %>%
-        dplyr::rename_at(dplyr::vars(species_code), ~data_code)
+      # Make a new variable called internal_code_var that we can work with
+      species_list <- dplyr::rename(.data = species_list,
+                                    tidyselect::all_of(c(internal_code_var = species_code)))
 
       # Make sure Updated Species Code is a character vector
       species_list$UpdatedSpeciesCode <- as.character(species_list$UpdatedSpeciesCode)
 
-      # Merge the Updated Species codes to the data
+      # Merge the Updated Species codes to the data.
+
+      # Get the appropraite joining variables set up depending on if
+      # SpeciesState should be included.
+      update_joining_vars <- c("internal_code_var")
       if (by_species_key) {
-        data_update <- dplyr::left_join(data,
-                                        dplyr::select(
-                                          species_list, data_code,
-                                          UpdatedSpeciesCode, SpeciesState
-                                        ) %>% unique(),
-                                        by = join_by
-        )
-      } else {
-        data_update <- dplyr::left_join(data,
-                                        dplyr::select(
-                                          species_list, data_code,
-                                          UpdatedSpeciesCode
-                                        ) %>% unique(),
-                                        by = join_by
-        )
+        update_joining_vars <- c(update_joining_vars,
+                                 "SpeciesState")
       }
 
+      # Update the data!
+      # This starts by taking the current species list and strips it down to
+      # only the variables in update_joining_vars and UpdateSpeciesCode.
+      species_updates <- dplyr::select(.data = species_list,
+                                       tidyselect::all_of(c(update_joining_vars,
+                                                            "UpdatedSpeciesCode"))) |>
+        # Strip out any of the records that has an NA in any of the variables.
+        dplyr::filter(.data = _,
+                      dplyr::if_all(.cols = tidyselect::all_of(c(update_joining_vars,
+                                                                 "UpdatedSpeciesCode")),
+                                    .fns = ~ !is.na(.x))) |>
+        # Make sure it's distinct!
+        dplyr::distinct()
 
-      # Overwrite the original data code with any updated species codes
-      data_update <- data_update %>%
-        dplyr::mutate_at(
-          data_code,
-          ~ dplyr::coalesce(
-            data_update$UpdatedSpeciesCode,
-            data_update[[data_code]]
-          )
-        )
+      if (by_species_key) {
+        species_updates <- dplyr::filter(.data = species_updates,
+                                         SpeciesState %in% data$SpeciesState)
+      }
+
+      # Stop here if the species list has duplicates!!!!!
+      duplicated_species_indices <- duplicated(x = species_updates)
+      if (any(duplicated_species_indices)) {
+        stop(paste("Unable to update species codes when joining species information to your data. This is because there is at least one code which maps to multiple updated codes. Please either correct your species file or set update_species_codes to FALSE. The problematic codes are:",
+                   paste(unique(species_updates$internal_code_var[duplicated_species_indices]),
+                         collapse = ", ")))
+      }
+
+      # Provided we don't have duplicates, rename the data_code variable to
+      # internal_code_var so we can actually reference it programmatically.
+      data_update <- dplyr::rename(.data = data,
+                                   internal_code_var = tidyselect::all_of(data_code)) |>
+        # Join the updated species information to the data.
+        dplyr::left_join(x = _,
+                         y = species_updates,
+                         relationship = "many-to-one",
+                         by = update_joining_vars) |>
+        # Make a final_code variable that preferentially populates with the
+        # updated code but will use the original if there isn't an updated one.
+        dplyr::mutate(.data = _,
+                      final_code = dplyr::case_when(!is.na(UpdatedSpeciesCode) ~ UpdatedSpeciesCode,
+                                                    .default = internal_code_var)) |>
+        # Rename the variable back to whatever data_code is.
+        dplyr::rename(.data = _,
+                      tidyselect::all_of(setNames(object = "final_code",
+                                                  nm = data_code)))
 
       # Overwrite original data with updated data
-      data <- data_update %>% dplyr::select(names(data))
+      data <- dplyr::select(.data = data_update,
+                            tidyselect::all_of(names(data)))
 
-      # Rename species_list
-      ## Rename column
-      species_list <- species_list %>%
-        dplyr::rename_at(dplyr::vars(data_code), ~species_code)
+      # Fix the renamed variable in species_list
+      species_list <- dplyr::rename(.data = species_list,
+                                    tidyselect::all_of(setNames(object = "internal_code_var",
+                                                                nm = species_code)))
     }
   }
 
