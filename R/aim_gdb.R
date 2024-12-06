@@ -499,19 +499,16 @@ lpi_calc <- function(header,
                      source,
                      dsn,
                      verbose = TRUE) {
-
   print("Beginning LPI indicator calculation")
   # Join the lpi data to the header PrimaryKeys and add the StateSpecies Key
   lpi_tall_header <- readRDS(lpi_tall) %>%
     dplyr::left_join(dplyr::select(
       header,
       "PrimaryKey",
-      # "DBKey",
       "SpeciesState"
     ),
     .,
-    # by = c("PrimaryKey", "DBKey")
-    by = "PrimaryKey"
+    by = c("PrimaryKey")
     )
 
   # check for generic species in Species list
@@ -520,16 +517,19 @@ lpi_calc <- function(header,
       dsn = dsn,
       layer = "tblStateSpecies",
       stringsAsFactors = FALSE
-    ) %>%
-      # Get unknown codes and clean them up. Unknown codes beging with a 2 (LMF/NRI)
+    ) |>
+      # Get unknown codes and clean them up. Unknown codes beginning with a 2 (LMF/NRI)
       # or a 2 letter prefix followed by a number.
       # Older projects also used "AAFF" etc. to identify unknown and dead
       # beyond recognition codes. So we'll need to detect those too
-      dplyr::filter(stringr::str_detect(
-        string = SpeciesCode,
-        pattern = "^2[[:alpha:]]|^[A-z]{2}[[:digit:]]"
-      ) &
-        is.na(Notes))
+      # dplyr::filter(stringr::str_detect(
+      #   string = SpeciesCode,
+      #   pattern = "^2[[:alpha:]]|^[A-z]{2}[[:digit:]]"
+      # ) &
+      #   is.na(Notes))
+      dplyr::filter(.data = _,
+                    stringr::str_detect(string = SpeciesCode,
+                                        pattern = "^2[[:alpha:]]|^[A-z]{2}[[:digit:]]"))
 
     try(if (nrow(species_list) > 0) {
       stop(
@@ -540,10 +540,6 @@ lpi_calc <- function(header,
   }
 
   # Join to the state species list via the SpeciesState value
-  if (verbose) {
-    message("Joining species information to the LPI data.")
-  }
-  # if (verbose) {
   lpi_species <- species_join(
     data = lpi_tall_header,
     species_file = species_file,
@@ -552,7 +548,7 @@ lpi_calc <- function(header,
       TRUE,
       FALSE
     )
-  ) |>
+  ) %>%
     dplyr::distinct()
 
   # Correct the Non-Woody to NonWoody
