@@ -7,27 +7,59 @@
 gap_cover(
   gap_tall,
   tall = FALSE,
-  breaks = c(20, 25, 51, 101, 201),
+  breaks = c(20, 24, 50, 100, 200),
   type = "canopy",
+  no_max_cutoff = TRUE,
   by_line = FALSE
 )
 }
 \arguments{
-\item{gap_tall}{Raw tables as imported from TerrADat use gather_gap .}
+\item{gap_tall}{Data frame. The format must match the output from
+\code{\link{gather_gap}()} which includes at minimum the variables PrimaryKey,
+LineKey, LineLengthAmount, RecType, and Gap.}
 
-\item{tall}{Logical. If \code{TRUE} then the returned data frame will be tall
-rather than wide and will not have observations for non-existent values e.g.,
-if no data fell into a group on a plot, there will be no row for that group
-on that plot. Defaults to \code{FALSE}.}
+\item{tall}{Logical. If \code{FALSE} then the output will be a named list of
+data frames, one for each type of indicator calculated: length of transects
+in gaps, number of gaps, and percent of transects in gaps. If \code{TRUE}
+then the output will be a single data frame with one record for each indicator
+type for each gap size class for each plot (or transect on a plot depending
+on the value of \code{by_line}). Defaults to \code{FALSE}.}
 
-\item{breaks}{Vector of all break values. Defaults to \code{20,25, 51, 100, 200}}
+\item{breaks}{Numeric vector. These are the breaks between gap size classes
+in centimeters. The smallest size class is inclusive on both sides, e.g. if
+the lowest two values in \code{breaks} are 25 and 50 then gaps of 25 or 50 cm
+would be included in the 25-50 class. Larger classes are inclusive only on the
+high end, e.g. if \code{breaks} is \code{c(25, 50, 100, 200)} then a 50 cm gap
+would be included in the 25-50 class and a 100 cm gap would be included in the
+51-100 class. Defaults to \code{c(20, 24, 50, 100, 200)} which produces the classes
+20-24, 25-50, 51-100, 101-201, and 200-Inf.}
 
-\item{type}{String. Specifies the type of gap calculation
-\code{"canopy", "basal", "perennial canopy"}}
+\item{type}{Character string. The type of measurement (perennial-only canopy,
+all-plant canopy, or basal) to use. For perennial-only calculations, use
+\code{"P"}, \code{"perennial"}, or \code{"perennial canopy"}. For all-plant use
+\code{"C"} or \code{"canopy"}. For basal use \code{"B"} or \code{"basal"}.
+Defaults to \code{"canopy"}.}
 
-\item{by_line}{Logical. If \code{TRUR} then results will be reported further
-grouped by line using the \code{LineKey} field from the data forms.
+\item{no_max_cutoff}{Logical. If \code{TRUE} then the largest size class will
+be defined from the largest finite value in \code{breaks} to infinity. If your
+calculations need to be restricted to a maximum gap size, set this to
+\code{FALSE} and make sure that \code{breaks} does not include \code{Inf}.
+Defaults to \code{TRUE}.}
+
+\item{by_line}{Logical. If \code{FALSE} then results will be calculated for
+each value in the PrimaryKey variable. If \code{TRUE} then the results will
+be calculated for each unique combination of values in PrimaryKey and LineKey.
 Defaults to \code{FALSE}.}
+}
+\value{
+If \code{tall} is \code{TRUE} then the output is a named list
+(percent, n, and length) of data frames containing values for each type of
+indicator. The data frames contain the identifying variable(s) and one variable
+for each gap size class containing the relevant indicator value. if \code{tall}
+is \code{FALSE} then the output is a single data frame containing the identifying
+variable(s), a variable with the indicator type, a variable with the gap
+size class, and a variable with the indicator value. In every case, if there
+were gap size classes for which no data qualified the values will be 0.
 }
 \description{
 Calculate the number, length, and percent of gaps by plot or line.
