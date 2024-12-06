@@ -605,6 +605,9 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
 #' are found, a warning will be triggered but the gather will still be carried
 #' out. It is strongly recommended that any identified issues be addressed to
 #' avoid incorrect records in the output. Defaults to \code{TRUE}.
+#' @param null_is_na Logical. If \code{TRUE} then any instance of \code{"NULL"}
+#' as a value for a layer in \code{tblLPIDetail} will be considered to be \code{NA}.
+#' Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} then the function will report back
 #' diagnostic information as console messages while it works. Defaults to
 #' \code{FALSE}.
@@ -635,6 +638,7 @@ gather_lpi_terradat <- function(dsn = NULL,
                                 tblLPIDetail = NULL,
                                 tblLPIHeader = NULL,
                                 auto_qc_warnings = TRUE,
+                                null_is_na = TRUE,
                                 verbose = FALSE) {
 
   # These are used for data management within a geodatabase and we're going to
@@ -707,6 +711,15 @@ gather_lpi_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
+  # These are values which are considered to be non-records in the data and are
+  # used to filter during the pivot to a long/tall format.
+  nonrecord_values <- c(NA, "N", "None", "")
+  if (null_is_na) {
+    nonrecord_values <- c(nonrecord_values,
+                          "NULL")
+  }
+
+
   # Make a tall data frame with the hit codes by layer.
   lpi_hits_tall <- dplyr::mutate(.data = detail,
                                  # Make sure we don't have factors in play.
@@ -732,7 +745,7 @@ gather_lpi_terradat <- function(dsn = NULL,
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey),
                   !is.na(RecKey),
-                  !code %in% c(NA, "N", "None", "")) |>
+                  !code %in% nonrecord_values) |>
     dplyr::distinct(.data = _)
 
   # test <- dplyr::full_join(x = dplyr::mutate(lpi_hits_tall,
