@@ -539,6 +539,7 @@ lpi_calc <- function(header,
     })
   }
 
+
   # Join to the state species list via the SpeciesState value
   lpi_species <- species_join(
     data = lpi_tall_header,
@@ -987,7 +988,7 @@ gap_calc <- function(header,
     subset(PrimaryKey %in% header$PrimaryKey)
 
   # Calculate indicators
-  gap_calc <- gap_cover(
+  gap_indicators <- gap_cover(
     gap_tall = gap_tall,
     tall = FALSE
   )$percent %>%
@@ -997,9 +998,29 @@ gap_calc <- function(header,
                   GapCover_51_100 = "51-100",
                   GapCover_101_200 = "101-200",
                   GapCover_200_plus = "201-Inf"
-    )
+    ) |>
+    dplyr::mutate(.data = _,
+                  GapCover_25_plus = Gap_cover_25_50 +
+                    GapCover_51_100 +
+                    GapCover_101_200 +
+                    GapCover_200_plus)
+
+  # There may be situations where the total line length was incorrectly recorded
+  # by the crew. This is really only detectable at this point when the gap
+  # percentages sum to more than 100.
+  too_much_gap <- dplyr::filter(.data = gap_indicators,
+                                GapCover_25_plus > 100) |>
+    dplyr::pull(.data = _,
+                PrimaryKey) |>
+    unique()
+
+  if (length(too_much_gap) > 0) {
+    warning(paste("There are", length(too_much_gap), "plots where the total gap summed to over 100%. This is almost certainly due to incorrect metadata and the values can't be used, so they will not be returned."))
+  }
+
   # Return
-  return(gap_calc)
+  dplyr::filter(.data = gap_indicators,
+                !(PrimaryKey %in% too_much_gap))
 }
 
 
