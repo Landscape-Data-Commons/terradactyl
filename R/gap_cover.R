@@ -186,10 +186,36 @@ gap_cover <- function(gap_tall,
                             Gap > min(breaks)) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(grouping_vars),
-                  Gap)
+                  # Need this for the validity check
+                  LineLengthAmount,
+                  tidyselect::matches("^Gap"))
 
   ###### Validity check --------------------------------------------------------
-  # Make sure the data don't have impossibly large amounts of gap.
+  # These are gaps where the start or end was beyond the end of the transect,
+  # according to the metadata.
+  # For these, the whole plot will be dropped even if by_line = TRUE.
+  impossible_gaps <- dplyr::select(.data = gap_tall,
+                                   tidyselect::all_of(grouping_vars),
+                                   LineLengthAmount,
+                                   tidyselect::matches("^Gap")) |>
+    dplyr::filter(.data = _,
+                  GapStart > LineLengthAmount | GapEnd > LineLengthAmount)
+
+  if (nrow(impossible_gaps) > 0) {
+    warning(paste0("There are ", length(unique(impossible_gaps$PrimaryKey)), " plots with gap records that extend beyond the end of the transect according to the metadata. These plots will be dropped from consideration."))
+
+    gap_tall <- dplyr::filter(.data = gap_tall,
+                              !(PrimaryKey %in% impossible_gaps$PrimaryKey))
+  }
+
+  # Since we no longer need these variables, drop them.
+  gap_tall <- dplyr::select(.data = gap_tall,
+                            -LineLengthAmount,
+                            -tidyselect::matches("^Gap.+"))
+
+  # Make sure the data don't have impossibly large amounts of gap. This should
+  # only happen if gaps overlap because the ones that were longer than the
+  # transects should've been caught above.
   total_gap <- dplyr::summarize(.data = gap_tall,
                                 .by = tidyselect::all_of(grouping_vars),
                                 total_gap = sum(Gap)) |>
@@ -214,13 +240,13 @@ gap_cover <- function(gap_tall,
                      paste0(" unique values of ", grouping_vars)
                    } else {
                      paste0(" unique combinations of values in ", paste(grouping_vars,
-                                                       collapse = " and "))
+                                                                        collapse = " and "))
                    },
                    ". Gap indicators will not be calculated for these records."))
     gap_tall <- dplyr::left_join(x = gap_tall,
                                  y = too_much_gap,
-                             relationship = "many-to-one",
-                             by = grouping_vars) |>
+                                 relationship = "many-to-one",
+                                 by = grouping_vars) |>
       dplyr::filter(.data = _,
                     is.na(drop_record)) |>
       dplyr::select(.data = _,
