@@ -93,7 +93,7 @@ gather_header_terradat <- function(dsn = NULL,
                                                "Purpose",
                                                "PurposeFlag",
                                                "ProjectName",
-                                              "DBKey"))) |>
+                                               "DBKey"))) |>
     # We only want to keep records with PrimaryKey values.
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey))
@@ -1952,6 +1952,7 @@ gather_gap_terradat <- function(dsn = NULL,
                                 tblGapDetail = NULL,
                                 tblGapHeader = NULL,
                                 auto_qc_warnings = TRUE,
+                                drop_na = TRUE,
                                 verbose = FALSE) {
 
   # These are used for data management within a geodatabase and we're going to
@@ -2093,8 +2094,11 @@ gather_gap_terradat <- function(dsn = NULL,
                                                                                                                            replace = 0),
                                                                     NoBasalGaps == 1 & RecType == "B" ~ tidyr::replace_na(data = .x,
                                                                                                                           replace = 0),
-                                                                    .default  = .x)))
-
+                                                                    .default  = .x)),
+                            # Where possible, calculate the Gap for records that
+                            # don't have it currently.
+                            Gap = dplyr::case_when(is.na(Gap) & !is.na(GapStart) & !is.na(GapEnd) ~ abs(GapStart - GapEnd),
+                                                   .default = Gap))
 
 
   # Create records to represent the 0 values for situations where we have no
@@ -2144,6 +2148,14 @@ gather_gap_terradat <- function(dsn = NULL,
                                                          AnnualGrassesCanopy == 0 &
                                                          OtherCanopy == 0 ~ "P",
                                                        .default = RecType))
+
+  if (drop_na) {
+    if (any(is.na(gap_tall$Gap))) {
+      warning(paste0("There were ", sum(is.na(gap_tall$Gap)), " records with no valid Gap value or valid GapStart and GapEnd values to calculate from. These records will be dropped."))
+      gap_tall <- dplyr::filter(.data = gap_tall,
+                                !is.na(Gap))
+    }
+  }
 
   gap_tall
 }

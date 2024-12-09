@@ -183,14 +183,14 @@ gap_cover <- function(gap_tall,
   # small to qualify.
   gap_tall <- dplyr::filter(.data = gap_tall,
                             RecType %in% gap_types[tolower(type)],
-                            Gap > min(breaks)) |>
+                            Gap >= min(breaks)) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(grouping_vars),
                   # Need this for the validity check
                   LineLengthAmount,
                   tidyselect::matches("^Gap"))
 
-  ###### Validity check --------------------------------------------------------
+  ###### Validity checks -------------------------------------------------------
   # These are gaps where the start or end was beyond the end of the transect,
   # according to the metadata.
   # For these, the whole plot will be dropped even if by_line = TRUE.
