@@ -40,7 +40,7 @@ accumulated_species <- function (header,
 
   # Subset the header by the filter expressions
   header_sub <- readRDS(header) %>% dplyr::filter(!!!filter_exprs) %>%
-    dplyr::select("PrimaryKey", "PlotID", "DBKey", "State", "SpeciesState","Latitude_NAD83", "Longitude_NAD83", "source")
+    dplyr::select("PrimaryKey", "PlotID", "State", "SpeciesState","Latitude_NAD83", "Longitude_NAD83", "source")
 
   if(!is.null(lpi_tall)){
 
@@ -49,12 +49,11 @@ accumulated_species <- function (header,
       dplyr::left_join(dplyr::select(
         header_sub,
         "PrimaryKey",
-        "DBKey",
         "SpeciesState",
         "State"
       ),
       .,
-      by = c("PrimaryKey", "DBKey")
+      by = c("PrimaryKey")
       )
 
     lpi_species <- species_join(
