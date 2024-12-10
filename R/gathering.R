@@ -24,7 +24,6 @@ gather_header_terradat <- function(dsn = NULL,
                          # For once these variables need to carry through!
                          # "DateLoadedInDb",
                          # "DateLoadedinDB",
-                         #"DBKey",
                          "rid",
                          "DataErrorChecking",
                          "DataEntry",
@@ -92,8 +91,7 @@ gather_header_terradat <- function(dsn = NULL,
                                                "DesignFlag",
                                                "Purpose",
                                                "PurposeFlag",
-                                               "ProjectName",
-                                               "DBKey"))) |>
+                                               "ProjectName"))) |>
     # We only want to keep records with PrimaryKey values.
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey))
@@ -650,7 +648,6 @@ gather_lpi_terradat <- function(dsn = NULL,
                          "last_edited_date",
                          "DateLoadedInDb",
                          "DateLoadedinDB",
-                         #"DBKey",
                          "rid",
                          "DataErrorChecking",
                          "DataEntry",
@@ -2332,7 +2329,8 @@ gather_gap_lmf <- function(dsn = NULL,
   # These are the data which *might* need inference, by which we mean copying
   # the perennial-only records and changing the GAP_TYPE to "canopy".
   potential_inference_data <- dplyr::left_join(x = potential_canopy_transects,
-                                               y = gintercept |> subset(GAP_TYPE=="peren"),
+                                               y = dplyr::filter(gintercept,
+                                                                 GAP_TYPE == "peren"),
                                                relationship = "one-to-many",
                                                by = c("PrimaryKey",
                                                       "TRANSECT"))
