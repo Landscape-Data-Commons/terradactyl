@@ -16,7 +16,7 @@
 #' high end, e.g. if \code{breaks} is \code{c(25, 50, 100, 200)} then a 50 cm gap
 #' would be included in the 25-50 class and a 100 cm gap would be included in the
 #' 51-100 class. Defaults to \code{c(20, 24, 50, 100, 200)} which produces the classes
-#' 20-24, 25-50, 51-100, 101-201, and 200-Inf.
+#' 20-24, 25-50, 51-100, 101-201, and 200-Inf (with \code{no_max_cutoff = TRUE} which is the default).
 #' @param type Character string. The type of measurement (perennial-only canopy,
 #' all-plant canopy, or basal) to use. For perennial-only calculations, use
 #' \code{"P"}, \code{"perennial"}, or \code{"perennial canopy"}. For all-plant use
@@ -152,7 +152,6 @@ gap_cover <- function(gap_tall,
                      .by = tidyselect::all_of(grouping_vars),
                      total_line_length = sum(LineLengthAmount))
 
-
   ###### Making 0 records for no-gap plots -------------------------------------
   # There are plots with no qualifying gaps but which we need to put 0 values
   # into all the gap classes for.
@@ -184,10 +183,75 @@ gap_cover <- function(gap_tall,
   # small to qualify.
   gap_tall <- dplyr::filter(.data = gap_tall,
                             RecType %in% gap_types[tolower(type)],
-                            Gap > min(breaks)) |>
+                            Gap >= min(breaks)) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(grouping_vars),
-                  Gap)
+                  # Need this for the validity check
+                  LineLengthAmount,
+                  tidyselect::matches("^Gap"))
+
+  ###### Validity checks -------------------------------------------------------
+  # These are gaps where the start or end was beyond the end of the transect,
+  # according to the metadata.
+  # For these, the whole plot will be dropped even if by_line = TRUE.
+  impossible_gaps <- dplyr::select(.data = gap_tall,
+                                   tidyselect::all_of(grouping_vars),
+                                   LineLengthAmount,
+                                   tidyselect::matches("^Gap")) |>
+    dplyr::filter(.data = _,
+                  GapStart > LineLengthAmount | GapEnd > LineLengthAmount)
+
+  if (nrow(impossible_gaps) > 0) {
+    warning(paste0("There are ", length(unique(impossible_gaps$PrimaryKey)), " plots with gap records that extend beyond the end of the transect according to the metadata. These plots will be dropped from consideration."))
+
+    gap_tall <- dplyr::filter(.data = gap_tall,
+                              !(PrimaryKey %in% impossible_gaps$PrimaryKey))
+  }
+
+  # Since we no longer need these variables, drop them.
+  gap_tall <- dplyr::select(.data = gap_tall,
+                            -LineLengthAmount,
+                            -tidyselect::matches("^Gap.+"))
+
+  # Make sure the data don't have impossibly large amounts of gap. This should
+  # only happen if gaps overlap because the ones that were longer than the
+  # transects should've been caught above.
+  total_gap <- dplyr::summarize(.data = gap_tall,
+                                .by = tidyselect::all_of(grouping_vars),
+                                total_gap = sum(Gap)) |>
+    dplyr::left_join(x = _,
+                     y = line_lengths,
+                     relationship = "one-to-one",
+                     by = grouping_vars)
+
+  too_much_gap <- dplyr::filter(.data = total_gap,
+                                total_gap > total_line_length) |>
+    dplyr::mutate(.data = _,
+                  drop_record = TRUE) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(grouping_vars),
+                  drop_record) |>
+    dplyr::distinct()
+
+  if (nrow(too_much_gap) > 0) {
+    warning(paste0("The total gap exceeded the total transect length for ",
+                   nrow(too_much_gap),
+                   if (length(grouping_vars) < 2) {
+                     paste0(" unique values of ", grouping_vars)
+                   } else {
+                     paste0(" unique combinations of values in ", paste(grouping_vars,
+                                                                        collapse = " and "))
+                   },
+                   ". Gap indicators will not be calculated for these records."))
+    gap_tall <- dplyr::left_join(x = gap_tall,
+                                 y = too_much_gap,
+                                 relationship = "many-to-one",
+                                 by = grouping_vars) |>
+      dplyr::filter(.data = _,
+                    is.na(drop_record)) |>
+      dplyr::select(.data = _,
+                    -drop_record)
+  }
 
   ###### Classify gaps based on breaks -----------------------------------------
   # OKAY! So this uses cut() which is very nice. However, cut() needs to be told
