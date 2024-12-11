@@ -9,7 +9,7 @@ check_orphaned_records(x, y, joining_variables, symmetric = TRUE)
 \arguments{
 \item{x}{Data frame. The data frame which will always be checked for records which do not correspond to any records in \code{y}. Must contain the variables specified in \code{joining_variables}.}
 
-\item{y}{Data frame. The data frame against which \code{x} will be checked. Must contain the variables specified in \code{joining_variables}. If \socde{symmetric} is \code{TRUE} then this will also be checked against \code{x}.}
+\item{y}{Data frame. The data frame against which \code{x} will be checked. Must contain the variables specified in \code{joining_variables}. If \code{symmetric} is \code{TRUE} then this will also be checked against \code{x}.}
 
 \item{joining_variables}{Character vector or list of character vectors. The variables to use for the join \code{x} between \code{y}. If the variable names are the same in both \code{x} and \code{y}, then a single character vector containing the names of the variables will work. Otherwise, it should be formatted as a list of two character vectors, one for the variable names in \code{x} and one for \code{y}. In the case that you are providing a list, make sure that the variables containing the same values are in the same order between the two vectors. Naming the vectors in the list is optional but recommended: if the names of the vectors in the list are not \code{"x"} and \code{"y"}, then the function will make a best guess, defaulting to assuming that the first vector is for \code{x} and the second for \code{y}.}
 
