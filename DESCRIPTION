@@ -30,7 +30,8 @@ Imports:
     magrittr, 
     rlang,
     utils,
-    stats
+    stats,
+    purr
 Suggests: 
     testthat,
     knitr,
@@ -38,12 +39,11 @@ Suggests:
     RODBC, 
     devtools,
     odbc,
-    purrr,
     raster,
     readr,
     rlist,
     rstudioapi,
     sp,
     usethis
-Depends: R (>= 4.0.0)
+Depends: R (>= 3.0.0)
 VignetteBuilder: knitr
