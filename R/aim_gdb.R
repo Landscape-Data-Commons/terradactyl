@@ -590,7 +590,7 @@ height_calc <- function(header, height_tall,
       type
     ) %>% subset(indicator %in% c("woody", "herbaceous")),
 
-    # Forb or Grass
+    # By GrowthHabitSub, so forb, graminoid, shrub, etc.
     mean_height(
       height_tall = height_species,
       method = "mean",

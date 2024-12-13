@@ -1431,12 +1431,9 @@ gather_height_terradat <- function(dsn = NULL,
                                                                               "numeric")) {
                                 0
                               } else {
-                                tidyr::replace_na(data = detail[[paste0("Height", X)]],
-                                                  replace = "placeholder") |>
-                                  as.numeric() |>
-                                  suppressWarnings() |>
-                                  is.na() |>
-                                  sum()
+                                current_na_count <- sum(is.na(detail[[paste0("Height", X)]]))
+                                coerced_na_count <- sum(is.na(as.numeric(detail[[paste0("Height", X)]]))) - current_na_count
+                                coerced_na_count
                               }
                             })
   nas_by_coercion <- nas_by_coercion[nas_by_coercion > 0]
@@ -1446,7 +1443,7 @@ gather_height_terradat <- function(dsn = NULL,
                    " invalid height values replaced with NA across the following height types: ",
                    paste(names(nas_by_coercion),
                          collapse = ", "),
-                   ". Any records with a height value of NA will be dropped from the output during processing."))
+                   ". Any records with a height value of NA, including those which were NA before any coercion, will be dropped from the output during processing."))
   }
 
 
