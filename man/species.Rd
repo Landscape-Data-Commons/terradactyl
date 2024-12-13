@@ -4,6 +4,7 @@
 \alias{gather_species}
 \alias{generic_growth_habits}
 \alias{species_join}
+\alias{species_read}
 \alias{species_list_check}
 \alias{species_list_compare}
 \title{Gather species attribute data}
@@ -35,8 +36,11 @@ species_join(
   growth_habit_code = "Code",
   overwrite_generic_species = FALSE,
   generic_species_file = "",
+  update_species_codes = TRUE,
   by_species_key = TRUE
 )
+
+species_read(path, names = NULL)
 
 species_list_check(dsn_tall, species_list_file, ...)
 

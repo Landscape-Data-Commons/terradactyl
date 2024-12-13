@@ -34,8 +34,7 @@ Imports:
     utils,
     stats,
     purrr
-Suggests: 
-    testthat,
+Suggests:
     knitr,
     rmarkdown, 
     RODBC, 
