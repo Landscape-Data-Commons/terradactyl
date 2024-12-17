@@ -75,7 +75,7 @@ gather_header_terradat <- function(dsn = NULL,
   # necessary. If you're using tidyselect functions, you can use a named vector
   # to rename as you select.
   header <- dplyr::select(.data = header,
-                          tidyselect::all_of(c("PrimaryKey",
+                          tidyselect::any_of(c("PrimaryKey",
                                                "SpeciesState",
                                                "PlotID",
                                                "PlotKey",
