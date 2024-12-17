@@ -1424,7 +1424,8 @@ gather_height_terradat <- function(dsn = NULL,
   height_vars <- c(woody = "Woody",
                    herbaceous = "Herbaceous",
                    'lower herbaceous' = "LowerHerb")
-  height_vars <- height_vars[height_vars %in% names(detail)]
+  height_vars <- height_vars[paste0("Height",
+                                    height_vars) %in% names(detail)]
 
   # Warn about introducing NAs by coercion.
   nas_by_coercion <- sapply(X = height_vars,
@@ -1435,7 +1436,7 @@ gather_height_terradat <- function(dsn = NULL,
                                 0
                               } else {
                                 current_na_count <- sum(is.na(detail[[paste0("Height", X)]]))
-                                coerced_na_count <- sum(is.na(as.numeric(detail[[paste0("Height", X)]]))) - current_na_count
+                                coerced_na_count <- suppressWarnings(sum(is.na(as.numeric(detail[[paste0("Height", X)]]))) - current_na_count)
                                 coerced_na_count
                               }
                             })
