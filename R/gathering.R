@@ -24,7 +24,6 @@ gather_header_terradat <- function(dsn = NULL,
                          # For once these variables need to carry through!
                          # "DateLoadedInDb",
                          # "DateLoadedinDB",
-                         #"DBKey",
                          "rid",
                          "DataErrorChecking",
                          "DataEntry",
@@ -92,8 +91,7 @@ gather_header_terradat <- function(dsn = NULL,
                                                "DesignFlag",
                                                "Purpose",
                                                "PurposeFlag",
-                                               "ProjectName",
-                                               "DBKey"))) |>
+                                               "ProjectName"))) |>
     # We only want to keep records with PrimaryKey values.
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey))
@@ -650,7 +648,6 @@ gather_lpi_terradat <- function(dsn = NULL,
                          "last_edited_date",
                          "DateLoadedInDb",
                          "DateLoadedinDB",
-                         #"DBKey",
                          "rid",
                          "DataErrorChecking",
                          "DataEntry",
@@ -1424,22 +1421,22 @@ gather_height_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
+  height_vars <- c(woody = "Woody",
+                   herbaceous = "Herbaceous",
+                   'lower herbaceous' = "LowerHerb")
+  height_vars <- height_vars[height_vars %in% names(detail)]
+
   # Warn about introducing NAs by coercion.
-  nas_by_coercion <- sapply(X = c(woody = "Woody",
-                                  herbaceous = "Herbaceous",
-                                  'lower herbaceous' = "LowerHerb"),
+  nas_by_coercion <- sapply(X = height_vars,
                             detail = detail,
                             FUN = function(X, detail){
                               if (class(detail[[paste0("Height", X)]]) %in% c("integer",
                                                                               "numeric")) {
                                 0
                               } else {
-                                tidyr::replace_na(data = detail[[paste0("Height", X)]],
-                                                  replace = "placeholder") |>
-                                  as.numeric() |>
-                                  suppressWarnings() |>
-                                  is.na() |>
-                                  sum()
+                                current_na_count <- sum(is.na(detail[[paste0("Height", X)]]))
+                                coerced_na_count <- sum(is.na(as.numeric(detail[[paste0("Height", X)]]))) - current_na_count
+                                coerced_na_count
                               }
                             })
   nas_by_coercion <- nas_by_coercion[nas_by_coercion > 0]
@@ -1449,7 +1446,7 @@ gather_height_terradat <- function(dsn = NULL,
                    " invalid height values replaced with NA across the following height types: ",
                    paste(names(nas_by_coercion),
                          collapse = ", "),
-                   ". Any records with a height value of NA will be dropped from the output during processing."))
+                   ". Any records with a height value of NA, including those which were NA before any coercion, will be dropped from the output during processing."))
   }
 
 
@@ -1462,9 +1459,7 @@ gather_height_terradat <- function(dsn = NULL,
   # species are stored as character strings but heights are numeric) so we can't
   # put them all in one data frame variable when we pivot the data to a long
   # format.
-  lpi_heights_tall <- lapply(X = c(woody = "Woody",
-                                   herbaceous = "Herbaceous",
-                                   lower_herbaceous = "LowerHerb"),
+  lpi_heights_tall <- lapply(X = height_vars,
                              detail = detail,
                              FUN = function(X, detail){
                                dplyr::select(.data = detail,
@@ -2332,7 +2327,8 @@ gather_gap_lmf <- function(dsn = NULL,
   # These are the data which *might* need inference, by which we mean copying
   # the perennial-only records and changing the GAP_TYPE to "canopy".
   potential_inference_data <- dplyr::left_join(x = potential_canopy_transects,
-                                               y = gintercept |> subset(GAP_TYPE=="peren"),
+                                               y = dplyr::filter(gintercept,
+                                                                 GAP_TYPE == "peren"),
                                                relationship = "one-to-many",
                                                by = c("PrimaryKey",
                                                       "TRANSECT"))
