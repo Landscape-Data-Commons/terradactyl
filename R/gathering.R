@@ -1463,7 +1463,7 @@ gather_height_terradat <- function(dsn = NULL,
   lpi_heights_tall <- lapply(X = height_vars,
                              detail = detail,
                              FUN = function(X, detail){
-                               dplyr::select(.data = detail,
+                               output <- dplyr::select(.data = detail,
                                              PrimaryKey, RecKey,
                                              PointLoc, PointNbr,
                                              tidyselect::ends_with(match = X)) |>
@@ -1485,6 +1485,12 @@ gather_height_terradat <- function(dsn = NULL,
                                                                                        .default = NA)) |>
                                  dplyr::filter(.data = _,
                                                !is.na(Height))
+
+                                 if (nrow(output) > 0) {
+                                   output
+                                 } else {
+                                   NULL
+                                 }
                              }) |>
     dplyr::bind_rows()
 
