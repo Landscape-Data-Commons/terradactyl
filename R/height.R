@@ -25,7 +25,8 @@ mean_height <- function(height_tall,
                         omit_zero = TRUE,
                         by_line = FALSE,
                         tall = FALSE,
-                        ...) {
+                        ...,
+                        missing_fill = NA) {
   ## Get a list of the variables the user wants to group by.
   grouping_variables <- rlang::quos(...)
 
@@ -91,7 +92,7 @@ mean_height <- function(height_tall,
 
     # Convert to wide format
     if (!tall) {
-      summary <- summary %>% tidyr::pivot_wider(names_from = indicator, values_from = mean_height, values_fill = 0)
+      summary <- summary %>% tidyr::pivot_wider(names_from = indicator, values_from = mean_height, values_fill = missing_fill)
     }
   }
   # Calculate the max height by grouping variable, if method =="max"
@@ -111,7 +112,7 @@ mean_height <- function(height_tall,
 
     # Convert to wide format
     if (!tall) {
-      summary <- summary %>% tidyr::pivot_wider(names_from = Species, values_from = max_height, values_fill = 0)
+      summary <- summary %>% tidyr::pivot_wider(names_from = Species, values_from = max_height, values_fill = missing_fill)
     }
   }
 
