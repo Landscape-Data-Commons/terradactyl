@@ -21,15 +21,16 @@
 #'@export accumulated_species
 #'
 
-accumulated_species <- function (header,
+accumulated_species <- function (...,
+                                 header,
                                  lpi_tall = NULL,
                                  height_tall = NULL,
                                  spp_inventory_tall = NULL,
                                  species_file = "",
                                  dead = TRUE,
                                  source = c("TerrADat", "AIM", "LMF", "NRI"),
-                                 ...,
-                                 generic_species_file = NULL) {
+                                 generic_species_file = NULL,
+                                 verbose = FALSE) {
   # Set the filter expressions
   filter_exprs <- rlang::quos(...)
 
@@ -38,12 +39,17 @@ accumulated_species <- function (header,
     generic_species_file <- species_file
   }
 
+  if (verbose) {
+    message("Reading in headers and filtering them using any provided filtering expressions.")
+  }
   # Subset the header by the filter expressions
   header_sub <- readRDS(header) %>% dplyr::filter(!!!filter_exprs) %>%
     dplyr::select("PrimaryKey", "PlotID", "State", "SpeciesState","Latitude_NAD83", "Longitude_NAD83", "source")
 
   if(!is.null(lpi_tall)){
-
+    if (verbose) {
+      message("Joining header info to lpi_tall")
+    }
     # read in LPI and join to species table
     lpi_tall_header <- readRDS(lpi_tall) %>%
       dplyr::left_join(dplyr::select(
@@ -56,6 +62,9 @@ accumulated_species <- function (header,
       by = c("PrimaryKey")
       )
 
+    if (verbose) {
+      message("Joining species data to LPI data")
+    }
     lpi_species <- species_join(
       data = lpi_tall_header,
       species_file = species_file,
@@ -65,6 +74,9 @@ accumulated_species <- function (header,
                                                  FALSE)
     ) %>% dplyr::distinct()
 
+    if (verbose) {
+      message("Calculating species cover,")
+    }
     # calculate cover by species
     species_cover <- pct_cover_species(lpi_tall = lpi_species)%>%
       # Omit 0 cover species
@@ -72,6 +84,9 @@ accumulated_species <- function (header,
 
     # If dead == TRUE then calculate live and dead hits as well
     if(dead) {
+      if (verbose) {
+        message("Calculating cover for live and dead hits.")
+      }
       species_cover_live_dead <- pct_cover_live(lpi_tall = readRDS(lpi_tall) %>%
                                                   subset(PrimaryKey %in% header_sub$PrimaryKey),
                                                 hit = "any",
@@ -92,6 +107,9 @@ accumulated_species <- function (header,
                                         species_cover_live_dead_split)
     }
 
+    if (verbose) {
+      message("Adding hit counts to species_cover.")
+    }
     # add n of hits
     species_cover <- lpi_species %>%
       subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
@@ -104,18 +122,25 @@ accumulated_species <- function (header,
 
 
   } else {
-    print("No LPI data provided")
+    if (verbose) {
+      message("No LPI data provided.")
+    }
     species_cover <- NULL
   }
 
   if(!is.null(height_tall)){
-
+    if (verbose) {
+      message("Reading height_tall and joining to headers.")
+    }
     # Read in height and join species
     height <- readRDS(height_tall) %>%
 
       # subset by PK and add the SpeciesState from the header
       dplyr::left_join(dplyr::select(header_sub, PrimaryKey, SpeciesState), .)
 
+    if (verbose) {
+      message("Joining species data to heights.")
+    }
     # Join to species list
     height_species <- species_join(
       data = height,
@@ -137,7 +162,9 @@ accumulated_species <- function (header,
     # they are omitted from the calculations
     height_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
 
-
+    if (verbose) {
+      message("Calculating per-species mean height")
+    }
     # calculate height by species
     species_height <- mean_height(height_tall = height_species,
                                   method = "mean",
@@ -151,13 +178,15 @@ accumulated_species <- function (header,
       subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
       dplyr::count(PrimaryKey, Species) %>%
       dplyr::left_join(., species_height,
-                       by = c("PrimaryKey", "Species" = "indicator")) %>%
+                       by = c("PrimaryKey",
+                              "Species" = "indicator")) %>%
       dplyr::rename("Hgt_Species_Avg_n" = "n") %>%
 
       # remove "None" codes
       subset(Species != "None")
 
     if(dead) {
+      message("Calculating live and dead heights.")
       species_height_live_dead <- mean_height(height_tall = readRDS(height_tall) %>%
                                                 subset(PrimaryKey %in% header_sub$PrimaryKey),
                                               method = "mean",
@@ -188,12 +217,16 @@ accumulated_species <- function (header,
     }
 
   } else {
-    print("No height data provided")
+    if (verbose) {
+      message("No height data provided")
+    }
     species_height <- NULL
   }
 
   if(!is.null(spp_inventory_tall)){
-
+    if (verbose) {
+      message("Reading in spp_inventory_tall and joining to headers.")
+    }
     # read species inventory data and join species list
     species_inventory <- readRDS(spp_inventory_tall) %>%
       # Join to the header to get the relevant PrimaryKeys and SpeciesSate
@@ -201,6 +234,9 @@ accumulated_species <- function (header,
                        by = "PrimaryKey"
       )
 
+    if (verbose) {
+      message("Joining species data to species inventory.")
+    }
     # Join to State Species List
     spp_inventory_species <- species_join(
       data = species_inventory,
@@ -217,7 +253,9 @@ accumulated_species <- function (header,
       dplyr::select(PrimaryKey, Species) %>%
       dplyr::distinct()
   } else {
-    print("No species inventory data provided")
+    if (verbose) {
+      message("No species inventory data provided")
+    }
     species_inventory <- NULL
   }
 
@@ -225,15 +263,27 @@ accumulated_species <- function (header,
   # Join height and cover calculations together
   # If both species_cover and species_height are present, do a full join.
   if(!is.null(species_cover) & !is.null(species_height)){
+    if (verbose) {
+      message("Joining cover and height for output.")
+    }
     species <- dplyr::full_join(species_cover, species_height,
                                 by = c("PrimaryKey", "Species"))
-  #  If one is absent, pass the present one forward.
+    #  If one is absent, pass the present one forward.
   } else if (!is.null(species_cover)){
+    if (verbose) {
+      message("Using cover only for output")
+    }
     species <- species_cover
   } else if (!is.null(species_height)){
+    if (verbose) {
+      message("Using height only for output")
+    }
     species <- species_height
-  #  If both are absent, return NULL
+    #  If both are absent, return NULL
   } else {
+    if (verbose) {
+      message("No cover or height calculated for output.")
+    }
     species <- NULL
   }
 
@@ -241,14 +291,23 @@ accumulated_species <- function (header,
   # present in the species inventory table and append those to the species list
   # If both species and species_inventory are present, do a full join.
   if(!is.null(species) & !is.null(species_inventory)){
+    if (verbose) {
+      message("Joining species inventory to the output.")
+    }
     all_species <- dplyr::anti_join(species_inventory, species,
                                     by = c("PrimaryKey", "Species")) %>%
       # append to end of the species list
       dplyr::bind_rows(species, .)
-  #  If one is absent, pass the present one forward.
+    #  If one is absent, pass the present one forward.
   } else if(!is.null(species)){
+    if (verbose) {
+      message("No species inventory data to join to output.")
+    }
     all_species <- species
   } else if(!is.null(species_inventory)){
+    if (verbose) {
+      message("Using only species inventory for output.")
+    }
     all_species <- species_inventory
   } else {
     stop("No data provided. Provide one or more of LPI, height, or species inventory data.")
@@ -259,6 +318,9 @@ accumulated_species <- function (header,
     subset(nchar(Species) > 2 & !is.na(Species))
 
   # back to header
+  if (verbose) {
+    message("Joining header and output.")
+  }
   all_species_header <-dplyr::full_join(header_sub, all_species,
                                         by = "PrimaryKey") %>%
     # create formal output table
@@ -271,6 +333,9 @@ accumulated_species <- function (header,
 
   # if a species list is provided, join to species list
   if (species_file != "") {
+    if (verbose) {
+      message("Joining species data to the output")
+    }
     all_species_header <- species_join(data = all_species_header,
                                        data_code = "Species",
                                        generic_species_file = generic_species_file,
