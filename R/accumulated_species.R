@@ -21,8 +21,8 @@
 #'@export accumulated_species
 #'
 
-accumulated_species <- function (...,
-                                 header,
+accumulated_species <- function (header,
+                                 ...,
                                  lpi_tall = NULL,
                                  height_tall = NULL,
                                  spp_inventory_tall = NULL,

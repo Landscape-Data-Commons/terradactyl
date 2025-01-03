@@ -36,10 +36,10 @@
 #'@export
 
 pct_cover <- function(lpi_tall,
+                      ...,
                       tall = FALSE,
                       hit = "any",
-                      by_line = FALSE,
-                      ...) {
+                      by_line = FALSE) {
   ## Get a list of the variables the user wants to group by.
   grouping_variables <- rlang::quos(...)
 

@@ -227,10 +227,10 @@ pct_cover_litter <- function(lpi_tall,
 
 # Percent Cover Live vs Dead ####
 pct_cover_live <- function(lpi_tall,
+                           ...,
                            tall = FALSE,
                            by_line = FALSE,
-                           hit = "any",
-                           ...) {
+                           hit = "any") {
   grouping_variables <- rlang::quos(...)
   # summarize by checkbox and pre-assigned grouping variables
   summary <- pct_cover(lpi_tall,

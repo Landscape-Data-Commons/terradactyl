@@ -10,10 +10,10 @@
 # Build the header portion of the terradat table
 #' @export gather_header_terradat
 #' @rdname aim_gdb
-gather_header_terradat <- function(dsn = NULL,
+gather_header_terradat <- function(...,
+                                   dsn = NULL,
                                    tblPlots = NULL,
-                                   date_tables = NULL,
-                                   ...) {
+                                   date_tables = NULL) {
   # These are used for data management within a geodatabase and we're going to
   # drop them.
   internal_gdb_vars <- c("GlobalID",
@@ -169,8 +169,8 @@ gather_header_terradat <- function(dsn = NULL,
 # Build the header portion of the LMF table
 #' @export gather_header_lmf
 #' @rdname aim_gdb
-gather_header_lmf <- function(dsn = NULL,
-                              ...) {
+gather_header_lmf <- function(...,
+                              dsn = NULL) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -322,7 +322,7 @@ gather_header_lmf <- function(dsn = NULL,
 # Build the header portion of the LMF table
 #' @export gather_header_nri
 #' @rdname aim_gdb
-gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
+gather_header_nri <- function(dsn, speciesstate, ...) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -529,8 +529,8 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
 #' @export gather_header
 #' @rdname aim_gdb
 # Header build wrapper function
-gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, #PlotChar_0 = NULL,
-                          speciesstate = NULL, ..., autoQC = TRUE) {
+gather_header <- function(..., dsn = NULL, source, tblPlots = NULL, date_tables = NULL, #PlotChar_0 = NULL,
+                          speciesstate = NULL, autoQC = TRUE) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
