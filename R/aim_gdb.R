@@ -1151,13 +1151,13 @@ build_lmf_indicators <- function(header, source, dsn,
 #' @export build_indicators
 #' @rdname aim_gdb
 # Build wrapper
-build_indicators <- function(...,
-                             header, source, dsn, lpi_tall,
+build_indicators <- function(header, source, dsn, lpi_tall,
                              species_file,
                              gap_tall,
                              height_tall,
                              spp_inventory_tall,
-                             soil_stability_tall) {
+                             soil_stability_tall,
+                             ...) {
   all_indicators <- switch(source,
                            "TerrADat" = build_terradat_indicators(...,
                                                                   header = header,

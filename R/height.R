@@ -21,11 +21,11 @@
 #'
 #' @export mean_height
 mean_height <- function(height_tall,
+                        ...,
                         method = "mean",
                         omit_zero = TRUE,
                         by_line = FALSE,
                         tall = FALSE,
-                        ...,
                         missing_fill = 0) {
   ## Get a list of the variables the user wants to group by.
   grouping_variables <- rlang::quos(...)
