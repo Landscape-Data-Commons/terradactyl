@@ -75,7 +75,7 @@ gather_header_terradat <- function(dsn = NULL,
   # necessary. If you're using tidyselect functions, you can use a named vector
   # to rename as you select.
   header <- dplyr::select(.data = header,
-                          tidyselect::any_of(c("PrimaryKey",
+                          tidyselect::all_of(c("PrimaryKey",
                                                "SpeciesState",
                                                "PlotID",
                                                "PlotKey",
@@ -752,36 +752,67 @@ gather_lpi_terradat <- function(dsn = NULL,
   # any(is.na(test$original))
   # any(is.na(test$test))
 
-  # Make a tall data frame the checkbox status by layer.
-  lpi_chkbox_tall <- dplyr::mutate(.data = detail,
-                                   # Make sure we don't have factors in play.
-                                   dplyr::across(.cols = tidyselect::where(fn = is.factor),
-                                                 .fns = ~ as.character(.x))) |>
-    # Get just the variables we need for this particular data frame.
-    dplyr::select(.data = _,
-                  PrimaryKey, RecKey,
-                  PointLoc, PointNbr,
-                  # We only want the chkbox values for the top, soil, and
-                  # numbered layers. This will exclude the woody and herbaceous
-                  # ones.
-                  tidyselect::matches(match = "^Chkbox(Top|Soil|Lower\\d)$")) |>
-    # Pivot it to be long (tall, in the older terminology).
-    tidyr::pivot_longer(data = _,
-                        cols = tidyselect::matches(match = "^Chkbox"),
-                        names_to = "layer",
-                        # Removing the prefix so that these values will match
-                        # the ones in our other tall data frame created above.
-                        names_prefix = "^Chkbox",
-                        values_to = "chckbox") |>
-    # Remove the records with invalid checkbox values.
-    dplyr::filter(.data = _,
-                  chckbox %in% c(1, 0)) |>
-    # And adjusting so that the non-numbered layers match those values we expect
-    dplyr::mutate(.data = _,
-                  layer = dplyr::case_when(layer == "Top" ~ "TopCanopy",
-                                           layer == "Soil" ~ "SoilSurface",
-                                           .default = layer)) |>
-    dplyr::distinct(.data = _)
+
+  # We want to handle the checkboxes, but sometimes they're not present because
+  # the data we're handling comes from sources like the New Mexico Department of
+  # Transportation which doesn't use those features.
+
+  # If there are checkbox variables, we'll make those data tall and then join
+  # them to lpi_hits_tall to create lpi_tall.
+  # If there aren't checkbox variables, we'll just make lpi_tall from
+  # lpi_hits_tall.
+  # The code for handling checkbox variables should work regardless of how many
+  # variables it finds as long as there's at least one.
+  has_checkbox_variables <- any(stringr::str_detect(string = test_strings,
+                                                    # This regex looks for a
+                                                    # string that starts with
+                                                    # "Chkbox" and ends in a
+                                                    # known suffix, e.g.
+                                                    # "ChkboxTop" or
+                                                    # "ChkboxLower5"
+                                                    pattern = "^Chkbox(Top|Soil|Lower\\d)$"))
+
+  if (has_checkbox_variables) {
+    # Make a tall data frame the checkbox status by layer.
+    lpi_tall <- dplyr::mutate(.data = detail,
+                              # Make sure we don't have factors in play.
+                              dplyr::across(.cols = tidyselect::where(fn = is.factor),
+                                            .fns = ~ as.character(.x))) |>
+      # Get just the variables we need for this particular data frame.
+      dplyr::select(.data = _,
+                    PrimaryKey, RecKey,
+                    PointLoc, PointNbr,
+                    # We only want the chkbox values for the top, soil, and
+                    # numbered layers. This will exclude the woody and herbaceous
+                    # ones.
+                    tidyselect::matches(match = "^Chkbox(Top|Soil|Lower\\d)$")) |>
+      # Pivot it to be long (tall, in the older terminology).
+      tidyr::pivot_longer(data = _,
+                          cols = tidyselect::matches(match = "^Chkbox"),
+                          names_to = "layer",
+                          # Removing the prefix so that these values will match
+                          # the ones in our other tall data frame created above.
+                          names_prefix = "^Chkbox",
+                          values_to = "chckbox") |>
+      # Keep only the records with valid checkbox values.
+      dplyr::filter(.data = _,
+                    chckbox %in% c(1, 0)) |>
+      # And adjusting so that the non-numbered layers match those values we expect
+      dplyr::mutate(.data = _,
+                    layer = dplyr::case_when(layer == "Top" ~ "TopCanopy",
+                                             layer == "Soil" ~ "SoilSurface",
+                                             .default = layer)) |>
+      dplyr::distinct(.data = _) |>
+      dplyr::left_join(x = lpi_hits_tall,
+                       y = _,
+                       # relationship = "one-to-one",
+                       by = c("PrimaryKey", "RecKey",
+                              "PointLoc", "PointNbr",
+                              "layer"))
+  } else {
+    warning("There were no 'checkbox' variables (usually used to record whether a record represents a live or dead plant part) in the provided data. If you were expecting them, please check your data.")
+    lpi_tall <- lpi_hits_tall
+  }
 
   # test <- dplyr::full_join(x = dplyr::mutate(lpi_chkbox_tall,
   #                                            original = TRUE),
@@ -790,27 +821,27 @@ gather_lpi_terradat <- function(dsn = NULL,
   # any(is.na(test$original))
   # any(is.na(test$test))
 
-
   # Print update because this function can take a while
   if (verbose) {
     message("Merging the header and detail tables")
   }
 
-  # Join the header information to the hit and checkbox data.
+  # Join the header information to the tall data.
   # The suppressWarnings() and lack of defined relationships in the joins are to
   # allow the user to run this with data that have not been adequately cleaned.
-  lpi_tall <- suppressWarnings(dplyr::left_join(x = lpi_hits_tall,
-                                                y = lpi_chkbox_tall,
-                                                # relationship = "one-to-one",
-                                                by = c("PrimaryKey", "RecKey",
-                                                       "PointLoc", "PointNbr",
-                                                       "layer")) |>
-                                 dplyr::left_join(x = dplyr::select(.data = header,
-                                                                    LineKey:CheckboxLabel,
-                                                                    PrimaryKey),
-                                                  y = _,
-                                                  # relationship = "one-to-many",
-                                                  by = c("PrimaryKey", "RecKey")))
+  lpi_tall <- dplyr::select(.data = header,
+                            # This is split so that we grab the first chunk of
+                            # assumed-to-be-present metadata variables and then
+                            # if we've got the checkbox ones we'll do those too
+                            LineKey:HeighUOM,
+                            tidyselect::any_of(c("ShowCheckbox",
+                                                 "CheckboxLabel")),
+                            PrimaryKey) |>
+    dplyr::left_join(x = _,
+                     y = lpi_tall,
+                     # relationship = "one-to-many",
+                     by = c("PrimaryKey", "RecKey")) |>
+    suppressWarnings()
 
   # We want to coerce dates into character strings.
   # Find variables with a date class.
@@ -1421,14 +1452,10 @@ gather_height_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
-  height_vars <- c(woody = "Woody",
-                   herbaceous = "Herbaceous",
-                   'lower herbaceous' = "LowerHerb")
-  height_vars <- height_vars[paste0("Height",
-                                    height_vars) %in% names(detail)]
-
   # Warn about introducing NAs by coercion.
-  nas_by_coercion <- sapply(X = height_vars,
+  nas_by_coercion <- sapply(X = c(woody = "Woody",
+                                  herbaceous = "Herbaceous",
+                                  'lower herbaceous' = "LowerHerb"),
                             detail = detail,
                             FUN = function(X, detail){
                               if (class(detail[[paste0("Height", X)]]) %in% c("integer",
@@ -1436,7 +1463,7 @@ gather_height_terradat <- function(dsn = NULL,
                                 0
                               } else {
                                 current_na_count <- sum(is.na(detail[[paste0("Height", X)]]))
-                                coerced_na_count <- suppressWarnings(sum(is.na(as.numeric(detail[[paste0("Height", X)]]))) - current_na_count)
+                                coerced_na_count <- sum(is.na(as.numeric(detail[[paste0("Height", X)]]))) - current_na_count
                                 coerced_na_count
                               }
                             })
@@ -1460,10 +1487,12 @@ gather_height_terradat <- function(dsn = NULL,
   # species are stored as character strings but heights are numeric) so we can't
   # put them all in one data frame variable when we pivot the data to a long
   # format.
-  lpi_heights_tall <- lapply(X = height_vars,
+  lpi_heights_tall <- lapply(X = c(woody = "Woody",
+                                   herbaceous = "Herbaceous",
+                                   lower_herbaceous = "LowerHerb"),
                              detail = detail,
                              FUN = function(X, detail){
-                               output <- dplyr::select(.data = detail,
+                               dplyr::select(.data = detail,
                                              PrimaryKey, RecKey,
                                              PointLoc, PointNbr,
                                              tidyselect::ends_with(match = X)) |>
@@ -1485,12 +1514,6 @@ gather_height_terradat <- function(dsn = NULL,
                                                                                        .default = NA)) |>
                                  dplyr::filter(.data = _,
                                                !is.na(Height))
-
-                                 if (nrow(output) > 0) {
-                                   output
-                                 } else {
-                                   NULL
-                                 }
                              }) |>
     dplyr::bind_rows()
 
