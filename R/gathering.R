@@ -1452,31 +1452,93 @@ gather_height_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
-  # Warn about introducing NAs by coercion.
-  nas_by_coercion <- sapply(X = c(woody = "Woody",
-                                  herbaceous = "Herbaceous",
-                                  'lower herbaceous' = "LowerHerb"),
-                            detail = detail,
-                            FUN = function(X, detail){
-                              if (class(detail[[paste0("Height", X)]]) %in% c("integer",
-                                                                              "numeric")) {
-                                0
-                              } else {
-                                current_na_count <- sum(is.na(detail[[paste0("Height", X)]]))
-                                coerced_na_count <- sum(is.na(as.numeric(detail[[paste0("Height", X)]]))) - current_na_count
-                                coerced_na_count
-                              }
-                            })
-  nas_by_coercion <- nas_by_coercion[nas_by_coercion > 0]
-  if (length(nas_by_coercion) > 0) {
-    warning(paste0("There are non-numeric values in at least one height variable in tblLPIDetail. There will be ",
-                   sum(nas_by_coercion),
-                   " invalid height values replaced with NA across the following height types: ",
-                   paste(names(nas_by_coercion),
-                         collapse = ", "),
-                   ". Any records with a height value of NA, including those which were NA before any coercion, will be dropped from the output during processing."))
+  # These are used to check for situations where there are going to be issues
+  # with coerced data types or just the presence of NA values because some data
+  # sets are not complete.
+  variable_types <- c(woody = "Woody",
+                      herbaceous = "Herbaceous",
+                      lower_herbaceous = "LowerHerb")
+  variable_classes <- list(Height = c("numeric",
+                                      "integer"),
+                           Species = "character")
+
+  # Warn about variables which are the incorrect class for the data type
+  coerced_variables_list <- lapply(X = setNames(object = names(variable_classes),
+                                                nm = tolower(names(variable_classes))),
+                                   variable_classes = variable_classes,
+                                   variable_types = variable_types,
+                                   detail = detail,
+                                   FUN = function(X, variable_classes, variable_types, detail){
+                                     detail_variables <- dplyr::select(.data = detail,
+                                                                       tidyselect::matches(match = paste0("^", X,
+                                                                                                          "((",
+                                                                                                          paste(variable_types,
+                                                                                                                collapse = ")|("),
+                                                                                                          "))$"))) |>
+                                       names()
+
+                                     detail_variables_misclassed <- sapply(X = setNames(object = detail_variables,
+                                                         nm = stringr::str_remove(string = detail_variables,
+                                                                                   pattern = paste0("^", X))),
+                                            detail = detail,
+                                            current_variable_classes = variable_classes[[X]],
+                                            FUN = function(X, detail, current_variable_classes){
+                                              !(class(detail[[X]]) %in% current_variable_classes)
+                                            })
+
+                                     names(detail_variables_misclassed)[detail_variables_misclassed]
+                                   })
+
+  for (current_variable_prefix in names(coerced_variables_list)) {
+    current_coerced_variables <- coerced_variables_list[[current_variable_prefix]]
+    if (length(current_coerced_variables) > 0) {
+      warning(paste0("There are one or more ", current_variable_prefix, " variables of the incorrect class in tblLPIDetail. ",
+                     "These variables (", paste(current_coerced_variables,
+                                                 collapse = ", "), ") will be coerced into the correct class: ", variable_classes[[stringr::str_to_title(string = current_variable_prefix)]][1],"."))
+    }
   }
 
+  # Warn about introducing NAs by coercion.
+  coerced_nas_list <- lapply(X = setNames(object = names(variable_classes),
+                                          nm = tolower(names(variable_classes))),
+                             variable_classes = variable_classes,
+                             variable_types = variable_types,
+                             detail = detail,
+                             FUN = function(X, variable_classes, variable_types, detail){
+                               nas_by_coercion <- sapply(X = variable_types,
+                                                         variable_prefix = X,
+                                                         variable_class = variable_classes[[X]],
+                                                         detail = detail,
+                                                         FUN = function(X, variable_prefix, variable_class, detail){
+                                                           if (class(detail[[paste0(variable_prefix, X)]]) %in% variable_class) {
+                                                             0
+                                                           } else {
+                                                             current_na_count <- sum(is.na(detail[[paste0(variable_prefix, X)]]))
+                                                             coerced_na_count <- as.numeric(detail[[paste0(variable_prefix, X)]]) |>
+                                                               suppressWarnings(expr = _) |>
+                                                               is.na() |>
+                                                               sum() - current_na_count
+
+                                                             coerced_na_count
+                                                           }
+                                                         })
+                               nas_by_coercion <- nas_by_coercion[nas_by_coercion > 0]
+                             })
+
+  for (current_variable_prefix in names(coerced_nas_list)) {
+    current_nas_by_coercion <- coerced_nas_list[[current_variable_prefix]]
+    if (length(current_nas_by_coercion) > 0) {
+      warning(paste0("There are values that cannot be coerced into the correct class in at least one ", current_variable_prefix, " variable in tblLPIDetail. There will be ",
+                     sum(nas_by_coercion),
+                     " invalid ", current_variable_prefix, " values replaced with NA across the following ", current_variable_prefix, " types: ",
+                     paste(names(nas_by_coercion) |>
+                             stringr::str_replace(string = _,
+                                                  pattern = "_",
+                                                  replacement = " "),
+                           collapse = ", "),
+                     ". Any records with a ", current_variable_prefix, " value of NA, including those which were NA before any coercion, will be dropped from the output during processing."))
+    }
+  }
 
 
   # There are three height types that we're going to be working with here, so
@@ -1487,9 +1549,7 @@ gather_height_terradat <- function(dsn = NULL,
   # species are stored as character strings but heights are numeric) so we can't
   # put them all in one data frame variable when we pivot the data to a long
   # format.
-  lpi_heights_tall <- lapply(X = c(woody = "Woody",
-                                   herbaceous = "Herbaceous",
-                                   lower_herbaceous = "LowerHerb"),
+  lpi_heights_tall <- lapply(X = variable_types,
                              detail = detail,
                              FUN = function(X, detail){
                                dplyr::select(.data = detail,
@@ -1506,6 +1566,7 @@ gather_height_terradat <- function(dsn = NULL,
                                                # NAs in this coercion because we
                                                # already warned the user above.
                                                Height = suppressWarnings(as.numeric(Height)),
+                                               Species = suppressWarnings(as.character(Species)),
                                                type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
                                                                        .default = tolower(X)),
                                                GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
