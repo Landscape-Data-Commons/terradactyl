@@ -397,12 +397,12 @@ species_join <- function(data, # field data,
 
 
 
-  # check for duplicate species
-  if (nrow(species_generic[duplicated(species_generic$Symbol), ]) > 0) {
-    warning("Duplicate species codes in the species file.
-            The first species occurrence will be used.")
-    message(species_generic[duplicated(species_generic$Symbol), ])
-  }
+  # # check for duplicate species
+  # if (nrow(species_generic[duplicated(species_generic$Symbol), ]) > 0) {
+  #   warning("Duplicate species codes in the species file.
+  #           The first species occurrence will be used.")
+  #   message(species_generic[duplicated(species_generic$Symbol), ])
+  # }
 
 
   # message
@@ -424,6 +424,9 @@ species_join <- function(data, # field data,
   data_species <- dplyr::left_join(
     x = data %>% dplyr::mutate_at(dplyr::vars(data_code), toupper),
     y = species_generic,
+    # Enforcing that there shouldn't be multiple records in species_generic that
+    # share a code!!!!!
+    relationship = "many-to-one",
     by = join_by
   )
 
