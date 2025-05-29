@@ -3,6 +3,7 @@ Type: Package
 Title: Tools for Creating and Using TerrADat
 Version: 1.1.0
 Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
+               person(given="Nelson G", family="Stauffer", role="aut"),
                person(given="Joseph R", family = "Brehm", role="aut"),
                person(given="Sarah H", family="Burnett", role="aut"),
                person(given="Chris", family="Dietrich", role="aut"),
@@ -12,7 +13,6 @@ Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email =
                person(given="Loretta J", family="Metz", role="aut"),
                person(given="Fred", family="Pierson", role="aut"),
                person(given="Kelly S", family="Ramirez", role="aut"),
-               person(given="Nelson G", family="Stauffer", role="aut"),
                person(given="Nicholas P", family="Webb", role="aut"),
                person(given="Craig E", family="Tweedie", role="aut")
                )
@@ -23,7 +23,7 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.1
 Depends:
-    R (>= 3.3.0)
+    R (>= 4.2.0)
 Imports:
     dplyr,
     stringr,
