@@ -2228,11 +2228,15 @@ gather_gap_terradat <- function(dsn = NULL,
 
   # Make sure that RecType is "P" for records where only perennial vegetation
   # was considered when evaluating if there was sufficient canopy to end a gap.
+  # This should only happen for CANOPY and not BASAL. "P" is specifically for
+  # records where the method was for perennial-only canopy, nothing to do with
+  # basal gaps.
   gap_tall <- dplyr::mutate(.data = gap_tall,
                             RecType = dplyr::case_when(PerennialsCanopy == 1 &
                                                          AnnualForbsCanopy == 0 &
                                                          AnnualGrassesCanopy == 0 &
-                                                         OtherCanopy == 0 ~ "P",
+                                                         OtherCanopy == 0 &
+                                                         RecType == "C" ~ "P",
                                                        .default = RecType))
 
   if (drop_na) {
