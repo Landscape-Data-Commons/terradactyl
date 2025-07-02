@@ -564,10 +564,10 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
   }
 
   # Apply QC helper functions to remove duplicates
-  if(autoQC){
-    message("Checking for duplicated rows. Disable by adding the parameter 'autoQC = FALSE'")
-    header <- tdact_remove_duplicates(header)
-  }
+  # if(autoQC){
+  #   message("Checking for duplicated rows. Disable by adding the parameter 'autoQC = FALSE'")
+  #   header <- tdact_remove_duplicates(header)
+  # }
 
   header
 }
@@ -1303,12 +1303,12 @@ gather_lpi <- function(dsn = NULL,
                       is.na(PointNbr)))
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    lpi <- lpi %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "lpi")
-  }
-
-  return(lpi)
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   lpi <- lpi %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "lpi")
+  # }
+  #
+  lpi
 }
 
 #### HEIGHT ####################################################################
@@ -1964,10 +1964,10 @@ gather_height <- function(dsn = NULL,
                           tidyselect::everything())
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    height <- height %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "height")
-  }
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   height <- height %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "height")
+  # }
 
   # Output height
   return(height)
@@ -2839,10 +2839,10 @@ gather_gap <- function(dsn = NULL,
                       is.na(SeqNo)))
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    gap <- gap %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "gap")
-  }
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   gap <- gap %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "gap")
+  # }
 
   dplyr::distinct(gap)
 }
@@ -3365,10 +3365,10 @@ gather_soil_stability <- function(dsn = NULL,
     ))
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    soil_stability <- soil_stability %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilstab")
-  }
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   soil_stability <- soil_stability %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilstab")
+  # }
 
   return(soil_stability)
 }
@@ -4023,10 +4023,10 @@ gather_species_inventory <- function(dsn = NULL,
     dplyr::select(PrimaryKey, tidyselect::everything())
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    species_inventory <- species_inventory %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "specinv")
-  }
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   species_inventory <- species_inventory %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "specinv")
+  # }
 
   return(species_inventory)
 }
