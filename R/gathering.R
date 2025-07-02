@@ -878,9 +878,9 @@ gather_lpi_lmf <- function(dsn = NULL,
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(PINTERCEPT)) {
     pintercept <- PINTERCEPT
-  } else if(!is.null(dsn)){
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a database containing PINTERCEPT")
+  } else if (!is.null(dsn)) {
+    if (!file.exists(dsn)) {
+      stop("dsn must be a valid filepath.")
     }
     # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
     pintercept <- switch(file_type,
@@ -888,8 +888,7 @@ gather_lpi_lmf <- function(dsn = NULL,
                            sf::st_read(dsn = dsn,
                                        layer = "PINTERCEPT",
                                        stringsAsFactors = FALSE,
-                                       quiet = TRUE) |>
-                             suppressWarnings()
+                                       quiet = TRUE)
                          },
                          "txt" = {
                            utils::read.table(file = file.path(dsn,
@@ -911,11 +910,11 @@ gather_lpi_lmf <- function(dsn = NULL,
         terradactyl::nri.data.column.explanations$TABLE.NAME == "PINTERCEPT"
       ]
 
-      colnames <- colnames[1:ncol(pintercept)] %>% subset(!is.na(.))
+      colnames <- colnames[1:ncol(pintercept)] |> subset(!is.na(.))
       names(pintercept) <- colnames
     }
   } else {
-    stop("Supply either PINTERCEPT or the path to a GDB containing that table")
+    stop("Supply one of the following: a data frame as the argument PINTERCEPT, the path to a GDB (containing a table called PINTERCEPT) as the argument dsn, or the path to a folder containing a file called 'pintercept.txt' as the argument dsn.")
   }
 
   # Sometimes NAs might be introduced as variable names, but we can make sure to
@@ -1063,23 +1062,23 @@ gather_lpi_lmf <- function(dsn = NULL,
 # Gather LPI data from NPS I&M networks
 # currently not used
 gather_lpi_nps <- function(dsn) {
-  lpi_raw <- read.csv(dsn)
+  lpi_raw <- read.csv(dsn) |>
 
-  # add plot metadata
-  lpi_raw <- lpi_raw %>% dplyr::mutate(
-    PrimaryKey = Unit_Plot,
-    DBKey = dsn,
-    FormDate = Start_Date,
-    LineLengthAmount = 50,
-    SpacingIntervalAmount = 0.5,
-    SpacingType = "m",
-    PointNbr = Point,
-    LineKey = Transect,
-    RecKey = paste(Unit_Plot, Visit_Year,
-                   Transect,
-                   sep = "_"
+    # add plot metadata
+    dplyr::mutate(.data = _,
+                  PrimaryKey = Unit_Plot,
+                  DBKey = dsn,
+                  FormDate = Start_Date,
+                  LineLengthAmount = 50,
+                  SpacingIntervalAmount = 0.5,
+                  SpacingType = "m",
+                  PointNbr = Point,
+                  LineKey = Transect,
+                  RecKey = paste(Unit_Plot, Visit_Year,
+                                 Transect,
+                                 sep = "_"
+                  )
     )
-  )
 }
 
 #' export gather_lpi_survey123
@@ -1291,16 +1290,18 @@ gather_lpi <- function(dsn = NULL,
   lpi$LineKey <- as.character(lpi$LineKey)
 
   # reorder so that primary key is leftmost column
-  lpi <- lpi %>%
-    dplyr::select(PrimaryKey, LineKey, tidyselect::everything())
+  lpi <- dplyr::select(.data = lpi,
+                       tidyselect::all_of(c("PrimaryKey",
+                                            "LineKey")),
+                       tidyselect::everything())
 
   # Drop rows with no data
-  lpi <- lpi %>%
-    dplyr::filter(!(is.na(LineKey) &
-                      is.na(layer) &
-                      is.na(code) &
-                      is.na(ShrubShape) &
-                      is.na(PointNbr)))
+  lpi <- dplyr::filter(.data = lpi,
+                       !(is.na(LineKey) &
+                           is.na(layer) &
+                           is.na(code) &
+                           is.na(ShrubShape) &
+                           is.na(PointNbr)))
 
   # remove duplicates and empty rows
   # if(autoQC){
@@ -1478,13 +1479,13 @@ gather_height_terradat <- function(dsn = NULL,
                                        names()
 
                                      detail_variables_misclassed <- sapply(X = setNames(object = detail_variables,
-                                                         nm = stringr::str_remove(string = detail_variables,
-                                                                                   pattern = paste0("^", X))),
-                                            detail = detail,
-                                            current_variable_classes = variable_classes[[X]],
-                                            FUN = function(X, detail, current_variable_classes){
-                                              !(class(detail[[X]]) %in% current_variable_classes)
-                                            })
+                                                                                        nm = stringr::str_remove(string = detail_variables,
+                                                                                                                 pattern = paste0("^", X))),
+                                                                           detail = detail,
+                                                                           current_variable_classes = variable_classes[[X]],
+                                                                           FUN = function(X, detail, current_variable_classes){
+                                                                             !(class(detail[[X]]) %in% current_variable_classes)
+                                                                           })
 
                                      names(detail_variables_misclassed)[detail_variables_misclassed]
                                    })
@@ -1494,7 +1495,7 @@ gather_height_terradat <- function(dsn = NULL,
     if (length(current_coerced_variables) > 0) {
       warning(paste0("There are one or more ", current_variable_prefix, " variables of the incorrect class in tblLPIDetail. ",
                      "These variables (", paste(current_coerced_variables,
-                                                 collapse = ", "), ") will be coerced into the correct class: ", variable_classes[[stringr::str_to_title(string = current_variable_prefix)]][1],"."))
+                                                collapse = ", "), ") will be coerced into the correct class: ", variable_classes[[stringr::str_to_title(string = current_variable_prefix)]][1],"."))
     }
   }
 
@@ -1960,7 +1961,8 @@ gather_height <- function(dsn = NULL,
   }
 
   height <- dplyr::select(.data = height,
-                          PrimaryKey, LineKey,
+                          tidyselect::all_of(c("PrimaryKey",
+                                               "LineKey")),
                           tidyselect::everything())
 
   # remove duplicates and empty rows
@@ -1970,7 +1972,7 @@ gather_height <- function(dsn = NULL,
   # }
 
   # Output height
-  return(height)
+  dplyr::distinct(.data = height)
 }
 
 
@@ -2258,83 +2260,61 @@ gather_gap_lmf <- function(dsn = NULL,
                            POINT = NULL) {
 
   #### Reading and cleanup #####################################################
-  # if file type is NULL, define it by checking the extension of dsn
-  valid_file_types <- c("csv", "gdb", "txt")
+  # Make sure we can read in the data.
+  valid_file_types <- c("gdb", "txt")
 
-  # if file type is NULL, define it by checking the extension of dsn
+  # We'll extract the extension if file_type isn't provided
   if(is.null(file_type)){
-    extension <- substr(dsn, nchar(dsn)-2, nchar(dsn))
-    if(extension == "csv") {
-      file_type <- "csv"
-    } else if(extension == "gdb") {
-      file_type <- "gdb"
-    } else {
-      file_type <- "txt"
-    }
+    file_type <- tools::file_ext(dsn)
   }
+  # Sanitize it.
+  file_type <- tolower(file_type)
+
 
   if(!is.null(GINTERCEPT) & !is.null(POINT)){
     gintercept <- GINTERCEPT
     point <- POINT
-  } else if(!is.null(dsn) & file_type %in% c("gdb", "csv", "txt")){
+  } else if (!is.null(dsn)){
     if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a database containing GINTERCEPT and POINT")
+      stop(paste0("The provided dsn (", dsn, ") does not exist."))
     }
+    if (!(file_type %in% valid_file_types)) {
+      stop(paste0("The current file_type value (", file_type, ") is invalid. ",
+                  "Valid file types are: ", paste(valid_file_types,
+                                                  collapse = ", ")))
+    }
+    # Read in GINTERCEPT
     gintercept <- switch(file_type,
                          "gdb" = {
-                           suppressWarnings(sf::st_read(
-                             dsn = dsn,
-                             layer = "GINTERCEPT",
-                             stringsAsFactors = FALSE,
-                             quiet = T
-                           )) %>%
-                             dplyr::select_if(!names(.) %in% c(
-                               'GlobalID',
-                               'created_user',
-                               'created_date',
-                               'last_edited_user',
-                               'last_edited_date'
-                             ))
+                           sf::st_read(dsn = dsn,
+                                       layer = "GINTERCEPT",
+                                       stringsAsFactors = FALSE,
+                                       quiet = TRUE)
                          },
                          "txt" = {
-                           read.table(paste(dsn, "gintercept.txt", sep = ""),
-                                      stringsAsFactors = FALSE, strip.white = TRUE,
-                                      header = FALSE, sep = "|"
-                           )
-                         },
-                         "csv" = {
-                           read.csv(dsn)
-                         }
-    )
+                           read.table(file = file.path(dsn,
+                                                       "gintercept.txt"),
+                                      stringsAsFactors = FALSE,
+                                      strip.white = TRUE,
+                                      header = FALSE,
+                                      sep = "|")
+                         })
     # Read in point file for other plot level information
     point <- switch(file_type,
                     "gdb" = {
-                      suppressWarnings(sf::st_read(
-                        dsn = dsn,
-                        layer = "POINT",
-                        stringsAsFactors = FALSE,
-                        quiet = T
-                      )) %>%
-                        dplyr::select_if(!names(.) %in% c(
-                          'GlobalID',
-                          'created_user',
-                          'created_date',
-                          'last_edited_user',
-                          'last_edited_date'
-                        ))
+                      sf::st_read(dsn = dsn,
+                                  layer = "POINT",
+                                  stringsAsFactors = FALSE,
+                                  quiet = TRUE)
                     },
                     "txt" = {
-                      read.table(paste(dsn, "point.txt", sep = ""),
+                      read.table(file = file.path(dsn,
+                                                  "point.txt"),
                                  stringsAsFactors = FALSE,
                                  strip.white = TRUE,
-                                 header = FALSE, sep = "|"
-                      )
-                    },
-                    "csv" = {
-                      stop("csv not currently supported for gap data")
-                      read.csv(point_dsn)
-                    }
-    )
+                                 header = FALSE,
+                                 sep = "|")
+                    })
 
 
     if (file_type == "txt") {
@@ -2348,9 +2328,8 @@ gather_gap_lmf <- function(dsn = NULL,
         table_name = "POINT"
       )
     }
-  }
-  else {
-    stop("Supply either GINTERCEPT and POINT, or the path to a GDB containing those tables")
+  } else {
+    stop("Supply either data frames for the arguments GINTERCEPT and POINT or the path to a GDB containing those tables as the argument dsn.")
   }
 
   # These are used for data management within a geodatabase and we're going to
@@ -2823,20 +2802,22 @@ gather_gap <- function(dsn = NULL,
   }
 
   # reorder so that primary key is leftmost column
-  gap <- gap %>%
-    dplyr::select(PrimaryKey, LineKey, tidyselect::everything())
+  gap <- dplyr::select(.data = gap,
+                       tidyselect::all_of(c("PrimaryKey",
+                                            "LineKey")),
+                       tidyselect::everything())
 
   # Drop rows with no data
-  gap <- gap %>%
-    dplyr::filter(!(is.na(Gap) &
-                      is.na(GapEnd) &
-                      is.na(GapMin) &
-                      is.na(GapStart) &
-                      is.na(LineKey) &
-                      is.na(LineLengthAmount) &
-                      is.na(Measure) &
-                      is.na(RecType) &
-                      is.na(SeqNo)))
+  gap <- dplyr::filter(.data = gap,
+                       !(is.na(Gap) &
+                           is.na(GapEnd) &
+                           is.na(GapMin) &
+                           is.na(GapStart) &
+                           is.na(LineKey) &
+                           is.na(LineLengthAmount) &
+                           is.na(Measure) &
+                           is.na(RecType) &
+                           is.na(SeqNo)))
 
   # remove duplicates and empty rows
   # if(autoQC){
@@ -2844,7 +2825,7 @@ gather_gap <- function(dsn = NULL,
   #   gap <- gap %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "gap")
   # }
 
-  dplyr::distinct(gap)
+  dplyr::distinct(.data = gap)
 }
 
 
@@ -3096,41 +3077,53 @@ gather_soil_stability_lmf <- function(dsn = NULL,
                                       file_type = "gdb",
                                       SOILDISAG = NULL) {
   #### Reading and cleanup #####################################################
-  if(!is.null(SOILDISAG)) {
-    soildisag <- SOILDISAG
-  } else if(!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing SOILDISAG")
-    }
+  # Make sure we can read in the data.
+  valid_file_types <- c("gdb", "txt")
 
+  # We'll extract the extension if file_type isn't provided
+  if (is.null(file_type)){
+    file_type <- tools::file_ext(dsn)
+  }
+  # Sanitize it.
+  file_type <- tolower(file_type)
+
+
+  if (!is.null(SOILDISAG)) {
+    soildisag <- SOILDISAG
+  } else if (!is.null(dsn)) {
+    if (!file.exists(dsn)) {
+      stop(paste0("The provided dsn (", dsn, ") does not exist."))
+    }
+    if (!(file_type %in% valid_file_types)) {
+      stop(paste0("The current file_type value (", file_type, ") is invalid. ",
+                  "Valid file types are: ", paste(valid_file_types,
+                                                  collapse = ", ")))
+    }
+    # Read in GINTERCEPT
     soildisag <- switch(file_type,
                         "gdb" = {
-                          suppressWarnings(sf::st_read(
-                            dsn = dsn, layer = "SOILDISAG",
-                            stringsAsFactors = FALSE, quiet = T
-                          ))
+                          sf::st_read(dsn = dsn,
+                                      layer = "SOILDISAG",
+                                      stringsAsFactors = FALSE,
+                                      quiet = TRUE)
                         },
                         "txt" = {
-                          read.table(paste(dsn, "soildisag.txt", sep = ""),
+                          read.table(file = file.path(dsn,
+                                                      "soildisag.txt"),
                                      stringsAsFactors = FALSE,
-                                     strip.white = TRUE, header = FALSE, sep = "|"
-                          )
-                        },
-                        "csv" = {
-                          read.csv(dsn)
-                        }
-    )
+                                     strip.white = TRUE,
+                                     header = FALSE,
+                                     sep = "|")
+                        })
 
-    # Add column names
+    # Update variable names
     if (file_type == "txt") {
-      soildisag <- name_variables_nri(
-        data = soildisag,
-        table_name = "SOILDISAG"
-      )
+      # Add meaningful column names
+      soildisag <- name_variables_nri(data = soildisag,
+                                      table_name = "SOILDISAG")
     }
-
   } else {
-    stop("Supply either SOILDISAG or a path to a gdb containing that table")
+    stop("Supply either a data frames for the argument SOILDISAG or the path to a GDB containing a table called SOILDISAG as the argument dsn.")
   }
 
   # These are used for data management within a geodatabase and we're going to
@@ -3325,19 +3318,17 @@ gather_soil_stability <- function(dsn = NULL,
                                   autoQC = TRUE
 ) {
 
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    soil_stability <- gather_soil_stability_terradat(
-      dsn = dsn,
-      tblSoilStabDetail = tblSoilStabDetail,
-      tblSoilStabHeader = tblSoilStabHeader)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    soil_stability <- gather_soil_stability_lmf(
-      dsn = dsn,
-      file_type = file_type,
-      SOILDISAG = SOILDISAG)
+  if (toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+    soil_stability <- gather_soil_stability_terradat(dsn = dsn,
+                                                     tblSoilStabDetail = tblSoilStabDetail,
+                                                     tblSoilStabHeader = tblSoilStabHeader)
+  } else if (toupper(source) %in% c("LMF", "NRI")){
+    soil_stability <- gather_soil_stability_lmf(dsn = dsn,
+                                                file_type = file_type,
+                                                SOILDISAG = SOILDISAG)
 
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+    stop("source must be one of 'AIM', 'TerrADat', 'DIMA', 'LMF', or 'NRI' (all case independent).")
   }
 
   soil_stability$source <- source
@@ -3357,12 +3348,10 @@ gather_soil_stability <- function(dsn = NULL,
                                   tidyselect::everything())
 
   # Drop rows with no data
-  soil_stability <- soil_stability %>%
-    dplyr::filter(!(
-      is.na(Position) &
-        is.na(Rating) &
-        is.na(Veg)
-    ))
+  soil_stability <- dplyr::filter(.data = soil_stability,
+                                  !(is.na(Position) &
+                                      is.na(Rating) &
+                                      is.na(Veg)))
 
   # remove duplicates and empty rows
   # if(autoQC){
@@ -3370,7 +3359,7 @@ gather_soil_stability <- function(dsn = NULL,
   #   soil_stability <- soil_stability %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilstab")
   # }
 
-  return(soil_stability)
+  dplyr::distinct(.data = soil_stability)
 }
 
 #### INTERPRETING INDICATORS OF RANGELAND HEALTH ###############################
@@ -3913,19 +3902,38 @@ gather_species_inventory_lmf <- function(dsn = NULL,
   }
 
   # Get species count
-  species_inventory <- plantcensus %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(., SpeciesCount = dplyr::n(), .groups = "drop") %>%
-    merge(., plantcensus)
+  species_inventory <- dplyr::summarize(.data = plantcensus,
+                                        .by = "PrimaryKey",
+                                        SpeciesCount = dplyr::n()) |>
+    dplyr::inner_join(x = _,
+                      y = plantcensus,
+                      by = "PrimaryKey",
+                      relationship = "one-to-many")
 
   # rename fields
-  species_inventory <- dplyr::rename(species_inventory,
-                                     Species = CPLANT
-  ) %>% dplyr::select(., -c(SURVEY:SEQNUM)) %>%
-    dplyr::select_if(!names(.) %in% c("GlobalID", "created_user",
-                                      "created_date", "last_edited_user", "last_edited_date"))
+  species_inventory <- dplyr::rename(.data = species_inventory,
+                                     Species = CPLANT)
 
-  return(species_inventory)
+  # Clean up unwanted variables
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         # For once these variables need to carry through!
+                         # "DateLoadedInDb",
+                         # "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+
+  dplyr::select(.data = species_inventory,
+                -c(SURVEY:SEQNUM),
+                tidyselect::any_of(internal_gdb_vars))
+
+  species_inventory
 }
 
 #' export gather_species_inventory_survey123
@@ -4009,18 +4017,24 @@ gather_species_inventory <- function(dsn = NULL,
   # species_inventory$source <- toupper(source)
   species_inventory$source <- source
 
-  if("sf" %in% class(species_inventory)) species_inventory <- sf::st_drop_geometry(species_inventory)
+  if("sf" %in% class(species_inventory)) {
+    species_inventory <- sf::st_drop_geometry(species_inventory)
+  }
 
   if (any(class(species_inventory) %in% c("POSIXct", "POSIXt"))) {
-    change_vars <- names(species_inventory)[do.call(rbind, vapply(species_inventory,
-                                                                  class))[, 1] %in% c("POSIXct", "POSIXt")]
-    species_inventory <- dplyr::mutate_at(species_inventory, dplyr::vars(change_vars),
-                                          dplyr::funs(as.character))
+    # change_vars <- names(species_inventory)[do.call(rbind, vapply(species_inventory,
+    #                                                               class))[, 1] %in% c("POSIXct", "POSIXt")]
+    species_inventory <- dplyr::mutate(.data = species_inventory,
+                                       dplyr::across(.cols = tidyselect::where(fn = ~ class(.x) %in% c("POSIXct", "POSIXt")),
+                                                     .fns = as.character))
+    # species_inventory <- dplyr::mutate_at(species_inventory, dplyr::vars(change_vars),
+    #                                       dplyr::funs(as.character))
   }
 
   # reorder so that primary key is leftmost column
-  species_inventory <- species_inventory %>%
-    dplyr::select(PrimaryKey, tidyselect::everything())
+  species_inventory <- dplyr::select(.data = species_inventory,
+                                     PrimaryKey,
+                                     tidyselect::everything())
 
   # remove duplicates and empty rows
   # if(autoQC){
