@@ -849,6 +849,10 @@ build_terradat_indicators <- function(header, source, dsn,
     stop("Invalid indicator source specified")
   }
 
+  if (nrow(header) < 1) {
+    stop("There are no records in header. Please confirm that your header table contains records and that your filtering arguments do not exclude all records present.")
+  }
+
   lpi_required_layers <- c("tblLPIHeader",
                            "tblLPIDetail",
                            "tblPlots",
