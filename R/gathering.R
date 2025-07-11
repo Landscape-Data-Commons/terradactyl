@@ -3503,481 +3503,208 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
 gather_rangeland_health_lmf <- function(dsn = NULL,
                                         file_type = NULL,
                                         RANGEHEALTH = NULL) {
-
-  if(!is.null(RANGEHEALTH)){
+  if ("character" %in% class(RANGEHEALTH)) {
+    if (tools::file_ext(RANGEHEALTH) == "Rdata") {
+      IIRH <- readRDS(file = RANGEHEALTH)
+    } else {
+      stop("When RANGEHEALTH is a character string it must be the path to a .Rdata file containing RANGEHEALTH data.")
+    }
+  } else if ("data.frame" %in% class(RANGEHEALTH)) {
     IIRH <- RANGEHEALTH
-  } else if(!is.null(dsn)){
-
-
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing RHSUMMARY or the filepath to a text file containing RHSUMMARY")
-    }
-
-    # if file type is NULL, define it by checking the extension of dsn
-    if(is.null(file_type)){
-      extension <- substr(dsn, nchar(dsn)-2, nchar(dsn))
-      if(extension == "csv") {
-        file_type <- "csv"
-      } else if(extension == "gdb") {
-        file_type <- "gdb"
-      } else {
-        file_type <- "txt"
+  } else {
+    if (!is.null(dsn)) {
+      if (!file.exists(dsn)) {
+        stop("dsn must be a valid filepath to a geodatabase containing a table called RANGEHEALTH or the filepath to a text file containing those values.")
       }
-    }
 
-    # Read in the data as .txt or .gdb
-    IIRH <- switch(file_type,
-                   "gdb" = {
-                     suppressWarnings(sf::st_read(dsn,
-                                                  layer = "RANGEHEALTH",
-                                                  stringsAsFactors = FALSE, quiet = T
-                     ))
-                   },
-                   "txt" = {
-                     read.table(paste(dsn, "rangehealth.txt", sep = ""),
-                                stringsAsFactors = FALSE,
-                                header = FALSE,
-                                sep = "|",
-                                strip.white = TRUE
-                     )
-                   },
-                   "csv" = {
-                     read.csv(dsn)
-                   }
-    )
+      file_type <- tools::file_ext(x = dsn) |>
+        toupper()
 
-    # if it is in a text file, there are no field names assigned.
-    if (file_type == "txt") {
-      IIRH <- name_variables_nri(
-        data = IIRH,
-        table_name = "RHSUMMARY"
+      IIRH <- switch(file_type,
+                     "gdb" = {
+                       suppressWarnings(sf::st_read(dsn,
+                                                    layer = "RANGEHEALTH",
+                                                    stringsAsFactors = FALSE, quiet = T
+                       ))
+                     },
+                     "txt" = {
+                       read.table(paste(dsn, "rangehealth.txt", sep = ""),
+                                  stringsAsFactors = FALSE,
+                                  header = FALSE,
+                                  sep = "|",
+                                  strip.white = TRUE
+                       )
+                     },
+                     "csv" = {
+                       read.csv(dsn)
+                     }
       )
-    }
-  } else {
-    stop("Provide RANGEHEALTH or a path to a geodatabase containing that table")
-  }
-
-  # Clean up the field names so they are human readable and match TerrAdat names
-  IIRH_clean <- IIRH %>%
-    dplyr::select(PrimaryKey, DBKey,
-                  RH_Rills = "RILLS",
-                  RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
-                  RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
-                  RH_BareGround = "BARE_GROUND",
-                  RH_Gullies = "GULLIES",
-                  RH_WindScouredAreas = "WIND_SCOURED_AREAS",
-                  RH_LitterMovement = "LITTER_MOVEMENT",
-                  RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
-                  RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
-                  RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
-                  RH_Compaction = "COMPACTION_LAYER",
-                  RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
-                  RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
-                  RH_LitterAmount = "LITTER_AMOUNT",
-                  RH_AnnualProd = "ANNUAL_PRODUCTION",
-                  RH_InvasivePlants = "INVASIVE_PLANTS",
-                  RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
-                  RH_SoilSiteStability = "SOILSITE_STABILITY",
-                  RH_BioticIntegrity = "BIOTIC_INTEGRITY",
-                  RH_HydrologicFunction = "HYDROLOGIC_FUNCTION",
-    )
-
-  return(IIRH_clean)
-}
-
-#' export gather_rangeland_health_survey123
-#' rdname IIRH
-# gather_rangeland_health_survey123 <- function(PlotObservation_0 = NULL) {
-#
-#   # Clean up the Indicators Table
-#   rangeland_health_indicators <- PlotObservation_0 %>%
-#     dplyr::select(PrimaryKey = PlotKey,
-#                   FormDate,
-#                   RH_Rills = Rills,
-#                   RH_Gullies = Gullies,
-#                   RH_PedestalsTerracettes = Pedestals,
-#                   RH_WindScouredAreas = Deposition)
-#     dplyr::mutate(
-#       indicator = Seq %>%
-#         as.character() %>%
-#         # Rename Seq from a number to an Indicator name
-#         stringr::str_replace_all(c(
-#           "\\b1\\b" = "RH_Rills",
-#           "\\b2\\b" = "RH_WaterFlowPatterns",
-#           "\\b3\\b" = "RH_PedestalsTerracettes",
-#           "\\b4\\b" = "RH_BareGround",
-#           "\\b5\\b" = "RH_Gullies",
-#           "\\b6\\b" = "RH_WindScouredAreas", #
-#           "\\b7\\b" = "RH_LitterMovement", #
-#           "\\b8\\b" = "RH_SoilSurfResisErosion", #
-#           "\\b9\\b" = "RH_SoilSurfLossDeg", #
-#           "\\b10\\b" = "RH_PlantCommunityComp", #
-#           "\\b11\\b" = "RH_Compaction", #
-#           "\\b12\\b" = "RH_FuncSructGroup", #
-#           "\\b13\\b" = "RH_DeadDyingPlantParts", #
-#           "\\b14\\b" = "RH_LitterAmount", #
-#           "\\b15\\b" = "RH_AnnualProd", #
-#           "\\b16\\b" = "RH_InvasivePlants", #
-#           "\\b17\\b" = "RH_ReprodCapabilityPeren"
-#         )),
-#       Rating = Rating %>%
-#         as.character() %>%
-#         stringr::str_replace_all(c(
-#           "1" = "NS",
-#           "2" = "SM",
-#           "3" = "M",
-#           "4" = "ME",
-#           "5" = "ET",
-#           "0" = NA
-#         ))
-#     ) %>%
-#     subset(!is.na(Rating)) %>%
-#     dplyr::select(RecKey, indicator, Rating) %>%
-#     dplyr::distinct() %>%
-#     tidyr::spread(key = indicator, value = Rating)
-#
-#   # Attributes and then joined to Indicators
-#   IIRH <- dplyr::select(IIRH_header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
-#                         RH_HydrologicFunction = HFVxWRatingFinal,
-#                         RH_BioticIntegrity = BIVxWRatingFinal,
-#                         RH_SoilSiteStability = SSSVxWRatingFinal,
-#                         RH_CommentsBI = CommentBI,
-#                         RH_CommentsHF = CommentHF,
-#                         RH_CommentsSS = CommentSSS#,
-#                         # Observer,
-#                         # Recorder
-#   ) %>%
-#
-#     # Add the indicators
-#     dplyr::left_join(rangeland_health_indicators, by = "RecKey")
-#
-#   ## last drop
-#   IIRH <- IIRH %>% dplyr::select(
-#     -c(DateLoadedInDb)
-#   )
-#
-#   return(IIRH)
-# }
-
-
-
-
-#' @export gather_rangeland_health
-#' @rdname IIRH
-#'
-gather_rangeland_health <- function(dsn = NULL,
-                                    source,
-                                    file_type = NULL,
-                                    tblQualHeader = NULL,
-                                    tblQualDetail = NULL,
-                                    RANGEHEALTH = NULL,
-                                    autoQC = TRUE) {
-
-
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    IIRH <- gather_rangeland_health_terradat(dsn = dsn,
-                                             tblQualDetail = tblQualDetail,
-                                             tblQualHeader = tblQualHeader)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    IIRH <- gather_rangeland_health_lmf(dsn = dsn,
-                                        file_type = file_type,
-                                        RANGEHEALTH = RANGEHEALTH)
-  } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
-  }
-
-  # IIRH$source <- toupper(source)
-  if(nrow(IIRH) > 0) IIRH$source <- source
-
-  if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)
-
-  if (any(class(IIRH) %in% c("POSIXct", "POSIXt"))) {
-    change_vars <- names(IIRH)[do.call(rbind, vapply(IIRH,
-                                                     class))[, 1] %in% c("POSIXct", "POSIXt")]
-    IIRH <- dplyr::mutate_at(IIRH, dplyr::vars(change_vars),
-                             dplyr::funs(as.character))
-  }
-
-  # reorder so that primary key is leftmost column
-  IIRH <- IIRH %>%
-    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
-
-  # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    IIRH <- IIRH %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "rh")
-  }
-
-  return(IIRH)
-}
-
-
-#### SPECIES INVENTORY #########################################################
-#' Convert species inventory data into tall, tidy data frame
-#'
-#' @description Given species inventory data create a tall format data frame
-#' usable by other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase containing the table of interest. This field
-#' is unnecessary if you supply either both of tblSpecRichDetail and
-#' tblSpecRichHeader (AIM/DIMA/TerrADat) or PLANTCENSUS (LMF/NRI).
-#' @param source Character string. The data source format,
-#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
-#' @param tblSpecRichDetail Dataframe of the data structure tblSpecRichDetail
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use with tblSpecRichHeader when data source is AIM, DIMA, or TerrADat;
-#' alternately provide dsn.
-#' @param tblSpecRichHeader Dataframe of the data structure tblSpecRichHeader
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use with tblSpecRichDetail when data source is AIM, DIMA, or TerrADat;
-#' alternately provide dsn.
-#' @param PLANTCENSUS Dataframe of the data structure PLANTCENSUS from LMF/NRI
-#' database with the addition of PrimaryKey and DBKey fields. Use when data
-#' source is LMF or NRI; alternately provide dsn.
-#' @importFrom magrittr %>%
-#' @name gather_species_inventory
-#' @family <gather>
-#' @return A tall data frame containing species inventory data.
-#' @examples
-#' gather_species_inventory(dsn = "Path/To/AIM_Geodatabase.gdb",
-#'                          source = "AIM")
-#' gather_species_inventory(dsn = "Path/To/LMF_Geodatabase.gdb",
-#'                          source = "LMF")
-#'
-#' aim_specrichdetail <- read.csv("Path/To/tblSpecRichDetail.csv")
-#' aim_specrichheader <- read.csv("Path/To/tblSpecRichHeader.csv")
-#' gather_species_inventory(source = "AIM",
-#'                          tblSpecRichDetail = aim_specrichdetail,
-#'                          tblSpecRichHeader = aim_specrichheader)
-#'
-#' lmf_census <- read.csv("Path/To/PLANTCENSUS.csv")
-#' gather_species_inventory(source = "LMF",
-#'                          PLANTCENSUS = lmf_census)
-
-#' @export gather_species_inventory_terradat
-#' @rdname gather_species_inventory
-gather_species_inventory_terradat <- function(dsn = NULL,
-                                              tblSpecRichDetail = NULL,
-                                              tblSpecRichHeader = NULL) {
-
-  if(!is.null(tblSpecRichDetail) & !is.null(tblSpecRichHeader)) {
-    species_inventory_detail <- tblSpecRichDetail
-    species_inventory_header <- tblSpecRichHeader
-  } else if (!is.null(dsn)){
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing tblSpecRichDetail and tblSpecRichHeader")
+      # if it is in a text file, there are no field names assigned.
+      if (file_type == "txt") {
+        IIRH <- name_variables_nri(
+          data = IIRH,
+          table_name = "RHSUMMARY"
+        )
+      }
+    }else {
+      stop("Provide either dsn or RANGEHEALTH.")
     }
 
+    # Clean up the field names so they are human readable and match TerrAdat names
+    output <- dplyr::select(.data = IIRH,
+                            tidyselect::all_of(x = c("PrimaryKey",
+                                                     RH_Rills = "RILLS",
+                                                     RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
+                                                     RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
+                                                     RH_BareGround = "BARE_GROUND",
+                                                     RH_Gullies = "GULLIES",
+                                                     RH_WindScouredAreas = "WIND_SCOURED_AREAS",
+                                                     RH_LitterMovement = "LITTER_MOVEMENT",
+                                                     RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
+                                                     RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
+                                                     RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
+                                                     RH_Compaction = "COMPACTION_LAYER",
+                                                     RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
+                                                     RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
+                                                     RH_LitterAmount = "LITTER_AMOUNT",
+                                                     RH_AnnualProd = "ANNUAL_PRODUCTION",
+                                                     RH_InvasivePlants = "INVASIVE_PLANTS",
+                                                     RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
+                                                     RH_SoilSiteStability = "SOILSITE_STABILITY",
+                                                     RH_BioticIntegrity = "BIOTIC_INTEGRITY",
+                                                     RH_HydrologicFunction = "HYDROLOGIC_FUNCTION")))
 
-    # load raw tables
-    species_inventory_detail <- suppressWarnings(sf::st_read(dsn,
-                                                             layer = "tblSpecRichDetail",
-                                                             stringsAsFactors = FALSE, quiet = T
-    ))
-    species_inventory_header <- suppressWarnings(sf::st_read(dsn,
-                                                             layer = "tblSpecRichHeader",
-                                                             stringsAsFactors = FALSE, quiet = T
-    ))
-
-  } else {
-    stop("Supply either tblSpecRichDetail and tblSpecRichHeader, or the path to a GDB containing those tables")
+    output
   }
-
-  # Add null DBKey column if not present
-  if(!("DBKey" %in% colnames(species_inventory_header))) species_inventory_header$DBKey <- NA
-  if(!("DBKey" %in% colnames(species_inventory_detail))) species_inventory_detail$DBKey <- NA
-
-  # Make Species Inventory Detail  a tall dataframe
-  species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
-
-  # Join with header data and strip out NA codes
-  species_inventory_tall <- dplyr::left_join(
-    x = species_inventory_header,
-    y = species_detail_tall#,
-    # by = c("RecKey", "PrimaryKey")
-  ) %>%
-    subset(!is.na(Species)) %>%
-    dplyr::select_if(!names(.) %in%
-                       c("DateModified", "FormType", "DataEntry",
-                         "DataErrorChecking", "DateLoadedInDb", "created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID")
-    )
-
-  return(species_inventory_tall)
-}
-#' @export species_count
-#' @rdname gather_species_inventory
-species_count <- function(species_inventory_tall, ...) {
-  grouping_variables <- rlang::quos(...)
-
-  if ("DBKey" %in% colnames(species_inventory_tall)) {
-    levels <- rlang::quos(DBKey, PrimaryKey)
-  } else {
-    levels <- rlang::quos(PrimaryKey)
-  }
-
-  # make sure that there are a unique set of species for each grouping level
-  species_inventory_tall <- species_inventory_tall %>%
-    dplyr::select(
-      !!!grouping_variables,
-      !!!levels,
-      Species
-    ) %>%
-    unique()
-
-  species_count <- species_inventory_tall %>%
-    dplyr::count(!!!levels, !!!grouping_variables) %>%
-    tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
-    dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
-
-
-
-  return(species_count)
 }
 
-#' @export tall_species
-#' @rdname gather_species_inventory
-tall_species <- function(species_inventory_detail) {
-  tall_list <- lapply(1:nrow(species_inventory_detail), FUN = function(X, df) {
-    # split species strings concatenated in a single field
-    codes <- stringr::str_split(df[X, "SpeciesList"], pattern = ";")[[1]]
+  #' export gather_rangeland_health_survey123
+  #' rdname IIRH
+  # gather_rangeland_health_survey123 <- function(PlotObservation_0 = NULL) {
+  #
+  #   # Clean up the Indicators Table
+  #   rangeland_health_indicators <- PlotObservation_0 %>%
+  #     dplyr::select(PrimaryKey = PlotKey,
+  #                   FormDate,
+  #                   RH_Rills = Rills,
+  #                   RH_Gullies = Gullies,
+  #                   RH_PedestalsTerracettes = Pedestals,
+  #                   RH_WindScouredAreas = Deposition)
+  #     dplyr::mutate(
+  #       indicator = Seq %>%
+  #         as.character() %>%
+  #         # Rename Seq from a number to an Indicator name
+  #         stringr::str_replace_all(c(
+  #           "\\b1\\b" = "RH_Rills",
+  #           "\\b2\\b" = "RH_WaterFlowPatterns",
+  #           "\\b3\\b" = "RH_PedestalsTerracettes",
+  #           "\\b4\\b" = "RH_BareGround",
+  #           "\\b5\\b" = "RH_Gullies",
+  #           "\\b6\\b" = "RH_WindScouredAreas", #
+  #           "\\b7\\b" = "RH_LitterMovement", #
+  #           "\\b8\\b" = "RH_SoilSurfResisErosion", #
+  #           "\\b9\\b" = "RH_SoilSurfLossDeg", #
+  #           "\\b10\\b" = "RH_PlantCommunityComp", #
+  #           "\\b11\\b" = "RH_Compaction", #
+  #           "\\b12\\b" = "RH_FuncSructGroup", #
+  #           "\\b13\\b" = "RH_DeadDyingPlantParts", #
+  #           "\\b14\\b" = "RH_LitterAmount", #
+  #           "\\b15\\b" = "RH_AnnualProd", #
+  #           "\\b16\\b" = "RH_InvasivePlants", #
+  #           "\\b17\\b" = "RH_ReprodCapabilityPeren"
+  #         )),
+  #       Rating = Rating %>%
+  #         as.character() %>%
+  #         stringr::str_replace_all(c(
+  #           "1" = "NS",
+  #           "2" = "SM",
+  #           "3" = "M",
+  #           "4" = "ME",
+  #           "5" = "ET",
+  #           "0" = NA
+  #         ))
+  #     ) %>%
+  #     subset(!is.na(Rating)) %>%
+  #     dplyr::select(RecKey, indicator, Rating) %>%
+  #     dplyr::distinct() %>%
+  #     tidyr::spread(key = indicator, value = Rating)
+  #
+  #   # Attributes and then joined to Indicators
+  #   IIRH <- dplyr::select(IIRH_header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
+  #                         RH_HydrologicFunction = HFVxWRatingFinal,
+  #                         RH_BioticIntegrity = BIVxWRatingFinal,
+  #                         RH_SoilSiteStability = SSSVxWRatingFinal,
+  #                         RH_CommentsBI = CommentBI,
+  #                         RH_CommentsHF = CommentHF,
+  #                         RH_CommentsSS = CommentSSS#,
+  #                         # Observer,
+  #                         # Recorder
+  #   ) %>%
+  #
+  #     # Add the indicators
+  #     dplyr::left_join(rangeland_health_indicators, by = "RecKey")
+  #
+  #   ## last drop
+  #   IIRH <- IIRH %>% dplyr::select(
+  #     -c(DateLoadedInDb)
+  #   )
+  #
+  #   return(IIRH)
+  # }
 
-    # Format output
-    output <- data.frame(
-      "PrimaryKey" = df$PrimaryKey[X],
-      "RecKey" = df$RecKey[X],
-      "Species" = codes
-    )
-    return(output)
-  }, df = species_inventory_detail)
-  # Combine output
-  output <- dplyr::bind_rows(tall_list)
 
-  # Remove NAs and blanks
-  output <- dplyr::filter(output, !(Species %in% c("", NA)))
 
-  return(output)
-}
 
-# Gather LMF data
-#' @export gather_species_inventory_lmf
-#' @rdname gather_species_inventory
-gather_species_inventory_lmf <- function(dsn = NULL,
-                                         file_type = "gdb",
-                                         PLANTCENSUS = NULL) {
-  if(!is.null(PLANTCENSUS)){
-    plantcensus <- PLANTCENSUS
-  } else if(!is.null(dsn)){
+  #' @export gather_rangeland_health
+  #' @rdname IIRH
+  #'
+  gather_rangeland_health <- function(dsn = NULL,
+                                      source,
+                                      file_type = NULL,
+                                      tblQualHeader = NULL,
+                                      tblQualDetail = NULL,
+                                      RANGEHEALTH = NULL,
+                                      autoQC = TRUE) {
 
-    plantcensus <- switch(file_type,
-                          "gdb" = {
-                            suppressWarnings(sf::st_read(dsn,
-                                                         layer = "PLANTCENSUS",
-                                                         stringsAsFactors = FALSE, quiet = T
-                            ))
-                          },
-                          "txt" = {
-                            read.table(paste(dsn, "plantcensus.txt", sep = ""),
-                                       stringsAsFactors = FALSE,
-                                       header = FALSE, sep = "|",
-                                       strip.white = TRUE
-                            )
-                          },
-                          "csv" = {
-                            read.csv(dsn,
-                                     stringsAsFactors = FALSE
-                            )
-                          }
-    )
 
-    # if it is in a text file, there are no field names assigned.
-    if (file_type == "txt") {
-      plantcensus <- name_variables_nri(
-        data = plantcensus,
-        table_name = "PLANTCENSUS"
-      )
+    if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+      IIRH <- gather_rangeland_health_terradat(dsn = dsn,
+                                               tblQualDetail = tblQualDetail,
+                                               tblQualHeader = tblQualHeader)
+    } else if(toupper(source) %in% c("LMF", "NRI")){
+      IIRH <- gather_rangeland_health_lmf(dsn = dsn,
+                                          file_type = file_type,
+                                          RANGEHEALTH = RANGEHEALTH)
+    } else {
+      stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
     }
 
-  } else {
-    stop("Supply either PLANTCENSUS or the path to a GDB containing that table")
+    # IIRH$source <- toupper(source)
+    if(nrow(IIRH) > 0) IIRH$source <- source
+
+    if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)
+
+    if (any(class(IIRH) %in% c("POSIXct", "POSIXt"))) {
+      change_vars <- names(IIRH)[do.call(rbind, vapply(IIRH,
+                                                       class))[, 1] %in% c("POSIXct", "POSIXt")]
+      IIRH <- dplyr::mutate_at(IIRH, dplyr::vars(change_vars),
+                               dplyr::funs(as.character))
+    }
+
+    # reorder so that primary key is leftmost column
+    IIRH <- IIRH %>%
+      dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+
+    # remove duplicates and empty rows
+    if(autoQC){
+      message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+      IIRH <- IIRH %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "rh")
+    }
+
+    return(IIRH)
   }
 
-  # Get species count
-  species_inventory <- dplyr::summarize(.data = plantcensus,
-                                        .by = "PrimaryKey",
-                                        SpeciesCount = dplyr::n()) |>
-    dplyr::inner_join(x = _,
-                      y = plantcensus,
-                      by = "PrimaryKey",
-                      relationship = "one-to-many")
 
-  # rename fields
-  species_inventory <- dplyr::rename(.data = species_inventory,
-                                     Species = CPLANT)
-
-  # Clean up unwanted variables
-  internal_gdb_vars <- c("GlobalID",
-                         "created_user",
-                         "created_date",
-                         "last_edited_user",
-                         "last_edited_date",
-                         # For once these variables need to carry through!
-                         # "DateLoadedInDb",
-                         # "DateLoadedinDB",
-                         "rid",
-                         "DataErrorChecking",
-                         "DataEntry",
-                         "DateModified",
-                         "FormType")
-
-  dplyr::select(.data = species_inventory,
-                -c(SURVEY:SEQNUM),
-                tidyselect::any_of(internal_gdb_vars))
-
-  species_inventory
-}
-
-#' export gather_species_inventory_survey123
-#' rdname gather_species_inventory
-# gather_species_inventory_survey123 <- function(SpeciesRichness_0 = NULL,
-#                                                SpecRichDetail_1 = NULL) {
-#
-#   species_inventory_detail <- SpecRichDetail_1
-#   species_inventory_header <- SpeciesRichness_0
-#
-#   # Check for duplicate PrimaryKeys
-#   dupkeys <- species_inventory_header$PlotKey[duplicated(species_inventory_header$PlotKey)]
-#   if(length(dupkeys) > 0){
-#     dupnames <- paste(unique(dupkeys), collapse = ", ")
-#     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
-#   }
-#
-#   # Add null DBKey column if not present
-#   if(!("DBKey" %in% colnames(species_inventory_header))) species_inventory_header$DBKey <- NA
-#   if(!("DBKey" %in% colnames(species_inventory_detail))) species_inventory_detail$DBKey <- NA
-#
-#   # Convert PlotKey to PrimaryKey and attach to detail
-#   species_inventory_header$PrimaryKey <- species_inventory_header$PlotKey
-#   species_inventory_detail <- dplyr::left_join(species_inventory_detail,
-#                                                species_inventory_header %>% dplyr::select(PrimaryKey, GlobalID),
-#                                                by = c("ParentGlobalID" = "GlobalID"))
-#
-#   # Make Species Inventory Detail  a tall dataframe
-#   species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
-#
-#   # Join with header data and strip out NA codes
-#   species_inventory_tall <- dplyr::left_join(
-#     x = species_inventory_header,
-#     y = species_detail_tall#,
-#     # by = c("RecKey", "PrimaryKey")
-#   ) %>%
-#     subset(!is.na(Species)) %>%
-#     dplyr::select_if(!names(.) %in%
-#                        c("DateModified", "FormType", "DataEntry",
-#                          "DataErrorChecking", "DateLoadedInDb", "created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID")
-#     )
-#
-#   return(species_inventory_tall)
-# }
 
 
 #' Species Inventory Gather wrapper
