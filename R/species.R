@@ -142,131 +142,172 @@
 
 # Attribute generic species growth habits, for now this assumes field names.
 generic_growth_habits <- function(data,
-                                  data_code = "code", # Species field in the data
-                                  species_list, # from  gather_species ()
-                                  species_code = "SpeciesCode", # Species code value from species list
-                                  species_growth_habit_code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
-                                  species_duration = "Duration" # field name for duration
+                                  data_code = "code",
+                                  species_list,
+                                  species_code = "SpeciesCode",
+                                  species_growth_habit_code = "GrowthHabitSub",
+                                  species_duration = "Duration",
+                                  verbose) {
+  # Which codes in the data aren't represented in the species_list provided?
+  # These are the codes that we'll attempt to interpret as generics.
+  missing_codes_df <- dplyr::select(.data = data,
+                                    tidyselect::all_of(x = c("code" = data_code))) |>
+    dplyr::distinct(.data = _) |>
+    dplyr::filter(.data = _,
+                  !(code %in% species_list[[species_code]]),
+                  !is.na(code)) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(x = setNames(object = "code",
+                                                  nm = species_code)))
 
-) {
-  generic_df <- data.frame(
-    SpeciesFixed = unique(data[[data_code]]),
-    SpeciesOriginal = unique(data[[data_code]])
-  ) %>%
+  ### Regexes for unknown plant properties
+  # These are used to assign growth habit, growth habit sub, and duration for
+  # unknown plants. They're broken into LMF and AIM because the generic code
+  # formats differ between the two.
 
-    # Clean up the species codes, remove white space
-    dplyr::mutate(SpeciesFixed = toupper(SpeciesFixed) %>%
-                    stringr::str_replace_all(
-                      string = .,
-                      pattern = " |-", replacement = ""
-                    )) %>%
+  # Growth habit
+  # The commented-out versions capture litter, which seems wrong but was the
+  # evident previous behavior.
+  lmf_growthhabit_regexes <- c("Woody" = "^2(S(?!LIME)|T|[GV]W)",
+                               #"Woody" = "^2(S(?!LIME)|T|([GV]|LTR)W)",
+                               "NonWoody" = "^2((F(?!SMUT|[FJRU]))|(G(?!W)|(VH)))",
+                               # "NonWoody" = "^(([AP][FG]\\d{1,999})|(HL))$",
+                               "Nonvascular" = "^2(A|BRY|HORN|L(?!TR)|LTRL|MOSS|PROT|SLIME)",
+                               # "Other" = "^2(PLANT|BACT|CYAN|DIAT|DINO|(F(?=SMUT|[FJRU])|(LTR(?!L))))|HL",
+                               "Other" = "^2(PLANT|BACT|CYAN|DIAT|DINO|(F(?=SMUT|[FJRU])|(LTR(?!L))))")
+  aim_growthhabit_regexes <- c("Woody" = "^((S[HU]|TR)\\d{1,999})|(SSHH|TTRR|SSUU)",
+                               "NonWoody" = "^(([AP]{1,2}[FG]{1,2})|(PPSS))\\d{1,999}$",
+                               "Nonvascular" = "^(VL|CY|LC|M)$")
 
-    # Get unknown codes and clean them up. Unknown codes beging with a 2 (LMF/NRI)
-    # or a 2 letter prefix followed by a number.
-    # Older projects also used "AAFF" etc. to identify unknown and dead
-    # beyond recognition codes. So we'll need to detect those too
-    dplyr::filter(stringr::str_detect(
-      string = SpeciesFixed,
-      pattern = "^2|^[A-z]{2}[[:digit:]]|\\b(?=\\w*(^[A|P|S|T])\\1+)\\w+\\b"
-    )) %>%
+  # Growth habit sub regexes
+  lmf_growthhabitsub_regexes <- c("Forb" = "^2F(?![FJRSU])",
+                                  "Tree" = "^2T(?!S)",
+                                  "SubShrub" = "^2S[SU](?![SL$])",
+                                  "Shrub" = "^2((S[BDEHN])|(S$))",
+                                  "Graminoid" = "^2G",
+                                  "Succulent" = "^2(FS(?!(MUT)|(UNGI))|(SS(?![BDEN]))|(TS))")
+  aim_growthhabitsub_regexes <- c("Forb" = "^[AP]{1,2}F{1,2}\\d{1,999}$",
+                                  "Tree" = "^TR\\d{1,999}$",
+                                  "Shrub" = "^((SH)|(SSHH))\\d{1,999}$",
+                                  "Graminoid" = "^[AP]{1,2}G{1,2}\\d{1,999}$",
+                                  "Succulent" = "^SU\\d{1,999}$")
 
-    # Identify prefix
-    dplyr::mutate(Prefix = gsub(SpeciesFixed,
-                                pattern = "[[:digit:]]",
-                                replacement = ""
-    ) %>%
-      as.character()) %>%
-    # reduce AAFF etc to two letter prefix
-    dplyr::mutate(Prefix = dplyr::if_else(
-      stringr::str_detect(
-        string = SpeciesOriginal,
-        pattern = "^[[:alpha:]]"
-      ),
-      stringr::str_replace_all(
-        string = Prefix,
-        pattern = "([[:alpha:]])\\1",
-        replacement = "\\1"
-      ),
-      Prefix
-    )) %>%
+  # Duration regexes
+  lmf_duration_regexes <- c("Annual" = "^2(([FG]|VH)[DMSL]?[AB])$",
+                            "Perennial" = "^2((F[DMS]?P)|(GL?[PN])|(GRAM)|(S(?!LIME).*)|(T.*)|(VH[DMS]?P)|(VW.*))$")
+  aim_duration_regexes <- c("Annual" = "^A{1,2}[FG]{1,2}\\d{1,999}",
+                            "Perennial" = "^(((P{1,2}[FG]{1,2})|(TR)|(PPSS))\\d{1,999})|(S{1,2}[HU]{1,2})")
 
-    # Rename to data species code field
-    dplyr::rename_at(dplyr::vars(SpeciesOriginal), ~data_code)
+  regexes_list <- list("GrowthHabit" = c(lmf_growthhabit_regexes,
+                                         aim_growthhabit_regexes),
+                       "GrowthHabitSub" = c(lmf_growthhabitsub_regexes,
+                                            aim_growthhabitsub_regexes),
+                       "Duration" = c(lmf_duration_regexes,
+                                      aim_duration_regexes))
 
-  # If there a no unknown species, no need to proceed
-  generic_df <- generic_df[!generic_df[, data_code] %in%
-                             species_list[, species_code], ]
+  # Apply the regexes.
+  # The new data frame is just because I'm repurposing legacy code and didn't
+  # want to break downstream things.
+  generic_code_df <- missing_codes_df
 
-
-  # Merge with generic species definitions
-  generic.code.df <- dplyr::inner_join(
-    terradactyl::generic.species %>% dplyr::select(-c(Source, CommonName)) %>%
-      dplyr::distinct(),
-    generic_df,
-    by = "Prefix"
-  )
-
-
-  # Connect unknown codes to SpeciesState
-  if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% colnames(data)) {
-    generic.code.df <- dplyr::inner_join(generic.code.df[!is.na(species_code), ],
-                                         dplyr::select(data, data_code, SpeciesState))
-  } else {
-    warning("Variable 'SpeciesState' is not present in either the data or the lookup table")
-    generic.code.df <- dplyr::inner_join(generic.code.df[!is.na(species_code), ],
-                                         # We have to use dplyr::select() because that returns
-                                         # a data frame instead of a vector when there's only
-                                         # one variable being asked for
-                                         dplyr::select(data, data_code))
+  if (verbose) {
+    message("Checking for standardized unknown plant codes.")
   }
 
-  generic.code.df <- unique(generic.code.df)
+  # It's tough to apply this str_detect() approach with mutate() so instead this
+  # is an old-school sapply() that grabs the name of the regex that was detected
+  # but it'll freak out if there are multiple regex hits. Luckily that shouldn't
+  # happen unless I've screwed up the regexes themselves.
+  for (variable in names(regexes_list)) {
+    generic_code_df[[variable]] <- sapply(X = generic_code_df[[species_code]],
+                                          regexes = regexes_list[[variable]],
+                                          FUN = function(X, regexes){
+                                            output <- names(regexes)[sapply(X = regexes,
+                                                                            string = X,
+                                                                            FUN = stringr::str_detect)] |>
+                                              unique()
 
-  # if there are records in generic.code.df
-  if (nrow(generic.code.df) > 0) {
-    # Indicate that generic codes are non-noxious
-    if ("Noxious" %in% names(species_list)) {
-      generic.code.df$Noxious <- "NO"
-    }
+                                            if (length(output) < 1) {
+                                              output <- NA
+                                            } else if (length(output) > 1) {
+                                              stop(paste0("The species code ", X, " matches multiple regexes: '",
+                                                          paste(regexes[output], collapse = "', '"),
+                                                          "'"))
+                                            }
 
-    # Indicate that generic shrubcodes are SG_Group "NonSagebrushShrub"
-    if ("SG_Group" %in% names(species_list)) {
-      generic.code.df$SG_Group[generic.code.df$Code == "SH" | generic.code.df$Code == "2SHRUB"] <- "NonSagebrushShrub"
-    }
+                                            output
+                                          }) |> unlist()
   }
 
-  # Rename to SpeciesCode in species list
-  generic.code.df <- generic.code.df %>%
-    dplyr::rename_at(dplyr::vars(data_code), ~species_code)
+  # Remove records where we didn't actually add any information. So, we'll keep
+  # only records where at least one of the regexed variables wasn't NA.
+  generic_code_df <- dplyr::filter(.data = generic_code_df,
+                                   dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
+                                                 .fns = ~ !is.na(x = .x)))
 
-  # Subset generic species that are not defined in species list
-  generic.code.df <- generic.code.df %>%
-    dplyr::filter(!dplyr::vars(data_code) %in% dplyr::select(data, data_code))
+  ### NOTE:
+  ### This shouldn't be necessary anymore because the only thing that we're
+  ### going to be using SpeciesState for is the SG_Group variable and that's
+  ### not applicable to generic species.
+  # # Connect unknown codes to SpeciesState
+  # if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% colnames(data)) {
+  #   generic_code_df <- dplyr::inner_join(generic_code_df[!is.na(species_code), ],
+  #                                        dplyr::select(data, data_code, SpeciesState))
+  # } else {
+  #   warning("Variable 'SpeciesState' is not present in either the data or the lookup table.")
+  #   generic_code_df <- dplyr::inner_join(generic_code_df[!is.na(species_code), ],
+  #                                        # We have to use dplyr::select() because that returns
+  #                                        # a data frame instead of a vector when there's only
+  #                                        # one variable being asked for
+  #                                        dplyr::select(data, data_code))
+  # }
 
-  # Merge with main species list
-  species_generic <- dplyr::full_join(species_list, generic.code.df)
+  # Make sure that the code variable matches the one in the species_list so we
+  # can easily append these.
+  # Probably shouldn't hardcode this...
+  # generic_code_df <- dplyr::rename(.data = generic_code_df,
+  #                                  tidyselect::all_of(x = setNames(object = "code",
+  #                                                                  nm = species_code)))
 
-  # Remove Code, Prefix, and PrimaryKey if they exist
-  species_generic <- species_generic[, !colnames(species_generic) %in%
-                                       c("Code", "PrimaryKey", "Prefix", "DateLoadedInDb")]
 
-  # remove GrowthHabit, GrowthHabitSub, and Duration if they are not the specified data columns
-  if(species_growth_habit_code != "GrowthHabitSub") {
-    species_generic <- species_generic %>% dplyr::select_if(!colnames(.) %in% c("GrowthHabit", "GrowthHabitSub"))
-  }
 
-  if(species_duration != "Duration") {
-    species_generic <- species_generic %>% dplyr::select_if(!colnames(.) %in% "Duration")
-  }
+  # #  Only keep working on generic_code_df if it actually has any records in it
+  # if (nrow(generic_code_df) > 0) {
+  #   # # Indicate that generic codes are non-noxious
+  #   # if ("Noxious" %in% names(species_list)) {
+  #   #   generic_code_df$Noxious <- "NO"
+  #   # }
+  #
+  #   # The SG_Group variable values are defined on a per-state basis, but it
+  #   # should be the case that all shrubs that aren't also sagebrush species
+  #   # belong to "NonSagebrushShrub". Arguably, the better place to put this step
+  #   # is at the point that SG_Group is used to calculate an indicator because
+  #   # non-generic shrub codes will also likely need to be assigned to it, but
+  #   # it's been here for a few years already and I don't want to break things
+  #   # downstream that may assume it happens here.
+  #   if ("SG_Group" %in% names(species_list)) {
+  #     if (verbose) {
+  #       message("The variable SG_Group is present in the species_list. Adding 'NonSagebrushShrub' in SG_Group for records associated with unidentified shrubs.")
+  #     }
+  #     # This previously appears to have only applied to records where the
+  #     # species code was "SH" or "2SHRUB" which wouldn't catch any standard
+  #     # AIM generic shrub code (which end in digits) or any of the many other
+  #     # LMF generic shrub codes. It also only worked if the name of the variable
+  #     # was Code, which won't always be true.
+  #     # I've elected to change it to use the GrowthHabitSub variable to identify
+  #     # shrubs instead because we just went to the trouble above to make sure
+  #     # that that was correctly assigned (2025-05-20)
+  #
+  #     # generic_code_df$SG_Group[generic_code_df$Code == "SH" | generic_code_df$Code == "2SHRUB"] <- "NonSagebrushShrub"
+  #     generic_code_df <- dplyr::mutate(.data = generic_code_df,
+  #                                      SG_Group = dplyr::case_when(GrowthHabitSub %in% c("Shrub") ~ "NonSagebrushShrub",
+  #                                                                  .default = NA))
+  #   }
+  # }
 
-  # Remove NA in species list
-  if ("SpeciesCode" %in% names(species_generic)) {
-    species_generic <- species_generic %>% subset(!is.na(SpeciesCode))
-
-    return(species_generic)
-  }
-
-  return(species_generic)
+  # Append the generic codes to the species list!
+  dplyr::bind_rows(species_list,
+                   generic_code_df)
 }
 
 #' @export species_join
