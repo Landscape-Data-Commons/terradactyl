@@ -103,7 +103,7 @@ build_terradat_indicators <- function(header,
   # Rangeland health
   if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
     print("Gathering rangeland health indicators from dsn")
-    rh <- gather_rangeland_health(dsn, source = source) %>%
+    rh <- gather_rangeland_health(dsn, source = source) |>
       # Remove RecKey field, which is not applicable at the indicator level
       dplyr::select_if(!names(.) %in% c("RecKey"))
   } else {
