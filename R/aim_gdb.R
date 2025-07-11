@@ -1356,117 +1356,325 @@ height_calc <- function(header,
 }
 
 
-#################
 #' @export spp_inventory_calc
 #' @rdname aim_gdb
 # Calculate species inventory
-spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source) {
-  print("Beginning Species Inventory indicator calculation")
+spp_inventory_calc <- function(header,
+                               spp_inventory_tall,
+                               species_file,
+                               source,
+                               generic_species_file = NULL,
+                               verbose = FALSE) {
+  if ("character" %in% class(header)) {
+    if (tools::file_ext(header) == "Rdata") {
+      header <- readRDS(file = header)
+    } else {
+      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+    }
+  }
+  if ("character" %in% class(spp_inventory_tall)) {
+    if (tools::file_ext(spp_inventory_tall) == "Rdata") {
+      data <- readRDS(file = spp_inventory_tall)
+    } else {
+      stop("When spp_inventory_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(spp_inventory_tall)) {
+    data <- spp_inventory_tall
+  }
 
-  # tidy.species
-  spp_inventory_tall <- readRDS(spp_inventory_tall) %>%
-    # Join to the header to get the relevant PrimaryKeys and SpeciesSate
-    dplyr::left_join(dplyr::select(header, PrimaryKey, SpeciesState), .,
-                     by = "PrimaryKey"
-    )
+  data <- dplyr::left_join(x = dplyr::select(.data = header,
+                                             PrimaryKey,
+                                             SpeciesState),
+                           y = data,
+                           by = "PrimaryKey")
 
-  # Join to State Species List
-  spp_inventory_species <- species_join(
-    data = spp_inventory_tall,
-    data_code = "Species",
-    species_file = species_file,
-    overwrite_generic_species = dplyr::if_else(
-      source == "TerrADat",
-      TRUE,
-      FALSE
-    )
-  )
+  # If generic_species_file is not provided, assume it is the same as species_file
+  if(is.null(generic_species_file)) {
+    generic_species_file <- species_file
+  }
 
-  # Count the number of species present in each group
-  spp_inventory <- rbind(
-    # Noxious & Non-Noxious
-    species_count(spp_inventory_species, Noxious) %>%
-      dplyr::mutate(indicator = indicator %>%
-                      stringr::str_replace_all(c(
-                        "YES" = "NoxPlant",
-                        "\\bNO\\b" = "NonNoxPlant"
-                      )) %>%
-                      stringr::str_replace_na(
-                        string = .,
-                        replacement = "NonNoxPlant"
-                      )),
+  if (verbose) {
+    message("Joining species information to the species inventory data.")
+  }
+  # This is way more complicated now that we're working with tblNationalPlants
+  # AND tblStateSpecies.
+  # First, we use species_join() to add the important information from
+  # tblNationalPlants and to handle the generic species stuff.
+  # Then we read in tblStateSpecies (discarding everything except the variables
+  # containing codes, the states, and the sage-grouse groups) and join that to
+  # the data to add in the SG_Group variable because that's all that
+  # tblStateSpecies is good for these days.
+  # Also, tblStateSpecies contains some duration and growth habit information
+  # that (as of May 2025) is not reflected in or directly contradicts
+  # tblNationalPlants or is flat-out incorrect. Those variables aren't being
+  # used, but discrepancies in indicators calculated before versus after 2024
+  # may be due to those not being applied.
+  tblNationalPlants <- sf::st_read(dsn = species_file,
+                                   layer = "tblNationalPlants",
+                                   quiet = TRUE)
 
-    # Preferred Forb
-    species_count(spp_inventory_species, SG_Group) %>%
-      # Subset to only Preferred Forb
-      subset(indicator == "PreferredForb") %>%
-      dplyr::mutate(indicator = indicator %>%
-                      stringr::str_replace_all(c(" " = "")))
-  ) %>%
-    # Format for appropriat indicator name
-    dplyr::mutate(indicator = paste("NumSpp_", indicator, sep = ""))
+  tblStateSpecies <- sf::st_read(dsn = species_file,
+                                 layer = "tblStateSpecies",
+                                 quiet = TRUE) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(c(code = "SpeciesCode",
+                                       "Duration",
+                                       "GrowthHabit",
+                                       "GrowthHabitSub",
+                                       "SG_Group",
+                                       "SpeciesState"))) |>
+    dplyr::distinct()
 
-  # Spread to wide
-  spp_inventory_wide <- spp_inventory %>% tidyr::spread(
-    key = indicator,
-    value = n,
-    fill = 0
-  )
+  if (verbose) {
+    message("Starting with tblNationalPlants and standardized generic codes.")
+  }
+  data <- species_join(data = data,
+                       data_code = "Species",
+                       species_file = tblNationalPlants,
+                       species_code = "NameCode",
+                       update_species_codes = FALSE,
+                       by_species_key = FALSE,
+                       verbose = verbose) |>
+    # We want to use whatever is the currently accepted code in USDA PLANTS for
+    # the species, even though that may be less taxonomically correct.
+    # Using dplyr::case_when() lets us keep any codes that don't have a
+    # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
+    dplyr::mutate(.data = _,
+                  Species = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
+                                             .default = Species)) |>
+    # Not necessary, but I'm paranoid
+    dplyr::distinct()
 
-  # Get the list of species that fall into a category (e.g., Preferred Forb)
-  spp_list_sg <- spp_inventory_species %>%
-    dplyr::select(PrimaryKey, Species, SG_Group) %>%
-    dplyr::distinct() %>%
-    dplyr::group_by(PrimaryKey, SG_Group) %>%
-    dplyr::summarize(list = toString(Species) %>%
-                       stringr::str_replace_all(
-                         pattern = ",",
-                         replacement = ";"
-                       )) %>%
-    # Format field names
-    subset(!is.na(SG_Group)) %>%
-    dplyr::mutate(indicator = SG_Group %>%
-                    stringr::str_replace_all(c(
-                      "Perennial" = "Peren",
-                      " " = "",
-                      "Stature" = ""
-                    )) %>%
-                    paste("Spp_", ., sep = "")) %>%
-    dplyr::select(-SG_Group) %>%
-    # Output in wide format
-    tidyr::spread(key = indicator, value = list, fill = NA)
+  if (verbose) {
+    message("Adding SG_Group from tblStateSpecies")
+  }
 
-  spp_list_nox <- spp_inventory_species %>%
-    dplyr::select(PrimaryKey, Species, Noxious) %>%
-    dplyr::distinct() %>%
-    dplyr::group_by(PrimaryKey, Noxious) %>%
-    dplyr::summarize(list = toString(Species) %>%
-                       stringr::str_replace_all(
-                         pattern = ",",
-                         replacement = ";"
-                       )) %>%
-    # Format field names
-    subset(!is.na(Noxious)) %>%
-    dplyr::mutate(indicator = Noxious %>%
-                    stringr::str_replace_all(c(
-                      "NO" = "NonNox",
-                      "YES" = "Nox",
-                      " " = ""
-                    )) %>%
-                    paste("Spp_", ., sep = "")) %>%
-    dplyr::select(-Noxious) %>%
-    # Output in wide format
-    tidyr::spread(key = indicator, value = list, fill = NA)
+  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
+  # make a new data frame where there's only one record per species code and
+  # we store all the per-state SG_Group assignments in a character string as
+  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
+  # This should be significantly faster than trying to join by both the species
+  # codes and SpeciesState, at least for very large data sets.
+  data <- dplyr::select(.data = tblStateSpecies,
+                        tidyselect::all_of(c(Species = "code",
+                                             "SpeciesState",
+                                             "SG_Group"))) |>
+    dplyr::filter(.data = _,
+                  !is.na(SG_Group)) |>
+    dplyr::mutate(.data = _,
+                  sg_string = paste(SpeciesState,
+                                    SG_Group,
+                                    sep = ":")) |>
+    dplyr::summarize(.data = _,
+                     .by = Species,
+                     SG_Group = paste(sg_string,
+                                      collapse = "|")) |>
+    dplyr::left_join(x = data,
+                     y = _,
+                     relationship = "many-to-one",
+                     by = c("Species"),
+                     suffix = c("",
+                                "_tblstatespecies")) |>
+    dplyr::distinct() |>
+    dplyr::mutate(.data = _,
+                  # This is to turn the SG_Group codes into values
+                  # that match the expected indicator names for
+                  # our convenience.
+                  SG_Group = stringr::str_remove_all(string = SG_Group,
+                                                     pattern = "Stature") |>
+                    stringr::str_replace_all(string = _,
+                                             pattern = "Perennial",
+                                             replacement = "Peren") |>
+                    # This makes sure that the value in SG_Group is
+                    # only the string associated with the group for
+                    # the species code in the relevant state.
+                    # Records where there's not a group value for the
+                    # associated state (or "US") will get NA instead.
+                    stringr::str_extract(string = _,
+                                         pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                  # This makes sure that we've assigned any shrubs
+                  # that didn't get a sage-grouse group are
+                  # assigned to "NonSagebrushShrub"
+                  SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
+                                              .default = SG_Group))
 
-  spp_list <- dplyr::full_join(spp_list_sg, spp_list_nox)
+  # Cleanup to get things in order for the indicators
+  data <- dplyr::mutate(.data = data,
+                        Total = "Total",
+                        ###### Invasive ---------------------------------
+                        # This is just to make the Invasive values match
+                        # the desired indicator names
+                        Invasive = stringr::str_to_title(string = Invasive),
 
-  # Join with spp_inventory, drop columns, and return
-  spp_inventory <- dplyr::full_join(spp_inventory_wide, spp_list) %>%
-    dplyr::select_if(!names(.) %in% c("DBKey"))
+                        ###### Native -----------------------------------
+                        # This is for the native and non-native cover
+                        # It assumes that everything flagged as EXOTIC or
+                        # ABSENT should be considered NonNative and that
+                        # everything else is Native
+                        Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) ~ "Native",
+                                                  .default = "Nonnative"),
 
-  return(spp_inventory)
+                        ###### Noxious ----------------------------------
+                        # For noxious cover. This assumes that anything
+                        # flagged as YES is noxious and nothing else is.
+                        # NOTE: This is now disabled because noxious
+                        # status is being handled more appropriately and
+                        # through a different format. I'm leaving this
+                        # for posterity for the moment though.
+                        # Noxious = dplyr::case_when(Noxious %in% c("YES") ~ "Noxious",
+                        #                            .default = NA),
+                        # Noxious is now encoded as a character string
+                        # with localities separated by |s. We need to
+                        # check for the relevant locality based on the
+                        # State variable NOT the AdminState because these
+                        # determinations are made based on the physical
+                        # location of the sampling within the legal
+                        # boundaries of states, not which state is
+                        # administering the lands (which is sometimes
+                        # different).
+                        # The regex checks to see if the beginning of
+                        # the string or the characters immediately
+                        # following a | are "US", the code from the State
+                        # variable, or the code from the State variable
+                        # and the value from the County variable
+                        # separated by a :, e.g., "OR:Jefferson".
+                        # The single-letter designations for type of
+                        # noxiousness are not taken into account, e.g.,
+                        # "OR:A" and "OR:B" will be treated identically.
+                        # County-level designations may eventually be
+                        # removed, but for now they're still in there and
+                        # this regex will work regardless.
+                        Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
+                                                                       pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
+                                                   .default = "noxious_irrelevant"),)
+
+  #### Calculating #############################################################
+  # These are the output variables we anticipate getting back (and want)
+  expected_indicator_variables <- c("NumSpp_Total",
+                                    "NumSpp_Native",
+                                    "NumSpp_Nonnative",
+                                    "NumSpp_Invasive",
+                                    "NumSpp_Noxious",
+                                    "NumSpp_PreferredForb")
+
+  indicator_variables_list <- list(c("Total"),
+                                   c("Native"),
+                                   c("Invasive"),
+                                   c("Noxious"),
+                                   c("SG_Group"))
+  output_list <- lapply(X = indicator_variables_list,
+                        data = data,
+                        verbose = verbose,
+                        FUN = function(X, data, verbose){
+                          species_count(species_inventory_tall = data,
+                                        indicator_variables = X,
+                                        verbose = verbose) |>
+                            dplyr::mutate(.data = _,
+                                          indicator = paste0("NumSpp_",
+                                                             indicator))
+                        })
+
+  output <- dplyr::bind_rows(output_list) |>
+    dplyr::filter(.data = _,
+                  indicator %in% expected_indicator_variables) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = n,
+                       values_fill = 0)
+
+  # # Count the number of species present in each group
+  # spp_inventory <- rbind(
+  #   # Noxious & Non-Noxious
+  #   species_count(spp_inventory_species, Noxious) %>%
+  #     dplyr::mutate(indicator = indicator %>%
+  #                     stringr::str_replace_all(c(
+  #                       "YES" = "NoxPlant",
+  #                       "\\bNO\\b" = "NonNoxPlant"
+  #                     )) %>%
+  #                     stringr::str_replace_na(
+  #                       string = .,
+  #                       replacement = "NonNoxPlant"
+  #                     )),
+  #
+  #   # Preferred Forb
+  #   species_count(spp_inventory_species, SG_Group) %>%
+  #     # Subset to only Preferred Forb
+  #     subset(indicator == "PreferredForb") %>%
+  #     dplyr::mutate(indicator = indicator %>%
+  #                     stringr::str_replace_all(c(" " = "")))
+  # ) %>%
+  #   # Format for appropriat indicator name
+  #   dplyr::mutate(indicator = paste("NumSpp_", indicator, sep = ""))
+  #
+  # # Spread to wide
+  # spp_inventory_wide <- spp_inventory %>% tidyr::spread(
+  #   key = indicator,
+  #   value = n,
+  #   fill = 0
+  # )
+  #
+  # # Get the list of species that fall into a category (e.g., Preferred Forb)
+  # spp_list_sg <- spp_inventory_species %>%
+  #   dplyr::select(PrimaryKey, Species, SG_Group) %>%
+  #   dplyr::distinct() %>%
+  #   dplyr::group_by(PrimaryKey, SG_Group) %>%
+  #   dplyr::summarize(list = toString(Species) %>%
+  #                      stringr::str_replace_all(
+  #                        pattern = ",",
+  #                        replacement = ";"
+  #                      )) %>%
+  #   # Format field names
+  #   subset(!is.na(SG_Group)) %>%
+  #   dplyr::mutate(indicator = SG_Group %>%
+  #                   stringr::str_replace_all(c(
+  #                     "Perennial" = "Peren",
+  #                     " " = "",
+  #                     "Stature" = ""
+  #                   )) %>%
+  #                   paste("Spp_", ., sep = "")) %>%
+  #   dplyr::select(-SG_Group) %>%
+  #   # Output in wide format
+  #   tidyr::spread(key = indicator, value = list, fill = NA)
+  #
+  # spp_list_nox <- spp_inventory_species %>%
+  #   dplyr::select(PrimaryKey, Species, Noxious) %>%
+  #   dplyr::distinct() %>%
+  #   dplyr::group_by(PrimaryKey, Noxious) %>%
+  #   dplyr::summarize(list = toString(Species) %>%
+  #                      stringr::str_replace_all(
+  #                        pattern = ",",
+  #                        replacement = ";"
+  #                      )) %>%
+  #   # Format field names
+  #   subset(!is.na(Noxious)) %>%
+  #   dplyr::mutate(indicator = Noxious %>%
+  #                   stringr::str_replace_all(c(
+  #                     "NO" = "NonNox",
+  #                     "YES" = "Nox",
+  #                     " " = ""
+  #                   )) %>%
+  #                   paste("Spp_", ., sep = "")) %>%
+  #   dplyr::select(-Noxious) %>%
+  #   # Output in wide format
+  #   tidyr::spread(key = indicator, value = list, fill = NA)
+  #
+  # spp_list <- dplyr::full_join(spp_list_sg, spp_list_nox)
+  #
+  # # Join with spp_inventory, drop columns, and return
+  # spp_inventory <- dplyr::full_join(spp_inventory_wide, spp_list) %>%
+  #   dplyr::select_if(!names(.) %in% c("DBKey"))
+
+  missing_indicators <- setdiff(x = expected_indicator_variables,
+                                y = names(output))
+  if (length(missing_indicators) > 0) {
+    warning(paste0("One or more expected indicators did not have qualifying data and will be returned with 0 values. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
+                   paste(missing_indicators,
+                         collapse = ", ")))
+    output[, missing_indicators] <- 0
+  }
+
+  output
 }
-
 
 #' @export soil_stability_calc
 #' @rdname aim_gdb
