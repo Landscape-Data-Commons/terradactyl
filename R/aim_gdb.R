@@ -1539,33 +1539,28 @@ spp_inventory_calc <- function(header,
 #' @export soil_stability_calc
 #' @rdname aim_gdb
 # Calculate soil stability values
-soil_stability_calc <- function(header, soil_stability_tall) {
-  print("Beginning Soil Stability indicator calculation")
-  # Gather and subset
-  soil_stability_tall <- readRDS(soil_stability_tall) %>%
-    subset(!is.na(Rating)) %>%
-    # subset to relevant PrimaryKeys
-    subset(PrimaryKey %in% header$PrimaryKey)
-
-  # Calculate indicators
-
-
-  soil_stability_calcs <- soil_stability(soil_stability_tall,
-                                         cover = TRUE
-  )
-  if(all(c('all', 'uncovered', 'covered') %in% colnames(soil_stability_calcs))) {
-    soil_stability_calcs <- soil_stability_calcs  %>%
-      # Rename fields
-      dplyr::rename(
-        SoilStability_All = all,
-        SoilStability_Protected = covered,
-        SoilStability_Unprotected = uncovered
-      )
+soil_stability_calc <- function(soil_stability_tall) {
+  if ("character" %in% class(soil_stability_tall)) {
+    if (tools::file_ext(soil_stability_tall) == "Rdata") {
+      data <- readRDS(file = soil_stability_tall)
+    } else {
+      stop("When soil_stability_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(soil_stability_tall)) {
+    data <- soil_stability_tall
   }
 
+  # Drop the NA values
+  data <- dplyr::filter(.data = data,
+                        !is.na(Rating))
 
-  # Return
-  return(soil_stability_calcs)
+  indicators <- soil_stability(data,
+                               all = TRUE,
+                               cover = TRUE,
+                               uncovered = TRUE,
+                               all_cover_types = FALSE,
+                               tall = FALSE)
+  indicators
 }
 
 #' @export build_terradat_indicators
