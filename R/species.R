@@ -573,9 +573,77 @@ species_join <- function(data, # field data,
 
     # Select only the fields from the original data_species file
     data_species <- data_species_generic[, colnames(data_species)]
+#' @export species_count
+#' @rdname gather_species_inventory
+species_count <- function(species_inventory_tall,
+                          ...,
+                          indicator_variables = NULL,
+                          verbose = FALSE) {
+  ##### Indicator variables -----------------------------------------------------
+  # Get a list of the variables the user wants to group data by for calculations.
+  # There's a grouping_variables argument that takes the names of variables as
+  # character strings, so we'll handle that.
+  if (!is.null(indicator_variables)) {
+    if (!is.character(indicator_variables)) {
+      stop("indicator_variables must be a character string or vector of character strings")
+    }
+  }
+  # Clean this up!
+  indicator_variables <- unique(indicator_variables)
+
+  # This here because we're trying to support the legacy decision to originally
+  # allow for bare variables as the indicator-defining variables.
+  # Now it can be bare variable names, character strings, vectors of character
+  # strings or some combination of the three.
+  # BUT! You can't create a vector, store it in the environment, and then pass
+  # it in by name because then you end up with just the name of the vector.
+  indicator_variables <- c(indicator_variables,
+                           rlang::quos(...) |>
+                             as.character() |>
+                             # This does the cleanup that removes the prefixed ~ from everything as well
+                             # as any quotation marks or bits of the definition of a vector.
+                             stringr::str_replace_all(string = _,
+                                                      pattern = "(^~)|(\\\")|(c\\()|(\\)$)",
+                                                      replacement = "") |>
+                             stringr::str_split(string = _,
+                                                pattern = ",[ ]*",
+                                                simplify = TRUE) |>
+                             as.vector()) |>
+    unique()
+  indicator_variables <- indicator_variables[!(indicator_variables %in% c(""))]
+
+  if (verbose) {
+    message(paste0("indicator_variables contains: ",
+                   paste(indicator_variables,
+                         collapse = ", ")))
   }
 
-  return(data_species)
+  # Make sure that we have distinct records. Wouldn't do to have duplicated
+  # anything here.
+  species_inventory_tall <- dplyr::select(.data = species_inventory_tall,
+                                          tidyselect::all_of(x = c("PrimaryKey",
+                                                                   "Species")),
+                                          tidyselect::all_of(x = indicator_variables)) |>
+    dplyr::distinct()
+
+  # dplyr::count() doesn't respect tidyselect functions, so this is easier if we
+  # create the indicator variable first so we can provide count() with the bare
+  # variable name.
+  output <- tidyr::unite(data = species_inventory_tall,
+                         col = indicator,
+                         tidyselect::all_of(indicator_variables),
+                         sep = ".") |>
+    # I guess this is a more efficient approach than summarize()?
+    dplyr::count(x = _,
+                 PrimaryKey,
+                 indicator) |>
+    # Unconvinced that this is necessary, but a version of it was here
+    # previously, so I'm leaving it for now.
+    dplyr::filter(.data = _,
+                  !stringr::str_detect(string = indicator,
+                                       pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
+
+  output
 }
 
 #' @export species_read
