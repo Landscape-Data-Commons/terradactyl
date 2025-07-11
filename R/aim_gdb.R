@@ -1086,156 +1086,273 @@ gap_calc <- function(header,
 #' @export height_calc
 #' @rdname aim_gdb
 # Calculate the Height indicators for AIM
-height_calc <- function(header, height_tall,
+height_calc <- function(header,
+                        height_tall,
                         species_file = species_file,
-                        source) {
-  print("Beginning Height indicator calculation")
-
-  # gather tall height
-  height <- readRDS(height_tall) %>%
-
-    # subset by PK and add the SpeciesState from the header
-    dplyr::left_join(dplyr::select(header, PrimaryKey, SpeciesState), .)
-
-  # Join to species list
-  height_species <- species_join(
-    data = height,
-    data_code = "Species",
-    species_file = species_file,
-    overwrite_generic_species = dplyr::if_else(
-      source == "TerrADat",
-      TRUE,
-      FALSE
-    )
-  )
-
-  # Correct the Non-Woody to NonWoody
-  height_species$GrowthHabit[grepl(
-    pattern = "Non-woody|Nonwoody|Non-Woody",
-    x = height_species$GrowthHabit
-  )] <- "NonWoody"
-
-  # For any unresolved height errors, change height to "0" so
-  # they are omitted from the calculations, but keep heights with no species assigned
-  height_no_species <- height_species %>% dplyr::filter(is.na(Species) & !is.na(Height))
-  height_bad_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
-
-  height_species <- dplyr::bind_rows(height_no_species, height_bad_species)
-
-  # Add a forb and grass category
-  height_species$pgpf[height_species$Duration == "Perennial" &
-                        height_species$GrowthHabitSub %in%
-                        c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb", "Sedge")] <- "PerenForbGraminoid"
-
-  # Height calculations----
-  height_calc <- rbind(
-    # Woody and Herbaceous heights
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      type
-    ) %>% subset(indicator %in% c("woody", "herbaceous")),
-
-    # Forb or Grass
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      GrowthHabitSub
-    ) %>% subset(indicator %in% c("Forb", "Graminoid", "Grass", "Forb/herb", "Forb/Herb", "Sedge")),
-
-    # Perennial Forb or Grass
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      Duration, GrowthHabitSub
-    ) %>% subset(indicator %in% c("Perennial.Forb", "Perennial.Graminoid")),
-
-    # Perennial Forb and Grass as a single category
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      pgpf
-    ) %>% subset(indicator == "PerenForbGraminoid"),
-
-    # Perennial grass by Noxious/NonNoxious
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      Noxious, Duration, GrowthHabitSub
-    ) %>% subset(indicator %in% c(
-      "NO.Perennial.Graminoid",
-      "YES.Perennial.Graminoid"
-    )),
-
-
-    # SG_Group heights
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      SG_Group
-    ) %>% subset(indicator != "NA")
-  )
-
-  # For TerrADat only
-  if (source %in% c("TerrADat", "AIM", "DIMA")) {
-    # Live sagebrush heights
-    height_calc <- rbind(
-      height_calc,
-      mean_height(
-        height_tall = height_species,
-        method = "mean",
-        omit_zero = TRUE, # remove zeros from average height calcs
-        by_line = FALSE,
-        tall = TRUE,
-        SG_Group, Chkbox
-      ) %>% subset(indicator == "Sagebrush.0")
-    )
+                        source,
+                        generic_species_file = NULL,
+                        verbose = FALSE) {
+  if (verbose) {
+    message("Beginning height calculations")
   }
 
-  # Reformat for Indicator Field Name ----
-  height_calc <- height_calc %>%
-    dplyr::mutate(indicator = indicator %>%
-                    stringr::str_replace_all(c(
-                      "woody" = "Woody",
-                      "herbaceous" = "Herbaceous",
-                      "\\bYES\\b" = "Nox",
-                      "\\bNO\\b" = "NonNox",
-                      "Forb/herb" = "Forb",
-                      "Graminoid" = "Graminoid",
-                      "0" = "_Live",
-                      "\\." = "",
-                      " " = "",
-                      "Perennial" = "Peren",
-                      "Stature" = ""
-                    )) %>%
-                    paste("Hgt_", ., "_Avg", sep = ""))
+  if ("character" %in% class(header)) {
+    if (tools::file_ext(header) == "Rdata") {
+      header <- readRDS(header)
+    } else {
+      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+    }
+  }
+  if ("character" %in% class(height_tall)) {
+    if (tools::file_ext(height_tall) == "Rdata") {
+      height_tall <- readRDS(file = height_tall)
+    } else {
+      stop("When height_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(height_tall)) {
+    height_tall <- height_tall
+  }
 
-  # Spread to wide format and return
-  height_calc_wide <- height_calc %>% tidyr::spread(
-    key = indicator,
-    value = mean_height,
-    fill = NA
-  )
+  height_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
+                                                           tidyselect::all_of(c("PrimaryKey",
+                                                                                "SpeciesState",
+                                                                                "State",
+                                                                                "County"))),
+                                         y = height_tall,
+                                         relationship = "one-to-many",
+                                         by = "PrimaryKey")
 
-  return(height_calc_wide)
+  # If generic_species_file is not provided, assume it is the same as species_file
+  if(is.null(generic_species_file)) {
+    generic_species_file <- species_file
+  }
+
+  if (verbose) {
+    message("Joining species information to the height data.")
+  }
+  # This is way more complicated now that we're working with tblNationalPlants
+  # AND tblStateSpecies.
+  # First, we use species_join() to add the important information from
+  # tblNationalPlants and to handle the generic species stuff.
+  # Then we read in tblStateSpecies (discarding everything except the variables
+  # containing codes, the states, and the sage-grouse groups) and join that to
+  # the data to add in the SG_Group variable because that's all that
+  # tblStateSpecies is good for these days.
+  # Also, tblStateSpecies contains some duration and growth habit information
+  # that (as of May 2025) is not reflected in or directly contradicts
+  # tblNationalPlants or is flat-out incorrect. Those variables aren't being
+  # used, but discrepancies in indicators calculated before versus after 2024
+  # may be due to those not being applied.
+  tblNationalPlants <- sf::st_read(dsn = species_file,
+                                   layer = "tblNationalPlants",
+                                   quiet = TRUE)
+
+  tblStateSpecies <- sf::st_read(dsn = species_file,
+                                 layer = "tblStateSpecies",
+                                 quiet = TRUE) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(c(code = "SpeciesCode",
+                                       "Duration",
+                                       "GrowthHabit",
+                                       "GrowthHabitSub",
+                                       "SG_Group",
+                                       "SpeciesState"))) |>
+    dplyr::distinct()
+
+  if (verbose) {
+    message("Starting with tblNationalPlants and standardized generic codes.")
+  }
+  height_species <- species_join(data = height_tall_header,
+                                 data_code = "Species",
+                                 species_file = tblNationalPlants,
+                                 species_code = "NameCode",
+                                 update_species_codes = FALSE,
+                                 by_species_key = FALSE,
+                                 verbose = verbose) |>
+    # We want to use whatever is the currently accepted code in USDA PLANTS for
+    # the species, even though that may be less taxonomically correct.
+    # Using dplyr::case_when() lets us keep any codes that don't have a
+    # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
+    dplyr::mutate(.data = _,
+                  Species = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
+                                             .default = Species)) |>
+    # Not necessary, but I'm paranoid
+    dplyr::distinct()
+
+  if (verbose) {
+    message("Adding SG_Group from tblStateSpecies")
+  }
+
+  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
+  # make a new data frame where there's only one record per species code and
+  # we store all the per-state SG_Group assignments in a character string as
+  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
+  # This should be significantly faster than trying to join by both the species
+  # codes and SpeciesState, at least for very large data sets.
+  height_species <- dplyr::select(.data = tblStateSpecies,
+                                  tidyselect::all_of(c(Species = "code",
+                                                       "SpeciesState",
+                                                       "SG_Group"))) |>
+    dplyr::filter(.data = _,
+                  !is.na(SG_Group)) |>
+    dplyr::mutate(.data = _,
+                  sg_string = paste(SpeciesState,
+                                    SG_Group,
+                                    sep = ":")) |>
+    dplyr::summarize(.data = _,
+                     .by = Species,
+                     SG_Group = paste(sg_string,
+                                      collapse = "|")) |>
+    dplyr::left_join(x = height_species,
+                     y = _,
+                     relationship = "many-to-one",
+                     by = c("Species"),
+                     suffix = c("",
+                                "_tblstatespecies")) |>
+    dplyr::distinct()
+
+  #### Cleanup! ################################################################
+  # These are so we can assign a new variable called "pgpf" indicating which
+  # records contain heights for perennial grasses or perennial forbs.
+  pgpf_growthhabitsubs <- c("Forb/herb", "Forb", "Graminoid", "Grass")
+
+  # Clean up variables and then keep only valid records, e.g., records where a
+  # species was recorded with the a GrowthHabit_measured value that matches the
+  # GrowthHabit value added in the species join OR the species was NA but there
+  # was a recorded height value.
+  height_species <- dplyr::mutate(.data = height_species,
+                                  Duration = dplyr::case_when(stringr::str_detect(string = Duration,
+                                                                                  pattern = "[Pp]eren") ~ "Peren",
+                                                              .default = Duration),
+                                  # Correct the Non-Woody to NonWoody
+                                  GrowthHabit = dplyr::case_when(stringr::str_detect(string = GrowthHabit,
+                                                                                     pattern = "^Non(-)?[Ww]oody$") ~ "NonWoody",
+                                                                 .default = GrowthHabit),
+                                  GrowthHabitSub = dplyr::case_when(stringr::str_detect(string = GrowthHabitSub,
+                                                                                        pattern = "[Ff]orb") ~ "Forb",
+                                                                    stringr::str_detect(string = GrowthHabitSub,
+                                                                                        pattern = "[Gg]rass") ~ "Graminoid",
+                                                                    .default = GrowthHabitSub),
+                                  # Add a variable indicating if a record is tied to a perennial forb or grass
+                                  pgpf = dplyr::case_when(Duration == "Peren" &
+                                                            GrowthHabitSub %in% pgpf_growthhabitsubs ~ "PerenForbGraminoid",
+                                                          .default = NA),
+                                  # Get these values tuned up so we get the
+                                  # expected indicator names.
+                                  type = stringr::str_to_title(string = type),
+                                  # Make sure that Noxious actually reflects the
+                                  # assigned status for the state.
+                                  Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
+                                                                                 pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Nox",
+                                                             .default = "NonNox"),
+                                  # This makes sure that the value in SG_Group is
+                                  # only the string associated with the group for
+                                  # the species code in the relevant state.
+                                  # Records where there's not a group value for the
+                                  # associated state (or "US") will get NA instead.
+                                  SG_Group = stringr::str_remove_all(string = SG_Group,
+                                                                     pattern = "Stature") |>
+                                    stringr::str_replace_all(string = _,
+                                                             pattern = "Perennial",
+                                                             replacement = "Peren") |>
+                                    stringr::str_extract(string = _,
+                                                         pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                                  # This makes sure that we've assigned any shrubs
+                                  # that didn't get a sage-grouse group are
+                                  # assigned to "NonSagebrushShrub"
+                                  SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
+                                                              .default = SG_Group)
+  ) |>
+    # This is the bit that keeps records where the species was NA but there was
+    # a height recorded OR the GrowthHabit as recorded matches the species info
+    # added by species_join().
+    dplyr::filter(.data = _,
+                  is.na(Species) & !is.na(Height) |
+                    GrowthHabit_measured == GrowthHabit)
+
+  # Because we'll calculate "Hgt_Sagebrush_Live_Avg" if we ought to.
+  if (source %in% c("TerrADat", "AIM")) {
+    height_species <- dplyr::mutate(.data = height_species,
+                                    Chkbox = dplyr::case_when(Chkbox %in% c(0, "0") ~ "_Live",
+                                                              .default = as.character(Chkbox)))
+  }
+
+  #### Height calculations #####################################################
+  # These are the output variables we anticipate getting back (and want)
+  expected_indicator_variables <- c("Hgt_Woody_Avg",
+                                    "Hgt_Herbaceous_Avg",
+                                    "Hgt_Forb_Avg",
+                                    "Hgt_PerenForb_Avg",
+                                    "Hgt_Graminoid_Avg",
+                                    "Hgt_PerenGraminoid_Avg",
+                                    "Hgt_TallPerenGrass_Avg",
+                                    "Hgt_ShortPerenGrass_Avg",
+                                    "Hgt_PerenForbGraminoid_Avg",
+                                    "Hgt_Shrub_Avg",
+                                    "Hgt_NonSagebrushShrub_Avg",
+                                    "Hgt_Sagebrush_Avg")
+
+  # Let's do this with a lapply()!
+  # We'll need the definitions here for which variables should be used as
+  # indicator_variables for each pass.
+  indicator_variables_list <- list(c("type"),
+                                   c("GrowthHabitSub"),
+                                   c("Duration",
+                                     "GrowthHabitSub"),
+                                   c("pgpf"),
+                                   c("Noxious",
+                                     "Duration",
+                                     "GrowthHabitSub"),
+                                   c("SG_Group"))
+
+  # For TerrADat only
+  if (source %in% c("TerrADat", "AIM")) {
+    expected_indicator_variables <- c(expected_indicator_variables,
+                                      "Hgt_Sagebrush_Live_Avg")
+    indicator_variables_list[[length(indicator_variables_list) + 1]] <- c("SG_Group",
+                                                                          "Chkbox")
+  }
+
+  height_values_list <- lapply(X = indicator_variables_list,
+                               height_species = height_species,
+                               verbose = verbose,
+                               FUN = function(X, height_species, verbose){
+                                 if (verbose) {
+                                   message(paste(X,
+                                                 collapse = ", "))
+                                 }
+
+                                 mean_height(height_tall = height_species,
+                                             method = "mean",
+                                             tall = TRUE,
+                                             indicator_variables = X,
+                                             verbose = verbose) |>
+                                   dplyr::mutate(.data = _,
+                                                 indicator = stringr::str_remove_all(string = indicator,
+                                                                                     pattern = "\\.") |>
+                                                   paste0("Hgt_",
+                                                          . = _,
+                                                          "_Avg"))
+                               })
+
+  output <- dplyr::bind_rows(height_values_list) |>
+    dplyr::filter(.data = _,
+                  indicator %in% expected_indicator_variables) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = mean_height,
+                       values_fill = NA)
+
+  missing_indicators <- setdiff(x = expected_indicator_variables,
+                                y = names(output))
+  if (length(missing_indicators) > 0) {
+    warning(paste0("One or more expected indicators did not have qualifying data and will be returned with NA values. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
+                   paste(missing_indicators,
+                         collapse = ", ")))
+    output[, missing_indicators] <- NA
+  }
+
+  output
 }
 
 
