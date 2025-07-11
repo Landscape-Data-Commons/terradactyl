@@ -10,45 +10,6 @@ lpi_calc <- function(header = NULL,
                      digits = 1,
                      verbose = FALSE) {
   #### Handling header and raw data ############################################
-  # required_layers <- c(header = "tblLPIHeader",
-  #                      detail = "tblLPIDetail")
-  # if (all(c(is.null(header), is.null(lpi_tall), is.null(dsn)))) {
-  #   stop("header, lpi_tall, and dsn are all NULL. Either dsn or both header and lpi_tall must be specified.")
-  # }
-  #
-  # try_dsn <- !is.null(dsn)
-  #
-  # try_header_tall <- !is.null(header) & !is.null(lpi_tall)
-  #
-  # if (try_dsn) {
-  #   if (class(dsn) != "character") {
-  #     if (!try_header_tall) {
-  #       stop("dsn is not a valid path to a gedodatabase containing the required data and there were no separate header or lpi_tall data provided to fall back on.")
-  #     }
-  #   } else {
-  #     if (!(tools::file_ext(dsn) %in% c("GDB", "gdb"))) {
-  #       if (!try_header_tall) {
-  #         stop("dsn is not a valid path to a gedodatabase containing the required data and there were no separate header or lpi_tall data provided to fall back on.")
-  #       }
-  #     } else {
-  #       available_layers <- sf::st_layers(dsn = dsn)[["name"]]
-  #       missing_layers <- setdiff(x = required_layers,
-  #                                 available_layers)
-  #       if (length(missing_layers) > 0) {
-  #         stop(paste0("The geodatabase at ", dsn,
-  #                     " does not contain the following required layer(s): ",
-  #                     paste(missing_layers,
-  #                           collapse = ", "),
-  #                     " There were no separate header or lpi_tall data provided to fall back on."))
-  #       } else {
-  #
-  #       }
-  #     }
-  #   }
-  # } else if (try_header_tall) {
-  #
-  # }
-
   if ("character" %in% class(header)) {
     if (tools::file_ext(header) == "Rdata") {
       header <- readRDS(header)
@@ -822,25 +783,6 @@ lpi_calc <- function(header = NULL,
                                                                                                       indicator_variables = current_grouping_vars,
                                                                                                       verbose = verbose)
 
-                                                                     # # This is a little messy because pct_cover()
-                                                                     # # wants bare variable names.
-                                                                     # # There may be a better way to do this, but
-                                                                     # # for now this builds the function call as a
-                                                                     # # string and then executes that
-                                                                     # base_function_call_string <- paste0("pct_cover(lpi_tall = data,",
-                                                                     #                                     "tall = TRUE,",
-                                                                     #                                     "by_line = FALSE,",
-                                                                     #                                     "hit = '", hit, "'")
-                                                                     # if (!is.null(current_grouping_vars)) {
-                                                                     #   base_function_call_string <- paste0(base_function_call_string,
-                                                                     #                                       ",")
-                                                                     # }
-                                                                     # function_call_string <- paste0(base_function_call_string,
-                                                                     #                                paste(current_grouping_vars,
-                                                                     #                                      collapse = ","),
-                                                                     #                                ")")
-                                                                     # current_results_raw <- eval(expr = parse(text = function_call_string))
-
                                                                      # Sometimes there are no data that had non-NA
                                                                      # values in the variables of interest, so
                                                                      # we have to be prepared for that.
@@ -1582,88 +1524,6 @@ spp_inventory_calc <- function(header,
                        values_from = n,
                        values_fill = 0)
 
-  # # Count the number of species present in each group
-  # spp_inventory <- rbind(
-  #   # Noxious & Non-Noxious
-  #   species_count(spp_inventory_species, Noxious) %>%
-  #     dplyr::mutate(indicator = indicator %>%
-  #                     stringr::str_replace_all(c(
-  #                       "YES" = "NoxPlant",
-  #                       "\\bNO\\b" = "NonNoxPlant"
-  #                     )) %>%
-  #                     stringr::str_replace_na(
-  #                       string = .,
-  #                       replacement = "NonNoxPlant"
-  #                     )),
-  #
-  #   # Preferred Forb
-  #   species_count(spp_inventory_species, SG_Group) %>%
-  #     # Subset to only Preferred Forb
-  #     subset(indicator == "PreferredForb") %>%
-  #     dplyr::mutate(indicator = indicator %>%
-  #                     stringr::str_replace_all(c(" " = "")))
-  # ) %>%
-  #   # Format for appropriat indicator name
-  #   dplyr::mutate(indicator = paste("NumSpp_", indicator, sep = ""))
-  #
-  # # Spread to wide
-  # spp_inventory_wide <- spp_inventory %>% tidyr::spread(
-  #   key = indicator,
-  #   value = n,
-  #   fill = 0
-  # )
-  #
-  # # Get the list of species that fall into a category (e.g., Preferred Forb)
-  # spp_list_sg <- spp_inventory_species %>%
-  #   dplyr::select(PrimaryKey, Species, SG_Group) %>%
-  #   dplyr::distinct() %>%
-  #   dplyr::group_by(PrimaryKey, SG_Group) %>%
-  #   dplyr::summarize(list = toString(Species) %>%
-  #                      stringr::str_replace_all(
-  #                        pattern = ",",
-  #                        replacement = ";"
-  #                      )) %>%
-  #   # Format field names
-  #   subset(!is.na(SG_Group)) %>%
-  #   dplyr::mutate(indicator = SG_Group %>%
-  #                   stringr::str_replace_all(c(
-  #                     "Perennial" = "Peren",
-  #                     " " = "",
-  #                     "Stature" = ""
-  #                   )) %>%
-  #                   paste("Spp_", ., sep = "")) %>%
-  #   dplyr::select(-SG_Group) %>%
-  #   # Output in wide format
-  #   tidyr::spread(key = indicator, value = list, fill = NA)
-  #
-  # spp_list_nox <- spp_inventory_species %>%
-  #   dplyr::select(PrimaryKey, Species, Noxious) %>%
-  #   dplyr::distinct() %>%
-  #   dplyr::group_by(PrimaryKey, Noxious) %>%
-  #   dplyr::summarize(list = toString(Species) %>%
-  #                      stringr::str_replace_all(
-  #                        pattern = ",",
-  #                        replacement = ";"
-  #                      )) %>%
-  #   # Format field names
-  #   subset(!is.na(Noxious)) %>%
-  #   dplyr::mutate(indicator = Noxious %>%
-  #                   stringr::str_replace_all(c(
-  #                     "NO" = "NonNox",
-  #                     "YES" = "Nox",
-  #                     " " = ""
-  #                   )) %>%
-  #                   paste("Spp_", ., sep = "")) %>%
-  #   dplyr::select(-Noxious) %>%
-  #   # Output in wide format
-  #   tidyr::spread(key = indicator, value = list, fill = NA)
-  #
-  # spp_list <- dplyr::full_join(spp_list_sg, spp_list_nox)
-  #
-  # # Join with spp_inventory, drop columns, and return
-  # spp_inventory <- dplyr::full_join(spp_inventory_wide, spp_list) %>%
-  #   dplyr::select_if(!names(.) %in% c("DBKey"))
-
   missing_indicators <- setdiff(x = expected_indicator_variables,
                                 y = names(output))
   if (length(missing_indicators) > 0) {
@@ -1826,114 +1686,6 @@ build_terradat_indicators <- function(header, source, dsn,
 
   output <- purrr::reduce(.x = indicators_list,
                           .f = dplyr::left_join)
-
-  # if (class(lpi_tall) == "character") {
-  #   if (tools:file_ext(lpi_tall) == "rds") {
-  #     lpi_tall_header <- readRDS(lpi_tall) |>
-  #       dplyr::left_join(x = dplyr::select(.data = header,
-  #                                          PrimaryKey, SpeciesState),
-  #                        y = _,
-  #                        by = "PrimaryKey") |>
-  #       # This is here for now, but shouldn't be once we've got more auto QC in
-  #       # place.
-  #       suppressWarnings()
-  #   } else {
-  #     stop("When lpi_tall is a character string it must be the path to a .rds file containing tall LPI data.")
-  #   }
-  # } else if (class(lpi_tall) == "data.frame") {
-  #   lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
-  #                                                         PrimaryKey, SpeciesState),
-  #                                       y = lpi_tall,
-  #                                       by = "PrimaryKey") |>
-  #     # This is here for now, but shouldn't be once we've got more auto QC in
-  #     # place.
-  #     suppressWarnings()
-  # }
-
-  # # Read header in
-  # header <- readRDS(header) %>%
-  #   # Filter using the filtering expression specified by user
-  #   dplyr::filter(!!!filter_exprs) %>%
-  #   dplyr::filter(source %in% c("AIM", "TerrADat"))
-  #
-  # # Check header for data
-  # if(nrow(header) == 0){
-  #   stop("No rows in header file")
-  # }
-  #
-  # # Join all indicator calculations together
-  # Calculate all indicators and send them to a list, to later be reduced
-  # If a method is not provided (ie the path to the table provided as NULL)
-  # then we need a NULL variable to go into the list
-  # if(!is.null(lpi_tall)){
-  #   # LPI
-  #   lpi <- lpi_calc(lpi_tall = lpi_tall,
-  #                   header = header,
-  #                   source = source,
-  #                   species_file = species_file,
-  #                   dsn = dsn,
-  #                   generic_species_file = generic_species_file)
-  # } else {
-  #   print("LPI data not provided")
-  #   lpi <- NULL
-  # }
-  #
-  # # Gap
-  # if(!is.null(gap_tall)){
-  #   gap <- gap_calc(gap_tall = gap_tall,
-  #                   header = header)
-  # } else {
-  #   print("Gap data not provided")
-  #   gap <- NULL
-  # }
-  #
-  # # Height
-  # if(!is.null(height_tall)){
-  #   height <- height_calc(height_tall = height_tall,
-  #                         header = header,
-  #                         source = source,
-  #                         species_file = species_file,
-  #                         generic_species_file = generic_species_file)
-  # } else {
-  #   print("Height data not provided")
-  #   height <- NULL
-  # }
-  #
-  # # Species Inventory
-  # if(!is.null(spp_inventory_tall)){
-  #   spinv <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
-  #                               header = header,
-  #                               species_file = species_file,
-  #                               source = source,
-  #                               generic_species_file = generic_species_file)
-  # } else {
-  #   print("Species inventory data not provided")
-  #   spinv <- NULL
-  # }
-  #
-  # # Soil Stability
-  # if(!is.null(soil_stability_tall)){
-  #   sstab <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
-  #                                header = header)
-  # } else {
-  #   print("Soil stability data not provided")
-  #   sstab <- NULL
-  # }
-  #
-  # # Rangeland health
-  # if(!is.null(dsn)){
-  #   if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
-  #     print("Gathering rangeland health indicators from dsn")
-  #     rh <- gather_rangeland_health(dsn, source = source) %>%
-  #       # Remove RecKey field, which is not applicable at the indicator level
-  #       dplyr::select_if(!names(.) %in% c("RecKey"))
-  #   } else {
-  #     print("Rangeland health data not found")
-  #     rh <- NULL
-  #   }
-  # } else {
-  #   rh <- NULL
-  # }
 
   # Combine the indicators
   l_indicators <- list(header, lpi, gap, height, spinv, sstab, rh)
