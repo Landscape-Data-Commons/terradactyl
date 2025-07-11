@@ -1,56 +1,48 @@
 #' @export build_terradat_indicators
 #' @rdname aim_gdb
 # Build indicators feature class
-build_terradat_indicators <- function(header, source, dsn,
+build_terradat_indicators <- function(header,
+                                      dsn,
                                       species_file,
                                       lpi_tall,
                                       gap_tall,
                                       height_tall,
                                       spp_inventory_tall,
-                                      soil_stability_tall, ...) {
-  # Test that source is  "TerrADat"
-  if (!source %in% c("TerrADat", "AIM")) {
-    stop("Invalid indicator source specified")
+                                      soil_stability_tall,
+                                      ...) {
+  #### Setup ###################################################################
+  # Assign filter expressions
+  filter_exprs <- rlang::quos(...)
+
+  #### Reading and filtering headers ###########################################
+  if ("character" %in% class(header)) {
+    if (tools::file_ext(header) %in% c("RDS", "rds")) {
+      header <- readRDS(header)
+    }
+  } else if (!("data.frame" %in% class(header))) {
+    stop("header must either be a data frame or the filepath to an RDS file containing a data frame.")
   }
 
-  if (nrow(header) < 1) {
-    stop("There are no records in header. Please confirm that your header table contains records and that your filtering arguments do not exclude all records present.")
+  # Filter using the filtering expression specified by user
+  header <- dplyr::filter(.data = header,
+                          source %in% c("AIM", "TerrADat"),
+                          !!!filter_exprs)
+
+  # Check header for data
+  if(nrow(header) < 1){
+    stop("No records in the provided header data.")
   }
 
-  lpi_required_layers <- c("tblLPIHeader",
-                           "tblLPIDetail",
-                           "tblPlots",
-                           "tblNationalPlants",
-                           "tblStateSpecies")
-  gap_required_layers <- c("tblGapHeader",
-                           "tblGapDetail")
-  height_required_layers <- c("tblLPIHeader",
-                              "tblLPIDetail")
-  soil_stability_required_layers <- c("tblSoilStabHeader",
-                                      "tblSoilStabDetail")
-  species_inventory_required_layers <- c("tblSpecRichHeader",
-                                         "tblSpecRichDetail")
-  rangeland_health_required_layers <- c("tblQualHeader",
-                                        "tblQualDetail")
-
-  required_layers <- unique(c(lpi_required_layers,
-                              gap_required_layers,
-                              height_required_layers,
-                              soil_stability_required_layers,
-                              species_inventory_required_layers,
-                              rangeland_health_required_layers))
-
-  available_layers <- sf::st_layers(dsn = dsn)[["names"]]
-
-  missing_layers <- setdiff(x = required_layers,
-                            y = available_layers)
-
-  if (length(missing_layers) > 0) {
-    warning(paste0("The following tables are missing from the specified geodatabase: ",
-                   paste(missing_layers,
-                         collapse = ", "),
-                   ". The indicators which depend on those will not be calculated."))
+  #### Calculating indicators ##################################################
+  indicators_list <- list()
+  ##### LPI --------------------------------------------------------------------
+  if (!is.null(lpi_tall)) {
+    indicators_list[["lpi"]] <- lpi_calc(dsn = dsn,
+                                         generic_species_file = generic_species_file)
+  } else {
+    warning("Unable to calculate LPI indicators due to incomplete data.")
   }
+
 
   # # Join all indicator calculations together
   # Calculate all indicators and send them to a list, to later be reduced
@@ -64,14 +56,17 @@ build_terradat_indicators <- function(header, source, dsn,
                     species_file = species_file,
                     dsn = dsn)
   } else {
-    warning("Unable to calculate LPI indicators due to incomplete data.")
+    print("LPI data not provided")
+    lpi <- NULL
   }
 
-  ##### Gap --------------------------------------------------------------------
-  if (all(gap_required_layers %in% available_layers)) {
-    indicators_list[["gap"]] <- gap_calc(dsn = dsn)
+  # Gap
+  if(!is.null(gap_tall)){
+    gap <- gap_calc(gap_tall = gap_tall,
+                    header = header)
   } else {
-    warning("Unable to calculate gap indicators due to incomplete data.")
+    print("Gap data not provided")
+    gap <- NULL
   }
 
   # Height
@@ -81,7 +76,8 @@ build_terradat_indicators <- function(header, source, dsn,
                           source = source,
                           species_file = species_file)
   } else {
-    warning("Unable to calculate height indicators due to incomplete data.")
+    print("Height data not provided")
+    height <- NULL
   }
 
   # Species Inventory
@@ -91,16 +87,17 @@ build_terradat_indicators <- function(header, source, dsn,
                                 species_file = species_file,
                                 source = source)
   } else {
-    warning("Unable to calculate soil stability indicators due to incomplete data.")
+    print("Species inventory data not provided")
+    spinv <- NULL
   }
 
-
-  ##### Species Inventory ------------------------------------------------------
-  if (all(species_inventory_required_layers %in% available_layers)) {
-    indicators_list[["species"]] <- spp_inventory_calc(dsn = dsn)
+  # Soil Stability
+  if(!is.null(soil_stability_tall)){
+    sstab <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
+                                 header = header)
   } else {
-    warning("Unable to calculate species inventory indicators due to incomplete data.")
-    species_indicators <- NULL
+    print("Soil stability data not provided")
+    sstab <- NULL
   }
 
   # Rangeland health
@@ -113,9 +110,6 @@ build_terradat_indicators <- function(header, source, dsn,
     print("Rangeland health data not found")
     rh <- NULL
   }
-
-  output <- purrr::reduce(.x = indicators_list,
-                          .f = dplyr::left_join)
 
   # Combine the indicators
   l_indicators <- list(header, lpi, gap, height, spinv, sstab, rh)
