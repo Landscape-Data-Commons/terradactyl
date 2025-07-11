@@ -1024,59 +1024,62 @@ lpi_calc <- function(header = NULL,
 gap_calc <- function(header,
                      gap_tall,
                      verbose = FALSE) {
-  if (!"data.frame" %in% class(header)) {
-    stop("header must be a data frame.")
-  }
-  if (!"PrimaryKey" %in% names(header)) {
-    stop("The variable PrimaryKey must appear in the header data frame.")
+  if ("character" %in% class(header)) {
+    if (tools::file_ext(header) == "Rdata") {
+      header <- readRDS(file = header)
+    } else {
+      stop("When header is a character string it must be the path to a .rds file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(header)) {
+    header <- header
+  } else if (!is.null(header)) {
+    stop("header must be a data frame or a filepath to an .Rdata file that contains the header data frame.")
   }
 
-  if(verbose) {
+
+  if (verbose) {
     print("Reading gap data")
   }
-
-  data <- readRDS(gap_tall)
-
-  # tidy gap
-  gap_tall <- readRDS(gap_tall) %>%
-
-    # Subset to PrimaryKeys in the header
-    subset(PrimaryKey %in% header$PrimaryKey)
-
-  # Calculate indicators
-  gap_indicators <- gap_cover(
-    gap_tall = gap_tall,
-    tall = FALSE
-  )$percent %>%
-    dplyr::rowwise() %>%
-    dplyr::select(PrimaryKey,
-                  GapCover_25_50 = "25-50",
-                  GapCover_51_100 = "51-100",
-                  GapCover_101_200 = "101-200",
-                  GapCover_200_plus = "201-Inf"
-    ) |>
-    dplyr::mutate(.data = _,
-                  GapCover_25_plus = GapCover_25_50 +
-                    GapCover_51_100 +
-                    GapCover_101_200 +
-                    GapCover_200_plus)
-
-  # There may be situations where the total line length was incorrectly recorded
-  # by the crew. This is really only detectable at this point when the gap
-  # percentages sum to more than 100.
-  too_much_gap <- dplyr::filter(.data = gap_indicators,
-                                GapCover_25_plus > 100) |>
-    dplyr::pull(.data = _,
-                PrimaryKey) |>
-    unique()
-
-  if (length(too_much_gap) > 0) {
-    warning(paste("There are", length(too_much_gap), "plots where the total gap summed to over 100%. This is almost certainly due to incorrect metadata and the values can't be used, so they will not be returned."))
+  if ("character" %in% class(gap_tall)) {
+    if (tools::file_ext(gap_tall) == "Rdata") {
+      gap_tall <- readRDS(file = gap_tall)
+    } else {
+      stop("When gap_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(gap_tall)) {
+    gap_tall <- gap_tall
+  } else {
+    stop("gap_tall must be a data frame or a filepath to an .Rdata file that contains the gap_tall data frame.")
   }
 
-  # Return
-  dplyr::filter(.data = gap_indicators,
-                !(PrimaryKey %in% too_much_gap))
+  if (!is.null(header)) {
+    if ("PrimaryKey" %in% names(header)) {
+      pks <- unique(header$PrimaryKey)
+    } else {
+      warning("The variable 'PrimaryKey' does not appear in the provided header data. As a result, gap_tall will not be filtered prior to calculations. If you intend to restrict gap_tall to records based on PrimaryKey values, please provide that information in header or filter gap_tall prior to calling this function.")
+      pks <- NULL
+    }
+  } else {
+    pks <- NULL
+  }
+
+  if (length(pks) > 0) {
+    gap_tall <- dplyr::filter(.data = gap_tall,
+                              PrimaryKey %in% pks)
+  }
+
+
+  # Calculate indicators and rename them.
+  gap_values <- gap_cover(gap_tall = gap_tall,
+                          tall = FALSE)$percent |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(x = c("PrimaryKey",
+                                           GapCover_25_50 = "25-50",
+                                           GapCover_51_100 = "51-100",
+                                           GapCover_101_200 = "101-200",
+                                           GapCover_200_plus = "201-Inf")))
+
+  gap_values
 }
 
 
