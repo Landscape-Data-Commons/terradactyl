@@ -313,30 +313,35 @@ generic_growth_habits <- function(data,
 #' @export species_join
 #' @rdname species
 
+
 # Join species with field data
 species_join <- function(data, # field data,
                          data_code = "code", # Species field in the data
                          species_file, # path to .csv or .gdb holding  the species table
-                         species_code = "SpeciesCode", # field name in species file that identifies the species code
+                         species_layer = "tblNationalPlants",
+                         species_code = "NameCode", # field name in species file that identifies the species code
                          species_growth_habit_code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
                          species_duration = "Duration", # field name in species file of the Duration assignment
+                         species_property_vars = c("GrowthHabit",
+                                                   "GrowthHabitSub",
+                                                   "Duration",
+                                                   "Family",
+                                                   "HigherTaxon",
+                                                   "Nonnative",
+                                                   "Invasive",
+                                                   "Noxious",
+                                                   "SpecialStatus",
+                                                   "Photosynthesis",
+                                                   "PJ",
+                                                   "CurrentPLANTSCode"),
                          growth_habit_file = "", # path to .csv or gdb holding tblSpeciesGrowthHabit
                          growth_habit_code = "Code",
                          overwrite_generic_species = FALSE,
                          generic_species_file = "",
-                         update_species_codes = TRUE,
-                         by_species_key = TRUE) {
-  # message
-  message("Gathering species data")
-
-  # Set join levels, so that we can flexibly include SpeciesState
-  join_by <- data_code
-  if (by_species_key) {
-    if ("SpeciesState" %in% names(data)) {
-      join_by <- c(data_code, "SpeciesState")
-    }
-  }
-
+                         update_species_codes = FALSE,
+                         by_species_key = FALSE,
+                         check_species = FALSE,
+                         verbose = FALSE) {
 
   # Some projects use "None" to indicate "No species". Convert those to "N"
   # instead.
@@ -346,28 +351,111 @@ species_join <- function(data, # field data,
                                                                     pattern = "None",
                                                                     replacement = "N")))
 
-  ## Load species data
-  species_list <- terradactyl::gather_species(species_file = species_file,
-                                              growth_habit_file = growth_habit_file,
-                                              growth_habit_code = growth_habit_code,
-                                              species_growth_habit_code = species_growth_habit_code)
+  # Pull in the species list from whatever source (or just reformat it from the
+  # provided data frame)
+  if (verbose) {
+    message("Prepping species data.")
+  }
+  # I don't think we need or want gather_species() anymore? It seems to be
+  # there to support the use of a growth habit lookup table of some kind, but
+  # that part of the workflow that no longer applies as far as I can tell.
+  # species_list <- gather_species(species_file = species_file,
+  #                                growth_habit_file = growth_habit_file,
+  #                                growth_habit_code = growth_habit_code,
+  #                                species_growth_habit_code = species_growth_habit_code)
 
-  # Clean up values in the species_list that should be NA.
-  # There are two passes because dplyr::na_if() can only compare vectors of
-  # identical lengths.
-  species_list <- dplyr::mutate(.data = species_list,
-                                dplyr::across(.cols = dplyr::where(fn = is.character),
-                                              .fns = ~ dplyr::na_if(x = .x,
-                                                                    y = "")),
-                                dplyr::across(.cols = dplyr::where(fn = is.character),
-                                              .fns = ~ dplyr::na_if(x = .x,
-                                                                    y = "NA")))
+  if (is.character(species_file)) {
+    # First off, does this point to a real file?
+    if (!file.exists(species_file)) {
+      stop("The specified species_file does not exist.")
+    }
+
+    # If the species_file does point to a real file, can we read anything in?
+    species_file_extension <- tools::file_ext(x = species_file) |>
+      toupper()
+
+    if (species_file_extension == "CSV") {
+      species_list <- read.csv(file = species_file,
+                               stringsAsFactors = FALSE,
+                               na.strings = c("", " "))
+    } else if (species_file_extension == "GDB") {
+      if (verbose) {
+        message(paste0("Given that species_file points to a GDB, attempting to read in ", species_layer, "."))
+      }
+      # This is written as a stub for if we want to support multiple layers at
+      # once, but I don't think we will. This is because in 2025 Terrestrial AIM
+      # uses two species tables, tblNationalPlants and tblStateSpecies, but
+      # we've opted to do two species joins.
+      relevant_layers <- sf::st_layers(dsn = species_file)[["name"]] |>
+        intersect(x = _,
+                  y = species_layer)
+      if (length(relevant_layers) < 1) {
+        stop(paste0("The species_file points to a GDB which does not contain the feature class specified by species_layer: ", paste(relevant_layers,
+                                                                                                                                    collapse = ", ")))
+      } else {
+        if (verbose) {
+          missing_species_tables <- setdiff(x = names(relevant_layers),
+                                            y = species_layer)
+          if (length(missing_species_tables) > 0) {
+            message(paste0("Unable to find the following expected (but potentially not required) tables in the GDB: ",
+                           paste(missing_species_tables,
+                                 collapse = ", ")))
+          }
+        }
+      }
+
+      species_list <- sf::st_read(dsn = species_file,
+                                  layer = relevant_layers,
+                                  quiet = TRUE) |>
+        # But just in case there is geometry somehow, we'll discard it.
+        sf::st_drop_geometry(x = _)
+
+    } else {
+      stop("The specified species_file does not point to a CSV or GDB.")
+    }
+
+  } else if (is.data.frame(species_file)) {
+    species_list <- species_file
+  } else {
+    stop("species_file needs to be a data frame or the filepath to a GDB or a CSV.")
+  }
+
+  # Cleanup!
+  # These are variables for internal use within
+  # the geodatabase, so we'll chuck them to
+  # prevent issues down the line, specifically
+  # trying to use distinct()
+  species_list <- dplyr::select(.data = species_list,
+                                -tidyselect::any_of(x = c("created_user",
+                                                          "created_date",
+                                                          "last_edited_user",
+                                                          "last_edited_date",
+                                                          "GlobalID",
+                                                          "DateLoadedInDb",
+                                                          "DBKey"))) |>
+    # Making sure that we have character variables
+    # instead of factors, that we've removed any
+    # leading or trailing whitespace from strings,
+    # and that we're not keeping any records where
+    # the species code is NA.
+    dplyr::mutate(.data = _,
+                  dplyr::across(.cols = tidyselect::where(fn = is.factor),
+                                .fns = ~ as.character(x = .x) |>
+                                  stringr::str_trim(string = _)),
+                  dplyr::across(.cols = tidyselect::where(fn = is.character),
+                                .fns = ~ dplyr::na_if(x = .x,
+                                                      y = ""))) |>
+    dplyr::filter(.data = _,
+                  !is.na(dplyr::vars(species_code))) |>
+    dplyr::distinct()
 
 
   # Look for UpdatedSpecies and Update the Observation codes, if necessary
   if ("UpdatedSpeciesCode" %in% names(species_list) & update_species_codes) {
     if (any(!is.na(species_list$UpdatedSpeciesCode))) {
-
+      if (verbose) {
+        message("Applying the values from UpdatedSpeciesCode.")
+      }
       # Make a new variable called internal_code_var that we can work with
       species_list <- dplyr::rename(.data = species_list,
                                     tidyselect::all_of(c(internal_code_var = species_code)))
@@ -439,140 +527,171 @@ species_join <- function(data, # field data,
       species_list <- dplyr::rename(.data = species_list,
                                     tidyselect::all_of(setNames(object = "internal_code_var",
                                                                 nm = species_code)))
+    } else {
+      if (verbose) {
+        message("Skipping species code updates due to lack of qualifying records.")
+      }
+    }
+  } else if (!("UpdatedSpeciesCode" %in% names(species_list)) & update_species_codes) {
+    warning("update_species_code is TRUE but UpdatedSpeciesCode is not a variable in the species list. No species codes will be updated.")
+  }
+
+  if (verbose) {
+    message("Inferring missing species information for standardized unknown species codes.")
+  }
+  ## Merge unknown codes
+  # We need to make sure that the data object doesn't have geometry associated
+  species_generic <- generic_growth_habits(data = sf::st_drop_geometry(x = data),
+                                           data_code = data_code,
+                                           species_list = species_list,
+                                           species_code = species_code,
+                                           species_growth_habit_code = species_growth_habit_code, # field name in species file of the species code to link to GrowthHabit
+                                           species_duration = species_duration,
+                                           verbose = verbose)
+
+  # Disabled for now because using CurrentPLANTSCode means that there will be
+  # duplicates thanks to synonymy and it's complicated to procedurally handle
+  # all the possible variables that might be present.
+
+  if (check_species) {
+    if (verbose) {
+      message("Checking for duplicate species codes.")
+    }
+
+    nonunique_speciescodes <- dplyr::summarize(.data = species_generic,
+                                               .by = tidyselect::all_of(species_code),
+                                               n = dplyr::n()) |>
+      dplyr::filter(.data = _,
+                    n > 1) |>
+      dplyr::pull(.data = _,
+                  var = species_code)
+
+    if (length(nonunique_speciescodes) > 0) {
+      warning(paste0("There are ", length(nonunique_speciescodes), " codes which occur in the species list more than once in the variable ", species_code, ". This is expected when using a variable like CurrentPLANTSCode. The first record for each of these codes will be kept, even if other records have more complete species information. If this is unexpected, check your species list for accuracy."))
+      species_generic <- dplyr::summarize(.data = species_generic,
+                                          .by = tidyselect::all_of(species_code),
+                                          dplyr::across(.cols = tidyselect::any_of(x = species_property_vars),
+                                                        .fns = ~ .x[!is.na(.x)] |>
+                                                          dplyr::first(x = _) |>
+                                                          as.character()))
+    } else {
+      if (verbose) {
+        message("No duplicate species codes found!")
+      }
     }
   }
 
-  ## Merge unknown codes
-  species_generic <- generic_growth_habits(
-    data = as.data.frame(data), # in some applications, data will be an sf object
-    data_code = data_code,
-    species_list = species_list,
-    species_code = species_code,
-    species_growth_habit_code = species_growth_habit_code, # field name in species file of the species code to link to GrowthHabit
-    species_duration = species_duration # field name for duration
-  )
+  if (verbose) {
+    message("Adding species_list information to the data.")
+  }
 
+  # Set join levels, so that we can flexibly include SpeciesState
+  join_by <- data_code
+  if (by_species_key) {
+    if ("SpeciesState" %in% names(data) & "SpeciesState" %in% names(species_generic)) {
+      join_by <- c(data_code, "SpeciesState")
+    } else {
+      if (verbose) {
+        warning("by_species_key is TRUE but the variable SpeciesState is not present in both the data and species and so cannot be used in joins.")
+      }
+    }
+  }
 
-
-  # # check for duplicate species
-  # if (nrow(species_generic[duplicated(species_generic$Symbol), ]) > 0) {
-  #   warning("Duplicate species codes in the species file.
-  #           The first species occurrence will be used.")
-  #   message(species_generic[duplicated(species_generic$Symbol), ])
-  # }
-
-
-  # message
-  message("Merging data and species tables")
-
-  ## Rename column
-  species_generic <- species_generic %>%
-    dplyr::rename_at(dplyr::vars(species_code), ~data_code)
-
-  ## Remove any duplicate values
-  species_generic <- species_generic %>% dplyr::distinct()
-
-  # If species are entered more than once but with different data (eg Family is missing once), it wont be removed by the above
-  species_generic <-
-    species_generic[!duplicated(species_generic %>%
-                                  dplyr::select(all_of(join_by))),]
-
-  # Add species information to data
-  data_species <- dplyr::left_join(
-    x = data %>% dplyr::mutate_at(dplyr::vars(data_code), toupper),
-    y = species_generic,
-    # Enforcing that there shouldn't be multiple records in species_generic that
-    # share a code!!!!!
-    relationship = "many-to-one",
-    by = join_by
-  )
-
-  data_species <- data_species %>% dplyr::distinct()
+  # Make sure that the variables containing the codes are named the same thing
+  # between the species list and the data then join them!
+  data_species <- dplyr::select(.data = species_generic,
+                                tidyselect::all_of(x = setNames(object = species_code,
+                                                                nm = data_code)),
+                                tidyselect::everything()) |>
+    dplyr::left_join(x = data,
+                     y = _,
+                     # Enforcing that there shouldn't be multiple records in
+                     # species_generic that share a code!!!!!
+                     relationship = "many-to-one",
+                     by = join_by) |>
+    dplyr::distinct()
 
   # Overwrite generic species assignments with provided table
-  if (overwrite_generic_species) {
-    if (generic_species_file == "") {
-      generic_species_file <- species_file
+  if (overwrite_generic_species & generic_species_file != "") {
+    if (!file.exists(generic_species_file)) {
+      stop(paste0("The generic_species_file path points to ", generic_species_file, " which does not exist."))
+    }
+    if (verbose) {
+      message("Attempting to read in and join generic species information using generic_species_file")
     }
     ext <- tolower(x = tools::file_ext(x = generic_species_file))
-    if(ext == "gdb"){
-      tbl_species_generic <- sf::st_read(
-        dsn = generic_species_file,
-        layer = "tblSpeciesGeneric",
-        stringsAsFactors = FALSE
-      )
-    } else if (ext == "csv"){
-      tbl_species_generic <- read.csv(generic_species_file)
+    if (ext == "csv"){
+      tbl_species_generic <- read.csv(generic_species_file) |>
+        dplyr::select(.data = _,
+                      # This'll keep only these variables, renaming SpeciesCode
+                      # to whatever data_code is.
+                      tidyselect::all_of(x = setNames(object = c("SpeciesCode",
+                                                                 "GrowthHabitCode",
+                                                                 "Duration",
+                                                                 "SG_Group",
+                                                                 "Noxious"),
+                                                      nm = c(data_code)))) |>
+        # Make sure we're not dealing with factors
+        dplyr::mutate(.data = _,
+                      dplyr::across(.cols = tidyselect::where(fn = is.factor),
+                                    .fns = as.character))
+    } else if (ext == "gdb") {
+      tbl_species_generic <- read.csv(generic_species_file) |>
+        dplyr::select(.data = _,
+                      # This'll keep only these variables, renaming SpeciesCode
+                      # to whatever data_code is.
+                      tidyselect::all_of(x = setNames(object = c("SpeciesCode",
+                                                                 "GrowthHabitCode",
+                                                                 "Duration",
+                                                                 "SG_Group",
+                                                                 "Noxious"),
+                                                      nm = c(data_code)))) |>
+        # Make sure we're not dealing with factors
+        dplyr::mutate(.data = _,
+                      dplyr::across(.cols = tidyselect::where(fn = is.factor),
+                                    .fns = as.character))
     } else {
-      stop("Unknown generic species list format. Must be a path to a geodatabase (.gdb) or comma-separated values file (.csv)")
+      stop("Unknown generic species list format. Must be a path to a CSV")
     }
-    # Read tblSpeciesGeneric
-    tbl_species_generic <- tbl_species_generic %>%
-      # Select only the needed fields
-      dplyr::select(
-        SpeciesCode,
-        # NOTE: WHY WAS DBKEY INCLUDED HERE????
-        # DBKey,
-        GrowthHabitCode,
-        Duration, SG_Group, Noxious
-      ) %>%
-      # Convert to character
-      dplyr::mutate_if(is.factor, as.character)
 
-    # Rename SpeciesCode to the data_code value
+    # Join data_species to the generic species table and do some munging.
+    data_species <- dplyr::left_join(x = data_species,
+                                     y = tbl_species_generic,
+                                     by = c(data_code),
+                                     relationship = "many-to-one",
+                                     suffix = c("", "_generic")) |>
+      # This CSV is apparently expected to encode growth habit info as integers
+      # so here's the hardcoded lookup.
+      dplyr::mutate(.data = _,
+                    GrowthHabit = dplyr::case_match(.x = GrowthHabitCode,
+                                                    c(1:4) ~ "Woody",
+                                                    c(5:7) ~ "NonWoody",
+                                                    .missing = GrowthHabit),
+                    GrowthHabitSub = dplyr::case_match(.x = GrowthHabitCode,
+                                                       1 ~ "Tree",
+                                                       2 ~ "Shrub",
+                                                       3 ~ "Subshrub",
+                                                       4 ~ "Succulent",
+                                                       5 ~ "Forb",
+                                                       6 ~ "Graminoid",
+                                                       7 ~ "Sedge",
+                                                       .missing = GrowthHabitSub),
+                    # Only update these variables if the generic species info
+                    # contradicts the already existing value and isn't NA
+                    Duration = dplyr::case_when(!(Duration %in% Duration_generic) & !is.na(Duration_generic) ~ Duration_generic,
+                                                .default = Duration),
+                    SG_Group = dplyr::case_when(!(SG_Group %in% SG_Group_generic) & !is.na(SG_Group_generic) ~ SG_Group_generic,
+                                                .default = SG_Group),
+                    Noxious = dplyr::case_when(!(Noxious %in% Noxious_generic) & !is.na(Noxious_generic) ~ Noxious_generic,
+                                               .default = Noxious)) |>
+      # Keep only the relevant variables.
+      dplyr::select(.data = _,
+                    tidyselect::all_of(x = names(data_species)))
+  }
 
-    tbl_species_generic <- tbl_species_generic %>%
-      dplyr::rename_at("SpeciesCode", ~data_code)
+  data_species
+}
 
-    # Join data_species to the generic species table
-    data_species_generic <- dplyr::left_join(
-      x = data_species,
-      y = tbl_species_generic,
-      by = c(data_code)
-    )
-
-    # Convert GrowthHabitCode to GrowthHabit and GrowthHabitSub
-    data_species_generic <- data_species_generic %>%
-      dplyr::mutate(
-        GrowthHabit = dplyr::recode(as.character(GrowthHabitCode),
-                                    "1" = "Woody",
-                                    "2" = "Woody",
-                                    "3" = "Woody",
-                                    "4" = "Woody",
-                                    "5" = "NonWoody",
-                                    "6" = "NonWoody",
-                                    "7" = "NonWoody",
-                                    .missing = as.character(GrowthHabit)
-        ),
-        GrowthHabitSub = dplyr::recode(as.character(GrowthHabitCode),
-                                       "1" = "Tree",
-                                       "2" = "Shrub",
-                                       "3" = "Subshrub",
-                                       "4" = "Succulent",
-                                       "5" = "Forb",
-                                       "6" = "Graminoid",
-                                       "7" = "Sedge",
-                                       .missing = as.character(GrowthHabitSub)
-        ),
-
-        # If the Duration assignments are different, overwrite
-        Duration = ifelse(Duration.x != as.character(Duration.y) & !is.na(Duration.y),
-                          Duration.y, Duration.x
-        ),
-
-        # If the SG_Group assignments are different, overwrite
-        SG_Group = ifelse(SG_Group.x != as.character(SG_Group.y) & !is.na(SG_Group.y),
-                          SG_Group.y, SG_Group.x
-        ),
-
-        # If the Noxious assignments are different, overwrite
-        Noxious = ifelse(Noxious.x != as.character(Noxious.y) & !is.na(Noxious.y),
-                         Noxious.y, Noxious.x
-        )
-      )
-
-    # Select only the fields from the original data_species file
-    data_species <- data_species_generic[, colnames(data_species)]
 #' @export species_count
 #' @rdname gather_species_inventory
 species_count <- function(species_inventory_tall,
