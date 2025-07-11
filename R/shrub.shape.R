@@ -12,66 +12,118 @@
 #' @rdname sagebrush_shape
 #'
 sagebrush_shape_base <- function(lpi_tall) {
-  shrub_shape <- lpi_tall %>%
-    # Get the Sagebrush hits
-    subset(SG_Group %in% "Sagebrush" & !is.na(ShrubShape)) %>%
-    # condense to the unique lpi hits
-    dplyr::select(dplyr::any_of(c(
-      "PrimaryKey",
-      "RecKey",
-      "PointNbr",
-      "ShrubShape",
-      "chckbox"
-    ))) %>%
+  shrub_shape <- dplyr::filter(.data = lpi_tall,
+                               SG_Group %in% "Sagebrush",
+                               !is.na(ShrubShape)) |>
+    dplyr::select(dplyr::any_of(c("PrimaryKey",
+                                  "RecKey",
+                                  "PointNbr",
+                                  "ShrubShape",
+                                  "chckbox"))) |>
     dplyr::distinct()
 
-  # Summarize by all ShrubShape observations
-  shrub_shape_predominant <- shrub_shape %>%
-    # Count the number of its for each ShrubShape type (C or M)
-    dplyr::count(PrimaryKey, ShrubShape) %>%
-    # pivot wider so each shape type is a column
-    tidyr::pivot_wider(
-      names_from = ShrubShape,
-      values_from = n,
-      values_fill = list(n = 0)
-    ) %>%
-    dplyr::mutate(
-      C = if ("C" %in% names(.)) {
-        C
-      } else {
-        0
-      },
-      S = if ("S" %in% names(.)) {
-        S
-      } else {
-        0
-      }
-    ) %>%
-    # Determine which ShrubShape is predominant on the plot
-    # (e_g_, the max occurrences)
-    dplyr::mutate(SagebrushShape_All_Predominant = dplyr::case_when(
-      C > S ~ "C",
-      C < S ~ "S",
-      C == S ~ "CS"
-    )) %>%
-    # Rename fields
-    dplyr::select(
-      SagebrushShape_All_ColumnCount = C,
-      SagebrushShape_All_SpreadCount = S,
-      SagebrushShape_All_Predominant,
-      PrimaryKey
-    )
-
-
-
-  # Rename for indicator tables
-  if (nrow(shrub_shape_predominant) == 0) {
-    sagebrush_shape_all <- shrub_shape_predominant %>%
-      dplyr::mutate(
-        SagebrushShape_All_ColumnCount = NA,
-        SagebrushShape_All_SpreadCount = NA
-      )
+  if (nrow(shrub_shape) < 1) {
+    warning("No qualifying sagebrush shape records. Returning NULL.")
+    return(NULL)
   }
+
+  shrub_shape <- dplyr::count(x = shrub_shape,
+                              PrimaryKey,
+                              ShrubShape) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = ShrubShape,
+                       values_from = n,
+                       values_fill = 0)
+
+  expected_shrubshapes <- c("C", "S")
+  missing_shrubshapes <- setdiff(x = expected_shrubshapes,
+                                 y = names(shrub_shape))
+  if (length(missing_shrubshapes) > 0) {
+    shrub_shape[[missing_shrubshapes]] <- 0
+  }
+
+
+  output <- dplyr::mutate(.data = shrub_shape,
+                          SagebrushShape_All_Predominant = dplyr::case_when(
+                            C > S ~ "C",
+                            C < S ~ "S",
+                            C == S ~ "CS"
+                          )) |>
+    # Rename fields
+    dplyr::select(.data = _,
+                  PrimaryKey,
+                  SagebrushShape_All_ColumnCount = C,
+                  SagebrushShape_All_SpreadCount = S,
+                  SagebrushShape_All_Predominant)
+  # shrub_shape <- lpi_tall %>%
+  #   # Get the Sagebrush hits
+  #   subset(SG_Group %in% "Sagebrush" & !is.na(ShrubShape)) %>%
+  #   # condense to the unique lpi hits
+  #   dplyr::select(dplyr::any_of(c(
+  #     "PrimaryKey",
+  #     "RecKey",
+  #     "PointNbr",
+  #     "ShrubShape",
+  #     "chckbox"
+  #   ))) %>%
+  #   dplyr::distinct()
+
+  # Summarize by all ShrubShape observations
+  # shrub_shape_predominant <- dplyr::count(x = shrub_shape,
+  #                                         PrimaryKey,
+  #                                         ShrubShape) |>
+  #   tidyr::pivot_wider(data = _,
+  #                      names_from = ShrubShape,
+  #                      values_from = n,
+  #                      values_fill = 0) |>
+  #   dplyr::mutate(.data = _,
+  #   )
+  # shrub_shape_predominant <- shrub_shape %>%
+  #   # Count the number of its for each ShrubShape type (C or M)
+  #   dplyr::count(PrimaryKey, ShrubShape) %>%
+  #   # pivot wider so each shape type is a column
+  #   tidyr::pivot_wider(
+  #     names_from = ShrubShape,
+  #     values_from = n,
+  #     values_fill = list(n = 0)
+  #   ) %>%
+  #   dplyr::mutate(
+  #     C = if ("C" %in% names(.)) {
+  #       C
+  #     } else {
+  #       0
+  #     },
+  #     S = if ("S" %in% names(.)) {
+  #       S
+  #     } else {
+  #       0
+  #     }
+  #   ) %>%
+  #   # Determine which ShrubShape is predominant on the plot
+  #   # (e_g_, the max occurrences)
+  #   dplyr::mutate(SagebrushShape_All_Predominant = dplyr::case_when(
+  #     C > S ~ "C",
+  #     C < S ~ "S",
+  #     C == S ~ "CS"
+  #   )) %>%
+  #   # Rename fields
+  #   dplyr::select(
+  #     SagebrushShape_All_ColumnCount = C,
+  #     SagebrushShape_All_SpreadCount = S,
+  #     SagebrushShape_All_Predominant,
+  #     PrimaryKey
+  #   )
+  #
+  #
+  #
+  # # Rename for indicator tables
+  # if (nrow(shrub_shape_predominant) == 0) {
+  #   sagebrush_shape_all <- shrub_shape_predominant %>%
+  #     dplyr::mutate(
+  #       SagebrushShape_All_ColumnCount = NA,
+  #       SagebrushShape_All_SpreadCount = NA
+  #     )
+  # }
 
   # # Format columnar
   # if ("C" %in% lpi_tall$ShrubShape) {
@@ -113,14 +165,15 @@ sagebrush_shape_base <- function(lpi_tall) {
   #   dplyr::select(-dplyr::matches("ShrubShape|^n$"))
 
 
-  return(shrub_shape_predominant)
+  output
 }
 
 
 #' @export sagebrush_shape
 #' @rdname sagebrush_shape
 
-sagebrush_shape <- function(lpi_tall, live = TRUE) {
+sagebrush_shape <- function(lpi_tall,
+                            live = TRUE) {
   shape_all <- sagebrush_shape_base(lpi_tall = lpi_tall)
 
   if (live) {
@@ -131,7 +184,7 @@ sagebrush_shape <- function(lpi_tall, live = TRUE) {
 
     # rename the fields with "All" to "Live"
 
-    colnames(shape_live) <- colnames(shape_live) %>% gsub(
+    colnames(shape_live) <- colnames(shape_live) |> gsub(
       pattern = "All",
       replacement = "Live"
     )
