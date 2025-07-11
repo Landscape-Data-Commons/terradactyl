@@ -132,71 +132,62 @@ build_lmf_indicators <- function(header, source, dsn,
                                  gap_tall,
                                  height_tall,
                                  spp_inventory_tall,
-                                 soil_stability_tall, ...) {
+                                 soil_stability_tall,
+                                 ...,
+                                 generic_species_file = NULL,
+                                 verbose = FALSE) {
 
   # Test that source is  "LMF"
-  try(
-    !source %in% c("LMF", "NRI"),
-    stop("Invalid indicator source specified")
-  )
+  if (!(source %in% c("LMF", "NRI"))) {
+    stop(paste0("source is currently '", source, "' which is not a valid value. source must be either 'LMF' or 'NRI'."))
+  }
 
 
   # Assign filter expressions
-  filter_exprs <- rlang::quos(...)
+  # filter_exprs <- rlang::quos(...)
 
   # Read header in
-  header <- readRDS(header) %>%
+  header <- readRDS(header) |>
     # Filter using the filtering expression specified by user
-    dplyr::filter(!!!filter_exprs) %>%
-    dplyr::filter(source %in% c("LMF", "NRI"))
+    # dplyr::filter(.data = _,
+    #               !!!filter_exprs) |>
+    dplyr::filter(.data = _,
+                  source %in% c("LMF", "NRI"))
 
   # Check header for data
   if(nrow(header) == 0){
-    stop("No rows in header file")
+    stop("No records present in provided header.")
   }
 
   # Join all indicator calculations together
-  indicators <- list(
-    header,
-    # LPI
-    lpi_calc(
-      lpi_tall = lpi_tall,
-      header = header,
-      source = source,
-      species_file = species_file,
-      dsn = dsn
-    ),
-    # Gap
-    gap_calc(
-      gap_tall = gap_tall,
-      header = header
-    ),
-    #  # Height
-    height_calc(
-      height_tall = height_tall,
-      header = header,
-      source = source,
-      species_file = species_file
-    ),
-    # Species Inventory
-    spp_inventory_calc(
-      spp_inventory_tall = spp_inventory_tall,
-      header = header,
-      species_file = species_file,
-      source = source
-    ),
-    # Soil Stability
-    soil_stability_calc(
-      soil_stability_tall = soil_stability_tall,
-      header = header
-    ),
-    # Rangeland Health
-    gather_rangeland_health(dsn, source = source)
-  )
+  indicators <- list(header,
+                     # LPI
+                     lpi_calc(lpi_tall = lpi_tall,
+                              header = header,
+                              source = source,
+                              species_file = species_file,
+                              generic_species_file = generic_species_file,
+                              dsn = dsn),
+                     # Gap
+                     gap_calc(gap_tall = gap_tall,
+                              header = header),
+                     #  # Height
+                     height_calc(height_tall = height_tall,
+                                 header = header,
+                                 source = source,
+                                 species_file = species_file,
+                                 generic_species_file = generic_species_file),
+                     # Species Inventory
+                     spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
+                                        header = header,
+                                        species_file = species_file,
+                                        source = source,
+                                        generic_species_file = generic_species_file),
+                     # Soil Stability
+                     soil_stability_calc(soil_stability_tall = soil_stability_tall))
 
-  all_indicators <- Reduce(dplyr::left_join, indicators)
-
-  return(all_indicators)
+  purrr::reduce(.f = dplyr::left_join,
+                .x = indicators)
 }
 
 # Build LMF Indicators
