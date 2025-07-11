@@ -388,6 +388,5 @@ gap_cover <- function(gap_tall,
       dplyr::bind_rows()
   }
 
-  #### RETURN ##################################################################
   output
 }
