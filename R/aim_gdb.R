@@ -1,3 +1,332 @@
+#' @export build_terradat_indicators
+#' @rdname aim_gdb
+# Build indicators feature class
+build_terradat_indicators <- function(header, source, dsn,
+                                      species_file,
+                                      lpi_tall,
+                                      gap_tall,
+                                      height_tall,
+                                      spp_inventory_tall,
+                                      soil_stability_tall, ...) {
+  # Test that source is  "TerrADat"
+  if (!source %in% c("TerrADat", "AIM")) {
+    stop("Invalid indicator source specified")
+  }
+
+  if (nrow(header) < 1) {
+    stop("There are no records in header. Please confirm that your header table contains records and that your filtering arguments do not exclude all records present.")
+  }
+
+  lpi_required_layers <- c("tblLPIHeader",
+                           "tblLPIDetail",
+                           "tblPlots",
+                           "tblNationalPlants",
+                           "tblStateSpecies")
+  gap_required_layers <- c("tblGapHeader",
+                           "tblGapDetail")
+  height_required_layers <- c("tblLPIHeader",
+                              "tblLPIDetail")
+  soil_stability_required_layers <- c("tblSoilStabHeader",
+                                      "tblSoilStabDetail")
+  species_inventory_required_layers <- c("tblSpecRichHeader",
+                                         "tblSpecRichDetail")
+  rangeland_health_required_layers <- c("tblQualHeader",
+                                        "tblQualDetail")
+
+  required_layers <- unique(c(lpi_required_layers,
+                              gap_required_layers,
+                              height_required_layers,
+                              soil_stability_required_layers,
+                              species_inventory_required_layers,
+                              rangeland_health_required_layers))
+
+  available_layers <- sf::st_layers(dsn = dsn)[["names"]]
+
+  missing_layers <- setdiff(x = required_layers,
+                            y = available_layers)
+
+  if (length(missing_layers) > 0) {
+    warning(paste0("The following tables are missing from the specified geodatabase: ",
+                   paste(missing_layers,
+                         collapse = ", "),
+                   ". The indicators which depend on those will not be calculated."))
+  }
+
+  # # Join all indicator calculations together
+  # Calculate all indicators and send them to a list, to later be reduced
+  # If a method is not provided (ie the path to the table provided as NULL)
+  # then we need a NULL variable to go into the list
+  if(!is.null(lpi_tall)){
+    # LPI
+    lpi <- lpi_calc(lpi_tall = lpi_tall,
+                    header = header,
+                    source = source,
+                    species_file = species_file,
+                    dsn = dsn)
+  } else {
+    warning("Unable to calculate LPI indicators due to incomplete data.")
+  }
+
+  ##### Gap --------------------------------------------------------------------
+  if (all(gap_required_layers %in% available_layers)) {
+    indicators_list[["gap"]] <- gap_calc(dsn = dsn)
+  } else {
+    warning("Unable to calculate gap indicators due to incomplete data.")
+  }
+
+  # Height
+  if(!is.null(height_tall)){
+    height <- height_calc(height_tall = height_tall,
+                          header = header,
+                          source = source,
+                          species_file = species_file)
+  } else {
+    warning("Unable to calculate height indicators due to incomplete data.")
+  }
+
+  # Species Inventory
+  if(!is.null(spp_inventory_tall)){
+    spinv <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
+                                header = header,
+                                species_file = species_file,
+                                source = source)
+  } else {
+    warning("Unable to calculate soil stability indicators due to incomplete data.")
+  }
+
+
+  ##### Species Inventory ------------------------------------------------------
+  if (all(species_inventory_required_layers %in% available_layers)) {
+    indicators_list[["species"]] <- spp_inventory_calc(dsn = dsn)
+  } else {
+    warning("Unable to calculate species inventory indicators due to incomplete data.")
+    species_indicators <- NULL
+  }
+
+  # Rangeland health
+  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
+    print("Gathering rangeland health indicators from dsn")
+    rh <- gather_rangeland_health(dsn, source = source) %>%
+      # Remove RecKey field, which is not applicable at the indicator level
+      dplyr::select_if(!names(.) %in% c("RecKey"))
+  } else {
+    print("Rangeland health data not found")
+    rh <- NULL
+  }
+
+  output <- purrr::reduce(.x = indicators_list,
+                          .f = dplyr::left_join)
+
+  # Combine the indicators
+  l_indicators <- list(header, lpi, gap, height, spinv, sstab, rh)
+  # Drop unused methods
+  l_indicators_dropnull <- l_indicators[!sapply(l_indicators, is.null)]
+
+  # reduce the list to a data frame
+  all_indicators <- Reduce(dplyr::left_join, l_indicators_dropnull)
+
+  return(all_indicators)
+}
+
+# Build LMF Indicators
+#' @export build_lmf_indicators
+#' @rdname aim_gdb
+
+build_lmf_indicators <- function(header, source, dsn,
+                                 species_file,
+                                 lpi_tall,
+                                 gap_tall,
+                                 height_tall,
+                                 spp_inventory_tall,
+                                 soil_stability_tall, ...) {
+
+  # Test that source is  "LMF"
+  try(
+    !source %in% c("LMF", "NRI"),
+    stop("Invalid indicator source specified")
+  )
+
+
+  # Assign filter expressions
+  filter_exprs <- rlang::quos(...)
+
+  # Read header in
+  header <- readRDS(header) %>%
+    # Filter using the filtering expression specified by user
+    dplyr::filter(!!!filter_exprs) %>%
+    dplyr::filter(source %in% c("LMF", "NRI"))
+
+  # Check header for data
+  if(nrow(header) == 0){
+    stop("No rows in header file")
+  }
+
+  # Join all indicator calculations together
+  indicators <- list(
+    header,
+    # LPI
+    lpi_calc(
+      lpi_tall = lpi_tall,
+      header = header,
+      source = source,
+      species_file = species_file,
+      dsn = dsn
+    ),
+    # Gap
+    gap_calc(
+      gap_tall = gap_tall,
+      header = header
+    ),
+    #  # Height
+    height_calc(
+      height_tall = height_tall,
+      header = header,
+      source = source,
+      species_file = species_file
+    ),
+    # Species Inventory
+    spp_inventory_calc(
+      spp_inventory_tall = spp_inventory_tall,
+      header = header,
+      species_file = species_file,
+      source = source
+    ),
+    # Soil Stability
+    soil_stability_calc(
+      soil_stability_tall = soil_stability_tall,
+      header = header
+    ),
+    # Rangeland Health
+    gather_rangeland_health(dsn, source = source)
+  )
+
+  all_indicators <- Reduce(dplyr::left_join, indicators)
+
+  return(all_indicators)
+}
+
+# Build LMF Indicators
+#' @export build_indicators
+#' @rdname aim_gdb
+# Build wrapper
+build_indicators <- function(header, source, dsn, lpi_tall,
+                             species_file,
+                             gap_tall,
+                             height_tall,
+                             spp_inventory_tall,
+                             soil_stability_tall, ...) {
+  all_indicators <- switch(source,
+                           "TerrADat" = build_terradat_indicators(
+                             header = header,
+                             dsn = dsn,
+                             source = source,
+                             lpi_tall = lpi_tall,
+                             gap_tall = gap_tall,
+                             height_tall = height_tall,
+                             spp_inventory_tall = spp_inventory_tall,
+                             soil_stability_tall = soil_stability_tall,
+                             species_file = species_file,
+                             ...
+                           ),
+                           "AIM" = build_terradat_indicators(
+                             header = header,
+                             dsn = dsn,
+                             source = source,
+                             lpi_tall = lpi_tall,
+                             gap_tall = gap_tall,
+                             height_tall = height_tall,
+                             spp_inventory_tall = spp_inventory_tall,
+                             soil_stability_tall = soil_stability_tall,
+                             species_file = species_file,
+                             ...
+                           ),
+                           "LMF" = build_lmf_indicators(
+                             header = header,
+                             dsn = dsn,
+                             source = source,
+                             lpi_tall = lpi_tall,
+                             gap_tall = gap_tall,
+                             height_tall = height_tall,
+                             spp_inventory_tall = spp_inventory_tall,
+                             soil_stability_tall = soil_stability_tall,
+                             species_file = species_file,
+                             ...
+                           ),
+                           "NRI" = build_lmf_indicators(
+                             header = header,
+                             dsn = dsn,
+                             source = source,
+                             lpi_tall = lpi_tall,
+                             gap_tall = gap_tall,
+                             height_tall = height_tall,
+                             spp_inventory_tall = spp_inventory_tall,
+                             soil_stability_tall = soil_stability_tall,
+                             species_file = species_file,
+                             ...
+                           )
+  )
+
+  # If target feature class is a gdb compare indicator field names with the names for a the target feature class
+  if(substr(dsn, nchar(dsn)-2, nchar(dsn)) == "gdb"){
+    print("Reading column names from dsn. Missing columns will be added to output.")
+    feature_class_field_names <- sf::st_read(dsn,
+                                             layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
+    )
+
+    feature_class_field_names <- feature_class_field_names[
+      ,
+      !colnames(feature_class_field_names) %in%
+        c(
+          "created_user",
+          "created_date",
+          "last_edited_user",
+          "last_edited_date"
+        )
+    ]
+
+    #
+    indicator_field_names <- data.frame(
+      name = names(all_indicators),
+      calculated = "yes"
+    )
+
+    missing_names <- data.frame(
+      name = names(feature_class_field_names),
+      feature.class = "yes"
+    ) %>%
+      # Join feature class field names to indicator field names
+      dplyr::full_join(indicator_field_names) %>%
+
+      # get the field names where there is not corollary in calculated
+      subset(is.na(calculated), select = "name") %>%
+      dplyr::mutate(value = NA) %>%
+      # make into a data frame
+      tidyr::spread(key = name, value = value) %>%
+      dplyr::select(-Shape, -GlobalID)
+
+    # Add a row for each PrimaryKey inall_indicators
+    missing_names[nrow(all_indicators), ] <- NA
+    # For some indicators, the null value is 0 (to indicate the method was completed,
+    # but no data in that group were collected)
+    # Skip this if the method was not provided
+    if(!is.null(lpi_tall)){
+      missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
+    }
+
+    if(!is.null(spp_inventory_tall)){
+      missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+    }
+
+    # Merge back to indicator data to create a feature class for export
+    final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
+    return(final_feature_class)
+
+  } else {
+    return(all_indicators)
+  }
+}
+
+
 #' @export lpi_calc
 #' @rdname aim_gdb
 # Calculate the LPI indicators
@@ -1561,332 +1890,4 @@ soil_stability_calc <- function(soil_stability_tall) {
                                all_cover_types = FALSE,
                                tall = FALSE)
   indicators
-}
-
-#' @export build_terradat_indicators
-#' @rdname aim_gdb
-# Build indicators feature class
-build_terradat_indicators <- function(header, source, dsn,
-                                      species_file,
-                                      lpi_tall,
-                                      gap_tall,
-                                      height_tall,
-                                      spp_inventory_tall,
-                                      soil_stability_tall, ...) {
-  # Test that source is  "TerrADat"
-  if (!source %in% c("TerrADat", "AIM")) {
-    stop("Invalid indicator source specified")
-  }
-
-  if (nrow(header) < 1) {
-    stop("There are no records in header. Please confirm that your header table contains records and that your filtering arguments do not exclude all records present.")
-  }
-
-  lpi_required_layers <- c("tblLPIHeader",
-                           "tblLPIDetail",
-                           "tblPlots",
-                           "tblNationalPlants",
-                           "tblStateSpecies")
-  gap_required_layers <- c("tblGapHeader",
-                           "tblGapDetail")
-  height_required_layers <- c("tblLPIHeader",
-                              "tblLPIDetail")
-  soil_stability_required_layers <- c("tblSoilStabHeader",
-                                      "tblSoilStabDetail")
-  species_inventory_required_layers <- c("tblSpecRichHeader",
-                                         "tblSpecRichDetail")
-  rangeland_health_required_layers <- c("tblQualHeader",
-                                        "tblQualDetail")
-
-  required_layers <- unique(c(lpi_required_layers,
-                              gap_required_layers,
-                              height_required_layers,
-                              soil_stability_required_layers,
-                              species_inventory_required_layers,
-                              rangeland_health_required_layers))
-
-  available_layers <- sf::st_layers(dsn = dsn)[["names"]]
-
-  missing_layers <- setdiff(x = required_layers,
-                            y = available_layers)
-
-  if (length(missing_layers) > 0) {
-    warning(paste0("The following tables are missing from the specified geodatabase: ",
-                   paste(missing_layers,
-                         collapse = ", "),
-                   ". The indicators which depend on those will not be calculated."))
-  }
-
-  # # Join all indicator calculations together
-  # Calculate all indicators and send them to a list, to later be reduced
-  # If a method is not provided (ie the path to the table provided as NULL)
-  # then we need a NULL variable to go into the list
-  if(!is.null(lpi_tall)){
-    # LPI
-    lpi <- lpi_calc(lpi_tall = lpi_tall,
-                    header = header,
-                    source = source,
-                    species_file = species_file,
-                    dsn = dsn)
-  } else {
-    warning("Unable to calculate LPI indicators due to incomplete data.")
-  }
-
-  ##### Gap --------------------------------------------------------------------
-  if (all(gap_required_layers %in% available_layers)) {
-    indicators_list[["gap"]] <- gap_calc(dsn = dsn)
-  } else {
-    warning("Unable to calculate gap indicators due to incomplete data.")
-  }
-
-  # Height
-  if(!is.null(height_tall)){
-    height <- height_calc(height_tall = height_tall,
-                          header = header,
-                          source = source,
-                          species_file = species_file)
-  } else {
-    warning("Unable to calculate height indicators due to incomplete data.")
-  }
-
-  # Species Inventory
-  if(!is.null(spp_inventory_tall)){
-    spinv <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
-                                header = header,
-                                species_file = species_file,
-                                source = source)
-  } else {
-    warning("Unable to calculate soil stability indicators due to incomplete data.")
-  }
-
-
-  ##### Species Inventory ------------------------------------------------------
-  if (all(species_inventory_required_layers %in% available_layers)) {
-    indicators_list[["species"]] <- spp_inventory_calc(dsn = dsn)
-  } else {
-    warning("Unable to calculate species inventory indicators due to incomplete data.")
-    species_indicators <- NULL
-  }
-
-  # Rangeland health
-  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
-    print("Gathering rangeland health indicators from dsn")
-    rh <- gather_rangeland_health(dsn, source = source) %>%
-      # Remove RecKey field, which is not applicable at the indicator level
-      dplyr::select_if(!names(.) %in% c("RecKey"))
-  } else {
-    print("Rangeland health data not found")
-    rh <- NULL
-  }
-
-  output <- purrr::reduce(.x = indicators_list,
-                          .f = dplyr::left_join)
-
-  # Combine the indicators
-  l_indicators <- list(header, lpi, gap, height, spinv, sstab, rh)
-  # Drop unused methods
-  l_indicators_dropnull <- l_indicators[!sapply(l_indicators, is.null)]
-
-  # reduce the list to a data frame
-  all_indicators <- Reduce(dplyr::left_join, l_indicators_dropnull)
-
-  return(all_indicators)
-}
-
-# Build LMF Indicators
-#' @export build_lmf_indicators
-#' @rdname aim_gdb
-
-build_lmf_indicators <- function(header, source, dsn,
-                                 species_file,
-                                 lpi_tall,
-                                 gap_tall,
-                                 height_tall,
-                                 spp_inventory_tall,
-                                 soil_stability_tall, ...) {
-
-  # Test that source is  "LMF"
-  try(
-    !source %in% c("LMF", "NRI"),
-    stop("Invalid indicator source specified")
-  )
-
-
-  # Assign filter expressions
-  filter_exprs <- rlang::quos(...)
-
-  # Read header in
-  header <- readRDS(header) %>%
-    # Filter using the filtering expression specified by user
-    dplyr::filter(!!!filter_exprs) %>%
-    dplyr::filter(source %in% c("LMF", "NRI"))
-
-  # Check header for data
-  if(nrow(header) == 0){
-    stop("No rows in header file")
-  }
-
-  # Join all indicator calculations together
-  indicators <- list(
-    header,
-    # LPI
-    lpi_calc(
-      lpi_tall = lpi_tall,
-      header = header,
-      source = source,
-      species_file = species_file,
-      dsn = dsn
-    ),
-    # Gap
-    gap_calc(
-      gap_tall = gap_tall,
-      header = header
-    ),
-    #  # Height
-    height_calc(
-      height_tall = height_tall,
-      header = header,
-      source = source,
-      species_file = species_file
-    ),
-    # Species Inventory
-    spp_inventory_calc(
-      spp_inventory_tall = spp_inventory_tall,
-      header = header,
-      species_file = species_file,
-      source = source
-    ),
-    # Soil Stability
-    soil_stability_calc(
-      soil_stability_tall = soil_stability_tall,
-      header = header
-    ),
-    # Rangeland Health
-    gather_rangeland_health(dsn, source = source)
-  )
-
-  all_indicators <- Reduce(dplyr::left_join, indicators)
-
-  return(all_indicators)
-}
-
-# Build LMF Indicators
-#' @export build_indicators
-#' @rdname aim_gdb
-# Build wrapper
-build_indicators <- function(header, source, dsn, lpi_tall,
-                             species_file,
-                             gap_tall,
-                             height_tall,
-                             spp_inventory_tall,
-                             soil_stability_tall, ...) {
-  all_indicators <- switch(source,
-                           "TerrADat" = build_terradat_indicators(
-                             header = header,
-                             dsn = dsn,
-                             source = source,
-                             lpi_tall = lpi_tall,
-                             gap_tall = gap_tall,
-                             height_tall = height_tall,
-                             spp_inventory_tall = spp_inventory_tall,
-                             soil_stability_tall = soil_stability_tall,
-                             species_file = species_file,
-                             ...
-                           ),
-                           "AIM" = build_terradat_indicators(
-                             header = header,
-                             dsn = dsn,
-                             source = source,
-                             lpi_tall = lpi_tall,
-                             gap_tall = gap_tall,
-                             height_tall = height_tall,
-                             spp_inventory_tall = spp_inventory_tall,
-                             soil_stability_tall = soil_stability_tall,
-                             species_file = species_file,
-                             ...
-                           ),
-                           "LMF" = build_lmf_indicators(
-                             header = header,
-                             dsn = dsn,
-                             source = source,
-                             lpi_tall = lpi_tall,
-                             gap_tall = gap_tall,
-                             height_tall = height_tall,
-                             spp_inventory_tall = spp_inventory_tall,
-                             soil_stability_tall = soil_stability_tall,
-                             species_file = species_file,
-                             ...
-                           ),
-                           "NRI" = build_lmf_indicators(
-                             header = header,
-                             dsn = dsn,
-                             source = source,
-                             lpi_tall = lpi_tall,
-                             gap_tall = gap_tall,
-                             height_tall = height_tall,
-                             spp_inventory_tall = spp_inventory_tall,
-                             soil_stability_tall = soil_stability_tall,
-                             species_file = species_file,
-                             ...
-                           )
-  )
-
-  # If target feature class is a gdb compare indicator field names with the names for a the target feature class
-  if(substr(dsn, nchar(dsn)-2, nchar(dsn)) == "gdb"){
-    print("Reading column names from dsn. Missing columns will be added to output.")
-    feature_class_field_names <- sf::st_read(dsn,
-                                             layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
-    )
-
-    feature_class_field_names <- feature_class_field_names[
-      ,
-      !colnames(feature_class_field_names) %in%
-        c(
-          "created_user",
-          "created_date",
-          "last_edited_user",
-          "last_edited_date"
-        )
-    ]
-
-    #
-    indicator_field_names <- data.frame(
-      name = names(all_indicators),
-      calculated = "yes"
-    )
-
-    missing_names <- data.frame(
-      name = names(feature_class_field_names),
-      feature.class = "yes"
-    ) %>%
-      # Join feature class field names to indicator field names
-      dplyr::full_join(indicator_field_names) %>%
-
-      # get the field names where there is not corollary in calculated
-      subset(is.na(calculated), select = "name") %>%
-      dplyr::mutate(value = NA) %>%
-      # make into a data frame
-      tidyr::spread(key = name, value = value) %>%
-      dplyr::select(-Shape, -GlobalID)
-
-    # Add a row for each PrimaryKey inall_indicators
-    missing_names[nrow(all_indicators), ] <- NA
-    # For some indicators, the null value is 0 (to indicate the method was completed,
-    # but no data in that group were collected)
-    # Skip this if the method was not provided
-    if(!is.null(lpi_tall)){
-      missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
-    }
-
-    if(!is.null(spp_inventory_tall)){
-      missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
-    }
-
-    # Merge back to indicator data to create a feature class for export
-    final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
-    return(final_feature_class)
-
-  } else {
-    return(all_indicators)
-  }
 }
