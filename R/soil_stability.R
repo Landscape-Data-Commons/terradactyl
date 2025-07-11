@@ -1,9 +1,9 @@
-mode <- function(x){
-  counts <- table(x)
-  counts <- counts[order(counts,
-                         decreasing = TRUE)]
-  as.numeric(names(counts)[1])
-}
+# mode <- function(x){
+#   counts <- table(x)
+#   counts <- counts[order(counts,
+#                          decreasing = TRUE)]
+#   as.numeric(names(counts)[1])
+# }
 
 #' Soil Stability Indicator Calculations
 #' @param soil_stability_tall Dataframe Gathered soil stability data
@@ -23,7 +23,8 @@ soil_stability <- function(soil_stability_tall,
                            uncovered = TRUE,
                            all_cover_types = FALSE,
                            exclude_na_cover = TRUE,
-                           tall = FALSE) {
+                           tall = FALSE,
+                           verbose = FALSE) {
   #### Sanitization of inputs ##################################################
   current_indicator_type_vector <- c(all, cover, uncovered, all_cover_types)
 
