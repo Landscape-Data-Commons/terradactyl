@@ -1,124 +1,140 @@
-#' Gather species attribute data
-#' @description Gather species attributes and join to species observations.
-#' @param species_file Character string. The full file path (including file extension)
-#' to the file containing the species list OR the species list as a data frame.
-#' @param species_growth_habit_code Character. The field name for the growth habit
-#'  codes in the species file. Defaults to \code{"GrowthHabitSub"}
-#' @param growth_habit_file Character string. The full file path (including file extension)
-#' to the file containing the growth habit list. If \code{""} we assume the species list contains those values. Defaults to \code{""}.
-#' @param growth_habit_code Character. The field name for the growth habit codes
-#' in the growth habit file. Defaults to \code{"Code"}
-#' @param species_code Character. The field name for the species codes in the species file.
-#' @param species_duration Character. the field name for the Duration field in the species file.
-#' @param data Dataframe containing species data
-#' @param data_code Character. The field name with the species codes in the data.
-#' @param species_list Dataframe. Species list output from \code{}
-#' @param generic_species_file Character. The full file path (including file extension)to the file containing the species list.
-#' @param by_species_key Logical. If \code{TRUE} then the join will attempt to use the variable \code{"SpeciesState"} if it exists. Defaults to \code{TRUE}.
-
-
-#' @export gather_species
-#' @rdname species
-
-# Function to gather species information
-gather_species <- function(species_file, #
-                           species_growth_habit_code = "GrowthHabitSub",
-                           growth_habit_file = "",
-                           growth_habit_code = "Code" #
-) {
-
-
-
-  if (is.character(species_file)) {
-    # check to see if the species file exists and read in the appropriate file type
-    if (!file.exists(species_file)) {
-      stop("The species file does not exist")
-    }
-
-    # read from .csv or .gdb. If gdb we assume it is of the schema aim.gdb
-    species <- switch(toupper(stringr::str_extract(species_file,
-                                                   pattern = "[A-z]{3}$"
-    )),
-    GDB = {
-      suppressWarnings(sf::st_read(
-        dsn = species_file,
-        layer = "tblStateSpecies",
-        stringsAsFactors = FALSE
-      ))
-    },
-    CSV = {
-      read.csv(species_file, stringsAsFactors = FALSE, na.strings = c("", " "))
-    }
-    )
-  } else if (is.data.frame(species_file)) {
-    species <- species_file
-  }
-
-  # Remove some of the gdb management variables, as they cause issues later
-  species <- species[, !colnames(species) %in%
-                       c(
-                         "created_user", "created_date",
-                         "last_edited_user", "last_edited_date", "GlobalID"
-                       )]
-
-  # stop if there is no species .csv or .gdb file assigned
-  if (is.null(species)) {
-    stop("No valid Species Table. Must be .csv or .gdb file")
-  }
-  # TODO Consider removing growth habit info
-  # read in the growth habit information
-  growth_habit <- switch(toupper(stringr::str_extract(growth_habit_file,
-                                                      pattern = "[A-z]{3}$"
-  )),
-  GDB = {
-    suppressWarnings(sf::st_read(
-      dsn = growth_habit_file,
-      layer = "tblSpeciesGrowthHabit",
-      stringsAsFactors = FALSE
-    ))
-  },
-  CSV = {
-    read.csv(growth_habit_file, stringsAsFactors = FALSE)
-  }
-  )
-  # if there is no growth habit file provided, provide a warning.
-  # This is not a stop in case the growth habits were
-  # assigned in the species file.
-  if (is.null(growth_habit)) {
-    # convert factors to character
-    species <- species %>% dplyr::mutate_if(is.factor, as.character) %>%
-      # remove white space
-      dplyr::mutate_if(is.character, stringr::str_trim)
-
-    # Remove NA from species
-    species <- species %>% dplyr::filter(!is.na(dplyr::vars(species_code)))
-  } else {
-
-    # rename spcies growth habits
-    growth_habit <- growth_habit %>%
-      dplyr::rename_at(
-        dplyr::vars(growth_habit_code),
-        ~species_growth_habit_code
-      )
-
-    # remove PrimaryKey, DBKey, and DateLoadedInDb if they exist
-    growth_habit <- growth_habit[, !colnames(growth_habit) %in%
-                                   c("DBKey", "PrimaryKey", "DateLoadedInDb")]
-
-    # Merge species list and growth habit
-    species_list <- dplyr::left_join(
-      x = species[, !colnames(growth_habit) %in% "PrimaryKey"],
-      y = growth_habit
-    )
-    # convert factors to character
-    species_list <- species_list %>% dplyr::mutate_if(is.factor, as.character) %>%
-      # remove white space
-      dplyr::mutate_if(is.character, stringr::str_trim)
-
-    # Remove NA from species
-    species_list <- species_list %>% dplyr::filter(!is.na(dplyr::vars(species_code)))
-  }
-}
+#' #' Gather species attribute data
+#' #' @description Gather species attributes and join to species observations.
+#' #' @param species_file Character string. The full file path (including file extension)
+#' #' to the file containing the species list OR the species list as a data frame.
+#' #' @param species_growth_habit_code Character. The field name for the growth habit
+#' #'  codes in the species file. Defaults to \code{"GrowthHabitSub"}
+#' #' @param growth_habit_file Character string. The full file path (including file extension)
+#' #' to the file containing the growth habit list. If \code{""} we assume the species list contains those values. Defaults to \code{""}.
+#' #' @param growth_habit_code Character. The field name for the growth habit codes
+#' #' in the growth habit file. Defaults to \code{"Code"}
+#' #' @param species_code Character. The field name for the species codes in the species file.
+#' #' @param species_duration Character. the field name for the Duration field in the species file.
+#' #' @param data Dataframe containing species data
+#' #' @param data_code Character. The field name with the species codes in the data.
+#' #' @param species_list Dataframe. Species list output from \code{}
+#' #' @param generic_species_file Character. The full file path (including file extension)to the file containing the species list.
+#' #' @param by_species_key Logical. If \code{TRUE} then the join will attempt to use the variable \code{"SpeciesState"} if it exists. Defaults to \code{TRUE}.
+#'
+#'
+#' #' @export gather_species
+#' #' @rdname species
+#'
+#' # Function to gather species information
+#' gather_species <- function(species_file, #
+#'                            species_growth_habit_code = "GrowthHabitSub",
+#'                            growth_habit_file = "",
+#'                            growth_habit_code = "Code" #
+#' ) {
+#'   if (is.character(species_file)) {
+#'     # check to see if the species file exists and read in the appropriate file type
+#'     if (!file.exists(species_file)) {
+#'       stop("The species file does not exist")
+#'     }
+#'
+#'     # read from .csv or .gdb. If gdb we assume it is of the schema aim.gdb
+#'     species <- switch(EXPR = stringr::str_extract(species_file,
+#'                                                   pattern = "[A-z]{3}$") |>
+#'                         toupper(x = _),
+#'                       GDB = {
+#'                         sf::st_read(dsn = species_file,
+#'                                     layer = "tblStateSpecies",
+#'                                     stringsAsFactors = FALSE) |>
+#'                           suppressWarnings()
+#'                       },
+#'                       CSV = {
+#'                         read.csv(file = species_file,
+#'                                  stringsAsFactors = FALSE,
+#'                                  na.strings = c("", " "))
+#'                       })
+#'
+#'   } else if (is.data.frame(species_file)) {
+#'     species <- species_file
+#'   }
+#'
+#'   # If somehow species is NULL at this point, we've got to abort.
+#'   if (is.null(species)) {
+#'     stop("No valid species_file value. Must be a data frame, .csv, or .gdb file.")
+#'   } else {
+#'     # These are variables for internal use within the geodatabase, so we'll chuck
+#'     # them to prevent issues down the line, specifically trying to use distinct()
+#'     species <- dplyr::select(.data = species,
+#'                              -tidyselect::any_of(x = c("created_user",
+#'                                                        "created_date",
+#'                                                        "last_edited_user",
+#'                                                        "last_edited_date",
+#'                                                        "GlobalID",
+#'                                                        "DateLoadedInDb",
+#'                                                        "DBKey"))) |>
+#'       # Speaking of distinct(), this shouldn't be necessary but doesn't hurt.
+#'       dplyr::distinct()
+#'   }
+#'
+#'   # TODO: Consider removing growth habit info
+#'   # This bit tries to read in growth habit info if it can.
+#'   # As far as I know, this feature is vestigial in 2025, but we're keeping it
+#'   # in place because I don't want to break legacy code.
+#'   growth_habit <- switch(EXPR = stringr::str_extract(growth_habit_file,
+#'                                                      pattern = "[A-z]{3}$") |>
+#'                            toupper(x = _),
+#'                          # This no longer appears in the TerrADat geodatabase
+#'                          # and hasn't in a few years, so it's disabled for now.
+#'                          # GDB = {
+#'                          #   sf::st_read(dsn = growth_habit_file,
+#'                          #               layer = "tblSpeciesGrowthHabit",
+#'                          #               stringsAsFactors = FALSE) |>
+#'                          #     suppressWarnings()
+#'                          # },
+#'                          CSV = {
+#'                            read.csv(file = growth_habit_file,
+#'                                     stringsAsFactors = FALSE)
+#'                          })
+#'
+#'   if (!is.null(growth_habit)) {
+#'     # Rename the growth habit code variable to reflect the one in the species
+#'     # data we're working with.
+#'     growth_habit <- dplyr::rename(.data = growth_habit,
+#'                                   tidyselect::all_of(x = setNames(object = growth_habit_code,
+#'                                                                   nm = species_growth_habit_code)))
+#'
+#'     # Strip out any variables that are for internal-to-the-TerrADat-GDB purposes
+#'     growth_habit <- dplyr::select(.data = growth_habit,
+#'                                   -tidyselect::any_of(x = c("created_user",
+#'                                                             "created_date",
+#'                                                             "last_edited_user",
+#'                                                             "last_edited_date",
+#'                                                             "GlobalID",
+#'                                                             "DateLoadedInDb",
+#'                                                             "DBKey",
+#'                                                             "PrimaryKey")))
+#'
+#'     # Join the species list and the growth habit stuff
+#'     # This didn't have a "by" specified previously, so I've left it unspecified
+#'     # for now.
+#'     species <- dplyr::left_join(x = dplyr::select(.data = species,
+#'                                                   tidyselect::any_of(x = diff(x = names(growth_habit),
+#'                                                                               y = c("PrimaryKey")))),
+#'                                 y = growth_habit,
+#'                                 # I think that this should be a one-to-one but
+#'                                 # if this breaks things we can take it out.
+#'                                 relationship = "one-to-one")
+#'   } else if (growth_habit_file != "") {
+#'     warning("The provided value for growth_habit_file does not point to the filepath for a CSV file and has been ignored.")
+#'   }
+#'
+#'   # Final cleanup!
+#'   # Making sure that we have character variables instead of factors, that we've
+#'   # removed any leading or trailing whitespace from strings, and that we're not
+#'   # keeping any records where the species code is NA.
+#'   species <- dplyr::mutate(.data = species,
+#'                            dplyr::across(.cols = tidyselect::where(fn = is.factor),
+#'                                          .fns = ~ as.character(x = .x) |>
+#'                                            stringr::str_trim(string = _))) |>
+#'     dplyr::filter(.data = _,
+#'                   !is.na(dplyr::vars(species_code)))
+#'
+#'   species
+#' }
 
 
 #' @export generic_growth_habits
