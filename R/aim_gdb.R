@@ -194,25 +194,22 @@ build_lmf_indicators <- function(header, source, dsn,
 #' @export build_indicators
 #' @rdname aim_gdb
 # Build wrapper
-build_indicators <- function(header, source, dsn, lpi_tall,
+build_indicators <- function(header, source,
+                             dsn = NULL, lpi_tall,
                              species_file,
                              gap_tall,
                              height_tall,
                              spp_inventory_tall,
-                             soil_stability_tall, ...) {
+                             soil_stability_tall, ...,
+                             generic_species_file = NULL,
+                             verbose = FALSE) {
   all_indicators <- switch(source,
-                           "TerrADat" = build_terradat_indicators(
-                             header = header,
-                             dsn = dsn,
-                             source = source,
-                             lpi_tall = lpi_tall,
-                             gap_tall = gap_tall,
-                             height_tall = height_tall,
-                             spp_inventory_tall = spp_inventory_tall,
-                             soil_stability_tall = soil_stability_tall,
-                             species_file = species_file,
-                             ...
-                           ),
+                           "TerrADat" = {
+                             build_terradat_indicators(
+                               dsn = dsn,
+                               species_file = species_file,
+                               generic_species_file = generic_species_file)
+                           },
                            "AIM" = build_terradat_indicators(
                              header = header,
                              dsn = dsn,
@@ -223,7 +220,8 @@ build_indicators <- function(header, source, dsn, lpi_tall,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
-                             ...
+                             ...,
+                             generic_species_file = generic_species_file
                            ),
                            "LMF" = build_lmf_indicators(
                              header = header,
@@ -235,7 +233,8 @@ build_indicators <- function(header, source, dsn, lpi_tall,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
-                             ...
+                             ...,
+                             generic_species_file = generic_species_file
                            ),
                            "NRI" = build_lmf_indicators(
                              header = header,
@@ -247,65 +246,105 @@ build_indicators <- function(header, source, dsn, lpi_tall,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
-                             ...
+                             ...,
+                             generic_species_file = generic_species_file
                            )
   )
 
-  # If target feature class is a gdb compare indicator field names with the names for a the target feature class
-  if(substr(dsn, nchar(dsn)-2, nchar(dsn)) == "gdb"){
-    print("Reading column names from dsn. Missing columns will be added to output.")
-    feature_class_field_names <- sf::st_read(dsn,
-                                             layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
-    )
+  # If target feature class is a gdb compare indicator field names with the
+  # names for a the target feature class
+  if (!is.null(dsn)) {
+    if (tools::file_ext(dsn) == "gdb") {
+      if (verbose) {
+        message("Reading column names from dsn. Missing columns will be added to output.")
+      }
+      available_layers <- sf::st_layers(dsn = dsn)[["name"]]
 
-    feature_class_field_names <- feature_class_field_names[
-      ,
-      !colnames(feature_class_field_names) %in%
-        c(
-          "created_user",
-          "created_date",
-          "last_edited_user",
-          "last_edited_date"
-        )
-    ]
+      layer_source <- dplyr::if_else(condition = source == "LMF",
+                                     true = "LMF",
+                                     false = "Terradat")
 
-    #
-    indicator_field_names <- data.frame(
-      name = names(all_indicators),
-      calculated = "yes"
-    )
+      source_layer <- available_layers[stringr::str_detect(string = available_layers,
+                                                           pattern = paste0(layer_source,
+                                                                            "(_)?_I_Indicators$"))]
 
-    missing_names <- data.frame(
-      name = names(feature_class_field_names),
-      feature.class = "yes"
-    ) %>%
-      # Join feature class field names to indicator field names
-      dplyr::full_join(indicator_field_names) %>%
+      if (length(source_layer) < 1) {
+        source_layer <- NULL
+      } else if (length(source_layer) > 1) {
+        source_layer <- source_layer[1]
+        warning(paste0("Using first discovered applicable layer, ",
+                       source_layer, "."))
 
-      # get the field names where there is not corollary in calculated
-      subset(is.na(calculated), select = "name") %>%
-      dplyr::mutate(value = NA) %>%
-      # make into a data frame
-      tidyr::spread(key = name, value = value) %>%
-      dplyr::select(-Shape, -GlobalID)
+      }
+      # These are used for data management within a geodatabase and we're going to
+      # drop them.
+      internal_gdb_vars <- c("GlobalID",
+                             "created_user",
+                             "created_date",
+                             "last_edited_user",
+                             "last_edited_date",
+                             "DateLoadedInDb",
+                             "DateLoadedinDB",
+                             "rid",
+                             "DBKey",
+                             "DataErrorChecking",
+                             "DataEntry",
+                             "DateModified",
+                             "FormType",
+                             "ViewOBJECTID",
+                             "Shape")
+      feature_class_field_names <- sf::st_read(dsn = dsn,
+                                               layer = source_layer) |>
+        names() |>
+        setdiff(x = _,
+                internal_gdb_vars)
 
-    # Add a row for each PrimaryKey inall_indicators
-    missing_names[nrow(all_indicators), ] <- NA
-    # For some indicators, the null value is 0 (to indicate the method was completed,
-    # but no data in that group were collected)
-    # Skip this if the method was not provided
-    if(!is.null(lpi_tall)){
-      missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
+      expected_indicator_variables <- feature_class_field_names[stringr::str_detect(string = feature_class_field_names,
+                                                                                    pattern = "(Cover)|(^[FA]H)|(SoilStability)|(^Hgt)|(^Num)|(^SagebrushShape)")]
+      #
+      indicator_field_names <- data.frame(
+        name = names(all_indicators),
+        calculated = "yes"
+      )
+
+      missing_names <- data.frame(
+        name = feature_class_field_names,
+        feature.class = "yes"
+      ) |>
+        # Join feature class field names to indicator field names
+        dplyr::full_join(indicator_field_names) |>
+
+        # get the field names where there is not corollary in calculated
+        subset(is.na(calculated), select = "name") |>
+        dplyr::mutate(value = NA) |>
+        # make into a data frame
+        tidyr::spread(key = name, value = value)
+
+      # Add a row for each PrimaryKey inall_indicators
+      missing_names[nrow(all_indicators), ] <- NA
+      # For some indicators, the null value is 0 (to indicate the method was completed,
+      # but no data in that group were collected)
+      # Skip this if the method was not provided
+      if(!is.null(lpi_tall)){
+        missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
+      }
+
+      if(!is.null(spp_inventory_tall)){
+        missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+      }
+
+      # Merge back to indicator data to create a feature class for export
+      final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
+      return(final_feature_class)
+
+      if(!is.null(spp_inventory_tall)){
+        missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+      } else {
+        return(all_indicators)
+      }
+    } else {
+      return(all_indicators)
     }
-
-    if(!is.null(spp_inventory_tall)){
-      missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
-    }
-
-    # Merge back to indicator data to create a feature class for export
-    final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
-    return(final_feature_class)
-
   } else {
     return(all_indicators)
   }
