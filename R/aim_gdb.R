@@ -93,8 +93,7 @@ build_terradat_indicators <- function(header,
 
   # Soil Stability
   if(!is.null(soil_stability_tall)){
-    sstab <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
-                                 header = header)
+    sstab <- soil_stability_calc(soil_stability_tall = soil_stability_tall)
   } else {
     print("Soil stability data not provided")
     sstab <- NULL
