@@ -89,27 +89,27 @@ mean_height <- function(height_tall,
   # If that's unintended, we should fix it.
   if (omit_zero) {
     height_tall <- dplyr::filter(.data = height_tall,
-      # !(Height == 0 & Species %in% c("", "None", "N", NA))
-      Height != 0)
+                                 # !(Height == 0 & Species %in% c("", "None", "N", NA))
+                                 Height != 0)
   }
 
   # Calculate mean height by grouping variable, if method == "mean"
   if (method == "mean") {
     output <- dplyr::summarize(.data = height_tall,
-                                .by = c(grouping_vars,
-                                        indicator_variables),
-                                mean_height = mean(Height) |>
+                               .by = tidyselect::all_of(x = c(grouping_vars,
+                                                              indicator_variables)),
+                               mean_height = mean(Height) |>
                                  round(x = _,
                                        digits = digits))
 
     if (!is.null(indicator_variables)) {
       output <- tidyr::unite(data = output,
-                               col = "indicator",
-                               tidyselect::all_of(indicator_variables),
-                               sep = ".")
+                             col = "indicator",
+                             tidyselect::all_of(indicator_variables),
+                             sep = ".")
     } else {
       output <- mutate(.data = output,
-                        indicator = "mean_height")
+                       indicator = "mean_height")
     }
 
     output <- dplyr::select(.data = output,
