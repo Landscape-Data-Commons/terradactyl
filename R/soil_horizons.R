@@ -4,7 +4,8 @@
 
 #' @export gather_soil_horizons
 #' @rdname gather_soil_horizons
-gather_soil_horizons <- function(dsn, source) {
+gather_soil_horizons <- function(dsn, source,
+                                 verbose = FALSE) {
   # Load soil horizon data
   if (length(which(source %in% c("AIM", "TerrADat")))) {
     soil_aim <- dplyr::left_join(
