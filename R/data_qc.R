@@ -317,8 +317,7 @@ check_terradat_data <- function(dsn,
                              tblSoilStabHeader = c("PrimaryKey",
                                                    "RecKey"),
                              tblSoilStabDetail = c("PrimaryKey",
-                                                   "RecKey",
-                                                   "BoxNum"))
+                                                   "RecKey"))
 
   # These are for running through check_orphaned_records()
   joining_variables_list <- list(tblLPIHeader = c("PrimaryKey",
