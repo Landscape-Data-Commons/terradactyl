@@ -4,23 +4,25 @@
 build_terradat_indicators <- function(header,
                                       dsn,
                                       species_file,
-                                      lpi_tall,
-                                      gap_tall,
-                                      height_tall,
-                                      spp_inventory_tall,
-                                      soil_stability_tall,
-                                      ...) {
+                                      lpi_tall = NULL,
+                                      gap_tall = NULL,
+                                      height_tall = NULL,
+                                      spp_inventory_tall = NULL,
+                                      soil_stability_tall = NULL,
+                                      ...,
+                                      verbose = FALSE) {
   #### Setup ###################################################################
   # Assign filter expressions
   filter_exprs <- rlang::quos(...)
 
-  #### Reading and filtering headers ###########################################
+  #### Reading #################################################################
+  ##### Headers ----------------------------------------------------------------
   if ("character" %in% class(header)) {
-    if (tools::file_ext(header) %in% c("RDS", "rds")) {
+    if (tools::file_ext(header) %in% c("Rdata")) {
       header <- readRDS(header)
     }
   } else if (!("data.frame" %in% class(header))) {
-    stop("header must either be a data frame or the filepath to an RDS file containing a data frame.")
+    stop("header must either be a data frame or the filepath to an Rdata file containing a data frame.")
   }
 
   # Filter using the filtering expression specified by user
@@ -33,92 +35,150 @@ build_terradat_indicators <- function(header,
     stop("No records in the provided header data.")
   }
 
+  ##### LPI --------------------------------------------------------------------
+  if (!is.null(lpi_tall)) {
+    if ("character" %in% class(lpi_tall)) {
+      if (tools::file_ext(lpi_tall) %in% c("Rdata")) {
+        lpi_tall <- readRDS(lpi_tall)
+      }
+    } else if (!("data.frame" %in% class(lpi_tall))) {
+      stop("lpi_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    lpi_tall <- dplyr::filter(.data = lpi_tall,
+                              PrimaryKey %in% header$PrimaryKey)
+  }
+
+  ##### Gap --------------------------------------------------------------------
+  if (!is.null(gap_tall)) {
+    if ("character" %in% class(gap_tall)) {
+      if (tools::file_ext(gap_tall) %in% c("Rdata")) {
+        gap_tall <- readRDS(gap_tall)
+      }
+    } else if (!("data.frame" %in% class(gap_tall))) {
+      stop("gap_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    gap_tall <- dplyr::filter(.data = gap_tall,
+                              PrimaryKey %in% header$PrimaryKey)
+  }
+
+  ##### Height -----------------------------------------------------------------
+  if (!is.null(height_tall)) {
+    if ("character" %in% class(height_tall)) {
+      if (tools::file_ext(height_tall) %in% c("Rdata")) {
+        height_tall <- readRDS(height_tall)
+      }
+    } else if (!("data.frame" %in% class(height_tall))) {
+      stop("height_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    height_tall <- dplyr::filter(.data = height_tall,
+                                 PrimaryKey %in% header$PrimaryKey)
+  }
+
+  ##### Species inventory ------------------------------------------------------
+  if (!is.null(spp_inventory_tall)) {
+    if ("character" %in% class(spp_inventory_tall)) {
+      if (tools::file_ext(spp_inventory_tall) %in% c("Rdata")) {
+        spp_inventory_tall <- readRDS(spp_inventory_tall)
+      }
+    } else if (!("data.frame" %in% class(spp_inventory_tall))) {
+      stop("spp_inventory_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    spp_inventory_tall <- dplyr::filter(.data = spp_inventory_tall,
+                                        PrimaryKey %in% header$PrimaryKey)
+  }
+
+  ##### Soil stability ---------------------------------------------------------
+  if (!is.null(soil_stability_tall)) {
+    if ("character" %in% class(soil_stability_tall)) {
+      if (tools::file_ext(soil_stability_tall) %in% c("Rdata")) {
+        soil_stability_tall <- readRDS(soil_stability_tall)
+      }
+    } else if (!("data.frame" %in% class(soil_stability_tall))) {
+      stop("soil_stability_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    soil_stability_tall <- dplyr::filter(.data = soil_stability_tall,
+                                         PrimaryKey %in% header$PrimaryKey)
+  }
+
   #### Calculating indicators ##################################################
   indicators_list <- list()
   ##### LPI --------------------------------------------------------------------
   if (!is.null(lpi_tall)) {
-    indicators_list[["lpi"]] <- lpi_calc(dsn = dsn,
-                                         generic_species_file = generic_species_file)
+    indicators_list[["lpi"]] <- lpi_calc(lpi_tall = lpi_tall,
+                                         header = header,
+                                         source = "AIM",
+                                         species_file = species_file,
+                                         dsn = dsn,
+                                         verbose = verbose)
   } else {
-    warning("Unable to calculate LPI indicators due to incomplete data.")
+    if (verbose) {
+      message("No LPI data provided. Skipping LPI-derived indicators")
+    }
   }
 
-
-  # # Join all indicator calculations together
-  # Calculate all indicators and send them to a list, to later be reduced
-  # If a method is not provided (ie the path to the table provided as NULL)
-  # then we need a NULL variable to go into the list
-  if(!is.null(lpi_tall)){
-    # LPI
-    lpi <- lpi_calc(lpi_tall = lpi_tall,
-                    header = header,
-                    source = source,
-                    species_file = species_file,
-                    dsn = dsn)
+  ##### Gap --------------------------------------------------------------------
+  if (!is.null(gap_tall)) {
+    indicators_list[["gap"]] <- gap_calc(gap_tall = gap_tall,
+                                         header = header,
+                                         verbose = verbose)
   } else {
-    print("LPI data not provided")
-    lpi <- NULL
+    if (verbose) {
+      message("No gap data provided. Skipping gap indicators")
+    }
   }
 
-  # Gap
-  if(!is.null(gap_tall)){
-    gap <- gap_calc(gap_tall = gap_tall,
-                    header = header)
+  ##### Height -----------------------------------------------------------------
+  if (!is.null(height_tall)) {
+    indicators_list[["height"]] <- height_calc(height_tall = height_tall,
+                                               header = header,
+                                               source = "AIM",
+                                               species_file = species_file,
+                                               verbose = verbose)
   } else {
-    print("Gap data not provided")
-    gap <- NULL
+    if (verbose) {
+      message("No height data provided. Skipping height indicators")
+    }
   }
 
-  # Height
-  if(!is.null(height_tall)){
-    height <- height_calc(height_tall = height_tall,
-                          header = header,
-                          source = source,
-                          species_file = species_file)
+  ##### Species Inventory ------------------------------------------------------
+  if (!is.null(spp_inventory_tall)) {
+    indicators_list[["species"]] <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
+                                                       header = header,
+                                                       species_file = species_file,
+                                                       source = "AIM",
+                                                       verbose = verbose)
   } else {
-    print("Height data not provided")
-    height <- NULL
+    if (verbose) {
+      message("No species inventory data provided. Skipping inventory-derived indicators")
+    }
   }
 
-  # Species Inventory
-  if(!is.null(spp_inventory_tall)){
-    spinv <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
-                                header = header,
-                                species_file = species_file,
-                                source = source)
+  ##### Soil Stability ---------------------------------------------------------
+  if (!is.null(soil_stability_tall)) {
+    indicators_list[["soil_stability"]] <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
+                                                               verbose = verbose)
   } else {
-    print("Species inventory data not provided")
-    spinv <- NULL
+    if (verbose) {
+      message("No soil stability data provided. Skipping soil stability indicators")
+    }
   }
 
-  # Soil Stability
-  if(!is.null(soil_stability_tall)){
-    sstab <- soil_stability_calc(soil_stability_tall = soil_stability_tall)
-  } else {
-    print("Soil stability data not provided")
-    sstab <- NULL
-  }
+  #### Output ##################################################################
+  # Reduce the list to a data frame
+  output <- purrr::reduce(.f = dplyr::left_join,
+                          .x = indicators_list)
 
-  # Rangeland health
-  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
-    print("Gathering rangeland health indicators from dsn")
-    rh <- gather_rangeland_health(dsn, source = source) |>
-      # Remove RecKey field, which is not applicable at the indicator level
-      dplyr::select_if(!names(.) %in% c("RecKey"))
-  } else {
-    print("Rangeland health data not found")
-    rh <- NULL
-  }
-
-  # Combine the indicators
-  l_indicators <- list(header, lpi, gap, height, spinv, sstab, rh)
-  # Drop unused methods
-  l_indicators_dropnull <- l_indicators[!sapply(l_indicators, is.null)]
-
-  # reduce the list to a data frame
-  all_indicators <- Reduce(dplyr::left_join, l_indicators_dropnull)
-
-  return(all_indicators)
+  output
 }
 
 # Build LMF Indicators
