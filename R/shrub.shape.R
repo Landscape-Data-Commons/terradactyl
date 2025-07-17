@@ -31,6 +31,8 @@ sagebrush_shape_base <- function(lpi_tall,
   shrub_shape <- dplyr::count(x = shrub_shape,
                               PrimaryKey,
                               ShrubShape) |>
+    dplyr::filter(.data = _,
+                  !(ShrubShape %in% c("", NA))) |>
     tidyr::pivot_wider(data = _,
                        names_from = ShrubShape,
                        values_from = n,
