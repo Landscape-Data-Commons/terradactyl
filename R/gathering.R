@@ -767,7 +767,7 @@ gather_lpi_terradat <- function(dsn = NULL,
   # lpi_hits_tall.
   # The code for handling checkbox variables should work regardless of how many
   # variables it finds as long as there's at least one.
-  has_checkbox_variables <- any(stringr::str_detect(string = test_strings,
+  has_checkbox_variables <- any(stringr::str_detect(string = names(detail),
                                                     # This regex looks for a
                                                     # string that starts with
                                                     # "Chkbox" and ends in a
@@ -837,7 +837,7 @@ gather_lpi_terradat <- function(dsn = NULL,
                             # This is split so that we grab the first chunk of
                             # assumed-to-be-present metadata variables and then
                             # if we've got the checkbox ones we'll do those too
-                            LineKey:HeighUOM,
+                            LineKey:HeightUOM,
                             tidyselect::any_of(c("ShowCheckbox",
                                                  "CheckboxLabel")),
                             PrimaryKey) |>
@@ -2969,8 +2969,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                     uid_variables = list(header = c("PrimaryKey",
                                                     "RecKey"),
                                          detail = c("PrimaryKey",
-                                                    "RecKey",
-                                                    "BoxNum")),
+                                                    "RecKey")),
                     joining_variables = c("PrimaryKey",
                                           "RecKey"))
   }
@@ -2979,15 +2978,16 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   gathered <- tidyr::gather(detail,
                             key = variable,
                             value = value,
-                            -PrimaryKey, -BoxNum, -RecKey,
+                            -tidyselect::any_of(c("PrimaryKey",
+                                                  "BoxNum",
+                                                  "RecKey")),
                             na.rm = TRUE) |>
     dplyr::filter(.data = _,
                   value != "")
 
   detail_tall <- tidyr::pivot_longer(data = detail,
                                      cols = -tidyselect::all_of(c("PrimaryKey",
-                                                                  "RecKey",
-                                                                  "BoxNum")),
+                                                                  "RecKey")),
                                      names_to = c("variable",
                                                   "Position"),
                                      # This is a goofy regex, but the first
@@ -3044,8 +3044,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                   .f = dplyr::full_join,
                   by = c("RecKey",
                          "PrimaryKey",
-                         "Position",
-                         "BoxNum")) |>
+                         "Position")) |>
     #However, there are likely going to be records in the source data where
     # there were no ratings but somehow there were other kinds of values, so
     # those get dropped.
