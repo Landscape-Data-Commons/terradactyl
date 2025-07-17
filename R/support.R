@@ -14,7 +14,8 @@ unquoted_to_character <- function(...) {
 }
 
 read_whatever <- function(input,
-                          layer = NULL) {
+                          layer = NULL,
+                          verbose = FALSE) {
   if ("character" %in% class(input)) {
     if (tools::file_ext(input) == "Rdata") {
       output <- readRDS(file = lpi_tall)

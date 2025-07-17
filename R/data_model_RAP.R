@@ -10,7 +10,8 @@
 #' @export data_model_RAP
 #' @rdname data_model_RAP
 data_model_RAP <- function(lpi_species,
-                           header) {
+                           header,
+                           verbose = FALSE) {
 
   #gather co-variates
   RAP_header <- header %>%

@@ -145,21 +145,11 @@ generic_growth_habits <- function(data,
                                   data_code = "code",
                                   species_list,
                                   species_code = "SpeciesCode",
-                                  species_growth_habit_code = "GrowthHabitSub",
+                                  species_growthhabit_code = "GrowthHabit",
+                                  species_growthhabitsub_code = "GrowthHabitSub",
                                   species_duration = "Duration",
-                                  verbose) {
-  # Which codes in the data aren't represented in the species_list provided?
-  # These are the codes that we'll attempt to interpret as generics.
-  missing_codes_df <- dplyr::select(.data = data,
-                                    tidyselect::all_of(x = c("code" = data_code))) |>
-    dplyr::distinct(.data = _) |>
-    dplyr::filter(.data = _,
-                  !(code %in% species_list[[species_code]]),
-                  !is.na(code)) |>
-    dplyr::select(.data = _,
-                  tidyselect::all_of(x = setNames(object = "code",
-                                                  nm = species_code)))
-
+                                  verbose = FALSE) {
+  #### Setup ###################################################################
   ### Regexes for unknown plant properties
   # These are used to assign growth habit, growth habit sub, and duration for
   # unknown plants. They're broken into LMF and AIM because the generic code
@@ -169,11 +159,8 @@ generic_growth_habits <- function(data,
   # The commented-out versions capture litter, which seems wrong but was the
   # evident previous behavior.
   lmf_growthhabit_regexes <- c("Woody" = "^2(S(?!LIME)|T|[GV]W)",
-                               #"Woody" = "^2(S(?!LIME)|T|([GV]|LTR)W)",
                                "NonWoody" = "^2((F(?!SMUT|[FJRU]))|(G(?!W)|(VH)))",
-                               # "NonWoody" = "^(([AP][FG]\\d{1,999})|(HL))$",
                                "Nonvascular" = "^2(A|BRY|HORN|L(?!TR)|LTRL|MOSS|PROT|SLIME)",
-                               # "Other" = "^2(PLANT|BACT|CYAN|DIAT|DINO|(F(?=SMUT|[FJRU])|(LTR(?!L))))|HL",
                                "Other" = "^2(PLANT|BACT|CYAN|DIAT|DINO|(F(?=SMUT|[FJRU])|(LTR(?!L))))")
   aim_growthhabit_regexes <- c("Woody" = "^((S[HU]|TR)\\d{1,999})|(SSHH|TTRR|SSUU)",
                                "NonWoody" = "^(([AP]{1,2}[FG]{1,2})|(PPSS))\\d{1,999}$",
@@ -205,11 +192,48 @@ generic_growth_habits <- function(data,
                        "Duration" = c(lmf_duration_regexes,
                                       aim_duration_regexes))
 
-  # Apply the regexes.
-  # The new data frame is just because I'm repurposing legacy code and didn't
-  # want to break downstream things.
-  generic_code_df <- missing_codes_df
+  #### Validity checks #########################################################
+  if (!is.data.frame(data)) {
+    stop("data must be a data frame.")
+  }
+  if (!(data_code %in% names(data))) {
+    stop(paste0("The variable '", data_code, "' (specified with the argument data_code) does not appear in the provided data."))
+  }
 
+  if (!is.data.frame(species_list)) {
+    stop("data must be a data frame.")
+  }
+  required_species_variables <- c(species_code = species_code,
+                                  species_growthhabit_code = species_growthhabit_code,
+                                  species_growthhabitsub_code = species_growthhabitsub_code)
+  missing_species_list_variables <- setdiff(x = required_species_variables,
+                                            y = names(species_list))
+  if (length(missing_species_list_variables) > 0) {
+    missing_required_variable_arguments <- names(required_species_variables)[!(required_species_variables %in% names(species_list))]
+    bad_variables_string <- sapply(X = missing_required_variable_arguments,
+                                   required_species_variables = required_species_variables,
+                                   FUN = function(X, required_species_variables){
+                                     paste0(required_species_variables[X], " (specified with the argument ", X, ")")
+                                   }) |>
+      paste(. = _,
+            collapse = ", ")
+    stop(paste0("The following expected variables are missing from species_list: ", bad_variables_string))
+  }
+
+  # Which codes in the data aren't represented in the species_list provided?
+  # These are the codes that we'll attempt to interpret as generics.
+  missing_codes_df <- dplyr::select(.data = data,
+                                    tidyselect::all_of(x = c("code" = data_code))) |>
+    dplyr::distinct(.data = _) |>
+    dplyr::filter(.data = _,
+                  !(code %in% species_list[[species_code]]),
+                  !is.na(code)) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(x = setNames(object = "code",
+                                                  nm = species_code)))
+
+
+  #### Apply regexes ###########################################################
   if (verbose) {
     message("Checking for standardized unknown plant codes.")
   }
@@ -219,95 +243,36 @@ generic_growth_habits <- function(data,
   # but it'll freak out if there are multiple regex hits. Luckily that shouldn't
   # happen unless I've screwed up the regexes themselves.
   for (variable in names(regexes_list)) {
-    generic_code_df[[variable]] <- sapply(X = generic_code_df[[species_code]],
-                                          regexes = regexes_list[[variable]],
-                                          FUN = function(X, regexes){
-                                            output <- names(regexes)[sapply(X = regexes,
-                                                                            string = X,
-                                                                            FUN = stringr::str_detect)] |>
-                                              unique()
+    missing_codes_df[[variable]] <- sapply(X = missing_codes_df[[species_code]],
+                                           regexes = regexes_list[[variable]],
+                                           FUN = function(X, regexes){
+                                             output <- names(regexes)[sapply(X = regexes,
+                                                                             string = X,
+                                                                             FUN = stringr::str_detect)] |>
+                                               unique()
 
-                                            if (length(output) < 1) {
-                                              output <- NA
-                                            } else if (length(output) > 1) {
-                                              stop(paste0("The species code ", X, " matches multiple regexes: '",
-                                                          paste(regexes[output], collapse = "', '"),
-                                                          "'"))
-                                            }
+                                             if (length(output) < 1) {
+                                               output <- NA
+                                             } else if (length(output) > 1) {
+                                               stop(paste0("The species code ", X, " matches multiple regexes: '",
+                                                           paste(regexes[output], collapse = "', '"),
+                                                           "'"))
+                                             }
 
-                                            output
-                                          }) |> unlist()
+                                             output
+                                           }) |> unlist()
   }
 
   # Remove records where we didn't actually add any information. So, we'll keep
   # only records where at least one of the regexed variables wasn't NA.
-  generic_code_df <- dplyr::filter(.data = generic_code_df,
-                                   dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
-                                                 .fns = ~ !is.na(x = .x)))
+  missing_codes_df <- dplyr::filter(.data = missing_codes_df,
+                                    dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
+                                                  .fns = ~ !is.na(x = .x)))
 
-  ### NOTE:
-  ### This shouldn't be necessary anymore because the only thing that we're
-  ### going to be using SpeciesState for is the SG_Group variable and that's
-  ### not applicable to generic species.
-  # # Connect unknown codes to SpeciesState
-  # if ("SpeciesState" %in% colnames(species_list) & "SpeciesState" %in% colnames(data)) {
-  #   generic_code_df <- dplyr::inner_join(generic_code_df[!is.na(species_code), ],
-  #                                        dplyr::select(data, data_code, SpeciesState))
-  # } else {
-  #   warning("Variable 'SpeciesState' is not present in either the data or the lookup table.")
-  #   generic_code_df <- dplyr::inner_join(generic_code_df[!is.na(species_code), ],
-  #                                        # We have to use dplyr::select() because that returns
-  #                                        # a data frame instead of a vector when there's only
-  #                                        # one variable being asked for
-  #                                        dplyr::select(data, data_code))
-  # }
-
-  # Make sure that the code variable matches the one in the species_list so we
-  # can easily append these.
-  # Probably shouldn't hardcode this...
-  # generic_code_df <- dplyr::rename(.data = generic_code_df,
-  #                                  tidyselect::all_of(x = setNames(object = "code",
-  #                                                                  nm = species_code)))
-
-
-
-  # #  Only keep working on generic_code_df if it actually has any records in it
-  # if (nrow(generic_code_df) > 0) {
-  #   # # Indicate that generic codes are non-noxious
-  #   # if ("Noxious" %in% names(species_list)) {
-  #   #   generic_code_df$Noxious <- "NO"
-  #   # }
-  #
-  #   # The SG_Group variable values are defined on a per-state basis, but it
-  #   # should be the case that all shrubs that aren't also sagebrush species
-  #   # belong to "NonSagebrushShrub". Arguably, the better place to put this step
-  #   # is at the point that SG_Group is used to calculate an indicator because
-  #   # non-generic shrub codes will also likely need to be assigned to it, but
-  #   # it's been here for a few years already and I don't want to break things
-  #   # downstream that may assume it happens here.
-  #   if ("SG_Group" %in% names(species_list)) {
-  #     if (verbose) {
-  #       message("The variable SG_Group is present in the species_list. Adding 'NonSagebrushShrub' in SG_Group for records associated with unidentified shrubs.")
-  #     }
-  #     # This previously appears to have only applied to records where the
-  #     # species code was "SH" or "2SHRUB" which wouldn't catch any standard
-  #     # AIM generic shrub code (which end in digits) or any of the many other
-  #     # LMF generic shrub codes. It also only worked if the name of the variable
-  #     # was Code, which won't always be true.
-  #     # I've elected to change it to use the GrowthHabitSub variable to identify
-  #     # shrubs instead because we just went to the trouble above to make sure
-  #     # that that was correctly assigned (2025-05-20)
-  #
-  #     # generic_code_df$SG_Group[generic_code_df$Code == "SH" | generic_code_df$Code == "2SHRUB"] <- "NonSagebrushShrub"
-  #     generic_code_df <- dplyr::mutate(.data = generic_code_df,
-  #                                      SG_Group = dplyr::case_when(GrowthHabitSub %in% c("Shrub") ~ "NonSagebrushShrub",
-  #                                                                  .default = NA))
-  #   }
-  # }
 
   # Append the generic codes to the species list!
   dplyr::bind_rows(species_list,
-                   generic_code_df)
+                   missing_codes_df)
 }
 
 #' @export species_join
@@ -342,7 +307,10 @@ species_join <- function(data, # field data,
                          by_species_key = FALSE,
                          check_species = FALSE,
                          verbose = FALSE) {
+  #### Validity checks #########################################################
 
+
+  #### Cleanup #################################################################
   # Some projects use "None" to indicate "No species". Convert those to "N"
   # instead.
   data <- dplyr::mutate(.data = data,
@@ -450,6 +418,7 @@ species_join <- function(data, # field data,
     dplyr::distinct()
 
 
+  #### Updating species codes ##################################################
   # Look for UpdatedSpecies and Update the Observation codes, if necessary
   if ("UpdatedSpeciesCode" %in% names(species_list) & update_species_codes) {
     if (any(!is.na(species_list$UpdatedSpeciesCode))) {
@@ -536,6 +505,7 @@ species_join <- function(data, # field data,
     warning("update_species_code is TRUE but UpdatedSpeciesCode is not a variable in the species list. No species codes will be updated.")
   }
 
+  #### Handling generic species codes ##########################################
   if (verbose) {
     message("Inferring missing species information for standardized unknown species codes.")
   }
@@ -545,7 +515,7 @@ species_join <- function(data, # field data,
                                            data_code = data_code,
                                            species_list = species_list,
                                            species_code = species_code,
-                                           species_growth_habit_code = species_growth_habit_code, # field name in species file of the species code to link to GrowthHabit
+                                           species_growthhabit_code = species_growth_habit_code, # field name in species file of the species code to link to GrowthHabit
                                            species_duration = species_duration,
                                            verbose = verbose)
 
@@ -553,6 +523,7 @@ species_join <- function(data, # field data,
   # duplicates thanks to synonymy and it's complicated to procedurally handle
   # all the possible variables that might be present.
 
+  #### Checking for duplicate species ##########################################
   if (check_species) {
     if (verbose) {
       message("Checking for duplicate species codes.")
@@ -1233,34 +1204,10 @@ accumulated_species <- function (header,
   # TODO: ACTUALLY DO SPECIES INVENTORY CALC HERE BECAUSE RIGHT NOW THIS DOESN'T
   # GO ANYWHERE.
   if (!is.null(inputs_list[["species"]])) {
-
-    if (verbose) {
-      message("Joining speciesto headers.")
-    }
-    # read species inventory data and join species list
-    species_inventory <- readRDS(spp_inventory_tall) %>%
-      # Join to the header to get the relevant PrimaryKeys and SpeciesSate
-      dplyr::left_join(dplyr::select(header_sub, PrimaryKey, SpeciesState), .,
-                       by = "PrimaryKey"
-      )
-
-    if (verbose) {
-      message("Joining species data to species inventory.")
-    }
-    # Join to State Species List
-    spp_inventory_species <- species_join(
-      data = species_inventory,
-      data_code = "Species",
-      species_file = species_file,
-      generic_species_file = generic_species_file,
-      overwrite_generic_species = dplyr::if_else("TerrADat" %in% source,
-                                                 TRUE,
-                                                 FALSE)
-    )
-
     # get list of species occurring in species inventory
-    species_inventory <- spp_inventory_species %>%
-      dplyr::select(PrimaryKey, Species) %>%
+    species_inventory <- dplyr::select(.data = inputs_list[["species"]],
+                                       tidyselect::all_of(x = c("PrimaryKey",
+                                                                "Species" = "code"))) |>
       dplyr::distinct()
   } else {
     if (verbose) {
@@ -1269,72 +1216,29 @@ accumulated_species <- function (header,
     species_inventory <- NULL
   }
 
+  output_list[["species"]] <- species_inventory
 
 
   #### OUTPUT ##################################################################
-  output <- purrr::reduce(.x = output_list,
+  # Combine only the cover and heights via a left_join!
+  # The purrr::reduce() over a list is so that if we have more tables in the
+  # future this will be easy, but we could get away without it.
+  output <- purrr::reduce(.x = output_list[c("cover",
+                                             "heights")],
                           .f = dplyr::left_join,
-                          by = c("PrimaryKey", "Species"))
+                          by = c("PrimaryKey", "Species")) |>
+  # And if we have species inventory stuff, we'll bind that to the end row-wise
+  # then make sure we keep only the first instance of each species for each
+  # PrimaryKey because only species not encountered on LPI or measured for
+  # heights should be added from species inventory
+  dplyr::bind_rows(. = _,
+                             output_list[["species"]]) |>
+    dplyr::summarize(.data = _,
+                     .by = tidyselect::all_of(x = c("PrimaryKey",
+                                                    "Species")),
+                     dplyr::across(.cols = tidyselect::matches(match = "(AH)|(Hgt)"),
+                                   .fns = dplyr::first))
 
-
-  # # Join height and cover calculations together
-  # # If both species_cover and species_height are present, do a full join.
-  # if(!is.null(species_cover) & !is.null(species_height)){
-  #   if (verbose) {
-  #     message("Joining cover and height for output.")
-  #   }
-  #   species <- dplyr::full_join(species_cover, species_height,
-  #                               by = c("PrimaryKey", "Species"))
-  #   #  If one is absent, pass the present one forward.
-  # } else if (!is.null(species_cover)){
-  #   if (verbose) {
-  #     message("Using cover only for output")
-  #   }
-  #   species <- species_cover
-  # } else if (!is.null(species_height)){
-  #   if (verbose) {
-  #     message("Using height only for output")
-  #   }
-  #   species <- species_height
-  #   #  If both are absent, return NULL
-  # } else {
-  #   if (verbose) {
-  #     message("No cover or height calculated for output.")
-  #   }
-  #   species <- NULL
-  # }
-  #
-  # # find the species that do not occur from the joined species list but are
-  # # present in the species inventory table and append those to the species list
-  # # If both species and species_inventory are present, do a full join.
-  # if(!is.null(species) & !is.null(species_inventory)){
-  #   if (verbose) {
-  #     message("Joining species inventory to the output.")
-  #   }
-  #   all_species <- dplyr::anti_join(species_inventory, species,
-  #                                   by = c("PrimaryKey", "Species")) |>
-  #     # append to end of the species list
-  #     dplyr::bind_rows(species, . = _)
-  #   #  If one is absent, pass the present one forward.
-  # } else if(!is.null(species)){
-  #   if (verbose) {
-  #     message("No species inventory data to join to output.")
-  #   }
-  #   all_species <- species
-  # } else if(!is.null(species_inventory)){
-  #   if (verbose) {
-  #     message("Using only species inventory for output.")
-  #   }
-  #   all_species <- species_inventory
-  # } else {
-  #   stop("No data provided. Provide one or more of LPI, height, or species inventory data.")
-  # }
-  #
-  # # Remove non-species codes
-  # all_species <- all_species |>
-  #   subset(nchar(Species) > 2 & !is.na(Species))
-
-  # back to header
   if (verbose) {
     message("Joining header and output.")
   }
@@ -1342,15 +1246,6 @@ accumulated_species <- function (header,
                              y = output,
                              relationship = "one-to-many",
                              by = c("PrimaryKey"))
-  # all_species_header <- dplyr::full_join(header_sub, all_species,
-  #                                        by = "PrimaryKey") |>
-  #   # create formal output table
-  #   dplyr::rename(any_of(c(
-  #     "AH_SpeciesCover" = "percent",
-  #     "Hgt_Species_Avg" = "mean_height"
-  #   )))
-
-
 
   # If we added species info, we'll use it here.
   # It'd be slow to use species_join() again, so we'll use the inputs_list

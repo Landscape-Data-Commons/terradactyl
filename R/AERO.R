@@ -16,7 +16,8 @@ aero <- function(lpi_tall,
                  height_tall,
                  header,
                  texture_file,
-                 folder_location){
+                 folder_location,
+                 verbose = FALSE){
 
   # Remove NAs from coordinates
   header <- header %>% subset(!is.na(Longitude_NAD83) &

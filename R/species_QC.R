@@ -5,7 +5,8 @@
 
 #' @export species_list_check
 #' @rdname species
-species_list_check <- function(dsn_tall, species_list_file, ...) {
+species_list_check <- function(dsn_tall, species_list_file, ...,
+                               verbose = FALSE) {
 
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
@@ -267,7 +268,8 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 #' @rdname species
 
 species_list_compare <- function(species_file,
-                                 folder) {
+                                 folder,
+                                 verbose = FALSE) {
   # Read in species list, either from csv or geodatabase
   species_list <- switch(toupper(stringr::str_extract(species_file,
     pattern = "[A-z]{3}$"

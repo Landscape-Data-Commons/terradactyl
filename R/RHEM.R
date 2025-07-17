@@ -13,7 +13,8 @@
 RHEM <- function(
                  lpi_species,
                  header,
-                 slope_shape) {
+                 slope_shape,
+                 verbose = FALSE) {
 
   #check we have header info for all data
   lpi_species <-lpi_species %>% subset(PrimaryKey %in% header$PrimaryKey)
