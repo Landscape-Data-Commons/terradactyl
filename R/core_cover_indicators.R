@@ -7,7 +7,8 @@
 
 #' @export core_cover_indicators
 #' @rdname core_cover_indicators
-core_cover_indicators <- function(lpi_species) {
+core_cover_indicators <- function(lpi_species,
+                                  verbose = FALSE) {
 
   # Correct the Non-Woody to NonWoody
   lpi_species$GrowthHabit[grepl(

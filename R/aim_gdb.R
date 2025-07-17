@@ -1394,7 +1394,7 @@ gap_calc <- function(header,
 
 
   if (verbose) {
-    print("Reading gap data")
+    message("Reading gap data")
   }
   if ("character" %in% class(gap_tall)) {
     if (tools::file_ext(gap_tall) == "Rdata") {
@@ -1953,7 +1953,8 @@ spp_inventory_calc <- function(header,
 #' @export soil_stability_calc
 #' @rdname aim_gdb
 # Calculate soil stability values
-soil_stability_calc <- function(soil_stability_tall) {
+soil_stability_calc <- function(soil_stability_tall,
+                                verbose = FALSE) {
   if ("character" %in% class(soil_stability_tall)) {
     if (tools::file_ext(soil_stability_tall) == "Rdata") {
       data <- readRDS(file = soil_stability_tall)

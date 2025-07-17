@@ -13,7 +13,8 @@
 gather_header_terradat <- function(dsn = NULL,
                                    tblPlots = NULL,
                                    date_tables = NULL,
-                                   ...) {
+                                   ...,
+                                   verbose = FALSE) {
   # These are used for data management within a geodatabase and we're going to
   # drop them.
   internal_gdb_vars <- c("GlobalID",
@@ -170,7 +171,8 @@ gather_header_terradat <- function(dsn = NULL,
 #' @export gather_header_lmf
 #' @rdname aim_gdb
 gather_header_lmf <- function(dsn = NULL,
-                              ...) {
+                              ...,
+                              verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -322,7 +324,8 @@ gather_header_lmf <- function(dsn = NULL,
 # Build the header portion of the LMF table
 #' @export gather_header_nri
 #' @rdname aim_gdb
-gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
+gather_header_nri <- function(dsn = NULL, speciesstate, ...,
+                              verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -530,7 +533,8 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
 #' @rdname aim_gdb
 # Header build wrapper function
 gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, #PlotChar_0 = NULL,
-                          speciesstate = NULL, ..., autoQC = TRUE) {
+                          speciesstate = NULL, ..., autoQC = TRUE,
+                          verbose = FALSE) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -873,7 +877,8 @@ gather_lpi_terradat <- function(dsn = NULL,
 
 gather_lpi_lmf <- function(dsn = NULL,
                            file_type = "gdb",
-                           PINTERCEPT = NULL) {
+                           PINTERCEPT = NULL,
+                           verbose = FALSE) {
   #### Reading and cleanup #####################################################
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(PINTERCEPT)) {
@@ -1061,7 +1066,8 @@ gather_lpi_lmf <- function(dsn = NULL,
 
 # Gather LPI data from NPS I&M networks
 # currently not used
-gather_lpi_nps <- function(dsn) {
+gather_lpi_nps <- function(dsn,
+                           verbose = FALSE) {
   lpi_raw <- read.csv(dsn) |>
 
     # add plot metadata
@@ -1244,7 +1250,8 @@ gather_lpi <- function(dsn = NULL,
                        tblLPIDetail = NULL,
                        tblLPIHeader = NULL,
                        PINTERCEPT = NULL,
-                       autoQC = TRUE
+                       autoQC = TRUE,
+                       verbose = FALSE
                        # LPI_0 = NULL,
                        # LPIDetail_1 = NULL
 ) {
@@ -1611,7 +1618,8 @@ gather_height_terradat <- function(dsn = NULL,
 # Gather Height for LMF/NRI
 gather_height_lmf <- function(dsn = NULL,
                               file_type = "gdb",
-                              PASTUREHEIGHTS = NULL) {
+                              PASTUREHEIGHTS = NULL,
+                              verbose = FALSE) {
   #### Reading and cleanup #####################################################
   if(!is.null(PASTUREHEIGHTS)){
     vegheight <- PASTUREHEIGHTS
@@ -1924,7 +1932,8 @@ gather_height <- function(dsn = NULL,
                           tblLPIDetail = NULL,
                           tblLPIHeader = NULL,
                           PASTUREHEIGHTS = NULL,
-                          autoQC = TRUE#,
+                          autoQC = TRUE,
+                          verbose = FALSE#,
                           # LPI_0 = NULL,
                           # LPIDetail_1 = NULL
 ) {
@@ -2257,7 +2266,8 @@ gather_gap_terradat <- function(dsn = NULL,
 gather_gap_lmf <- function(dsn = NULL,
                            file_type = NULL,
                            GINTERCEPT = NULL,
-                           POINT = NULL) {
+                           POINT = NULL,
+                           verbose = FALSE) {
 
   #### Reading and cleanup #####################################################
   # Make sure we can read in the data.
@@ -2769,7 +2779,8 @@ gather_gap <- function(dsn = NULL,
                        tblGapDetail = NULL,
                        POINT = NULL,
                        GINTERCEPT = NULL,
-                       autoQC = TRUE#,
+                       autoQC = TRUE,
+                       verbose = FALSE#,
                        # Gap_0 = NULL,
                        # GapDetail_1 = NULL
 ) {
@@ -3075,7 +3086,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
 #' @rdname gather_soil_stability
 gather_soil_stability_lmf <- function(dsn = NULL,
                                       file_type = "gdb",
-                                      SOILDISAG = NULL) {
+                                      SOILDISAG = NULL,
+                                      verbose = FALSE) {
   #### Reading and cleanup #####################################################
   # Make sure we can read in the data.
   valid_file_types <- c("gdb", "txt")
@@ -3315,7 +3327,8 @@ gather_soil_stability <- function(dsn = NULL,
                                   tblSoilStabDetail = NULL,
                                   tblSoilStabHeader = NULL,
                                   SOILDISAG = NULL,
-                                  autoQC = TRUE
+                                  autoQC = TRUE,
+                                  verbose = FALSE
 ) {
 
   if (toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -3413,7 +3426,8 @@ gather_soil_stability <- function(dsn = NULL,
 #' @rdname IIRH
 gather_rangeland_health_terradat <- function(dsn = NULL,
                                              tblQualHeader = NULL,
-                                             tblQualDetail = NULL) {
+                                             tblQualDetail = NULL,
+                                             verbose = FALSE) {
 
   if(!is.null(tblQualHeader) & !is.null(tblQualDetail)){
     IIRH_header <- tblQualHeader
@@ -3502,7 +3516,8 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
 #' @rdname IIRH
 gather_rangeland_health_lmf <- function(dsn = NULL,
                                         file_type = NULL,
-                                        RANGEHEALTH = NULL) {
+                                        RANGEHEALTH = NULL,
+                                        verbose = FALSE) {
   if ("character" %in% class(RANGEHEALTH)) {
     if (tools::file_ext(RANGEHEALTH) == "Rdata") {
       IIRH <- readRDS(file = RANGEHEALTH)

@@ -24,7 +24,8 @@ pct_cover_indicators <- function(lpi_tall,
                                                             litter = "code",
                                                             live = c("chckbox",
                                                                      "code"),
-                                                            species = "code")) {
+                                                            species = "code"),
+                                 verbose = FALSE) {
   #### Santization and setup ###################################################
   # TODO: ALL THE COMPLIANCE CHECKS
 
@@ -349,11 +350,13 @@ pct_cover_indicators <- function(lpi_tall,
 # This function assumes that all non-plant codes are <3 characters long
 pct_cover_between_plant <- function(lpi_tall,
                                     tall = FALSE,
-                                    by_line = FALSE) {
+                                    by_line = FALSE,
+                                    verbose = FALSE) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("between plant"),
                        tall_output = c("between plant" = tall),
-                       by_line = by_line)[[1]]
+                       by_line = by_line,
+                       verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # # Calculate between plant cover
   # output <- pct_cover(lpi_tall,
@@ -391,11 +394,13 @@ pct_cover_between_plant <- function(lpi_tall,
 # This function assumes that all non-plant codes are <3 characters long
 pct_cover_all_ground <- function(lpi_tall,
                                  tall = FALSE,
-                                 by_line = FALSE) {
+                                 by_line = FALSE,
+                                 verbose = FALSE) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("ground"),
                        tall_output = c("ground" = tall),
-                       by_line = by_line)[[1]]
+                       by_line = by_line,
+                       verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # # Calculate between plant cover
   # summary <- pct_cover(lpi_tall,
@@ -436,11 +441,13 @@ pct_cover_all_ground <- function(lpi_tall,
 # Percent Total Foliar Cover####
 pct_cover_total_foliar <- function(lpi_tall,
                                    tall = FALSE,
-                                   by_line = FALSE) {
+                                   by_line = FALSE,
+                                   verbose = FALSE) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("total foliar"),
                        tall_output = c("total foliar" = tall),
-                       by_line = by_line)[[1]]
+                       by_line = by_line,
+                       verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # summarization_vars <- "PrimaryKey"
   # if (by_line) {
@@ -488,11 +495,13 @@ pct_cover_total_foliar <- function(lpi_tall,
 # Percent Bare Soil Cover####
 pct_cover_bare_soil <- function(lpi_tall,
                                 tall = FALSE,
-                                by_line = FALSE) {
+                                by_line = FALSE,
+                                verbose = FALSE) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("bare soil"),
                        tall_output = c("bare soil" = tall),
-                       by_line = by_line)[[1]]
+                       by_line = by_line,
+                       verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # soil_codes <- c("S", "PC", "FG", "AG", "LM")
   # # Calculate first hit cover then keep only the ones for soil codes.
@@ -521,11 +530,13 @@ pct_cover_bare_soil <- function(lpi_tall,
 # Percent Litter Cover####
 pct_cover_litter <- function(lpi_tall,
                              tall = FALSE,
-                             by_line = FALSE) {
+                             by_line = FALSE,
+                             verbose = FALSE) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("litter"),
                        tall_output = c("litter" = tall),
-                       by_line = by_line)[[1]]
+                       by_line = by_line,
+                       verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # litter_codes <- c("L", "WL", "NL", "HL", "AM", "DN", "ER")
   # # Calculate the any-hit cover
@@ -556,7 +567,8 @@ pct_cover_live <- function(lpi_tall,
                            tall = FALSE,
                            by_line = FALSE,
                            hit = "any",
-                           ...) {
+                           ...,
+                           verbose = FALSE) {
   grouping_variables <- rlang::quos(...)
   # This here because we're trying to support the legacy decision to originally
   # allow for bare variables as the indicator-defining variables.
@@ -583,7 +595,8 @@ pct_cover_live <- function(lpi_tall,
                        tall_output = c("live" = tall),
                        hit_type = c(live = hit),
                        indicator_variables = list(live = indicator_variables),
-                       by_line = by_line)[[1]]
+                       by_line = by_line,
+                       verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # # summarize by checkbox and pre-assigned grouping variables
   # summary <- pct_cover(lpi_tall,
@@ -646,12 +659,14 @@ pct_cover_live <- function(lpi_tall,
 pct_cover_species <- function(lpi_tall,
                               tall = TRUE,
                               by_line = FALSE,
-                              hit = "any") {
+                              hit = "any",
+                              verbose = FALSE) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("species"),
                        tall_output = c("species" = tall),
                        hit_type = c(species = hit),
-                       by_line = by_line)[[1]]
+                       by_line = by_line,
+                       verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # summary <- pct_cover(lpi_tall,
   #                      tall = TRUE,

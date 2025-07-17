@@ -11,7 +11,8 @@
 #' @export sagebrush_shape_base
 #' @rdname sagebrush_shape
 #'
-sagebrush_shape_base <- function(lpi_tall) {
+sagebrush_shape_base <- function(lpi_tall,
+                                 verbose = FALSE) {
   shrub_shape <- dplyr::filter(.data = lpi_tall,
                                SG_Group %in% "Sagebrush",
                                !is.na(ShrubShape)) |>
@@ -173,7 +174,8 @@ sagebrush_shape_base <- function(lpi_tall) {
 #' @rdname sagebrush_shape
 
 sagebrush_shape <- function(lpi_tall,
-                            live = TRUE) {
+                            live = TRUE,
+                            verbose = FALSE) {
   shape_all <- sagebrush_shape_base(lpi_tall = lpi_tall)
 
   if (live) {
