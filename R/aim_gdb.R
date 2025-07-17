@@ -1337,7 +1337,8 @@ lpi_calc <- function(header = NULL,
   # Also, it's totally inappropriate to return indicator values with 6+ decimal
   # places so we're rounding to a single decimal place.
   output <- dplyr::mutate(.data = output,
-                          dplyr::across(.cols = -tidyselect::all_of(x = "PrimaryKey"),
+                          dplyr::across(.cols = -tidyselect::all_of(x = c("PrimaryKey",
+                                                                          "SagebrushShape_Live_Predominant")),
                                         .fns = ~ as.numeric(.x) |>
                                           tidyr::replace_na(data = _,
                                                             replace = 0) |>
