@@ -85,14 +85,14 @@ gather_header_terradat <- function(dsn = NULL,
                                                Longitude_NAD83 = "Longitude",
                                                "State",
                                                "Elevation",
-                                               "County",
+                                               County = "CountyName",
                                                DateEstablished = "EstablishDate",
                                                "DateLoadedInDb",
-                                               "Design",
+                                               "SamplingApproach",
                                                "DesignFlag",
                                                "Purpose",
                                                "PurposeFlag",
-                                               "ProjectName"))) |>
+                                               "DesignName"))) |>
     # We only want to keep records with PrimaryKey values.
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey))
