@@ -267,12 +267,14 @@ generic_growth_habits <- function(data,
   # only records where at least one of the regexed variables wasn't NA.
   missing_codes_df <- dplyr::filter(.data = missing_codes_df,
                                     dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
-                                                  .fns = ~ !is.na(x = .x)))
+                                                  .fns = ~ !is.na(x = .x))) |>
+    dplyr::distinct()
 
 
   # Append the generic codes to the species list!
   dplyr::bind_rows(species_list,
-                   missing_codes_df)
+                   missing_codes_df) |>
+    dplyr::distinct()
 }
 
 #' @export species_join
@@ -524,33 +526,35 @@ species_join <- function(data, # field data,
   # all the possible variables that might be present.
 
   #### Checking for duplicate species ##########################################
-  if (check_species) {
+  if (verbose) {
+    message("Checking for duplicate species codes.")
+  }
+
+  # speciescodes_counts <- table(species_generic[[species_code]])
+  # nonunique_speciescodes <- names(speciescodes_counts)[speciescodes_counts > 1]
+  nonunique_speciescodes <- dplyr::summarize(.data = species_generic,
+                                             .by = tidyselect::all_of(species_code),
+                                             n = dplyr::n()) |>
+    dplyr::filter(.data = _,
+                  n > 1) |>
+    dplyr::pull(.data = _,
+                var = species_code)
+
+  if (length(nonunique_speciescodes) > 0) {
+    warning(paste0("There are ", length(nonunique_speciescodes), " codes which occur in the species list more than once in the variable ", species_code, ". This is expected when using a variable like CurrentPLANTSCode. The first record for each of these codes will be kept, even if other records have more complete species information. If this is unexpected, check your species list for accuracy."))
+  } else {
     if (verbose) {
-      message("Checking for duplicate species codes.")
-    }
-
-    nonunique_speciescodes <- dplyr::summarize(.data = species_generic,
-                                               .by = tidyselect::all_of(species_code),
-                                               n = dplyr::n()) |>
-      dplyr::filter(.data = _,
-                    n > 1) |>
-      dplyr::pull(.data = _,
-                  var = species_code)
-
-    if (length(nonunique_speciescodes) > 0) {
-      warning(paste0("There are ", length(nonunique_speciescodes), " codes which occur in the species list more than once in the variable ", species_code, ". This is expected when using a variable like CurrentPLANTSCode. The first record for each of these codes will be kept, even if other records have more complete species information. If this is unexpected, check your species list for accuracy."))
-      species_generic <- dplyr::summarize(.data = species_generic,
-                                          .by = tidyselect::all_of(species_code),
-                                          dplyr::across(.cols = tidyselect::any_of(x = species_property_vars),
-                                                        .fns = ~ .x[!is.na(.x)] |>
-                                                          dplyr::first(x = _) |>
-                                                          as.character()))
-    } else {
-      if (verbose) {
-        message("No duplicate species codes found!")
-      }
+      message("No duplicate species codes found!")
     }
   }
+
+  # This handles any duplicate codes.
+  species_generic <- dplyr::summarize(.data = species_generic,
+                                      .by = tidyselect::all_of(species_code),
+                                      dplyr::across(.cols = tidyselect::any_of(x = species_property_vars),
+                                                    .fns = ~ .x[!is.na(.x)] |>
+                                                      dplyr::first(x = _) |>
+                                                      as.character()))
 
   if (verbose) {
     message("Adding species_list information to the data.")
