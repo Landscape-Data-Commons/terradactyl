@@ -762,17 +762,17 @@ species_count <- function(species_inventory_tall,
 #'@rdname accumulated_species
 #'@export accumulated_species
 
-accumulated_species <- function (header,
-                                 lpi_tall = NULL,
-                                 height_tall = NULL,
-                                 spp_inventory_tall = NULL,
-                                 species_file = "",
-                                 dead = TRUE,
-                                 source = c("TerrADat", "AIM", "LMF", "NRI"),
-                                 ...,
-                                 # indicator_variables = NULL,
-                                 generic_species_file = NULL,
-                                 verbose = FALSE) {
+accumulated_species <- function(header,
+                                lpi_tall = NULL,
+                                height_tall = NULL,
+                                spp_inventory_tall = NULL,
+                                species_file = "",
+                                dead = TRUE,
+                                source = c("TerrADat", "AIM", "LMF", "NRI"),
+                                ...,
+                                # indicator_variables = NULL,
+                                generic_species_file = NULL,
+                                verbose = FALSE) {
   #### SETUP ###################################################################
   # # Get a list of the variables the user wants to group data by for calculations.
   # # There's a grouping_variables argument that takes the names of variables as
@@ -1205,8 +1205,6 @@ accumulated_species <- function (header,
   output_list[["heights"]] <- species_height
 
   ##### Species inventory #######################################################
-  # TODO: ACTUALLY DO SPECIES INVENTORY CALC HERE BECAUSE RIGHT NOW THIS DOESN'T
-  # GO ANYWHERE.
   if (!is.null(inputs_list[["species"]])) {
     # get list of species occurring in species inventory
     species_inventory <- dplyr::select(.data = inputs_list[["species"]],
@@ -1231,12 +1229,12 @@ accumulated_species <- function (header,
                                              "heights")],
                           .f = dplyr::left_join,
                           by = c("PrimaryKey", "Species")) |>
-  # And if we have species inventory stuff, we'll bind that to the end row-wise
-  # then make sure we keep only the first instance of each species for each
-  # PrimaryKey because only species not encountered on LPI or measured for
-  # heights should be added from species inventory
-  dplyr::bind_rows(. = _,
-                             output_list[["species"]]) |>
+    # And if we have species inventory stuff, we'll bind that to the end row-wise
+    # then make sure we keep only the first instance of each species for each
+    # PrimaryKey because only species not encountered on LPI or measured for
+    # heights should be added from species inventory
+    dplyr::bind_rows(. = _,
+                     output_list[["species"]]) |>
     dplyr::summarize(.data = _,
                      .by = tidyselect::all_of(x = c("PrimaryKey",
                                                     "Species")),
@@ -1260,27 +1258,26 @@ accumulated_species <- function (header,
 
     # We're going to yank the species information from the inputs_list() because
     # that's computationally cheaper than doing a join from scratch again.
-    suitable_input_source <- sapply(X = inputs_list,
-                                    FUN = function(X){
-                                      !is.null(X)
-                                    }) |>
-      which() |>
-      names() |>
-      dplyr::first()
+    suitable_input_sources <- sapply(X = inputs_list,
+                                     FUN = function(X){
+                                       !is.null(X)
+                                     }) |>
+      which()
 
-    output <- dplyr::select(.data = inputs_list[[suitable_input_source]],
-                            tidyselect::all_of(x = c("PrimaryKey")),
-                            tidyselect::any_of(x = c("Species",
-                                                     "Species" = "code")),
-                            tidyselect::any_of(c("GrowthHabit",
-                                                 "GrowthHabitSub",
-                                                 "Duration",
-                                                 "Nonnative",
-                                                 "Noxious",
-                                                 "Invasive",
-                                                 "SpecialStatus",
-                                                 "SG_Group",
-                                                 "CommonName"))) |>
+    output <- dplyr::bind_rows(inputs_list[suitable_input_sources]) |>
+      dplyr::select(.data = _,
+                    tidyselect::all_of(x = c("PrimaryKey")),
+                    tidyselect::any_of(x = c("Species",
+                                             "Species" = "code")),
+                    tidyselect::any_of(c("GrowthHabit",
+                                         "GrowthHabitSub",
+                                         "Duration",
+                                         "Nonnative",
+                                         "Noxious",
+                                         "Invasive",
+                                         "SpecialStatus",
+                                         "SG_Group",
+                                         "CommonName"))) |>
       dplyr::distinct() |>
       dplyr::left_join(x = output,
                        y = _,
