@@ -853,6 +853,9 @@ accumulated_species <- function(header,
                             output <- inputs[[X]]
                           }
 
+                          output <- dplyr::select(.data = output,
+                                                  -tidyselect::any_of(x = c("FormDate")))
+
                           dplyr::left_join(x = dplyr::select(.data = header,
                                                              tidyselect::all_of(x = c("PrimaryKey",
                                                                                       "SpeciesState"))),
@@ -1231,7 +1234,8 @@ accumulated_species <- function(header,
   output_list <- lapply(X = output_list,
                         FUN = function(X){
                           dplyr::select(.data = X,
-                                        PrimaryKey,
+                                        tidyselect::any_of(x = c("PrimaryKey",
+                                                                 "Species")),
                                         dplyr::matches(match = "^AH_"),
                                         dplyr::matches(match = "^Hgt_"))
                         })
