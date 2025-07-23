@@ -1221,7 +1221,21 @@ accumulated_species <- function(header,
   output_list[["species"]] <- species_inventory
 
 
+
   #### OUTPUT ##################################################################
+  # Remove all the unnecessary variables.
+  # FormDate was causing problems because it was sometimes character strings and
+  # sometimes POSITx dates, so we'll do some sanitization here because we're
+  # only after PrimaryKey and the freshly-calculated variables that start with
+  # "AH_" or "Hgt_"
+  output_list <- lapply(X = output_list,
+                        FUN = function(X){
+                          dplyr::select(.data = X,
+                                        PrimaryKey,
+                                        dplyr::matches(match = "^AH_"),
+                                        dplyr::matches(match = "^Hgt_"))
+                        })
+
   # Combine only the cover and heights via a left_join!
   # The purrr::reduce() over a list is so that if we have more tables in the
   # future this will be easy, but we could get away without it.
