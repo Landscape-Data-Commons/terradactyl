@@ -983,6 +983,8 @@ accumulated_species <- function(header,
                                           # assigned to "NonSagebrushShrub"
                                           SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
                                                                       .default = SG_Group),
+                                          SpecialStatus = stringr::str_extract(string = SpecialStatus,
+                                                                          pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
                                           # This is just to make the Invasive values match
                                           # the desired indicator names
                                           Invasive = stringr::str_to_title(string = Invasive),
@@ -1234,7 +1236,7 @@ accumulated_species <- function(header,
   output_list <- lapply(X = output_list,
                         FUN = function(X){
                           dplyr::select(.data = X,
-                                        tidyselect::any_of(x = c("PrimaryKey",
+                                        tidyselect::all_of(x = c("PrimaryKey",
                                                                  "Species")),
                                         dplyr::matches(match = "^AH_"),
                                         dplyr::matches(match = "^Hgt_"))
