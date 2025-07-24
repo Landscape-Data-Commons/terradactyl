@@ -958,9 +958,9 @@ accumulated_species <- function(header,
                             # the species, even though that may be less taxonomically correct.
                             # Using dplyr::case_when() lets us keep any codes that don't have a
                             # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
-                            dplyr::mutate(.data = _,
-                                          code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
-                                                                  .default = code)) |>
+                            # dplyr::mutate(.data = _,
+                            #               code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
+                            #                                       .default = code)) |>
                             # Not necessary, but I'm paranoid
                             dplyr::distinct() |>
                             dplyr::mutate(.data = _,
@@ -1282,11 +1282,12 @@ accumulated_species <- function(header,
                                      }) |>
       which()
 
-    output <- dplyr::bind_rows(inputs_list[suitable_input_sources]) |>
+    final_species_info <- dplyr::bind_rows(inputs_list[suitable_input_sources]) |>
       dplyr::select(.data = _,
                     tidyselect::all_of(x = c("PrimaryKey")),
                     tidyselect::any_of(x = c("Species",
-                                             "Species" = "code")),
+                                             "Species" = "NameCode")),
+                    tidyselect::all_of(x = c("CurrentPLANTSCode")),
                     tidyselect::any_of(c("GrowthHabit",
                                          "GrowthHabitSub",
                                          "Duration",
@@ -1296,9 +1297,11 @@ accumulated_species <- function(header,
                                          "SpecialStatus",
                                          "SG_Group",
                                          "CommonName"))) |>
-      dplyr::distinct() |>
-      dplyr::left_join(x = output,
-                       y = _,
+      dplyr::distinct()
+
+
+    output <- dplyr::left_join(x = output,
+                       y = final_species_info,
                        relationship = "many-to-one",
                        by = c("PrimaryKey",
                               "Species"))
