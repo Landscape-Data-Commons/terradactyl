@@ -1285,8 +1285,15 @@ accumulated_species <- function(header,
     final_species_info <- dplyr::bind_rows(inputs_list[suitable_input_sources]) |>
       dplyr::select(.data = _,
                     tidyselect::all_of(x = c("PrimaryKey")),
+                    # Should only need the last one in this vector, but the
+                    # others don't hurt and were there from previous iterations
+                    # of the function. Consider removing them.
                     tidyselect::any_of(x = c("Species",
-                                             "Species" = "NameCode")),
+                                             "Species" = "NameCode",
+                                             "Species" = "code")),
+                    # We're going to put the PLANTS code in its own variable so
+                    # we don't collapse species codes that are distinct but
+                    # unrecognized by PLANTS.
                     tidyselect::all_of(x = c("CurrentPLANTSCode")),
                     tidyselect::any_of(c("GrowthHabit",
                                          "GrowthHabitSub",
