@@ -1745,7 +1745,7 @@ spp_inventory_calc <- function(header,
                            by = "PrimaryKey")
 
   # If generic_species_file is not provided, assume it is the same as species_file
-  if(is.null(generic_species_file)) {
+  if (is.null(generic_species_file)) {
     generic_species_file <- species_file
   }
 
