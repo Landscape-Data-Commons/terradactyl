@@ -1,4 +1,4 @@
-#' terrdactyl: A package for terrestrial data commons tools
+#' terradactyl: A package for terrestrial data commons tools
 #'
 #' This package provides functionality for gathering terrestrial core methods
 #' data, calculating standard variables and indicators, and producing
