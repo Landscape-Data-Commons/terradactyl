@@ -5,7 +5,7 @@
 \title{Core Cover Indicators
 Generates cover calculations from the Line-point intercept method that are likely generalizable across programs (e.g., TotalFoliarCover, TotalLitterCover, BareSoilCover, cover by GrowthHabit, etc)}
 \usage{
-core_cover_indicators(lpi_species)
+core_cover_indicators(lpi_species, verbose = FALSE)
 }
 \arguments{
 \item{lpi_species}{Dataframe in environment. An LPI tall table generated from \code{gather_lpi()} and \code{species_join()}.}

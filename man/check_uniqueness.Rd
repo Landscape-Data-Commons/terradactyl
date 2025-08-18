@@ -4,7 +4,7 @@
 \alias{check_uniqueness}
 \title{Identify non-unique records in a data frame.}
 \usage{
-check_uniqueness(data, uid_variables)
+check_uniqueness(data, uid_variables, verbose = FALSE)
 }
 \arguments{
 \item{data}{Data frame. The data which will be checked for non-unique records.}

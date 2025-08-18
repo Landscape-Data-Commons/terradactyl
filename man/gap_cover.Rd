@@ -10,7 +10,8 @@ gap_cover(
   breaks = c(20, 24, 50, 100, 200),
   type = "canopy",
   no_max_cutoff = TRUE,
-  by_line = FALSE
+  by_line = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -32,7 +33,7 @@ would be included in the 25-50 class. Larger classes are inclusive only on the
 high end, e.g. if \code{breaks} is \code{c(25, 50, 100, 200)} then a 50 cm gap
 would be included in the 25-50 class and a 100 cm gap would be included in the
 51-100 class. Defaults to \code{c(20, 24, 50, 100, 200)} which produces the classes
-20-24, 25-50, 51-100, 101-201, and 200-Inf.}
+20-24, 25-50, 51-100, 101-201, and 200-Inf (with \code{no_max_cutoff = TRUE} which is the default).}
 
 \item{type}{Character string. The type of measurement (perennial-only canopy,
 all-plant canopy, or basal) to use. For perennial-only calculations, use
