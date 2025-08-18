@@ -1,3 +1,9 @@
+#' Basic percent cover function
+#' @description
+#' Calculate the percent cover
+#' @param lpi_tall The tall LPI data
+#'
+#' @export
 pct_cover <- function(lpi_tall,
                       tall = FALSE,
                       hit = "any",
