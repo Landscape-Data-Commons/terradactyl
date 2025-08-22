@@ -3788,9 +3788,9 @@ gather_species_inventory_terradat <- function(dsn = NULL,
                               layer = "tblSpecRichDetail",
                               quiet = TRUE)
       }
+    } else {
+      stop("Please provide tblSpecRichHeader, tblSpecRichDetail, or a filepath to a geodatabase containing those tables.")
     }
-  } else {
-    stop("Please provide tblSpeciRichHeader, tblSpecRichDetail, or a filepath to a geodatabase containing those tables.")
   }
 
   # These are used for data management within a geodatabase and we're going to
