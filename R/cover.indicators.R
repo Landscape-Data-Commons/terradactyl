@@ -161,7 +161,11 @@ pct_cover_indicators <- function(lpi_tall,
       dplyr::summarize(.data = _,
                        .by = -tidyselect::any_of(x = c("percent")),
                        indicator = dplyr::first(indicator),
-                       percent = sum(percent))
+                       # The na.rm = TRUE should produce 0 when all inputs are
+                       # NA and effectively treat NA as 0 when real values are
+                       # involved.
+                       percent = sum(percent,
+                                     na.rm = TRUE))
 
     # Widen the data frame if the user asked for that.
     if (!tall_output["total foliar"]) {
@@ -475,7 +479,8 @@ pct_cover_total_foliar <- function(lpi_tall,
   #   dplyr::summarize(.data = _,
   #                    .by = -tidyselect::any_of(x = c("percent")),
   #                    indicator = dplyr::first(indicator),
-  #                    percent = sum(percent))
+  #                    percent = sum(percent,
+  # na.rm = TRUE))
   #
   # # Widen the data frame if the user asked for that.
   # if (!tall) {

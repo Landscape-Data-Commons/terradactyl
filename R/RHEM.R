@@ -148,7 +148,8 @@ RHEM <- function(
   basal_cover_sum <- basal_cover %>%
     dplyr::filter(!indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN", "M", "LC")) %>%
     dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarise(BasalCover = sum(percent))
+    dplyr::summarise(BasalCover = sum(percent,
+                                      na.rm = TRUE))
 
   # Slope Shape
   slope_shape <- slope_shape %>% dplyr::mutate(SlopeShape = SlopeShape %>%
