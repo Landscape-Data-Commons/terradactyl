@@ -162,69 +162,69 @@ gather_header_terradat <- function(source = NULL,
 }
 
 
-if(!is.null(dsn) & is.null(date_tables)){
-  available_layers <- sf::st_layers(dsn = dsn)$name
-
-  desired_date_tables <- c("tblLPIHeader",
-                           "tblGapHeader",
-                           "tblSpecRichHeader")
-
-  if (length(base::intersect(x = desired_date_tables,
-                             y = available_layers)) > 0) {
-    date_tables <- lapply(X = base::intersect(x = desired_date_tables,
-                                              y = available_layers),
-                          dsn = dsn,
-                          FUN = function(X, dsn){
-                            message(paste("Reading dates from",
-                                          X))
-                            sf::st_read(dsn = dsn,
-                                        layer = X,
-                                        stringsAsFactors = FALSE,
-                                        quiet = TRUE) |>
-                              sf::st_drop_geometry() |>
-                              # This'll happen again in a bit, but just to
-                              # save on memory we'll pare it down here.
-                              dplyr::select(.data = _,
-                                            PrimaryKey,
-                                            tidyselect::any_of(c(Date = "FormDate",
-                                                                 Date = "CollectDate"))) |>
-                              dplyr::distinct()
-                          })
-  }
-}
-
-if(is.null(date_tables)){
-  stop("date_tables must be provided if dsn is not. Provide a list of tables containing FormDate or collectDate")
-}
-
-if(class(date_tables) != "list"){
-  stop("date_tables must be a list of minimum length 1")
-}
-
-# Take all the tables and return a record for each PrimaryKey with the first
-# valid date found in the provided data.
-dates <- lapply(X = date_tables,
-                FUN = function(X){
-                  dplyr::select(.data = X,
-                                PrimaryKey,
-                                tidyselect::any_of(c("Date",
-                                                     Date = "FormDate",
-                                                     Date = "CollectDate"))) |>
-                    dplyr::distinct()
-                }) |>
-  dplyr::bind_rows() |>
-  dplyr::summarize(.data = _,
-                   .by = tidyselect::all_of(c("PrimaryKey")),
-                   DateVisited = dplyr::first(x = na.omit(Date),
-                                              order_by = na.omit(Date))) |>
-  dplyr::distinct()
-
-# Return the header with the date added.
-dplyr::left_join(x = header,
-                 y = dates,
-                 relationship = "one-to-one",
-                 by = "PrimaryKey") |>
-  dplyr::select(.data = _,
-                -tidyselect::any_of(internal_gdb_vars)) |>
-  dplyr::distinct()
-}
+# if(!is.null(dsn) & is.null(date_tables)){
+#   available_layers <- sf::st_layers(dsn = dsn)$name
+#
+#   desired_date_tables <- c("tblLPIHeader",
+#                            "tblGapHeader",
+#                            "tblSpecRichHeader")
+#
+#   if (length(base::intersect(x = desired_date_tables,
+#                              y = available_layers)) > 0) {
+#     date_tables <- lapply(X = base::intersect(x = desired_date_tables,
+#                                               y = available_layers),
+#                           dsn = dsn,
+#                           FUN = function(X, dsn){
+#                             message(paste("Reading dates from",
+#                                           X))
+#                             sf::st_read(dsn = dsn,
+#                                         layer = X,
+#                                         stringsAsFactors = FALSE,
+#                                         quiet = TRUE) |>
+#                               sf::st_drop_geometry() |>
+#                               # This'll happen again in a bit, but just to
+#                               # save on memory we'll pare it down here.
+#                               dplyr::select(.data = _,
+#                                             PrimaryKey,
+#                                             tidyselect::any_of(c(Date = "FormDate",
+#                                                                  Date = "CollectDate"))) |>
+#                               dplyr::distinct()
+#                           })
+#   }
+# }
+#
+# if(is.null(date_tables)){
+#   stop("date_tables must be provided if dsn is not. Provide a list of tables containing FormDate or collectDate")
+# }
+#
+# if(class(date_tables) != "list"){
+#   stop("date_tables must be a list of minimum length 1")
+# }
+#
+# # Take all the tables and return a record for each PrimaryKey with the first
+# # valid date found in the provided data.
+# dates <- lapply(X = date_tables,
+#                 FUN = function(X){
+#                   dplyr::select(.data = X,
+#                                 PrimaryKey,
+#                                 tidyselect::any_of(c("Date",
+#                                                      Date = "FormDate",
+#                                                      Date = "CollectDate"))) |>
+#                     dplyr::distinct()
+#                 }) |>
+#   dplyr::bind_rows() |>
+#   dplyr::summarize(.data = _,
+#                    .by = tidyselect::all_of(c("PrimaryKey")),
+#                    DateVisited = dplyr::first(x = na.omit(Date),
+#                                               order_by = na.omit(Date))) |>
+#   dplyr::distinct()
+#
+# # Return the header with the date added.
+# dplyr::left_join(x = header,
+#                  y = dates,
+#                  relationship = "one-to-one",
+#                  by = "PrimaryKey") |>
+#   dplyr::select(.data = _,
+#                 -tidyselect::any_of(internal_gdb_vars)) |>
+#   dplyr::distinct()
+# }
