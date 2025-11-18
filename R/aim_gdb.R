@@ -440,7 +440,7 @@ lpi_calc <- function(header = NULL,
   }
 
   lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
-                                                        tidyselect::all_of(c("PrimaryKey",
+                                                        tidyselect::any_of(c("PrimaryKey",
                                                                              "SpeciesState",
                                                                              "State",
                                                                              "County"))),
@@ -1337,7 +1337,7 @@ lpi_calc <- function(header = NULL,
   # Also, it's totally inappropriate to return indicator values with 6+ decimal
   # places so we're rounding to a single decimal place.
   output <- dplyr::mutate(.data = output,
-                          dplyr::across(.cols = -tidyselect::all_of(x = c("PrimaryKey",
+                          dplyr::across(.cols = -tidyselect::any_of(x = c("PrimaryKey",
                                                                           "SagebrushShape_Live_Predominant")),
                                         .fns = ~ as.numeric(.x) |>
                                           tidyr::replace_na(data = _,
@@ -1470,7 +1470,11 @@ height_calc <- function(header,
   }
 
   height_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
-                                                           tidyselect::all_of(c("PrimaryKey",
+                                                           # Swapped from all_of()
+                                                           # because county was
+                                                           # missing from some
+                                                           # data.
+                                                           tidyselect::any_of(c("PrimaryKey",
                                                                                 "SpeciesState",
                                                                                 "State",
                                                                                 "County"))),
