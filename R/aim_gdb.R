@@ -18,7 +18,7 @@ build_terradat_indicators <- function(header,
   #### Reading #################################################################
   ##### Headers ----------------------------------------------------------------
   if ("character" %in% class(header)) {
-    if (tools::file_ext(header) %in% c("Rdata")) {
+    if (toupper(tools::file_ext(header)) %in% c("RDATA")) {
       header <- readRDS(header)
     }
   } else if (!("data.frame" %in% class(header))) {
@@ -1381,7 +1381,7 @@ gap_calc <- function(header,
                      gap_tall,
                      verbose = FALSE) {
   if ("character" %in% class(header)) {
-    if (tools::file_ext(header) == "Rdata") {
+    if (toupper(tools::file_ext(header)) == "RDATA") {
       header <- readRDS(file = header)
     } else {
       stop("When header is a character string it must be the path to a .rds file containing tall LPI data.")
@@ -1397,7 +1397,7 @@ gap_calc <- function(header,
     message("Reading gap data")
   }
   if ("character" %in% class(gap_tall)) {
-    if (tools::file_ext(gap_tall) == "Rdata") {
+    if (toupper(tools::file_ext(gap_tall)) == "RDATA") {
       gap_tall <- readRDS(file = gap_tall)
     } else {
       stop("When gap_tall is a character string it must be the path to a .rds file containing tall LPI data.")
@@ -1453,14 +1453,14 @@ height_calc <- function(header,
   }
 
   if ("character" %in% class(header)) {
-    if (tools::file_ext(header) == "Rdata") {
+    if (toupper(tools::file_ext(header)) == "RDATA") {
       header <- readRDS(header)
     } else {
       stop("When header is a character string it must be the path to a .Rdata file containing header data.")
     }
   }
   if ("character" %in% class(height_tall)) {
-    if (tools::file_ext(height_tall) == "Rdata") {
+    if (toupper(tools::file_ext(height_tall)) == "RDATA") {
       height_tall <- readRDS(file = height_tall)
     } else {
       stop("When height_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
@@ -1726,14 +1726,14 @@ spp_inventory_calc <- function(header,
                                generic_species_file = NULL,
                                verbose = FALSE) {
   if ("character" %in% class(header)) {
-    if (tools::file_ext(header) == "Rdata") {
+    if (toupper(tools::file_ext(header)) == "RDATA") {
       header <- readRDS(file = header)
     } else {
       stop("When header is a character string it must be the path to a .Rdata file containing header data.")
     }
   }
   if ("character" %in% class(spp_inventory_tall)) {
-    if (tools::file_ext(spp_inventory_tall) == "Rdata") {
+    if (toupper(tools::file_ext(spp_inventory_tall)) == "RDATA") {
       data <- readRDS(file = spp_inventory_tall)
     } else {
       stop("When spp_inventory_tall is a character string it must be the path to a .rds file containing tall LPI data.")
@@ -1960,7 +1960,7 @@ spp_inventory_calc <- function(header,
 soil_stability_calc <- function(soil_stability_tall,
                                 verbose = FALSE) {
   if ("character" %in% class(soil_stability_tall)) {
-    if (tools::file_ext(soil_stability_tall) == "Rdata") {
+    if (toupper(tools::file_ext(soil_stability_tall)) == "RDATA") {
       data <- readRDS(file = soil_stability_tall)
     } else {
       stop("When soil_stability_tall is a character string it must be the path to a .rds file containing tall LPI data.")
