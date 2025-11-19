@@ -4,6 +4,7 @@
 build_terradat_indicators <- function(header,
                                       dsn,
                                       species_file,
+                                      species_code_var = "SpeciesCode",
                                       lpi_tall = NULL,
                                       gap_tall = NULL,
                                       height_tall = NULL,
@@ -118,6 +119,7 @@ build_terradat_indicators <- function(header,
                                          header = header,
                                          source = "AIM",
                                          species_file = species_file,
+                                         species_code_var = species_code_var,
                                          dsn = dsn,
                                          verbose = verbose)
   } else {
@@ -416,11 +418,19 @@ build_indicators <- function(header, source,
 lpi_calc <- function(header = NULL,
                      lpi_tall = NULL,
                      species_file,
+                     species_code_var,
                      source,
                      dsn = NULL,
                      generic_species_file = NULL,
                      digits = 1,
                      verbose = FALSE) {
+
+  if (!is.character(species_code_var)) {
+    stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
+  } else if (length(species_code_var) > 1) {
+    stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
+  }
+
   #### Handling header and raw data ############################################
   if ("character" %in% class(header)) {
     if (toupper(tools::file_ext(header)) == "RDATA") {
@@ -773,87 +783,148 @@ lpi_calc <- function(header = NULL,
   }
 
   if (verbose) {
-    message("Joining species information to the LPI data.")
+    message("Checking species_file and reading in as necessary.")
   }
-  # This is way more complicated now that we're working with tblNationalPlants
-  # AND tblStateSpecies.
-  # First, we use species_join() to add the important information from
-  # tblNationalPlants and to handle the generic species stuff.
-  # Then we read in tblStateSpecies (discarding everything except the variables
-  # containing codes, the states, and the sage-grouse groups) and join that to
-  # the data to add in the SG_Group variable because that's all that
-  # tblStateSpecies is good for these days.
-  # Also, tblStateSpecies contains some duration and growth habit information
-  # that (as of May 2025) is not reflected in or directly contradicts
-  # tblNationalPlants or is flat-out incorrect. Those variables aren't being
-  # used, but discrepancies in indicators calculated before versus after 2024
-  # may be due to those not being applied.
-  tblNationalPlants <- sf::st_read(dsn = species_file,
-                                   layer = "tblNationalPlants",
-                                   quiet = TRUE)
 
-  tblStateSpecies <- sf::st_read(dsn = species_file,
-                                 layer = "tblStateSpecies",
-                                 quiet = TRUE) |>
-    dplyr::select(.data = _,
-                  tidyselect::all_of(c(code = "SpeciesCode",
-                                       "Duration",
-                                       "GrowthHabit",
-                                       "GrowthHabitSub",
-                                       "SG_Group",
-                                       "SpeciesState"))) |>
-    dplyr::distinct()
+  if (is.character(species_file)) {
+    current_species_file_extension <- tools::file_ext(species_file)
+
+    if (nchar(current_species_file_extension) == 0) {
+      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+    } else if (current_species_file_extension %in% c("CSV", "csv")) {
+      if (!file.exists(species_file)) {
+        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+      }
+      species_list <- read.csv(file = species_file,
+                               stringsAsFactors = FALSE)
+    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+      species_list <- species_read_aim(dsn = species_file,
+                                       verbose = verbose)
+    }
+  } else if (is.data.frame(species_file)) {
+    species_list <- species_file
+  } else {
+    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
+  }
 
   if (verbose) {
-    message("Starting with tblNationalPlants and standardized generic codes.")
+    message("Attempting to join the species list to the LPI data.")
   }
+
   lpi_species <- species_join(data = sf::st_drop_geometry(lpi_tall_header),
-                              species_file = tblNationalPlants,
-                              species_code = "NameCode",
+                              data_code = "code",
+                              species_file = species_list,
+                              # This isn't hardcoded to accommodate other, non-
+                              # AIM species lists.
+                              species_code = species_code_var,
+                              species_growth_habit_code = "GrowthHabitSub",
+                              species_duration = "Duration",
+                              # These won't all be present in every list, but
+                              # that shouldn't be a problem because they're only
+                              # used with an any_of().
+                              species_property_vars = c("GrowthHabit",
+                                                        "GrowthHabitSub",
+                                                        "Duration",
+                                                        "Family",
+                                                        "HigherTaxon",
+                                                        "Nonnative",
+                                                        "Invasive",
+                                                        "Noxious",
+                                                        "SpecialStatus",
+                                                        "Photosynthesis",
+                                                        "PJ",
+                                                        "CurrentPLANTSCode"),
+                              growth_habit_file = "",
+                              growth_habit_code = "Code",
+                              # This FALSE should prevent us from having to
+                              # worry about generic_species_file because that's
+                              # only used to overwrite generic species info.
+                              overwrite_generic_species = FALSE,
+                              generic_species_file = generic_species_file,
                               update_species_codes = FALSE,
                               by_species_key = FALSE,
-                              verbose = verbose) |>
-    # We want to use whatever is the currently accepted code in USDA PLANTS for
-    # the species, even though that may be less taxonomically correct.
-    # Using dplyr::case_when() lets us keep any codes that don't have a
-    # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
-    dplyr::mutate(.data = _,
-                  code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
-                                          .default = code)) |>
-    # Not necessary, but I'm paranoid
-    dplyr::distinct()
+                              check_species = FALSE,
+                              verbose = verbose)
 
-  if (verbose) {
-    message("Adding SG_Group from tblStateSpecies")
-  }
-
-  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
-  # make a new data frame where there's only one record per species code and
-  # we store all the per-state SG_Group assignments in a character string as
-  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
-  # This should be significantly faster than trying to join by both the species
-  # codes and SpeciesState, at least for very large data sets.
-  lpi_species <- dplyr::select(.data = tblStateSpecies,
-                               tidyselect::all_of(c("code",
-                                                    "SpeciesState",
-                                                    "SG_Group"))) |>
-    dplyr::filter(.data = _,
-                  !is.na(SG_Group)) |>
-    dplyr::mutate(.data = _,
-                  sg_string = paste(SpeciesState,
-                                    SG_Group,
-                                    sep = ":")) |>
-    dplyr::summarize(.data = _,
-                     .by = code,
-                     SG_Group = paste(sg_string,
-                                      collapse = "|")) |>
-    dplyr::left_join(x = lpi_species,
-                     y = _,
-                     relationship = "many-to-one",
-                     by = c("code"),
-                     suffix = c("",
-                                "_tblstatespecies")) |>
-    dplyr::distinct()
+  # # This is way more complicated now that we're working with tblNationalPlants
+  # # AND tblStateSpecies.
+  # # First, we use species_join() to add the important information from
+  # # tblNationalPlants and to handle the generic species stuff.
+  # # Then we read in tblStateSpecies (discarding everything except the variables
+  # # containing codes, the states, and the sage-grouse groups) and join that to
+  # # the data to add in the SG_Group variable because that's all that
+  # # tblStateSpecies is good for these days.
+  # # Also, tblStateSpecies contains some duration and growth habit information
+  # # that (as of May 2025) is not reflected in or directly contradicts
+  # # tblNationalPlants or is flat-out incorrect. Those variables aren't being
+  # # used, but discrepancies in indicators calculated before versus after 2024
+  # # may be due to those not being applied.
+  # tblNationalPlants <- sf::st_read(dsn = species_file,
+  #                                  layer = "tblNationalPlants",
+  #                                  quiet = TRUE)
+  #
+  # tblStateSpecies <- sf::st_read(dsn = species_file,
+  #                                layer = "tblStateSpecies",
+  #                                quiet = TRUE) |>
+  #   dplyr::select(.data = _,
+  #                 tidyselect::all_of(c(code = "SpeciesCode",
+  #                                      "Duration",
+  #                                      "GrowthHabit",
+  #                                      "GrowthHabitSub",
+  #                                      "SG_Group",
+  #                                      "SpeciesState"))) |>
+  #   dplyr::distinct()
+  #
+  # if (verbose) {
+  #   message("Starting with tblNationalPlants and standardized generic codes.")
+  # }
+  # lpi_species <- species_join(data = sf::st_drop_geometry(lpi_tall_header),
+  #                             species_file = tblNationalPlants,
+  #                             species_code = "NameCode",
+  #                             update_species_codes = FALSE,
+  #                             by_species_key = FALSE,
+  #                             verbose = verbose) |>
+  #   # We want to use whatever is the currently accepted code in USDA PLANTS for
+  #   # the species, even though that may be less taxonomically correct.
+  #   # Using dplyr::case_when() lets us keep any codes that don't have a
+  #   # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
+  #   dplyr::mutate(.data = _,
+  #                 code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
+  #                                         .default = code)) |>
+  #   # Not necessary, but I'm paranoid
+  #   dplyr::distinct()
+  #
+  # if (verbose) {
+  #   message("Adding SG_Group from tblStateSpecies")
+  # }
+  #
+  # # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
+  # # make a new data frame where there's only one record per species code and
+  # # we store all the per-state SG_Group assignments in a character string as
+  # # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
+  # # This should be significantly faster than trying to join by both the species
+  # # codes and SpeciesState, at least for very large data sets.
+  # lpi_species <- dplyr::select(.data = tblStateSpecies,
+  #                              tidyselect::all_of(c("code",
+  #                                                   "SpeciesState",
+  #                                                   "SG_Group"))) |>
+  #   dplyr::filter(.data = _,
+  #                 !is.na(SG_Group)) |>
+  #   dplyr::mutate(.data = _,
+  #                 sg_string = paste(SpeciesState,
+  #                                   SG_Group,
+  #                                   sep = ":")) |>
+  #   dplyr::summarize(.data = _,
+  #                    .by = code,
+  #                    SG_Group = paste(sg_string,
+  #                                     collapse = "|")) |>
+  #   dplyr::left_join(x = lpi_species,
+  #                    y = _,
+  #                    relationship = "many-to-one",
+  #                    by = c("code"),
+  #                    suffix = c("",
+  #                               "_tblstatespecies")) |>
+  #   dplyr::distinct()
 
   ##### Sanitization/harmonization #############################################
   # One big mutate() to do all this lifting.
@@ -863,6 +934,53 @@ lpi_calc <- function(header = NULL,
   if (verbose) {
     message("Harmonizing species characteristics with AIM indicator needs.")
   }
+
+  # Let's check for the required variables for all these.
+  # If any are missing, we can warn the user that those variables will be
+  # created but populated with NA and so no indicators that involve them will
+  # be calculated.
+  expected_variables <- c("GrowthHabit",
+                          "GrowthHabitSub",
+                          "Duration",
+                          "Family",
+                          "HigherTaxon",
+                          "Nonnative",
+                          "Invasive",
+                          "Noxious",
+                          "SpecialStatus",
+                          "Photosynthesis",
+                          "PJ",
+                          "CurrentPLANTSCode")
+  missing_expected_variables <- setdiff(x = c("GrowthHabit",
+                                              "GrowthHabitSub",
+                                              "Duration",
+                                              "Family",
+                                              "HigherTaxon",
+                                              "Nonnative",
+                                              "Invasive",
+                                              "Noxious",
+                                              "SpecialStatus",
+                                              "Photosynthesis",
+                                              "PJ",
+                                              "CurrentPLANTSCode"),
+                                        names(lpi_species))
+
+  if (length(missing_expected_variables) > 0) {
+    warning(paste0("The provided species information does not contain all expected variables required for the standard set of indicators. Indicators which depend on those variables will not be calculated. The variables in question are: ",
+                   paste(missing_expected_variables,
+                         collapse = ", ")))
+    # This makes a new data frame without any data in it consisting of only the
+    # missing variables and a number of rows equal to the number of lpi_species
+    # records then binds them together.
+    lpi_species <- matrix(nrow = nrow(lpi_species),
+                          ncol = length(missing_expected_variables)) |>
+      as.data.frame() |>
+      setNames(object = _,
+               nm = missing_expected_variables) |>
+      dplyr::bind_cols(lpi_species,
+                       .x = _)
+  }
+
 
   lpi_species <- dplyr::mutate(.data = lpi_species,
                                ###### Duration ---------------------------------
@@ -1057,14 +1175,15 @@ lpi_calc <- function(header = NULL,
                                                          .default = "NonNative"),
 
                                ###### Noxious ----------------------------------
-                               # For noxious cover. This assumes that anything
-                               # flagged as YES is noxious and nothing else is.
-                               # NOTE: This is now disabled because noxious
+                               # For noxious cover. This previously assumed that
+                               # anything flagged as YES is noxious and nothing
+                               # else is. This is now disabled because noxious
                                # status is being handled more appropriately and
                                # through a different format. I'm leaving this
                                # for posterity for the moment though.
                                # Noxious = dplyr::case_when(Noxious %in% c("YES") ~ "Noxious",
                                #                            .default = NA),
+                               #
                                # Noxious is now encoded as a character string
                                # with localities separated by |s. We need to
                                # check for the relevant locality based on the

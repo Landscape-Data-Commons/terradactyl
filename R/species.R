@@ -724,6 +724,7 @@ accumulated_species <- function(header,
                                 height_tall = NULL,
                                 spp_inventory_tall = NULL,
                                 species_file = "",
+                                species_code_var = "SpeciesCode",
                                 dead = TRUE,
                                 source = c("TerrADat", "AIM", "LMF", "NRI"),
                                 ...,
@@ -824,65 +825,29 @@ accumulated_species <- function(header,
                         })
 
   ##### Species -----------------------------------------------------------------
-  # This is way more complicated now that we're working with tblNationalPlants
-  # AND tblStateSpecies.
-  # First, we use species_join() to add the important information from
-  # tblNationalPlants and to handle the generic species stuff.
-  # Then we read in tblStateSpecies (discarding everything except the variables
-  # containing codes, the states, and the sage-grouse groups) and join that to
-  # the data to add in the SG_Group variable because that's all that
-  # tblStateSpecies is good for these days.
-  # Also, tblStateSpecies contains some duration and growth habit information
-  # that (as of May 2025) is not reflected in or directly contradicts
-  # tblNationalPlants or is flat-out incorrect. Those variables aren't being
-  # used, but discrepancies in indicators calculated before versus after 2024
-  # may be due to those not being applied.
-  tblNationalPlants <- sf::st_read(dsn = species_file,
-                                   layer = "tblNationalPlants",
-                                   quiet = TRUE)
+  if (is.character(species_file)) {
+    current_species_file_extension <- tools::file_ext(species_file)
 
-  tblStateSpecies <- sf::st_read(dsn = species_file,
-                                 layer = "tblStateSpecies",
-                                 quiet = TRUE) |>
-    dplyr::select(.data = _,
-                  tidyselect::all_of(c(code = "SpeciesCode",
-                                       "Duration",
-                                       "GrowthHabit",
-                                       "GrowthHabitSub",
-                                       "SG_Group",
-                                       "SpeciesState"))) |>
-    dplyr::distinct()
-  if (verbose) {
-    message("Adding SG_Group from tblStateSpecies")
+    if (nchar(current_species_file_extension) == 0) {
+      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+    } else if (current_species_file_extension %in% c("CSV", "csv")) {
+      if (!file.exists(species_file)) {
+        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+      }
+      species_info <- read.csv(file = species_file,
+                               stringsAsFactors = FALSE)
+    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+      if (verbose) {
+        message("species_file points to a geodatabase. Assuming that both tblNationalPlants and tblStateSpecies are present in the GDB.")
+      }
+      species_info <- species_read_aim(dsn = species_file,
+                                       verbose = verbose)
+    }
+  } else if (is.data.frame(species_file)) {
+    species_info <- species_file
+  } else {
+    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
   }
-
-  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
-  # make a new data frame where there's only one record per species code and
-  # we store all the per-state SG_Group assignments in a character string as
-  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
-  # This should be significantly faster than trying to join by both the species
-  # codes and SpeciesState, at least for very large data sets.
-  species_info <- dplyr::select(.data = tblStateSpecies,
-                                tidyselect::all_of(c("code",
-                                                     "SpeciesState",
-                                                     "SG_Group"))) |>
-    dplyr::filter(.data = _,
-                  !is.na(SG_Group)) |>
-    dplyr::mutate(.data = _,
-                  sg_string = paste(SpeciesState,
-                                    SG_Group,
-                                    sep = ":")) |>
-    dplyr::summarize(.data = _,
-                     .by = code,
-                     SG_Group = paste(sg_string,
-                                      collapse = "|")) |>
-    dplyr::left_join(x = tblNationalPlants,
-                     y = _,
-                     relationship = "many-to-one",
-                     by = c("CurrentPLANTSCode" = "code"),
-                     suffix = c("",
-                                "_tblstatespecies")) |>
-    dplyr::distinct()
 
   ###### Joining to the data ---------------------------------------------------
   inputs_list <- lapply(X = inputs_list,
@@ -893,7 +858,7 @@ accumulated_species <- function(header,
                           }
                           current_data <- species_join(data = X,
                                                        species_file = species_info,
-                                                       species_code = "NameCode",
+                                                       species_code = species_code_var,
                                                        species_property_vars = c("GrowthHabit",
                                                                                  "GrowthHabitSub",
                                                                                  "Duration",
