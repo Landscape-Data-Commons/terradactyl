@@ -4,7 +4,7 @@
 \alias{RHEM}
 \title{RHEM Input Calculations}
 \usage{
-RHEM(lpi_species, header, slope_shape)
+RHEM(lpi_species, header, slope_shape, verbose = FALSE)
 }
 \arguments{
 \item{lpi_species}{Dataframe of lpi tall table joined with RHEM species attributes in the field "RHEM_Habit".}

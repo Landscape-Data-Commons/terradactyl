@@ -9,7 +9,8 @@ qc_data_inventory <- function(header,
                               height_tall,
                               spp_inventory_tall,
                               soil_stability_tall,
-                              dsn) {
+                              dsn,
+                              verbose = FALSE) {
   header <- readRDS(header) %>% dplyr::select(-DateVisited)
   lpi <- readRDS(lpi_tall) %>%
     dplyr::group_by(PrimaryKey, RecKey) %>%

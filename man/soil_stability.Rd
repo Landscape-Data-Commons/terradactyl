@@ -10,24 +10,28 @@ soil_stability(
   cover = TRUE,
   uncovered = TRUE,
   all_cover_types = FALSE,
-  tall = FALSE
+  exclude_na_cover = TRUE,
+  tall = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{
 \item{soil_stability_tall}{Dataframe Gathered soil stability data}
 
-\item{all}{Logical. When \code{TRUE} Calculate soil stability for all samples. Defaults to \code{TRUE}}
+\item{all}{Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples regardless of cover type will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"all"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_All. Defaults to \code{TRUE}.}
 
-\item{cover}{Logical. When \code{TRUE}, calculates soil stability for samples covered byperennial vegetation. Defaults to \code{TRUE}}
+\item{cover}{Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples associated with perennial plant cover (defined as records which DO NOT have \code{"NC"} in the Veg variable) will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"covered"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_Protected. Defaults to \code{TRUE}.}
 
-\item{all_cover_types}{Logical. When \code{TRUE}, calculates soil stability for each indidual cover type. Defaults to \code{FALSE}}
+\item{all_cover_types}{Logical. When \code{TRUE}, indicators will be calculated for mean soil stability per cover type found in the Veg variable, e.g., \code{"SH"} or \code{"NC"}. If \code{tall = TRUE} these indicator values will be associated with corresponding code in the Veg variable. If \code{tall = FALSE} they will be found in the variable named for the associated code in Veg, e.g. SH or NC. Defaults to \code{FALSE}.}
 
-\item{tall}{Logical. Indicates if output is tall/long or wide. Defaults to \code{TRUE}}
+\item{exclude_na_cover}{Logical. When \code{TRUE}, all records with \code{NA} in the Veg variable will be removed prior to calculations. Defaults to \code{TRUE}.}
 
-\item{uncovered.}{Logical. When \code{TRUE}, calculates soil stability for samples not covered by perennial vegetation. Defaults to \code{TRUE}}
+\item{tall}{Logical. Indicates if output will be tall/long or wide. Defaults to \code{TRUE}.}
+
+\item{uncovered.}{Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples not associated with perennial plant cover (defined as records which have \code{"NC"} in the Veg variable) will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"uncovered"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_Unprotected. Defaults to \code{TRUE}.}
 }
 \value{
-Dataframe of calculated soil stability values by plot.
+Dataframe of calculated soil stability values by plot and cover type.
 }
 \description{
 Soil Stability Indicator Calculations

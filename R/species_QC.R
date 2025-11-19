@@ -5,83 +5,95 @@
 
 #' @export species_list_check
 #' @rdname species
-species_list_check <- function(dsn_tall, species_list_file, ...) {
+species_list_check <- function(dsn_tall, species_list_file, ...,
+                               verbose = FALSE) {
 
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
   # Read header information to provide subset and link between species tables
-  header <- readRDS(paste(dsn_tall, "header.rdata", sep = ""))
-  header_sub <- header %>% dplyr::filter(!!!filter_exprs)
+  header <- readRDS(file.path(dsn_tall, "header.rdata"))
+  header_sub <- dplyr::filter(.data = header,
+                              !!!filter_exprs)
 
-  # Read in LPI
-  if(file.exists(paste(dsn_tall, "lpi_tall.rdata", sep = ""))){
-    lpi <- readRDS(paste(dsn_tall, "lpi_tall.rdata", sep = "")) %>%
-      dplyr::select(PrimaryKey, Species = code) %>%
-      dplyr::left_join(header_sub, .)
+  #### Read in the data from .Rdata files containing the various tall data #####
+  ##### LPI --------------------------------------------------------------------
+  if(file.exists(file.path(dsn_tall, "lpi_tall.rdata"))) {
+    lpi <- readRDS(file.path(dsn_tall, "lpi_tall.rdata")) |>
+      dplyr::select(.data = _,
+                    tidyselect::all_of(c("PrimaryKey",
+                                         Species = "code"))) |>
+      dplyr::distinct(.data = _) |>
+      dplyr::left_join(x = header_sub,
+                       y = _,
+                       relationship = "one-to-many",
+                       by = "PrimaryKey")
   } else {
-    print("No LPI data found")
+    message("No LPI data found")
     lpi <- NULL
   }
 
 
   # Read in height
-  if(file.exists(paste(dsn_tall, "height_tall.rdata", sep = ""))){
-    height <- readRDS(paste(dsn_tall, "height_tall.rdata", sep = "")) %>%
-      dplyr::left_join(header_sub, .)
+  if(file.exists(file.path(dsn_tall, "height_tall.rdata"))){
+    height <- readRDS(file.path(dsn_tall, "height_tall.rdata")) |>
+      dplyr::left_join(x = header_sub,
+                       y = _)
   } else {
-    print("No height data found")
+    message("No height data found")
     height <- NULL
   }
 
   # Species inventory
-  if(file.exists(paste(dsn_tall, "spp_inventory_tall.rdata", sep = ""))){
-    spp_inventory <- readRDS(paste(dsn_tall, "spp_inventory_tall.rdata", sep = "")) %>%
-      dplyr::select(PrimaryKey, Species) %>%
-      dplyr::left_join(header_sub, .)
+  if(file.exists(file.path(dsn_tall, "spp_inventory_tall.rdata"))){
+    spp_inventory <- readRDS(file.path(dsn_tall, "spp_inventory_tall.rdata")) |>
+      dplyr::select(.data = _,
+                    tidyselect::all_of(c("PrimaryKey",
+                                         "Species"))) |>
+      dplyr::left_join(x = header_sub,
+                       y = _)
   } else {
-    print("No species inventory data found")
+    message("No species inventory data found")
     spp_inventory <- NULL
   }
 
 
   # Merge all Species together with header data
 
-  species_all <- dplyr::bind_rows(
-    lpi,
-    height,
-    spp_inventory
-  ) %>%
-    subset(nchar(Species) >= 3 & Species != "None") %>%
-    dplyr::distinct() %>%
-
-
+  species_all <- dplyr::bind_rows(lpi,
+                                  height,
+                                  spp_inventory) |>
+    dplyr::filter(.data = _,
+                  nchar(Species) >= 3 & Species != "None") |>
+    dplyr::distinct() |>
     # Join to species
-    species_join(
-      data = ., data_code = "Species",
-      species_file = species_list_file
-    ) %>%
-    subset(!is.na(SpeciesState))
+    species_join(data = _,
+                 data_code = "Species",
+                 species_layer = "AIM_Terrestrial__F_tblNationalPlants",
+                 species_file = species_list_file
+    ) |>
+    dplyr::filter(.data = _,
+                  !is.na(SpeciesState))
 
 
   # Determine which species are missing GrowthHabit, GrowthHabitSub, Duration,
   # or Noxious Assignments
 
-  species_all_problems <- species_all %>% dplyr::mutate(
-    GrowthHabit =
-      dplyr::case_when(
-        is.na(GrowthHabit) ~ "GrowthHabit missing"
-      ),
-    GrowthHabitSub = dplyr::case_when(
-      is.na(GrowthHabitSub) ~ "GrowthHabitSub missing"
-    ),
-    Duration =
-      dplyr::case_when(
-        is.na(Duration) ~ "Duration missing"
-      ),
-    Noxious = dplyr::case_when(
-      is.na(Noxious) ~ "Noxious missing"
-    )
+  species_all_problems <- dplyr::mutate(.data = species_all,
+                                        GrowthHabit =
+                                          dplyr::case_when(
+                                            is.na(GrowthHabit) ~ "GrowthHabit missing"
+                                          ),
+                                        GrowthHabitSub = dplyr::case_when(
+                                          is.na(GrowthHabitSub) ~ "GrowthHabitSub missing"
+                                        ),
+                                        Duration =
+                                          dplyr::case_when(
+                                            is.na(Duration) ~ "Duration missing"
+                                          ),
+                                        # Noxious = dplyr::case_when(
+                                        #   is.na(Noxious) ~ "Noxious missing"
+                                        # )
   )
 
   # Identify missing non-sagebrush shrub
@@ -120,21 +132,21 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 
   # Write species level problems
   write.csv(unique_species_issues,
-    file = paste(dirname(species_list_file), "/",
-      unique(species_all$SpeciesState)[1],
-      "_species_missing_attributes_",
-      Sys.Date(), ".csv",
-      sep = ""
-    )
+            file = paste(dirname(species_list_file), "/",
+                         unique(species_all$SpeciesState)[1],
+                         "_species_missing_attributes_",
+                         Sys.Date(), ".csv",
+                         sep = ""
+            )
   )
   # Write out all data with problems
   write.csv(species_issues,
-    file = paste(dirname(species_list_file), "/",
-      unique(species_all$SpeciesState)[1],
-      "_species_missing_attributes_plots",
-      Sys.Date(), ".csv",
-      sep = ""
-    )
+            file = paste(dirname(species_list_file), "/",
+                         unique(species_all$SpeciesState)[1],
+                         "_species_missing_attributes_plots",
+                         Sys.Date(), ".csv",
+                         sep = ""
+            )
   )
 
   # If the height was missclassified (e.g., herbaceous species in woody height,
@@ -184,11 +196,11 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 
   # Evaluate the codes used in the species list
   species_list <- switch(stringr::str_sub(species_list_file, start = -3),
-    "gdb" = sf::st_read(
-      dsn = species_list_file, layer = "tblStateSpecies",
-      stringsAsFactors = FALSE
-    ),
-    "csv" = read.csv(species_list_file)
+                         "gdb" = sf::st_read(
+                           dsn = species_list_file, layer = "tblStateSpecies",
+                           stringsAsFactors = FALSE
+                         ),
+                         "csv" = read.csv(species_list_file)
   )
 
   species_list <- species_list %>% dplyr::mutate_all(list(toupper))
@@ -252,12 +264,12 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
   )
 
   write.csv(bad_attributes,
-    file = paste(dirname(species_list_file), "/",
-      unique(species_all$SpeciesState)[1],
-      "_bad_attributes_",
-      Sys.Date(), ".csv",
-      sep = ""
-    )
+            file = paste(dirname(species_list_file), "/",
+                         unique(species_all$SpeciesState)[1],
+                         "_bad_attributes_",
+                         Sys.Date(), ".csv",
+                         sep = ""
+            )
   )
 }
 
@@ -267,10 +279,11 @@ species_list_check <- function(dsn_tall, species_list_file, ...) {
 #' @rdname species
 
 species_list_compare <- function(species_file,
-                                 folder) {
+                                 folder,
+                                 verbose = FALSE) {
   # Read in species list, either from csv or geodatabase
   species_list <- switch(toupper(stringr::str_extract(species_file,
-    pattern = "[A-z]{3}$"
+                                                      pattern = "[A-z]{3}$"
   )),
   GDB = {
     suppressWarnings(sf::st_read(
@@ -298,10 +311,10 @@ species_list_compare <- function(species_file,
     dplyr::mutate_if(is.character, toupper) %>%
     # remove any spaces to remove unintended errors
     dplyr::mutate(SG_Group = SG_Group %>%
-      stringr::str_replace_all(
-        pattern = " ",
-        replacement = ""
-      ))
+                    stringr::str_replace_all(
+                      pattern = " ",
+                      replacement = ""
+                    ))
 
   # Identify the growth habit mismatches
   growth_habit_mismatch <- duplicated_species %>%

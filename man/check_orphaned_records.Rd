@@ -4,7 +4,13 @@
 \alias{check_orphaned_records}
 \title{Identify records without matches in a second data frame}
 \usage{
-check_orphaned_records(x, y, joining_variables, symmetric = TRUE)
+check_orphaned_records(
+  x,
+  y,
+  joining_variables,
+  symmetric = TRUE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{x}{Data frame. The data frame which will always be checked for records which do not correspond to any records in \code{y}. Must contain the variables specified in \code{joining_variables}.}

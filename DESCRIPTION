@@ -1,7 +1,8 @@
 Package: terradactyl
 Type: Package
 Title: Tools for Creating and Using TerrADat
-Version: 1.1.0
+Version: 1.7.0
+
 Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
                person(given="Nelson G", family="Stauffer", role="aut"),
                person(given="Joseph R", family = "Brehm", role="aut"),
@@ -16,24 +17,26 @@ Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email =
                person(given="Nicholas P", family="Webb", role="aut"),
                person(given="Craig E", family="Tweedie", role="aut")
                )
-Maintainer: Sarah McCord <sarah.mccord@usda.gov>
-Description: Access, tidy, and calculate standard indicators for data from the BLM AIM program, the BLM LMF program, and the NRCS NRI monitoring programs.
+Maintainer: Nelson Stauffer <nelson.stauffer@usda.gov>
+Description: Access, tidy, and calculate standard indicators for data from the BLM AIM, BLM LMF, and NRCS NRI monitoring programs.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.3
+
 Depends:
     R (>= 4.2.0)
 Imports:
     dplyr,
     stringr,
-    tidyr, 
-    sf, 
-    magrittr, 
+    tidyr,
+    sf,
+    magrittr,
     rlang,
     utils,
     stats,
-    purrr
+    purrr,
+    tidyselect
 Suggests:
     knitr,
     rmarkdown, 

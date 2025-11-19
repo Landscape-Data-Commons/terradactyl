@@ -10,10 +10,16 @@ tidy data frame}
 gather_rangeland_health_terradat(
   dsn = NULL,
   tblQualHeader = NULL,
-  tblQualDetail = NULL
+  tblQualDetail = NULL,
+  verbose = FALSE
 )
 
-gather_rangeland_health_lmf(dsn = NULL, file_type = NULL, RANGEHEALTH = NULL)
+gather_rangeland_health_lmf(
+  dsn = NULL,
+  file_type = NULL,
+  RANGEHEALTH = NULL,
+  verbose = FALSE
+)
 
 gather_rangeland_health(
   dsn = NULL,
@@ -22,7 +28,8 @@ gather_rangeland_health(
   tblQualHeader = NULL,
   tblQualDetail = NULL,
   RANGEHEALTH = NULL,
-  autoQC = TRUE
+  autoQC = TRUE,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -78,12 +85,9 @@ gather_rangeland_health(source = "LMF",
 }
 \seealso{
 Other <gather>: 
-\code{\link{gather_all}()},
 \code{\link{gather_gap}()},
 \code{\link{gather_height}()},
 \code{\link{gather_lpi}()},
-\code{\link{gather_plot_characterization}()},
-\code{\link{gather_soil_horizon}()},
 \code{\link{gather_soil_stability}()},
 \code{\link{gather_species_inventory}()}
 }

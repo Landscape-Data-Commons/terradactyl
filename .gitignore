@@ -1,6 +1,7 @@
 inst/doc
-.Rproj.user
-.Rhistory
-.RData
-.Ruserdata
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
 /testing
+*.Rproj

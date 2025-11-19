@@ -4,7 +4,7 @@
 \alias{gather_soil_horizons}
 \title{Gather soil horizon data}
 \usage{
-gather_soil_horizons(dsn, source)
+gather_soil_horizons(dsn, source, verbose = FALSE)
 }
 \description{
 Gather soil horizon data

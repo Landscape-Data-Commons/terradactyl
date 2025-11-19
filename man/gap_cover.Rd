@@ -10,7 +10,8 @@ gap_cover(
   breaks = c(20, 24, 50, 100, 200),
   type = "canopy",
   no_max_cutoff = TRUE,
-  by_line = FALSE
+  by_line = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{

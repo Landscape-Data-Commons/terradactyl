@@ -1,1071 +1,186 @@
-#' @export lpi_calc
-#' @rdname aim_gdb
-# Calculate the LPI indicators
-lpi_calc <- function(header,
-                     lpi_tall,
-                     species_file,
-                     source,
-                     dsn,
-                     verbose = TRUE) {
-  print("Beginning LPI indicator calculation")
-  # Join the lpi data to the header PrimaryKeys and add the StateSpecies Key
-  lpi_tall_header <- readRDS(lpi_tall) %>%
-    dplyr::left_join(dplyr::select(
-      header,
-      "PrimaryKey",
-      "SpeciesState"
-    ),
-    .,
-    by = c("PrimaryKey")
-    )
-
-  # check for generic species in Species list
-  if (source %in% c("LMF", "AIM", "TerrADat")) {
-    species_list <- sf::st_read(
-      dsn = dsn,
-      layer = "tblStateSpecies",
-      stringsAsFactors = FALSE
-    ) |>
-      # Get unknown codes and clean them up. Unknown codes beginning with a 2 (LMF/NRI)
-      # or a 2 letter prefix followed by a number.
-      # Older projects also used "AAFF" etc. to identify unknown and dead
-      # beyond recognition codes. So we'll need to detect those too
-      # dplyr::filter(stringr::str_detect(
-      #   string = SpeciesCode,
-      #   pattern = "^2[[:alpha:]]|^[A-z]{2}[[:digit:]]"
-      # ) &
-      #   is.na(Notes))
-      dplyr::filter(.data = _,
-                    stringr::str_detect(string = SpeciesCode,
-                                        pattern = "^2[[:alpha:]]|^[A-z]{2}[[:digit:]]"))
-
-    try(if (nrow(species_list) > 0) {
-      stop(
-        "Invalid generic species codes present in species list.
-       Please resolve before calculating indicators."
-      )
-    })
-  }
-
-
-  # Join to the state species list via the SpeciesState value
-  lpi_species <- species_join(
-    data = lpi_tall_header,
-    species_file = species_file,
-    overwrite_generic_species = dplyr::if_else(
-      source == "TerrADat",
-      TRUE,
-      FALSE
-    )
-  ) %>%
-    dplyr::distinct()
-
-  # Correct the Non-Woody to NonWoody
-  lpi_species$GrowthHabit[grepl(
-    pattern = "Non-woody|Nonwoody|Non-Woody",
-    x = lpi_species$GrowthHabit
-  )] <- "NonWoody"
-
-  lpi_species$GrowthHabit[lpi_species$GrowthHabitSub %in%
-                            c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb")] <- "ForbGrass"
-
-  # If non-vascular in GrowthHabitSub, indicate that in GrowthHabit
-  lpi_species$GrowthHabit[grepl(
-    pattern = "NonVascular|Nonvascular|Non-vascular|Succulent",
-    x = lpi_species$GrowthHabitSub
-  )] <- "NA"
-
-  # If non-vascular in GrowthHabit,null it out
-  lpi_species$GrowthHabit[grepl(
-    pattern = "NonVascular|Nonvascular|Non-vascular|Succulent",
-    x = lpi_species$GrowthHabit
-  )] <- "NA"
-
-
-  # For the purposes of cover calcs, Non-Woody==Forb & Grass != Sedge, so we need to remove sedges
-  lpi_species$GrowthHabit[lpi_species$GrowthHabitSub == "Sedge"] <- NA
-
-  # Correct the Sub-shrub to SubShrub
-  lpi_species$GrowthHabitSub[grepl(
-    pattern = "Sub-Shrub|subshrub|Sub-shrub|Subshrub",
-    x = lpi_species$GrowthHabitSub
-  )] <- "SubShrub"
-
-  # Add a Shrub/SubShrub/Succulent field
-  lpi_species$ShrubSucculent[grepl(
-    pattern = "SubShrub|Shrub|Succulent",
-    x = lpi_species$GrowthHabitSub
-  )] <- "ShrubSucculent"
-
-  # Calculate Total Foliar Cover ----
-  total_foliar <- pct_cover_total_foliar(
-    lpi_tall = lpi_species,
-    tall = TRUE,
-    by_line = FALSE
-  )
-
-  # Calculate between plant cover (includes bare soil) ----
-  between.plant.cover <- pct_cover_between_plant(
-    lpi_tall = lpi_species,
-    by_line = FALSE,
-    tall = TRUE
-  )
-
-  # Clean up indicator names so they are compatible with the AIM.gdb schema
-
-  # Assign string replacements
-  between.plant.replace <- c(
-    "\\bL\\b" = "HerbLitter",
-    "HL" = "HerbLitter",
-    "AM" = "HerbLitter",
-    "DN" = "HerbLitter",
-    "ER" = "HerbLitter",
-    "HT" = "NonVegLitter",
-    "NL" = "NonVegLitter",
-    "AL" = "NonVegLitter",
-    "DS" = "DepSoil",
-    "\\bD\\b" = "Duff",
-    "LC" = "Lichen",
-    "\\bM\\b" = "Moss",
-    "WL" = "WoodyLitter",
-    "CY" = "Cyanobacteria",
-    "EL" = "EmbLitter",
-    "\\bW\\b" = "Water",
-    "WA" = "Water",
-    "RF" = "Rock",
-    "\\bR\\b" = "Rock",
-    "GR" = "Rock",
-    "CB" = "Rock",
-    "ST" = "Rock",
-    "BY" = "Rock",
-    "VL" = "VagrLichen",
-    "AG" = "BareSoil",
-    "CM" = "BareSoil",
-    "LM" = "BareSoil",
-    "FG" = "BareSoil",
-    "PC" = "BareSoil",
-    "BR" = "Rock",
-    "\\bS\\b" = "BareSoil",
-    "[[:punct:]]" = ""
-  )
-
-  # Perform replacements
-  between.plant.cover <- between.plant.cover %>%
-    # Substitute the field names for those that are human readable
-    dplyr::mutate(indicator = indicator %>%
-                    stringr::str_replace_all(., between.plant.replace)) %>%
-
-    # Add FH to the beginning of the indicator to signify "any hit"
-    dplyr::mutate(indicator = paste("FH_", indicator, "Cover", sep = "")) %>%
-
-    # Remove "FH_" from the BareSoilCover indicator
-    dplyr::mutate(indicator = indicator %>%
-                    stringr::str_replace(., "FH_BareSoilCover", "BareSoilCover"))
-
-  # Because the renaming processing lumps categories,
-  # we need to get a summed value (e.g., Soil =S+FG+LM_CM+AG)
-  between.plant.cover <- between.plant.cover %>%
-    dplyr::group_by(PrimaryKey, indicator) %>%
-    dplyr::summarise(percent = sum(percent))
-
-  # Add a Total Litter Indicator
-  between.plant.cover <- between.plant.cover %>%
-    # Filter Litter Indicators
-    dplyr::filter(grepl(pattern = "Litter", x = indicator)) %>%
-    # Sum all indicator hits
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(
-      indicator = "FH_TotalLitterCover",
-      percent = sum(percent)
-    ) %>%
-    # Add back to the rest of the between plant cover indicators
-    dplyr::bind_rows(between.plant.cover, .)
-
-  # Any hit litter ####
-  lpi_species_litter <- lpi_species %>%
-    dplyr::mutate(
-      Litter = dplyr::case_when(
-        code %in% c("HL", "L", "DN", "ER", "AM", "TH","DL") ~ "HerbLitter",
-        code %in% "WL" ~ "WoodyLitter"
-      ),
-      TotalLitter = dplyr::case_when(
-        code %in% c(
-          "HL",
-          "L",
-          "DN",
-          "ER",
-          "AM",
-          "WL",
-          "NL",
-          "EL",
-          "HT",
-          "AL",
-          "TH",
-          "DL"
-        ) ~ "TotalLitter"
-      )
-    )
-
-  litter <- pct_cover(lpi_species_litter,
-                      tall = TRUE,
-                      by_line = FALSE,
-                      hit = "any",
-                      Litter
-  ) %>%
-    dplyr::mutate(indicator = dplyr::case_when(
-      indicator == "HERBLITTER" ~ "HerbLitter",
-      indicator == "WOODYLITTER" ~ "WoodyLitter"
-    ))
-
-  total_litter <- pct_cover(lpi_species_litter,
-                            tall = TRUE,
-                            hit = "any",
-                            by_line = FALSE,
-                            TotalLitter
-  ) %>%
-    dplyr::mutate(indicator = indicator %>% dplyr::recode("TOTALLITTER" = "TotalLitter"))
-
-  litter <- dplyr::bind_rows(litter, total_litter) %>%
-    dplyr::mutate(indicator = paste("AH_", indicator, "Cover", sep = ""))
-
-
-  # Species Group Cover ----
-  # Set the replacement values for valid indicator names ----
-  spp.cover.replace <- c(
-    "NON" = "Non",
-    "^NO\\." = "NonNox",
-    "NO$" = "NonNox",
-    "^YES" = "Nox",
-    "ANNUAL" = "Ann",
-    "PERENNIAL" = "Peren",
-    "[[:punct:]]" = "",
-    "GRAMINOID" = "Grass",
-    "FORB" = "Forb",
-    "NON" = "No",
-    "SUBSHRUB" = "SubShrub",
-    "SHRUB" = "Shrub",
-    "SUCCULENT" = "Succulent",
-    "TREE" = "Tree",
-    " " = "",
-    "STATURE" = "",
-    "SAGEBRUSH" = "Sagebrush",
-    "GRASS" = "Grass",
-    "SHORT" = "Short",
-    "TALL" = "Tall",
-    "0" = "Live",
-    "1" = "Dead",
-    "PREFERRED" = "Preferred",
-    "WOODY" = "Woody"
-  )
-
-
-  # Any hit cover ----
-  ah_spp_group_cover <- dplyr::bind_rows(
-    # cover by Noxious, Duration, and GrowthHabitSub combination
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              Noxious, Duration, GrowthHabitSub
-    ),
-    # Add the indicators are only based on Duration and GrowthHabitSub only
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              Duration, GrowthHabitSub
-    ),
-    # Cover by GrowthHabitSub only
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              GrowthHabitSub
-    ),
-    # Cover by Noxious and GrowthHabitSub combo
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              Noxious, GrowthHabitSub
-    ),
-    # Cover by Noxious status
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              Noxious
-    ) %>% dplyr::mutate(indicator = paste(indicator, ".", sep = "")),
-
-    # Cover by Noxious, Duration, GrowthHabit status
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              Noxious, Duration, GrowthHabit
-    ),
-
-    # Sage Grouse Groups
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              SG_Group
-    ),
-
-    # Cover Duration and GrowthHabit
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              Duration, GrowthHabit
-    ),
-
-    # Cover by GrowthHabit
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              GrowthHabit
-    ),
-
-    # Shrub/Succulent Cover
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "any",
-              by_line = FALSE,
-              ShrubSucculent
-    )
-  )
-
-
-  if (source %in% c("TerrADat", "Survey123", "AIM")) {
-    # Sagebrush live or dead
-    ah_spp_group_cover <- dplyr::bind_rows(
-      ah_spp_group_cover,
-      pct_cover(lpi_species,
-                tall = TRUE,
-                hit = "any",
-                by_line = FALSE,
-                SG_Group, chckbox
-      )
-    )
-  }
-
-
-  # Fix to indicator names so they are valid for AIM.gdb
-  ah_spp_group_cover <- ah_spp_group_cover %>%
-    # Substitute "NonNox" for "NO
-    dplyr::mutate(indicator = indicator %>%
-                    stringr::str_replace_all(., spp.cover.replace)) %>%
-
-    # Add AH to the beginning of the indicator to signify "any hit"
-    dplyr::mutate(indicator = paste("AH_", indicator, "Cover", sep = "") %>%
-                    # Change the Sagebrush Live indicator name it's slightly different
-                    stringr::str_replace_all(
-                      string = .,
-                      pattern = "AH_SagebrushLiveCover",
-                      replacement = "AH_SagebrushCover_Live"
-                    ))
-
-
-  # First hit cover ----
-  fh_spp_group_cover <- rbind(
-    # cover by Noxious, Duration, and GrowthHabitSub combination
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "first",
-              by_line = FALSE,
-              Noxious, Duration, GrowthHabitSub
-    ),
-    # Add the indicators are only based on Duration and GrowthHabitSub only
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "first",
-              by_line = FALSE,
-              Duration, GrowthHabitSub
-    ),
-    # Cover by GrowthHabitSub only
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "first",
-              by_line = FALSE,
-              GrowthHabitSub
-    ),
-    # Cover by Noxious and GrowthHabitSub combo
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "first",
-              by_line = FALSE,
-              Noxious, GrowthHabitSub
-    ),
-    # Cover by Noxious status
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "first",
-              by_line = FALSE,
-              Noxious
-    ),
-    # Cover by Noxious, Duration, GrowthHabit status
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "first",
-              by_line = FALSE,
-              Noxious, Duration, GrowthHabit
-    ),
-    # Sage Grouse Groupings
-    pct_cover(lpi_species,
-              tall = TRUE,
-              hit = "first",
-              by_line = FALSE,
-              SG_Group
-    )
-  )
-
-  fh_spp_group_cover <- fh_spp_group_cover %>%
-    # Substitute for Field friendly names
-    dplyr::mutate(indicator = indicator %>%
-                    stringr::str_replace_all(., spp.cover.replace)) %>%
-
-    # Add FH to the beginning of the indicator to signify "any hit"
-    dplyr::mutate(indicator = paste("FH_", indicator, "Cover", sep = ""))
-
-
-
-  # Combine  all LPI based cover indicators----
-  lpi_cover <- dplyr::bind_rows(
-    ah_spp_group_cover,
-    fh_spp_group_cover,
-    total_foliar,
-    between.plant.cover,
-    litter
-  ) %>%
-
-    dplyr::distinct() %>%
-
-    # Spread to a wide format
-    tidyr::spread(key = indicator, value = percent, fill = 0)
-
-
-  #   SageBrush Shape, this is dependent on Shrub shape existing ----
-  # TODO Need to check this with sagebrush state data
-
-  # if a species was not sagebrush, remove shape observation
-  lpi_species$ShrubShape[lpi_species$SG_Group != "Sagebrush"] <- NA
-  lpi_species$ShrubShape[lpi_species$ShrubShape == ""] <- NA
-  sagebrush_shape_calc <- sagebrush_shape(
-    lpi_tall = lpi_species,
-    # NRI and LMF don't collect live v. dead
-    live = dplyr::if_else(
-      source %in% c("LMF", "NRI"),
-      FALSE, TRUE
-    )
-  )
-
-  lpi_indicators <- dplyr::left_join(lpi_cover,
-                                     sagebrush_shape_calc,
-                                     by = "PrimaryKey"
-  )
-
-  # Return lpi_indicators
-  return(lpi_indicators)
-}
-
-
-#' @export gap_calc
-#' @rdname aim_gdb
-# Calculate the Gap indicators for AIM
-gap_calc <- function(header,
-                     gap_tall,
-                     verbose = FALSE) {
-  if (!"data.frame" %in% class(header)) {
-    stop("header must be a data frame.")
-  }
-  if (!"PrimaryKey" %in% names(header)) {
-    stop("The variable PrimaryKey must appear in the header data frame.")
-  }
-
-  if(verbose) {
-    print("Reading gap data")
-  }
-
-  data <- readRDS(gap_tall)
-
-  # tidy gap
-  gap_tall <- readRDS(gap_tall) %>%
-
-    # Subset to PrimaryKeys in the header
-    subset(PrimaryKey %in% header$PrimaryKey)
-
-  # Calculate indicators
-  gap_indicators <- gap_cover(
-    gap_tall = gap_tall,
-    tall = FALSE
-  )$percent %>%
-    dplyr::rowwise() %>%
-    dplyr::select(PrimaryKey,
-                  GapCover_25_50 = "25-50",
-                  GapCover_51_100 = "51-100",
-                  GapCover_101_200 = "101-200",
-                  GapCover_200_plus = "201-Inf"
-    ) |>
-    dplyr::mutate(.data = _,
-                  GapCover_25_plus = GapCover_25_50 +
-                    GapCover_51_100 +
-                    GapCover_101_200 +
-                    GapCover_200_plus)
-
-  # There may be situations where the total line length was incorrectly recorded
-  # by the crew. This is really only detectable at this point when the gap
-  # percentages sum to more than 100.
-  too_much_gap <- dplyr::filter(.data = gap_indicators,
-                                GapCover_25_plus > 100) |>
-    dplyr::pull(.data = _,
-                PrimaryKey) |>
-    unique()
-
-  if (length(too_much_gap) > 0) {
-    warning(paste("There are", length(too_much_gap), "plots where the total gap summed to over 100%. This is almost certainly due to incorrect metadata and the values can't be used, so they will not be returned."))
-  }
-
-  # Return
-  dplyr::filter(.data = gap_indicators,
-                !(PrimaryKey %in% too_much_gap))
-}
-
-
-#' @export height_calc
-#' @rdname aim_gdb
-# Calculate the Height indicators for AIM
-height_calc <- function(header, height_tall,
-                        species_file = species_file,
-                        source) {
-  print("Beginning Height indicator calculation")
-
-  # gather tall height
-  height <- readRDS(height_tall) %>%
-
-    # subset by PK and add the SpeciesState from the header
-    dplyr::left_join(dplyr::select(header, PrimaryKey, SpeciesState), .)
-
-  # Join to species list
-  height_species <- species_join(
-    data = height,
-    data_code = "Species",
-    species_file = species_file,
-    overwrite_generic_species = dplyr::if_else(
-      source == "TerrADat",
-      TRUE,
-      FALSE
-    )
-  )
-
-  # Correct the Non-Woody to NonWoody
-  height_species$GrowthHabit[grepl(
-    pattern = "Non-woody|Nonwoody|Non-Woody",
-    x = height_species$GrowthHabit
-  )] <- "NonWoody"
-
-  # For any unresolved height errors, change height to "0" so
-  # they are omitted from the calculations, but keep heights with no species assigned
-  height_no_species <- height_species %>% dplyr::filter(is.na(Species) & !is.na(Height))
-  height_bad_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
-
-  height_species <- dplyr::bind_rows(height_no_species, height_bad_species)
-
-  # Add a forb and grass category
-  height_species$pgpf[height_species$Duration == "Perennial" &
-                        height_species$GrowthHabitSub %in%
-                        c("Forb/herb", "Forb", "Graminoid", "Grass", "Forb/Herb", "Sedge")] <- "PerenForbGraminoid"
-
-  # Height calculations----
-  height_calc <- rbind(
-    # Woody and Herbaceous heights
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      type
-    ) %>% subset(indicator %in% c("woody", "herbaceous")),
-
-    # By GrowthHabitSub, so forb, graminoid, shrub, etc.
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      GrowthHabitSub
-    ) %>% subset(indicator %in% c("Forb", "Graminoid", "Grass", "Forb/herb", "Forb/Herb", "Sedge", "Shrub")),
-
-    # Perennial Forb or Grass
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      Duration, GrowthHabitSub
-    ) %>% subset(indicator %in% c("Perennial.Forb", "Perennial.Graminoid")),
-
-    # Perennial Forb and Grass as a single category
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      pgpf
-    ) %>% subset(indicator == "PerenForbGraminoid"),
-
-    # Perennial grass by Noxious/NonNoxious
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      Noxious, Duration, GrowthHabitSub
-    ) %>% subset(indicator %in% c(
-      "NO.Perennial.Graminoid",
-      "YES.Perennial.Graminoid"
-    )),
-
-
-    # SG_Group heights
-    mean_height(
-      height_tall = height_species,
-      method = "mean",
-      omit_zero = TRUE, # remove zeros from average height calcs
-      by_line = FALSE,
-      tall = TRUE,
-      SG_Group
-    ) %>% subset(indicator != "NA")
-  )
-
-  # For TerrADat only
-  if (source %in% c("TerrADat", "AIM", "DIMA")) {
-    # Live sagebrush heights
-    height_calc <- rbind(
-      height_calc,
-      mean_height(
-        height_tall = height_species,
-        method = "mean",
-        omit_zero = TRUE, # remove zeros from average height calcs
-        by_line = FALSE,
-        tall = TRUE,
-        SG_Group, Chkbox
-      ) %>% subset(indicator == "Sagebrush.0")
-    )
-  }
-
-  # Reformat for Indicator Field Name ----
-  height_calc <- height_calc %>%
-    dplyr::mutate(indicator = indicator %>%
-                    stringr::str_replace_all(c(
-                      "woody" = "Woody",
-                      "herbaceous" = "Herbaceous",
-                      "\\bYES\\b" = "Nox",
-                      "\\bNO\\b" = "NonNox",
-                      "Forb/herb" = "Forb",
-                      "Graminoid" = "Graminoid",
-                      "0" = "_Live",
-                      "\\." = "",
-                      " " = "",
-                      "Perennial" = "Peren",
-                      "Stature" = ""
-                    )) %>%
-                    paste("Hgt_", ., "_Avg", sep = ""))
-
-  # Spread to wide format and return
-  height_calc_wide <- height_calc %>% tidyr::spread(
-    key = indicator,
-    value = mean_height,
-    fill = NA
-  )
-
-  return(height_calc_wide)
-}
-
-
-#################
-#' @export spp_inventory_calc
-#' @rdname aim_gdb
-# Calculate species inventory
-spp_inventory_calc <- function(header, spp_inventory_tall, species_file, source) {
-  print("Beginning Species Inventory indicator calculation")
-
-  # tidy.species
-  spp_inventory_tall <- readRDS(spp_inventory_tall) %>%
-    # Join to the header to get the relevant PrimaryKeys and SpeciesSate
-    dplyr::left_join(dplyr::select(header, PrimaryKey, SpeciesState), .,
-                     by = "PrimaryKey"
-    )
-
-  # Join to State Species List
-  spp_inventory_species <- species_join(
-    data = spp_inventory_tall,
-    data_code = "Species",
-    species_file = species_file,
-    overwrite_generic_species = dplyr::if_else(
-      source == "TerrADat",
-      TRUE,
-      FALSE
-    )
-  )
-
-  # Count the number of species present in each group
-  spp_inventory <- rbind(
-    # Noxious & Non-Noxious
-    species_count(spp_inventory_species, Noxious) %>%
-      dplyr::mutate(indicator = indicator %>%
-                      stringr::str_replace_all(c(
-                        "YES" = "NoxPlant",
-                        "\\bNO\\b" = "NonNoxPlant"
-                      )) %>%
-                      stringr::str_replace_na(
-                        string = .,
-                        replacement = "NonNoxPlant"
-                      )),
-
-    # Preferred Forb
-    species_count(spp_inventory_species, SG_Group) %>%
-      # Subset to only Preferred Forb
-      subset(indicator == "PreferredForb") %>%
-      dplyr::mutate(indicator = indicator %>%
-                      stringr::str_replace_all(c(" " = "")))
-  ) %>%
-    # Format for appropriat indicator name
-    dplyr::mutate(indicator = paste("NumSpp_", indicator, sep = ""))
-
-  # Spread to wide
-  spp_inventory_wide <- spp_inventory %>% tidyr::spread(
-    key = indicator,
-    value = n,
-    fill = 0
-  )
-
-  # Get the list of species that fall into a category (e.g., Preferred Forb)
-  spp_list_sg <- spp_inventory_species %>%
-    dplyr::select(PrimaryKey, Species, SG_Group) %>%
-    dplyr::distinct() %>%
-    dplyr::group_by(PrimaryKey, SG_Group) %>%
-    dplyr::summarize(list = toString(Species) %>%
-                       stringr::str_replace_all(
-                         pattern = ",",
-                         replacement = ";"
-                       )) %>%
-    # Format field names
-    subset(!is.na(SG_Group)) %>%
-    dplyr::mutate(indicator = SG_Group %>%
-                    stringr::str_replace_all(c(
-                      "Perennial" = "Peren",
-                      " " = "",
-                      "Stature" = ""
-                    )) %>%
-                    paste("Spp_", ., sep = "")) %>%
-    dplyr::select(-SG_Group) %>%
-    # Output in wide format
-    tidyr::spread(key = indicator, value = list, fill = NA)
-
-  spp_list_nox <- spp_inventory_species %>%
-    dplyr::select(PrimaryKey, Species, Noxious) %>%
-    dplyr::distinct() %>%
-    dplyr::group_by(PrimaryKey, Noxious) %>%
-    dplyr::summarize(list = toString(Species) %>%
-                       stringr::str_replace_all(
-                         pattern = ",",
-                         replacement = ";"
-                       )) %>%
-    # Format field names
-    subset(!is.na(Noxious)) %>%
-    dplyr::mutate(indicator = Noxious %>%
-                    stringr::str_replace_all(c(
-                      "NO" = "NonNox",
-                      "YES" = "Nox",
-                      " " = ""
-                    )) %>%
-                    paste("Spp_", ., sep = "")) %>%
-    dplyr::select(-Noxious) %>%
-    # Output in wide format
-    tidyr::spread(key = indicator, value = list, fill = NA)
-
-  spp_list <- dplyr::full_join(spp_list_sg, spp_list_nox)
-
-  # Join with spp_inventory, drop columns, and return
-  spp_inventory <- dplyr::full_join(spp_inventory_wide, spp_list) %>%
-    dplyr::select_if(!names(.) %in% c("DBKey"))
-
-  return(spp_inventory)
-}
-
-
-#' @export soil_stability_calc
-#' @rdname aim_gdb
-# Calculate soil stability values
-soil_stability_calc <- function(header, soil_stability_tall) {
-  print("Beginning Soil Stability indicator calculation")
-  # Gather and subset
-  soil_stability_tall <- readRDS(soil_stability_tall) %>%
-    subset(!is.na(Rating)) %>%
-    # subset to relevant PrimaryKeys
-    subset(PrimaryKey %in% header$PrimaryKey)
-
-  # Calculate indicators
-
-
-  soil_stability_calcs <- soil_stability(soil_stability_tall,
-                                         cover = TRUE
-  )
-  if(all(c('all', 'uncovered', 'covered') %in% colnames(soil_stability_calcs))) {
-    soil_stability_calcs <- soil_stability_calcs  %>%
-      # Rename fields
-      dplyr::rename(
-        SoilStability_All = all,
-        SoilStability_Protected = covered,
-        SoilStability_Unprotected = uncovered
-      )
-  }
-
-
-  # Return
-  return(soil_stability_calcs)
-}
-
 #' @export build_terradat_indicators
 #' @rdname aim_gdb
 # Build indicators feature class
-build_terradat_indicators <- function(header, source, dsn,
+build_terradat_indicators <- function(header,
+                                      dsn,
                                       species_file,
-                                      lpi_tall,
-                                      gap_tall,
-                                      height_tall,
-                                      spp_inventory_tall,
-                                      soil_stability_tall, ...) {
-  # Test that source is  "TerrADat"
-  if (!source %in% c("TerrADat", "AIM")) {
-    stop("Invalid indicator source specified")
+                                      species_code_var = "SpeciesCode",
+                                      lpi_tall = NULL,
+                                      gap_tall = NULL,
+                                      height_tall = NULL,
+                                      spp_inventory_tall = NULL,
+                                      soil_stability_tall = NULL,
+                                      ...,
+                                      verbose = FALSE) {
+  #### Setup ###################################################################
+  # Assign filter expressions
+  filter_exprs <- rlang::quos(...)
+
+  #### Reading #################################################################
+  ##### Headers ----------------------------------------------------------------
+  if ("character" %in% class(header)) {
+    if (toupper(tools::file_ext(header)) %in% c("RDATA")) {
+      header <- readRDS(header)
+    }
+  } else if (!("data.frame" %in% class(header))) {
+    stop("header must either be a data frame or the filepath to an Rdata file containing a data frame.")
   }
 
-  lpi_required_layers <- c("tblLPIHeader",
-                           "tblLPIDetail",
-                           "tblPlots",
-                           "tblNationalPlants",
-                           "tblStateSpecies")
-  gap_required_layers <- c("tblGapHeader",
-                           "tblGapDetail")
-  height_required_layers <- c("tblLPIHeader",
-                              "tblLPIDetail")
-  soil_stability_required_layers <- c("tblSoilStabHeader",
-                                      "tblSoilStabDetail")
-  species_inventory_required_layers <- c("tblSpecRichHeader",
-                                         "tblSpecRichDetail")
-  rangeland_health_required_layers <- c("tblQualHeader",
-                                        "tblQualDetail")
+  # Filter using the filtering expression specified by user
+  header <- dplyr::filter(.data = header,
+                          source %in% c("AIM", "TerrADat"),
+                          !!!filter_exprs)
 
-  required_layers <- unique(c(lpi_required_layers,
-                              gap_required_layers,
-                              height_required_layers,
-                              soil_stability_required_layers,
-                              species_inventory_required_layers,
-                              rangeland_health_required_layers))
-
-  available_layers <- sf::st_layers(dsn = dsn)[["names"]]
-
-  missing_layers <- setdiff(x = required_layers,
-                            y = available_layers)
-
-  if (length(missing_layers) > 0) {
-    warning(paste0("The following tables are missing from the specified geodatabase: ",
-                   paste(missing_layers,
-                         collapse = ", "),
-                   ". The indicators which depend on those will not be calculated."))
+  # Check header for data
+  if(nrow(header) < 1){
+    stop("No records in the provided header data.")
   }
 
-  # # Join all indicator calculations together
-  # Calculate all indicators and send them to a list, to later be reduced
-  # If a method is not provided (ie the path to the table provided as NULL)
-  # then we need a NULL variable to go into the list
-  if(!is.null(lpi_tall)){
-    # LPI
-    lpi <- lpi_calc(lpi_tall = lpi_tall,
-                    header = header,
-                    source = source,
-                    species_file = species_file,
-                    dsn = dsn)
-  } else {
-    warning("Unable to calculate LPI indicators due to incomplete data.")
+  ##### LPI --------------------------------------------------------------------
+  if (!is.null(lpi_tall)) {
+    if ("character" %in% class(lpi_tall)) {
+      if (toupper(tools::file_ext(lpi_tall)) %in% c("Rdata", "rdata")) {
+        lpi_tall <- readRDS(lpi_tall)
+      }
+    } else if (!("data.frame" %in% class(lpi_tall))) {
+      stop("lpi_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    lpi_tall <- dplyr::filter(.data = lpi_tall,
+                              PrimaryKey %in% header$PrimaryKey)
   }
 
   ##### Gap --------------------------------------------------------------------
-  if (all(gap_required_layers %in% available_layers)) {
-    indicators_list[["gap"]] <- gap_calc(dsn = dsn)
-  } else {
-    warning("Unable to calculate gap indicators due to incomplete data.")
+  if (!is.null(gap_tall)) {
+    if ("character" %in% class(gap_tall)) {
+      if (tools::file_ext(gap_tall) %in% c("Rdata", "rdata")) {
+        gap_tall <- readRDS(gap_tall)
+      }
+    } else if (!("data.frame" %in% class(gap_tall))) {
+      stop("gap_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    gap_tall <- dplyr::filter(.data = gap_tall,
+                              PrimaryKey %in% header$PrimaryKey)
   }
 
-  # Height
-  if(!is.null(height_tall)){
-    height <- height_calc(height_tall = height_tall,
-                          header = header,
-                          source = source,
-                          species_file = species_file)
-  } else {
-    warning("Unable to calculate height indicators due to incomplete data.")
+  ##### Height -----------------------------------------------------------------
+  if (!is.null(height_tall)) {
+    if ("character" %in% class(height_tall)) {
+      if (tools::file_ext(height_tall) %in% c("Rdata", "rdata")) {
+        height_tall <- readRDS(height_tall)
+      }
+    } else if (!("data.frame" %in% class(height_tall))) {
+      stop("height_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    height_tall <- dplyr::filter(.data = height_tall,
+                                 PrimaryKey %in% header$PrimaryKey)
   }
 
-  # Species Inventory
-  if(!is.null(spp_inventory_tall)){
-    spinv <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
-                                header = header,
-                                species_file = species_file,
-                                source = source)
-  } else {
-    warning("Unable to calculate soil stability indicators due to incomplete data.")
+  ##### Species inventory ------------------------------------------------------
+  if (!is.null(spp_inventory_tall)) {
+    if ("character" %in% class(spp_inventory_tall)) {
+      if (tools::file_ext(spp_inventory_tall) %in% c("Rdata", "rdata")) {
+        spp_inventory_tall <- readRDS(spp_inventory_tall)
+      }
+    } else if (!("data.frame" %in% class(spp_inventory_tall))) {
+      stop("spp_inventory_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    spp_inventory_tall <- dplyr::filter(.data = spp_inventory_tall,
+                                        PrimaryKey %in% header$PrimaryKey)
   }
 
+  ##### Soil stability ---------------------------------------------------------
+  if (!is.null(soil_stability_tall)) {
+    if ("character" %in% class(soil_stability_tall)) {
+      if (tools::file_ext(soil_stability_tall) %in% c("Rdata", "rdata")) {
+        soil_stability_tall <- readRDS(soil_stability_tall)
+      }
+    } else if (!("data.frame" %in% class(soil_stability_tall))) {
+      stop("soil_stability_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    }
+
+    # Filter using the headers
+    soil_stability_tall <- dplyr::filter(.data = soil_stability_tall,
+                                         PrimaryKey %in% header$PrimaryKey)
+  }
+
+  #### Calculating indicators ##################################################
+  indicators_list <- list()
+  ##### LPI --------------------------------------------------------------------
+  if (!is.null(lpi_tall)) {
+    indicators_list[["lpi"]] <- lpi_calc(lpi_tall = lpi_tall,
+                                         header = header,
+                                         source = "AIM",
+                                         species_file = species_file,
+                                         species_code_var = species_code_var,
+                                         dsn = dsn,
+                                         verbose = verbose)
+  } else {
+    if (verbose) {
+      message("No LPI data provided. Skipping LPI-derived indicators")
+    }
+  }
+
+  ##### Gap --------------------------------------------------------------------
+  if (!is.null(gap_tall)) {
+    indicators_list[["gap"]] <- gap_calc(gap_tall = gap_tall,
+                                         header = header,
+                                         verbose = verbose)
+  } else {
+    if (verbose) {
+      message("No gap data provided. Skipping gap indicators")
+    }
+  }
+
+  ##### Height -----------------------------------------------------------------
+  if (!is.null(height_tall)) {
+    indicators_list[["height"]] <- height_calc(height_tall = height_tall,
+                                               header = header,
+                                               source = "AIM",
+                                               species_file = species_file,
+                                               verbose = verbose)
+  } else {
+    if (verbose) {
+      message("No height data provided. Skipping height indicators")
+    }
+  }
 
   ##### Species Inventory ------------------------------------------------------
-  if (all(species_inventory_required_layers %in% available_layers)) {
-    indicators_list[["species"]] <- spp_inventory_calc(dsn = dsn)
+  if (!is.null(spp_inventory_tall)) {
+    indicators_list[["species"]] <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
+                                                       header = header,
+                                                       species_file = species_file,
+                                                       source = "AIM",
+                                                       verbose = verbose)
   } else {
-    warning("Unable to calculate species inventory indicators due to incomplete data.")
-    species_indicators <- NULL
+    if (verbose) {
+      message("No species inventory data provided. Skipping inventory-derived indicators")
+    }
   }
 
-  # Rangeland health
-  if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
-    print("Gathering rangeland health indicators from dsn")
-    rh <- gather_rangeland_health(dsn, source = source) %>%
-      # Remove RecKey field, which is not applicable at the indicator level
-      dplyr::select_if(!names(.) %in% c("RecKey"))
+  ##### Soil Stability ---------------------------------------------------------
+  if (!is.null(soil_stability_tall)) {
+    indicators_list[["soil_stability"]] <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
+                                                               verbose = verbose)
   } else {
-    print("Rangeland health data not found")
-    rh <- NULL
+    if (verbose) {
+      message("No soil stability data provided. Skipping soil stability indicators")
+    }
   }
 
-  output <- purrr::reduce(.x = indicators_list,
-                          .f = dplyr::left_join)
+  #### Output ##################################################################
+  # Reduce the list to a data frame
+  output <- purrr::reduce(.f = dplyr::left_join,
+                          .x = indicators_list)
 
-  # if (class(lpi_tall) == "character") {
-  #   if (tools:file_ext(lpi_tall) == "rds") {
-  #     lpi_tall_header <- readRDS(lpi_tall) |>
-  #       dplyr::left_join(x = dplyr::select(.data = header,
-  #                                          PrimaryKey, SpeciesState),
-  #                        y = _,
-  #                        by = "PrimaryKey") |>
-  #       # This is here for now, but shouldn't be once we've got more auto QC in
-  #       # place.
-  #       suppressWarnings()
-  #   } else {
-  #     stop("When lpi_tall is a character string it must be the path to a .rds file containing tall LPI data.")
-  #   }
-  # } else if (class(lpi_tall) == "data.frame") {
-  #   lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
-  #                                                         PrimaryKey, SpeciesState),
-  #                                       y = lpi_tall,
-  #                                       by = "PrimaryKey") |>
-  #     # This is here for now, but shouldn't be once we've got more auto QC in
-  #     # place.
-  #     suppressWarnings()
-  # }
-
-  # # Read header in
-  # header <- readRDS(header) %>%
-  #   # Filter using the filtering expression specified by user
-  #   dplyr::filter(!!!filter_exprs) %>%
-  #   dplyr::filter(source %in% c("AIM", "TerrADat"))
-  #
-  # # Check header for data
-  # if(nrow(header) == 0){
-  #   stop("No rows in header file")
-  # }
-  #
-  # # Join all indicator calculations together
-  # Calculate all indicators and send them to a list, to later be reduced
-  # If a method is not provided (ie the path to the table provided as NULL)
-  # then we need a NULL variable to go into the list
-  # if(!is.null(lpi_tall)){
-  #   # LPI
-  #   lpi <- lpi_calc(lpi_tall = lpi_tall,
-  #                   header = header,
-  #                   source = source,
-  #                   species_file = species_file,
-  #                   dsn = dsn,
-  #                   generic_species_file = generic_species_file)
-  # } else {
-  #   print("LPI data not provided")
-  #   lpi <- NULL
-  # }
-  #
-  # # Gap
-  # if(!is.null(gap_tall)){
-  #   gap <- gap_calc(gap_tall = gap_tall,
-  #                   header = header)
-  # } else {
-  #   print("Gap data not provided")
-  #   gap <- NULL
-  # }
-  #
-  # # Height
-  # if(!is.null(height_tall)){
-  #   height <- height_calc(height_tall = height_tall,
-  #                         header = header,
-  #                         source = source,
-  #                         species_file = species_file,
-  #                         generic_species_file = generic_species_file)
-  # } else {
-  #   print("Height data not provided")
-  #   height <- NULL
-  # }
-  #
-  # # Species Inventory
-  # if(!is.null(spp_inventory_tall)){
-  #   spinv <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
-  #                               header = header,
-  #                               species_file = species_file,
-  #                               source = source,
-  #                               generic_species_file = generic_species_file)
-  # } else {
-  #   print("Species inventory data not provided")
-  #   spinv <- NULL
-  # }
-  #
-  # # Soil Stability
-  # if(!is.null(soil_stability_tall)){
-  #   sstab <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
-  #                                header = header)
-  # } else {
-  #   print("Soil stability data not provided")
-  #   sstab <- NULL
-  # }
-  #
-  # # Rangeland health
-  # if(!is.null(dsn)){
-  #   if(all(c("tblQualHeader", "tblQualDetail") %in% sf::st_layers(dsn)$name)){
-  #     print("Gathering rangeland health indicators from dsn")
-  #     rh <- gather_rangeland_health(dsn, source = source) %>%
-  #       # Remove RecKey field, which is not applicable at the indicator level
-  #       dplyr::select_if(!names(.) %in% c("RecKey"))
-  #   } else {
-  #     print("Rangeland health data not found")
-  #     rh <- NULL
-  #   }
-  # } else {
-  #   rh <- NULL
-  # }
-
-  # Combine the indicators
-  l_indicators <- list(header, lpi, gap, height, spinv, sstab, rh)
-  # Drop unused methods
-  l_indicators_dropnull <- l_indicators[!sapply(l_indicators, is.null)]
-
-  # reduce the list to a data frame
-  all_indicators <- Reduce(dplyr::left_join, l_indicators_dropnull)
-
-  return(all_indicators)
+  output
 }
 
 # Build LMF Indicators
@@ -1078,96 +193,84 @@ build_lmf_indicators <- function(header, source, dsn,
                                  gap_tall,
                                  height_tall,
                                  spp_inventory_tall,
-                                 soil_stability_tall, ...) {
+                                 soil_stability_tall,
+                                 ...,
+                                 generic_species_file = NULL,
+                                 verbose = FALSE) {
 
   # Test that source is  "LMF"
-  try(
-    !source %in% c("LMF", "NRI"),
-    stop("Invalid indicator source specified")
-  )
+  if (!(source %in% c("LMF", "NRI"))) {
+    stop(paste0("source is currently '", source, "' which is not a valid value. source must be either 'LMF' or 'NRI'."))
+  }
 
 
   # Assign filter expressions
-  filter_exprs <- rlang::quos(...)
+  # filter_exprs <- rlang::quos(...)
 
   # Read header in
-  header <- readRDS(header) %>%
+  header <- readRDS(header) |>
     # Filter using the filtering expression specified by user
-    dplyr::filter(!!!filter_exprs) %>%
-    dplyr::filter(source %in% c("LMF", "NRI"))
+    # dplyr::filter(.data = _,
+    #               !!!filter_exprs) |>
+    dplyr::filter(.data = _,
+                  source %in% c("LMF", "NRI"))
 
   # Check header for data
   if(nrow(header) == 0){
-    stop("No rows in header file")
+    stop("No records present in provided header.")
   }
 
   # Join all indicator calculations together
-  indicators <- list(
-    header,
-    # LPI
-    lpi_calc(
-      lpi_tall = lpi_tall,
-      header = header,
-      source = source,
-      species_file = species_file,
-      dsn = dsn
-    ),
-    # Gap
-    gap_calc(
-      gap_tall = gap_tall,
-      header = header
-    ),
-    #  # Height
-    height_calc(
-      height_tall = height_tall,
-      header = header,
-      source = source,
-      species_file = species_file
-    ),
-    # Species Inventory
-    spp_inventory_calc(
-      spp_inventory_tall = spp_inventory_tall,
-      header = header,
-      species_file = species_file,
-      source = source
-    ),
-    # Soil Stability
-    soil_stability_calc(
-      soil_stability_tall = soil_stability_tall,
-      header = header
-    ),
-    # Rangeland Health
-    gather_rangeland_health(dsn, source = source)
-  )
+  indicators <- list(header,
+                     # LPI
+                     lpi_calc(lpi_tall = lpi_tall,
+                              header = header,
+                              source = source,
+                              species_file = species_file,
+                              generic_species_file = generic_species_file,
+                              dsn = dsn),
+                     # Gap
+                     gap_calc(gap_tall = gap_tall,
+                              header = header),
+                     #  # Height
+                     height_calc(height_tall = height_tall,
+                                 header = header,
+                                 source = source,
+                                 species_file = species_file,
+                                 generic_species_file = generic_species_file),
+                     # Species Inventory
+                     spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
+                                        header = header,
+                                        species_file = species_file,
+                                        source = source,
+                                        generic_species_file = generic_species_file),
+                     # Soil Stability
+                     soil_stability_calc(soil_stability_tall = soil_stability_tall))
 
-  all_indicators <- Reduce(dplyr::left_join, indicators)
-
-  return(all_indicators)
+  purrr::reduce(.f = dplyr::left_join,
+                .x = indicators)
 }
 
 # Build LMF Indicators
 #' @export build_indicators
 #' @rdname aim_gdb
 # Build wrapper
-build_indicators <- function(header, source, dsn, lpi_tall,
+build_indicators <- function(header, source,
+                             dsn = NULL, lpi_tall,
                              species_file,
                              gap_tall,
                              height_tall,
                              spp_inventory_tall,
-                             soil_stability_tall, ...) {
+                             soil_stability_tall, ...,
+                             generic_species_file = NULL,
+                             verbose = FALSE) {
   all_indicators <- switch(source,
-                           "TerrADat" = build_terradat_indicators(
-                             header = header,
-                             dsn = dsn,
-                             source = source,
-                             lpi_tall = lpi_tall,
-                             gap_tall = gap_tall,
-                             height_tall = height_tall,
-                             spp_inventory_tall = spp_inventory_tall,
-                             soil_stability_tall = soil_stability_tall,
-                             species_file = species_file,
-                             ...
-                           ),
+                           "TerrADat" = {
+                             build_terradat_indicators(
+                               dsn = dsn,
+                               species_file = species_file,
+                               generic_species_file = generic_species_file)
+                           },
                            "AIM" = build_terradat_indicators(
                              header = header,
                              dsn = dsn,
@@ -1178,7 +281,8 @@ build_indicators <- function(header, source, dsn, lpi_tall,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
-                             ...
+                             ...,
+                             generic_species_file = generic_species_file
                            ),
                            "LMF" = build_lmf_indicators(
                              header = header,
@@ -1190,7 +294,8 @@ build_indicators <- function(header, source, dsn, lpi_tall,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
-                             ...
+                             ...,
+                             generic_species_file = generic_species_file
                            ),
                            "NRI" = build_lmf_indicators(
                              header = header,
@@ -1202,156 +307,1796 @@ build_indicators <- function(header, source, dsn, lpi_tall,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
-                             ...
+                             ...,
+                             generic_species_file = generic_species_file
                            )
   )
 
-  # If target feature class is a gdb compare indicator field names with the names for a the target feature class
-  if(substr(dsn, nchar(dsn)-2, nchar(dsn)) == "gdb"){
-    print("Reading column names from dsn. Missing columns will be added to output.")
-    feature_class_field_names <- sf::st_read(dsn,
-                                             layer = dplyr::if_else(source %in% c("AIM", "TerrADat"), "TerrADat", source)
-    )
+  # If target feature class is a gdb compare indicator field names with the
+  # names for a the target feature class
+  if (!is.null(dsn)) {
+    if (tools::file_ext(dsn) == "gdb") {
+      if (verbose) {
+        message("Reading column names from dsn. Missing columns will be added to output.")
+      }
+      available_layers <- sf::st_layers(dsn = dsn)[["name"]]
 
-    feature_class_field_names <- feature_class_field_names[
-      ,
-      !colnames(feature_class_field_names) %in%
-        c(
-          "created_user",
-          "created_date",
-          "last_edited_user",
-          "last_edited_date"
-        )
-    ]
+      layer_source <- dplyr::if_else(condition = source == "LMF",
+                                     true = "LMF",
+                                     false = "Terradat")
 
-    #
-    indicator_field_names <- data.frame(
-      name = names(all_indicators),
-      calculated = "yes"
-    )
+      source_layer <- available_layers[stringr::str_detect(string = available_layers,
+                                                           pattern = paste0(layer_source,
+                                                                            "(_)?_I_Indicators$"))]
 
-    missing_names <- data.frame(
-      name = names(feature_class_field_names),
-      feature.class = "yes"
-    ) %>%
-      # Join feature class field names to indicator field names
-      dplyr::full_join(indicator_field_names) %>%
+      if (length(source_layer) < 1) {
+        source_layer <- NULL
+      } else if (length(source_layer) > 1) {
+        source_layer <- source_layer[1]
+        warning(paste0("Using first discovered applicable layer, ",
+                       source_layer, "."))
 
-      # get the field names where there is not corollary in calculated
-      subset(is.na(calculated), select = "name") %>%
-      dplyr::mutate(value = NA) %>%
-      # make into a data frame
-      tidyr::spread(key = name, value = value) %>%
-      dplyr::select(-Shape, -GlobalID)
+      }
+      # These are used for data management within a geodatabase and we're going to
+      # drop them.
+      internal_gdb_vars <- c("GlobalID",
+                             "created_user",
+                             "created_date",
+                             "last_edited_user",
+                             "last_edited_date",
+                             "DateLoadedInDb",
+                             "DateLoadedinDB",
+                             "rid",
+                             "DBKey",
+                             "DataErrorChecking",
+                             "DataEntry",
+                             "DateModified",
+                             "FormType",
+                             "ViewOBJECTID",
+                             "Shape")
+      feature_class_field_names <- sf::st_read(dsn = dsn,
+                                               layer = source_layer) |>
+        names() |>
+        setdiff(x = _,
+                internal_gdb_vars)
 
-    # Add a row for each PrimaryKey inall_indicators
-    missing_names[nrow(all_indicators), ] <- NA
-    # For some indicators, the null value is 0 (to indicate the method was completed,
-    # but no data in that group were collected)
-    # Skip this if the method was not provided
-    if(!is.null(lpi_tall)){
-      missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
+      expected_indicator_variables <- feature_class_field_names[stringr::str_detect(string = feature_class_field_names,
+                                                                                    pattern = "(Cover)|(^[FA]H)|(SoilStability)|(^Hgt)|(^Num)|(^SagebrushShape)")]
+      #
+      indicator_field_names <- data.frame(
+        name = names(all_indicators),
+        calculated = "yes"
+      )
+
+      missing_names <- data.frame(
+        name = feature_class_field_names,
+        feature.class = "yes"
+      ) |>
+        # Join feature class field names to indicator field names
+        dplyr::full_join(indicator_field_names) |>
+
+        # get the field names where there is not corollary in calculated
+        subset(is.na(calculated), select = "name") |>
+        dplyr::mutate(value = NA) |>
+        # make into a data frame
+        tidyr::spread(key = name, value = value)
+
+      # Add a row for each PrimaryKey inall_indicators
+      missing_names[nrow(all_indicators), ] <- NA
+      # For some indicators, the null value is 0 (to indicate the method was completed,
+      # but no data in that group were collected)
+      # Skip this if the method was not provided
+      if(!is.null(lpi_tall)){
+        missing_names[, grepl(names(missing_names), pattern = "^FH|^AH")] <- 0
+      }
+
+      if(!is.null(spp_inventory_tall)){
+        missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+      }
+
+      # Merge back to indicator data to create a feature class for export
+      final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
+      return(final_feature_class)
+
+      if(!is.null(spp_inventory_tall)){
+        missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
+      } else {
+        return(all_indicators)
+      }
+    } else {
+      return(all_indicators)
     }
-
-    if(!is.null(spp_inventory_tall)){
-      missing_names[, grepl(names(missing_names), pattern = "^Num")] <- 0
-    }
-
-    # Merge back to indicator data to create a feature class for export
-    final_feature_class <- dplyr::bind_cols(all_indicators, missing_names)
-    return(final_feature_class)
-
   } else {
     return(all_indicators)
   }
 }
 
 
-#' Remove duplicate helper function
-#' @description Helper function used to remove duplicates
-#' @noRd
+#' @export lpi_calc
+#' @rdname aim_gdb
+# Calculate the LPI indicators
+lpi_calc <- function(header = NULL,
+                     lpi_tall = NULL,
+                     species_file,
+                     species_code_var,
+                     source,
+                     dsn = NULL,
+                     generic_species_file = NULL,
+                     digits = 1,
+                     verbose = FALSE) {
 
-tdact_remove_duplicates <- function(indata) {
-
-  cols_to_exclude_from_duplicate_check <- c("DBKey", "DateLoadedInDb")
-  data_check <- indata[,!(colnames(indata) %in% cols_to_exclude_from_duplicate_check)]
-
-  # For runspeed, drop columns that are all identical
-  vec_varied_cols <- vapply(data_check, function(x) length(unique(x)) > 1, logical(1L))
-  vec_varied_cols["PrimaryKey"] <- TRUE # Needed if only one primary key is in the input data
-  data_varied_cols_only <- data_check[,vec_varied_cols]
-
-  # get just duplicated rows
-  data_duplicated_columns <-
-    data_varied_cols_only[duplicated(data_varied_cols_only) | duplicated(data_varied_cols_only, fromLast = T),]
-
-  # give a warning if duplicated rows are found
-  if(nrow(data_duplicated_columns) > 0){
-    message("Duplicate rows found in input data (columns not printed have no variation in all input data)")
-
-    # Print the data, including DBKey and DateLoaded, but not columsn with only one value in the whole table
-    print(indata %>% dplyr::filter(PrimaryKey %in% data_duplicated_columns$PrimaryKey) %>%
-            dplyr::select(dplyr::any_of(c(colnames(data_duplicated_columns), cols_to_exclude_from_duplicate_check))) %>%
-            dplyr::arrange(PrimaryKey))
-
-    # drop duplicates from output data
-    n_duplicates <- sum(duplicated(data_varied_cols_only))
-    warning(paste(n_duplicates, "duplicates removed"))
-    outdata <- indata[!duplicated(data_varied_cols_only),]
-  } else {
-    outdata <- indata
+  if (!is.character(species_code_var)) {
+    stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
+  } else if (length(species_code_var) > 1) {
+    stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
   }
 
-  return(outdata)
-}
+  #### Handling header and raw data ############################################
+  if ("character" %in% class(header)) {
+    if (toupper(tools::file_ext(header)) == "RDATA") {
+      header <- readRDS(header)
+    } else {
+      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+    }
+  }
+  if ("character" %in% class(lpi_tall)) {
+    if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
+      lpi_tall <- readRDS(file = lpi_tall)
+    } else {
+      stop("When lpi_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(lpi_tall)) {
+    lpi_tall <- lpi_tall
+  }
 
-#' Remove no data row helper function
-#' @description Hidden helper function used to remove rows with no data
-#' @noRd
+  lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
+                                                        tidyselect::any_of(c("PrimaryKey",
+                                                                             "SpeciesState",
+                                                                             "State",
+                                                                             "County"))),
+                                      y = lpi_tall,
+                                      relationship = "one-to-many",
+                                      by = "PrimaryKey")
 
-tdact_remove_empty <- function(indata, datatype){
+  #### Defaults and setup ######################################################
+  ##### Expected output indicators ---------------------------------------------
+  # Valid indicator names we're looking for
+  # We'll use this to:
+  # 1) Drop any unintended indicators
+  # 2) Populate missing indicators with 0 (e.g., when there are no invasive
+  #    shrubs and therefore no invasive shrub indicators calculated)
+  # 3) Reorder the output of indicators in the output to meet expectations
+  expected_indicator_names <- c("TotalFoliarCover",
+                                "BareSoilCover",
+                                "AH_ForbCover",
+                                "AH_PerenForbCover",
+                                "AH_AnnForbCover",
+                                "AH_PreferredForbCover",
+                                "AH_GrassCover",
+                                "AH_GraminoidCover",
+                                "AH_PerenGrassCover",
+                                "AH_PerenGraminoidCover",
+                                "AH_C3PerenGrassCover",
+                                "AH_C4PerenGrassCover",
+                                "AH_AnnGrassCover",
+                                "AH_AnnGraminoidCover",
+                                "AH_TallPerenGrassCover",
+                                "AH_ShortPerenGrassCover",
+                                "AH_PerenForbGraminoidCover",
+                                "AH_ShrubCover",
+                                "AH_ShrubSucculentCover",
+                                "AH_SagebrushCover",
+                                "AH_SagebrushCover_Live",
+                                "AH_NonSagebrushShrubCover",
+                                "AH_TotalLitterCover",
+                                "AH_WoodyLitterCover",
+                                "AH_HerbLitterCover",
+                                "AH_DuffCover",
+                                "AH_VagrLichenCover",
+                                "AH_LichenCover",
+                                "AH_MossCover",
+                                "AH_CyanobacteriaCover",
+                                "AH_RockCover",
+                                "AH_EmbLitterCover",
+                                "AH_WaterCover",
+                                "AH_InvasiveCover",
+                                "AH_InvasivePerenForbCover",
+                                "AH_InvasiveAnnForbCover",
+                                "AH_InvasivePerenGrassCover",
+                                "AH_InvasiveAnnGrassCover",
+                                "AH_InvasivePerenForbGrassCover",
+                                "AH_InvasiveAnnForbGrassCover",
+                                "AH_InvasiveShrubCover",
+                                "AH_InvasiveSubShrubCover",
+                                "AH_InvasiveSucculentCover",
+                                "AH_InvasiveTreeCover",
+                                "AH_NativeCover",
+                                "AH_NonNativeCover",
+                                "AH_NoxiousCover",
+                                "AH_PJCover",
+                                "AH_ConiferCover",
+                                "AH_BasalCover",
+                                "AH_BasalPerenGrassCover",
+                                "AH_BiocrustCover",
+                                "FH_TotalLitterCover",
+                                "FH_WoodyLitterCover",
+                                "FH_HerbLitterCover",
+                                "FH_DuffCover",
+                                "FH_VagrLichenCover",
+                                "FH_LichenCover",
+                                "FH_MossCover",
+                                "FH_CyanobacteriaCover",
+                                "FH_RockCover",
+                                "FH_EmbLitterCover",
+                                "FH_WaterCover",
 
-  # Create vector to select which fields are essential
-  datacols <- switch(datatype,
-                     "gap" = c("GapStart", "GapEnd", "Gap"),
-                     "height" = c("Height"), # Species field is very important but not used by all early projects
-                     "hzflux" = c("sedimentWeight", "sedimentGperDayByInlet", "sedimentGperDay"),
-                     "lpi" = c("layer", "code"),
-                     "soilhz" = c("HorizonDepthUpper", "HorizonDepthLower"),
-                     "soilstab" = c("Veg", "Rating"),
-                     "specinv" = c("Species"),
-                     "geosp" = c("Species"),
-                     "rh" = c("RH_WaterFlowPatterns", "RH_PedestalsTerracettes", "RH_BareGround",
-                              "RH_Gullies", "RH_WindScouredAreas", "RH_LitterMovement",
-                              "RH_SoilSurfResisErosion", "RH_SoilSurfLossDeg",
-                              "RH_PlantCommunityComp", "RH_Compaction", "RH_FuncSructGroup",
-                              "RH_DeadDyingPlantParts", "RH_LitterAmount", "RH_AnnualProd",
-                              "RH_InvasivePlants", "RH_ReprodCapabilityPeren",
-                              "RH_SoilSiteStability", "RH_BioticIntegrity", "RH_HydrologicFunction"),
-                     "unknown"
-                     ## Not necessary for geoIndicators or header
+                                # NEEDS TO BE WRITTEN FOR
+                                "FH_DepSoilCover",
+
+                                "FH_ForbCover",
+                                "FH_PerenForbCover",
+                                "FH_AnnForbCover",
+                                "FH_GraminoidCover",
+                                "FH_AnnGraminoidCover",
+                                "FH_PerenGraminoidCover",
+                                "FH_PerenForbGraminoidCover",
+                                "FH_ShrubCover",
+                                "FH_SagebrushCover",
+                                "FH_NonSagebrushShrubCover",
+                                "FH_TreeCover",
+
+                                "SagebrushShape_Live_ColumnCount",
+                                "SagebrushShape_Live_SpreadCount",
+                                "SagebrushShape_Live_Predominant")
+
+  ##### Indicator renaming lookup ----------------------------------------------
+  # The indicators that have nonstandard names. This'll let us rename them with
+  # the help of stringr::str_replace_all() later.
+  nonstandard_indicator_lookup <- c("^FH_BareSoilCover$" = "BareSoilCover",
+                                    "^AH_SagebrushLiveCover$" = "AH_SagebrushCover_Live",
+                                    "^AH_BasalPlantCover$" = "AH_BasalCover")
+
+  ##### Grouping variable lists -----------------------------------------------
+  # These are the groupings of variables we'll use to calculate the indicators,
+  # organized by which hit (first, any, or basal).
+  # Note that a number of these variables will be defined below under:
+  # Joining species info > Sanitization/harmonization
+  fh_variable_groupings <- list(c("Duration", "GrowthHabitSub"),
+                                c("Duration", "ForbGraminoid"),
+                                c("GrowthHabitSub"),
+                                c("SG_Group"),
+                                c("Noxious", "Duration", "GrowthHabitSub"),
+                                c("between_plant"),
+                                c("Litter"),
+                                c("Lichen"),
+                                c("TotalLitter"),
+                                c("Moss"))
+  ah_variable_groupings <- list(c("GrowthHabit"),
+                                c("GrowthHabitSub"),
+                                c("Duration", "GrowthHabit"),
+                                c("Duration", "GrowthHabitSub"),
+                                c("Duration", "ForbGraminoid"),
+                                c("ShrubSucculent"),
+                                c("Noxious"),
+                                c("Litter"),
+                                c("TotalLitter"),
+                                c("SG_Group"),
+                                c("SG_Group", "Live"),
+                                c("Grass"),
+                                c("Duration", "Grass"),
+                                c("C3", "Duration", "Grass"),
+                                c("C4", "Duration", "Grass"),
+                                c("Native"),
+                                c("Invasive"),
+                                c("Invasive", "Duration", "GrowthHabitSub"),
+                                c("Invasive", "Duration", "ShrubSucculent"),
+                                c("Invasive", "Duration", "Grass"),
+                                c("Invasive", "Duration", "ForbGrass"),
+                                c("Conifer"),
+                                c("PJ"),
+                                c("Moss"),
+                                c("Rock"),
+                                c("Biocrust"),
+                                c("Lichen"))
+  basal_variable_groupings <- list(c("Duration", "Grass"),
+                                   c("Plant"))
+
+  ##### Definitions for new variables ------------------------------------------
+  # The following objects are values that we'll use to create new variables for
+  # use in defining indicators.
+
+  ###### Litter code categories ------------------------------------------------
+  litter_codes <- list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
+                       "WoodyLitter" = c("WL"),
+                       # "NonVegLitter" = c("HT", "NL", "AL"),
+                       "EmbLitter" = c("EL"))
+
+  ###### Rock codes ------------------------------------------------------------
+  rock_codes <- c("R", "GR", "CB", "ST", "BY",
+                  # These are LMF codes
+                  "RF", "BR")
+
+  ###### Between-plant codes ---------------------------------------------------
+  # These are for grouping values for between-plant indicators
+  # NOTE: IF YOU ADD A NEW CATEGORY DON'T FORGET TO INCLUDE IT IN THE MUTATE()
+  # UNDER SANITIZATION/HARMONIZATION BELOW (searching for between_plant_codes
+  # will turn it up)
+  between_plant_codes <- list("WoodyLitter" = litter_codes[["WoodyLitter"]],
+                              "HerbLitter" =  litter_codes[["HerbLitter"]],
+                              # "NonVegLitter" = litter_codes[["NonVegLitter"]],
+                              "EmbLitter" = litter_codes[["EmbLitter"]],
+                              "DepSoil" = c("DS"),
+                              "Duff" = c("D"),
+                              "Lichen" = c("LC"),
+                              "VagrLichen" = c("VL"),
+                              "Moss" = c("M"),
+                              "Cyanobacteria" = c("CY"),
+                              "Water" = c("W", "WA"),
+                              "Rock" = c(rock_codes),
+                              "BareSoil" = c("AG", "CM", "LM", "FG", "PC", "S"))
+
+  ###### Pinyon-juniper species codes ------------------------------------------
+  pj_identifiers <- c("JUCA7",
+                      "SACA29",
+                      "JUCAS2",
+                      "JUCAU",
+                      "JUOCU",
+                      "JUUT",
+                      "SAUT3",
+                      "JUCE2",
+                      "JUAR3",
+                      "JUCOA3",
+                      "JUCOA2",
+                      "JUDE2",
+                      "JUNDEPD",
+                      "JUNDEPS",
+                      "JUDES",
+                      "JUDES2",
+                      "JUER",
+                      "JUPIE",
+                      "JUCO11",
+                      "JUCOC2",
+                      "JUERC",
+                      "JUFL",
+                      "JUNFLAF",
+                      "SAFL16",
+                      "JUGR7",
+                      "JUNKNI",
+                      "JUKN",
+                      "JUMOK",
+                      "JUME6",
+                      "JUME7",
+                      "JUUTM",
+                      "JUMOG",
+                      "JUNCFMON",
+                      "JUNIP",
+                      "JUNMEXM",
+                      "JUMO",
+                      "JUMOM",
+                      "JUNOCCM",
+                      "SAMO8",
+                      "JUDEP",
+                      "JUNDEPP2",
+                      "JUNPAC",
+                      "JUNPAC2",
+                      "JUCAO",
+                      "JUOS",
+                      "JUNTETO",
+                      "SAOS",
+                      "JUOC",
+                      "JUOCO",
+                      "SAOC9",
+                      "JUOCA2",
+                      "JUOCA",
+                      "JUNGYM",
+                      "JUOCG",
+                      "JUMOP",
+                      "JUPI",
+                      "JUSC2",
+                      "JUVIS2",
+                      "JUVIS4",
+                      "SASC5",
+                      "JUSCC2",
+                      "JUSCP",
+                      "PICA16",
+                      "PIMOC2",
+                      "PIMOC",
+                      "PICA3",
+                      "PIREC",
+                      "PICE",
+                      "PINCEMC",
+                      "PINCEMB",
+                      "PICEB",
+                      "PICER",
+                      "PINCULR",
+                      "PIRE5",
+                      "PICUD",
+                      "PIDI3",
+                      "CAREDU",
+                      "PICEE",
+                      "PIED",
+                      "PIEDE",
+                      "PINMONE",
+                      "PINCALF",
+                      "PIEDF",
+                      "PINFAL",
+                      "PIMOF2",
+                      "PINMONF",
+                      "PIMOF",
+                      "APIFLE",
+                      "PINCEMF",
+                      "PIFL2",
+                      "PIFLA",
+                      "PIFLA2",
+                      "PIFLC",
+                      "PIFLC2",
+                      "PINCEMJ",
+                      "PINCULJ",
+                      "PIJO",
+                      "PIJU",
+                      "PINQUAJ",
+                      "CARMON2",
+                      "PINCEMM",
+                      "PINEDUM",
+                      "PIMO",
+                      "PIMOM2",
+                      "PINCEMP2",
+                      "PINPAR",
+                      "PINCEMQ",
+                      "PIQU")
+
+  ###### Conifer families ------------------------------------------------------
+  conifer_identifiers <- c("Cupressaceae",
+                           "Pinaceae",
+                           "Taxaceae")
+
+  ###### Lichen codes ----------------------------------------------------------
+  lichen_identifiers <- c(Lichen = "LC",
+                          Cyanobacteria = "CY",
+                          VagrLichen = "VL")
+
+  ###### Biocrust codes --------------------------------------------------------
+  biocrust_identifiers <- c("CY",
+                            "LC",
+                            "M")
+
+  ###### Moss definitions ------------------------------------------------------
+  # For moss cover, we need to identify species that use irregular unknown codes
+  # and species that were keyed out in addition to the traditional "where does
+  # 'M' occur as a surface code"
+  # This will find codes like "MOSS", "M123", "MOS123", and "MOSS123"
+  unknown_moss_regex <- "^(M(OS{1,2})?\\d+)|(MOSS)$"
+  # In tblNationalPlants there's a variable called HigherTaxon that we can use
+  # to identify which species codes are technically mosses. This is helpful
+  # mostly for Alaska where they ID mosses to species, but anywhere we don't do
+  # it runs the risk of underestimating the amount of moss cover if there are
+  # any recorded in the canopy.
+  moss_identifiers <- "Moss"
+
+  #### Joining species info ----------------------------------------------------
+  # If generic_species_file is not provided, assume it is the same as species_file
+  if(is.null(generic_species_file)) {
+    if (verbose) {
+      message("No generic_species_file provided, using species_file in its place.")
+    }
+    generic_species_file <- species_file
+  }
+
+  if (verbose) {
+    message("Checking species_file and reading in as necessary.")
+  }
+
+  if (is.character(species_file)) {
+    current_species_file_extension <- tools::file_ext(species_file)
+
+    if (nchar(current_species_file_extension) == 0) {
+      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+    } else if (current_species_file_extension %in% c("CSV", "csv")) {
+      if (!file.exists(species_file)) {
+        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+      }
+      species_list <- read.csv(file = species_file,
+                               stringsAsFactors = FALSE)
+    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+      species_list <- species_read_aim(dsn = species_file,
+                                       verbose = verbose)
+    }
+  } else if (is.data.frame(species_file)) {
+    species_list <- species_file
+  } else {
+    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
+  }
+
+  if (verbose) {
+    message("Attempting to join the species list to the LPI data.")
+  }
+
+  lpi_species <- species_join(data = sf::st_drop_geometry(lpi_tall_header),
+                              data_code = "code",
+                              species_file = species_list,
+                              # This isn't hardcoded to accommodate other, non-
+                              # AIM species lists.
+                              species_code = species_code_var,
+                              species_growth_habit_code = "GrowthHabitSub",
+                              species_duration = "Duration",
+                              # These won't all be present in every list, but
+                              # that shouldn't be a problem because they're only
+                              # used with an any_of().
+                              species_property_vars = c("GrowthHabit",
+                                                        "GrowthHabitSub",
+                                                        "Duration",
+                                                        "Family",
+                                                        "HigherTaxon",
+                                                        "Nonnative",
+                                                        "Invasive",
+                                                        "Noxious",
+                                                        "SpecialStatus",
+                                                        "Photosynthesis",
+                                                        "PJ",
+                                                        "CurrentPLANTSCode"),
+                              growth_habit_file = "",
+                              growth_habit_code = "Code",
+                              # This FALSE should prevent us from having to
+                              # worry about generic_species_file because that's
+                              # only used to overwrite generic species info.
+                              overwrite_generic_species = FALSE,
+                              generic_species_file = generic_species_file,
+                              update_species_codes = FALSE,
+                              by_species_key = FALSE,
+                              check_species = FALSE,
+                              verbose = verbose)
+
+  # # This is way more complicated now that we're working with tblNationalPlants
+  # # AND tblStateSpecies.
+  # # First, we use species_join() to add the important information from
+  # # tblNationalPlants and to handle the generic species stuff.
+  # # Then we read in tblStateSpecies (discarding everything except the variables
+  # # containing codes, the states, and the sage-grouse groups) and join that to
+  # # the data to add in the SG_Group variable because that's all that
+  # # tblStateSpecies is good for these days.
+  # # Also, tblStateSpecies contains some duration and growth habit information
+  # # that (as of May 2025) is not reflected in or directly contradicts
+  # # tblNationalPlants or is flat-out incorrect. Those variables aren't being
+  # # used, but discrepancies in indicators calculated before versus after 2024
+  # # may be due to those not being applied.
+  # tblNationalPlants <- sf::st_read(dsn = species_file,
+  #                                  layer = "tblNationalPlants",
+  #                                  quiet = TRUE)
+  #
+  # tblStateSpecies <- sf::st_read(dsn = species_file,
+  #                                layer = "tblStateSpecies",
+  #                                quiet = TRUE) |>
+  #   dplyr::select(.data = _,
+  #                 tidyselect::all_of(c(code = "SpeciesCode",
+  #                                      "Duration",
+  #                                      "GrowthHabit",
+  #                                      "GrowthHabitSub",
+  #                                      "SG_Group",
+  #                                      "SpeciesState"))) |>
+  #   dplyr::distinct()
+  #
+  # if (verbose) {
+  #   message("Starting with tblNationalPlants and standardized generic codes.")
+  # }
+  # lpi_species <- species_join(data = sf::st_drop_geometry(lpi_tall_header),
+  #                             species_file = tblNationalPlants,
+  #                             species_code = "NameCode",
+  #                             update_species_codes = FALSE,
+  #                             by_species_key = FALSE,
+  #                             verbose = verbose) |>
+  #   # We want to use whatever is the currently accepted code in USDA PLANTS for
+  #   # the species, even though that may be less taxonomically correct.
+  #   # Using dplyr::case_when() lets us keep any codes that don't have a
+  #   # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
+  #   dplyr::mutate(.data = _,
+  #                 code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
+  #                                         .default = code)) |>
+  #   # Not necessary, but I'm paranoid
+  #   dplyr::distinct()
+  #
+  # if (verbose) {
+  #   message("Adding SG_Group from tblStateSpecies")
+  # }
+  #
+  # # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
+  # # make a new data frame where there's only one record per species code and
+  # # we store all the per-state SG_Group assignments in a character string as
+  # # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
+  # # This should be significantly faster than trying to join by both the species
+  # # codes and SpeciesState, at least for very large data sets.
+  # lpi_species <- dplyr::select(.data = tblStateSpecies,
+  #                              tidyselect::all_of(c("code",
+  #                                                   "SpeciesState",
+  #                                                   "SG_Group"))) |>
+  #   dplyr::filter(.data = _,
+  #                 !is.na(SG_Group)) |>
+  #   dplyr::mutate(.data = _,
+  #                 sg_string = paste(SpeciesState,
+  #                                   SG_Group,
+  #                                   sep = ":")) |>
+  #   dplyr::summarize(.data = _,
+  #                    .by = code,
+  #                    SG_Group = paste(sg_string,
+  #                                     collapse = "|")) |>
+  #   dplyr::left_join(x = lpi_species,
+  #                    y = _,
+  #                    relationship = "many-to-one",
+  #                    by = c("code"),
+  #                    suffix = c("",
+  #                               "_tblstatespecies")) |>
+  #   dplyr::distinct()
+
+  ##### Sanitization/harmonization #############################################
+  # One big mutate() to do all this lifting.
+  # We're harmonizing multiple variants (e.g., non-woody, nonwoody, etc. all
+  # being changed to NonWoody) and adding some additional variables that we can
+  # use for indicator calcs
+  if (verbose) {
+    message("Harmonizing species characteristics with AIM indicator needs.")
+  }
+
+  # Let's check for the required variables for all these.
+  # If any are missing, we can warn the user that those variables will be
+  # created but populated with NA and so no indicators that involve them will
+  # be calculated.
+  expected_variables <- c("GrowthHabit",
+                          "GrowthHabitSub",
+                          "Duration",
+                          "Family",
+                          "HigherTaxon",
+                          "Nonnative",
+                          "Invasive",
+                          "Noxious",
+                          "SpecialStatus",
+                          "Photosynthesis",
+                          "PJ",
+                          "CurrentPLANTSCode")
+  missing_expected_variables <- setdiff(x = c("GrowthHabit",
+                                              "GrowthHabitSub",
+                                              "Duration",
+                                              "Family",
+                                              "HigherTaxon",
+                                              "Nonnative",
+                                              "Invasive",
+                                              "Noxious",
+                                              "SpecialStatus",
+                                              "Photosynthesis",
+                                              "PJ",
+                                              "CurrentPLANTSCode"),
+                                        names(lpi_species))
+
+  if (length(missing_expected_variables) > 0) {
+    warning(paste0("The provided species information does not contain all expected variables required for the standard set of indicators. Indicators which depend on those variables will not be calculated. The variables in question are: ",
+                   paste(missing_expected_variables,
+                         collapse = ", ")))
+    # This makes a new data frame without any data in it consisting of only the
+    # missing variables and a number of rows equal to the number of lpi_species
+    # records then binds them together.
+    lpi_species <- matrix(nrow = nrow(lpi_species),
+                          ncol = length(missing_expected_variables)) |>
+      as.data.frame() |>
+      setNames(object = _,
+               nm = missing_expected_variables) |>
+      dplyr::bind_cols(lpi_species,
+                       .x = _)
+  }
+
+
+  lpi_species <- dplyr::mutate(.data = lpi_species,
+                               ###### Duration ---------------------------------
+                               # Update the Duration values so that we don't
+                               # need to do special renaming of indicators.
+                               # This also lumps biennials in with annuals.
+                               Duration = dplyr::case_when(grepl(x = Duration,
+                                                                 pattern = "perennial",
+                                                                 ignore.case = TRUE) ~ "Peren",
+                                                           grepl(x = Duration,
+                                                                 pattern = "(annual)|(biennial)",
+                                                                 ignore.case = TRUE) ~ "Ann",
+                                                           is.na(Duration) ~ "duration_irrelevant",
+                                                           .default = Duration),
+
+                               ###### GrowthHabit ------------------------------
+                               # Updates to the GrowthHabit variable to harmonize
+                               # values with expectations, including adding a
+                               # new value for nonvasculars which shifts those
+                               # qualifying species out of the general nonwoody
+                               # calculations
+                               GrowthHabit = dplyr::case_when(grepl(x = GrowthHabit,
+                                                                    pattern = "^non-?woody$",
+                                                                    ignore.case = TRUE) ~ "NonWoody",
+                                                              grepl(x = GrowthHabitSub,
+                                                                    pattern = "^non-?vascular$",
+                                                                    ignore.case = TRUE) ~ "Nonvascular",
+                                                              # This removes sedges from consideration???
+                                                              # Maybe an artifact of trying to avoid spitting
+                                                              # out unused indicators
+                                                              GrowthHabitSub == "Sedge" ~ "growthhabit_irrelevant",
+                                                              # For first-hit calculations
+                                                              is.na(GrowthHabit) ~ "growthhabit_irrelevant",
+                                                              .default = GrowthHabit),
+
+                               ###### GrowthHabitSub ---------------------------
+                               # Updates to GrowthHabitSub, mostly harmonizing
+                               # variations on naming conventions
+                               GrowthHabitSub = dplyr::case_when(grepl(x = GrowthHabitSub,
+                                                                       pattern = "forb",
+                                                                       ignore.case = TRUE) ~ "Forb",
+                                                                 grepl(x = GrowthHabitSub,
+                                                                       pattern = "^sub-?shrub$",
+                                                                       ignore.case = TRUE) ~ "SubShrub",
+                                                                 # Not sure why we're removing non-vasculars??
+                                                                 # Maybe an artifact of trying to avoid spitting
+                                                                 # out unused indicators. Blame Alaska.
+                                                                 grepl(x = GrowthHabitSub,
+                                                                       pattern = "^non-?vascular$",
+                                                                       ignore.case = TRUE) ~ "growthhabitsub_irrelevant",
+                                                                 # Anyway, doing the exact same to moss
+                                                                 grepl(x = GrowthHabitSub,
+                                                                       pattern = "^moss$",
+                                                                       ignore.case = TRUE) ~ "growthhabitsub_irrelevant",
+                                                                 # And to lichen
+                                                                 grepl(x = GrowthHabitSub,
+                                                                       pattern = "^lichen$",
+                                                                       ignore.case = TRUE) ~ "growthhabitsub_irrelevant",
+                                                                 # For first-hit calculations
+                                                                 is.na(GrowthHabit) ~ "growthhabitsub_irrelevant",
+                                                                 .default = GrowthHabitSub),
+
+                               ###### chckbox ----------------------------------
+                               # The chckbox variable is a numeric representation
+                               # of a logical value, but 0 is for a "dead" record
+                               # and 1 is for a "live" record, so let's actually
+                               # make that easy on ourselves
+                               Live = dplyr::case_when(chckbox %in% c(0, "0") ~ "Live",
+                                                       # chckbox %in% c("1") ~ "Dead",
+                                                       .default = NA),
+
+                               ###### ShrubSucculent ---------------------------
+                               # Add a variable for shrubs and succulents so we
+                               # can easily calculate indicators for just them
+                               ShrubSucculent = dplyr::case_when(grepl(x = GrowthHabitSub,
+                                                                       pattern = "shrub|succulent",
+                                                                       ignore.case = TRUE) ~ "ShrubSucculent",
+                                                                 .default = NA),
+
+                               ###### Litter -----------------------------------
+                               # For the litter cover
+                               # The "irrelevant" values are so that we can get
+                               # first hit calculated without inflating things
+                               Litter = dplyr::case_when(code %in% litter_codes[["HerbLitter"]] ~ "HerbLitter",
+                                                         code %in% litter_codes[["WoodyLitter"]] ~ "WoodyLitter",
+                                                         .default = "litter_irrelevant"),
+
+                               ###### TotalLitter ------------------------------
+                               TotalLitter = dplyr::case_when(code %in% unlist(litter_codes) ~ "TotalLitter",
+                                                              .default = "total_litter_irrelevant"),
+
+                               ###### C3 (photosynthesis) ----------------------
+                               # Make separate photosynthesis columns because at
+                               # least one species is classified as both
+                               C3 = dplyr::case_when(grepl(x = Photosynthesis,
+                                                           pattern = "C3") ~ "C3",
+                                                     .default = NA),
+
+                               ###### C4 (photosynthesis) ----------------------
+                               C4 = dplyr::case_when(grepl(x = Photosynthesis,
+                                                           pattern = "C4") ~ "C4",
+                                                     .default = NA),
+
+                               ###### Grass ------------------------------------
+                               # For all the grass-specific indicators
+                               Grass = dplyr::case_when(Family %in% c("Poaceae") ~ "Grass",
+                                                        .default = NA),
+
+                               ###### SG_Group (sage-grouse) -------------------
+                               # This is to turn the SG_Group codes into values
+                               # that match the expected indicator names for
+                               # our convenience.
+                               SG_Group = stringr::str_replace_all(string = SG_Group,
+                                                                   pattern = "StaturePerennialGrass",
+                                                                   replacement = "PerenGrass"),
+                               # This makes sure that the value in SG_Group is
+                               # only the string associated with the group for
+                               # the species code in the relevant state.
+                               # Records where there's not a group value for the
+                               # associated state (or "US") will get NA instead.
+                               SG_Group = stringr::str_extract(string = SG_Group,
+                                                               pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                               # This makes sure that we've assigned any shrubs
+                               # that didn't get a sage-grouse group are
+                               # assigned to "NonSagebrushShrub"
+                               SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
+                                                           # So that first-hit calcs work as intended.
+                                                           is.na(SG_Group) & GrowthHabitSub != "Shrub" ~ "Irrelevant",
+                                                           .default = SG_Group),
+
+                               ###### ForbGraminoid ----------------------------
+                               # For combined forb and graminoid cover
+                               ForbGraminoid = dplyr::case_when(grepl(x = GrowthHabitSub,
+                                                                      pattern = "(^((graminoid)|(grass))$)|forb",
+                                                                      ignore.case = TRUE) ~ "ForbGraminoid",
+                                                                .default = NA),
+
+                               ###### ForbGrass --------------------------------
+                               # For combined forb and grass cover
+                               ForbGrass = dplyr::case_when(grepl(x = GrowthHabitSub,
+                                                                  pattern = "forb",
+                                                                  ignore.case = TRUE) | Family %in% "Poaceae" ~ "ForbGrass",
+                                                            .default = NA),
+
+                               ###### Biocrust ---------------------------------
+                               # For biocrust cover
+                               Biocrust = dplyr::case_when(code %in% biocrust_identifiers ~ "Biocrust",
+                                                           .default = NA),
+
+                               ###### Lichen -----------------------------------
+                               Lichen = dplyr::case_when(code %in% lichen_identifiers["Lichen"] ~ "Lichen",
+                                                         code %in% lichen_identifiers["VagrLichen"] ~ "VagrLichen",
+                                                         code %in% lichen_identifiers["Cyanobacteria"] ~ "Cyanobacteria",
+                                                         .default = "lichen_irrelevant"),
+
+                               ###### PJ ---------------------------------------
+                               # For pinyon-juniper cover
+                               PJ = dplyr::case_when(code %in% pj_identifiers ~ "PJ",
+                                                     .default = NA),
+
+                               ###### Conifer ----------------------------------
+                               # For conifer cover
+                               Conifer = dplyr::case_when(Family %in% conifer_identifiers ~ "Conifer",
+                                                          .default = NA),
+
+                               ###### Moss -------------------------------------
+                               # For moss cover
+                               Moss = dplyr::case_when(HigherTaxon %in% moss_identifiers |
+                                                         stringr::str_detect(string = code,
+                                                                             pattern = unknown_moss_regex) |
+                                                         code %in% c("M") ~ "Moss",
+                                                       # We're not keeping an indicator calculated for
+                                                       # "Nonmoss" but we do need that info for first hits to work
+                                                       .default = "moss_irrelevant"),
+
+                               ###### Plant ------------------------------------
+                               # This is for basal cover by plants
+                               Plant = dplyr::case_when(GrowthHabit != "growthhabit_irrelevant" ~ "Plant",
+                                                        .default = NA),
+
+                               ###### Invasive ---------------------------------
+                               # This is just to make the Invasive values match
+                               # the desired indicator names
+                               Invasive = stringr::str_to_title(string = Invasive),
+
+                               ###### Native -----------------------------------
+                               # This is for the native and non-native cover
+                               # It assumes that everything flagged as EXOTIC or
+                               # ABSENT should be considered NonNative and that
+                               # everything else is Native
+                               Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) ~ "Native",
+                                                         .default = "NonNative"),
+
+                               ###### Noxious ----------------------------------
+                               # For noxious cover. This previously assumed that
+                               # anything flagged as YES is noxious and nothing
+                               # else is. This is now disabled because noxious
+                               # status is being handled more appropriately and
+                               # through a different format. I'm leaving this
+                               # for posterity for the moment though.
+                               # Noxious = dplyr::case_when(Noxious %in% c("YES") ~ "Noxious",
+                               #                            .default = NA),
+                               #
+                               # Noxious is now encoded as a character string
+                               # with localities separated by |s. We need to
+                               # check for the relevant locality based on the
+                               # State variable NOT the AdminState because these
+                               # determinations are made based on the physical
+                               # location of the sampling within the legal
+                               # boundaries of states, not which state is
+                               # administering the lands (which is sometimes
+                               # different).
+                               # The regex checks to see if the beginning of
+                               # the string or the characters immediately
+                               # following a | are "US", the code from the State
+                               # variable, or the code from the State variable
+                               # and the value from the County variable
+                               # separated by a :, e.g., "OR:Jefferson".
+                               # The single-letter designations for type of
+                               # noxiousness are not taken into account, e.g.,
+                               # "OR:A" and "OR:B" will be treated identically.
+                               # County-level designations may eventually be
+                               # removed, but for now they're still in there and
+                               # this regex will work regardless.
+                               Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
+                                                                              pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
+                                                          .default = "noxious_irrelevant"),
+
+                               ###### Rock -------------------------------------
+                               Rock = dplyr::case_when(code %in% rock_codes ~ "Rock",
+                                                       .default = NA),
+
+                               ###### between_plant ----------------------------
+                               between_plant = dplyr::case_when(code %in% between_plant_codes[["Woodylitter"]] ~ "WoodyLitter",
+                                                                code %in% between_plant_codes[["HerbLitter"]] ~ "HerbLitter",
+                                                                # code %in% between_plant_codes[["NonVegLitter"]] ~ "NonVegLitter",
+                                                                code %in% between_plant_codes[["EmbLitter"]] ~ "EmbLitter",
+                                                                code %in% between_plant_codes[["DepSoil"]] ~ "DepSoil",
+                                                                code %in% between_plant_codes[["Duff"]] ~ "Duff",
+                                                                code %in% between_plant_codes[["Lichen"]] ~ "Lichen",
+                                                                HigherTaxon %in% moss_identifiers |
+                                                                  stringr::str_detect(string = code,
+                                                                                      pattern = unknown_moss_regex) |
+                                                                  code %in% between_plant_codes[["Moss"]] ~ "Moss",
+                                                                code %in% between_plant_codes[["Cyanobacteria"]] ~ "Cyanobacteria",
+                                                                code %in% between_plant_codes[["Water"]] ~ "Water",
+                                                                code %in% between_plant_codes[["Rock"]] ~ "Rock",
+                                                                code %in% between_plant_codes[["VagrLichen"]] ~ "VagrLichen",
+                                                                code %in% between_plant_codes[["BareSoil"]] ~ "BareSoil",
+                                                                .default = "between_plant_irrelevant"),
+
+                               ###### AdditionalRemoteSensing ------------------
+                               # Special indicators for remote sensing use
+                               AdditionalRemoteSensing = dplyr::case_when(code %in% c("DS") ~ "DepSoil",
+                                                                          .default = "remote_sensing_irrelevant")
   )
 
-  if(length(datacols) == 1){ # if datacols is a vector of length >1 (it usually is) this line is needed
-    if(datacols == "unknown"){
-      stop("datacols value not recognized")
+  #### Calculations ############################################################
+  ##### Total foliar cover #####################################################
+  if (verbose) {
+    message("Calculating total foliar cover.")
+  }
+  total_foliar <- pct_cover_total_foliar(lpi_tall = lpi_species,
+                                         tall = TRUE,
+                                         by_line = FALSE)
+
+  ##### All other cover ########################################################
+  variable_groups <- list("first" = fh_variable_groupings,
+                          "any" = ah_variable_groupings,
+                          "basal" = basal_variable_groupings)
+
+  # This is going to look gnarly, but automates stuff so we don't have to do the
+  # capitalization corrections by hand
+  unique_grouping_vars <- unique(c(unlist(fh_variable_groupings),
+                                   unlist(ah_variable_groupings),
+                                   unlist(basal_variable_groupings)))
+  capitalization_lookup_list <- lapply(X = unique_grouping_vars,
+                                       data = lpi_species,
+                                       FUN = function(X, data){
+                                         # message(paste(X,
+                                         #               collapse = ", "))
+                                         current_values <- unique(data[[X]])
+                                         current_values <- current_values[!is.na(current_values)]
+                                         if (length(current_values) > 0) {
+                                           setNames(object = current_values,
+                                                    nm = paste0("^",
+                                                                toupper(current_values),
+                                                                "$"))
+                                         } else {
+                                           NULL
+                                         }
+                                       })
+  names(capitalization_lookup_list) <- unique_grouping_vars
+
+  # This calculates the indicators.
+  # The first level is iterating over the list variable_groups, working through
+  # the hit types and the second level is working through all the groupings
+  # within the hit type.
+  cover_indicators_list <- lapply(X = names(variable_groups),
+                                  # X = "first",
+                                  variable_groups = variable_groups,
+                                  data = lpi_species,
+                                  capitalization_lookup_list = capitalization_lookup_list,
+                                  verbose = verbose,
+                                  FUN = function(X, variable_groups, data, capitalization_lookup_list, verbose){
+                                    current_hit <- X
+                                    message(paste("Calculating", current_hit, "hit indicators."))
+
+                                    current_variable_groupings <- variable_groups[[current_hit]]
+                                    # For the current hit type ("first", "any",
+                                    # "basal"), calculate indicators for each
+                                    # required variable grouping
+                                    current_results_list <- lapply(X = seq(length(current_variable_groupings)),
+                                                                   data = data,
+                                                                   hit = current_hit,
+                                                                   current_variable_groupings = current_variable_groupings,
+                                                                   capitalization_lookup_list = capitalization_lookup_list,
+                                                                   verbose = verbose,
+                                                                   FUN = function(X, data, hit, current_variable_groupings, capitalization_lookup_list, verbose){
+                                                                     current_grouping_vars <- current_variable_groupings[[X]]
+                                                                     if (verbose) {
+                                                                       message(paste("Calculating", hit, "hit indicators grouped by the variable(s):",
+                                                                                     paste(current_grouping_vars,
+                                                                                           collapse = ", "),
+                                                                                     paste0("(Grouping ", X, " of ", length(current_variable_groupings), ")")))
+                                                                     }
+
+                                                                     current_results_raw <- pct_cover(lpi_tall = data,
+                                                                                                      tall = TRUE,
+                                                                                                      by_line = FALSE,
+                                                                                                      hit = hit,
+                                                                                                      indicator_variables = current_grouping_vars,
+                                                                                                      verbose = verbose)
+
+                                                                     # Sometimes there are no data that had non-NA
+                                                                     # values in the variables of interest, so
+                                                                     # we have to be prepared for that.
+                                                                     if (is.null(current_results_raw)) {
+                                                                       if (verbose) {
+                                                                         message("No qualifying data for the requested indicator(s). Returning NULL.")
+                                                                       }
+                                                                       return(NULL)
+                                                                     }
+
+                                                                     if (verbose) {
+                                                                       message("Adjusting indicator names.")
+                                                                     }
+
+                                                                     # Now we rename the indicators.
+                                                                     # We'll split them into their component parts
+                                                                     # and then use the appropriate lookup vector
+                                                                     # for each part to correct the capitalization.
+                                                                     # There are more efficient ways to do this,
+                                                                     # but this is extensible, standardized, and
+                                                                     # basically hands-off for us when we update
+                                                                     # indicators.
+                                                                     current_results <- tidyr::separate_wider_delim(data = current_results_raw,
+                                                                                                                    cols = indicator,
+                                                                                                                    # Of course this doesn't use
+                                                                                                                    # actual regex despite that
+                                                                                                                    # being the tidyverse standard
+                                                                                                                    delim = ".",
+                                                                                                                    names = current_grouping_vars)
+
+
+                                                                     # A for loop might actually be fastest (and
+                                                                     # is certainly easiest), so that's the
+                                                                     # solution for now.
+                                                                     # I attempted to use mutate() with {{}} and
+                                                                     # := but it wasn't evaluating the
+                                                                     # str_replace_all() correctly because I couldn't
+                                                                     # convince it to retrieve the relevant vector
+                                                                     # with {{}} or dplyr::vars() for use as the
+                                                                     # string argument.
+                                                                     for (current_variable in current_grouping_vars) {
+                                                                       current_results[[current_variable]] <- stringr::str_replace_all(string = current_results[[current_variable]],
+                                                                                                                                       pattern = capitalization_lookup_list[[current_variable]])
+                                                                     }
+
+                                                                     # Having now made the variables with the
+                                                                     # corrected components, we can recombine them
+                                                                     current_results <- tidyr::unite(data = current_results,
+                                                                                                     col = indicator,
+                                                                                                     dplyr::all_of(current_grouping_vars),
+                                                                                                     sep = "")
+
+                                                                     # And add the hit prefix and "Cover" to the
+                                                                     # indicator names
+                                                                     current_prefix <- switch(EXPR = hit,
+                                                                                              "first" = "FH_",
+                                                                                              "any" = "AH_",
+                                                                                              "basal" = "AH_Basal")
+                                                                     current_results <- dplyr::mutate(.data = current_results,
+                                                                                                      indicator = paste0(current_prefix,
+                                                                                                                         indicator,
+                                                                                                                         "Cover")) |>
+                                                                       # And correct for the special case indicators
+                                                                       dplyr::mutate(.data = _,
+                                                                                     indicator = stringr::str_replace_all(string = indicator,
+                                                                                                                          pattern = nonstandard_indicator_lookup))
+                                                                     # We'll keep only the bare minimum here.
+                                                                     dplyr::select(.data = current_results,
+                                                                                   PrimaryKey,
+                                                                                   indicator,
+                                                                                   percent) |>
+                                                                       # Get only the indicators we want to actually keep. Doing this saves us
+                                                                       # from wasting memory storing unnecessary indicators even temporarily
+                                                                       # and spares us the horror of storing them even less efficiently in
+                                                                       # a wide format after this loop.
+                                                                       dplyr::filter(.data = _,
+                                                                                     indicator %in% expected_indicator_names)
+                                                                   })
+
+                                    # Bind all those results together
+                                    dplyr::bind_rows(current_results_list)
+                                  })
+
+  # It's possible to accidentally calculate the same indicator more than once,
+  # e.g. in Alaska where you might find "Moss" in the variable GrowthHabitSub
+  # and so get a FH_MossCover when calculating both from GrowthHabitSub *AND*
+  # SpecialConsiderationCode
+  cover_indicators <- dplyr::bind_rows(cover_indicators_list) |>
+    dplyr::distinct()
+
+  #### Combine all LPI based cover indicators ##################################
+  if (verbose) {
+    message("Combining all cover indicators and converting to a wide format.")
+  }
+  lpi_indicators <- dplyr::bind_rows(cover_indicators,
+                                     total_foliar) |>
+    # Remove duplicates (which I guess is possible)
+    dplyr::distinct(.data = _) |>
+    # Spread to a wide format.
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = percent,
+                       values_fill = 0)
+
+  ##### Sagebrush shape indicators ---------------------------------------------
+  # If there are qualifying data, add sagebrush shape!
+  if (any(!is.na(lpi_species$ShrubShape))) {
+    if (verbose) {
+      message("Calculating sagebrush shape indicators and joining to output.")
+    }
+    # Sagebrush shape is only recorded for live sagebrush according to the
+    # protocol, so we're going to calculate with live = FALSE and rename it to
+    # reflect the living status
+    sagebrush_shape_calc <- sagebrush_shape(lpi_tall = lpi_species,
+                                            live = FALSE) |>
+      dplyr::rename_with(.data = _,
+                         .fn = ~ stringr::str_replace(string = .x,
+                                                      pattern = "_All_",
+                                                      replacement = "_Live_"),
+                         .cols = tidyselect::contains(match = "_All_"))
+    lpi_indicators <- dplyr::left_join(x = lpi_indicators,
+                                       y = sagebrush_shape_calc,
+                                       relationship = "one-to-one",
+                                       by = "PrimaryKey")
+  } else {
+    if (verbose) {
+      message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.")
     }
   }
 
-  message(paste("Checking for rows with no data in all of these columns:", paste(datacols, collapse = ", ")))
+  #### Final munging ###########################################################
+  # Keep only the indicators we want
+  output <- dplyr::select(lpi_indicators,
+                          PrimaryKey,
+                          dplyr::any_of(expected_indicator_names))
 
-  # Select only data columns and count how many are NA
-  data_datacols_only <- data.frame(indata[,datacols]) %>% dplyr::mutate(nNA = rowSums(is.na(.)))
+  # We need to make sure that all indicator variables are numeric because
+  # they're all cover values. Any NA values should be assumed to be 0s.
+  # Also, it's totally inappropriate to return indicator values with 6+ decimal
+  # places so we're rounding to a single decimal place.
+  output <- dplyr::mutate(.data = output,
+                          dplyr::across(.cols = -tidyselect::any_of(x = c("PrimaryKey",
+                                                                          "SagebrushShape_Live_Predominant")),
+                                        .fns = ~ as.numeric(.x) |>
+                                          tidyr::replace_na(data = _,
+                                                            replace = 0) |>
+                                          round(x = _,
+                                                digits = 1)))
 
-  # Rows where all essential values are NA must be eliminated
-  vec_hasdata <- data_datacols_only$nNA != length(datacols)
+  # Add in variables for indicators we want but which had no qualifying data and
+  # therefore should have a value of 0 for all plots.
+  # setdiff() is rad and I wish I'd known about it years ago.
+  # We'll make sure to set ONLY the numeric indicators' NAs to 0.
+  # The character indicators get NAs.
+  character_value_indicators <- NULL
+  output_missing_numeric_indicators <- setdiff(x = expected_indicator_names,
+                                               y = c(names(output),
+                                                     character_value_indicators))
+  output[output_missing_numeric_indicators] <- 0
+  output_missing_character_indicators <- setdiff(x = character_value_indicators,
+                                                 y = names(output))
+  output[output_missing_character_indicators] <- NA
 
-  if(sum(vec_hasdata) < nrow(indata)){
-    n_missing <- sum(!vec_hasdata)
-    warning(paste(n_missing, "row(s) with no essential data removed"))
+  if (length(c(output_missing_numeric_indicators, output_missing_character_indicators)) > 0) {
+    warning(paste("The following indicators had no qualifying data and have been populated with 0 or NA as appropriate. This is not unexpected with rare situations and is even likely with smaller data sets. The indicators in question are:",
+                  paste(c(output_missing_numeric_indicators, output_missing_character_indicators),
+                        collapse = ", ")))
   }
 
-  outdata <- indata[vec_hasdata,]
+  # This will reorder the variables to be as expected!
+  output <- dplyr::select(.data = output,
+                          dplyr::all_of(c("PrimaryKey",
+                                          expected_indicator_names)))
 
-  return(outdata)
+  output
+}
+
+
+#' @export gap_calc
+#' @rdname aim_gdb
+# Calculate the Gap indicators for AIM
+gap_calc <- function(header,
+                     gap_tall,
+                     verbose = FALSE) {
+  if ("character" %in% class(header)) {
+    if (toupper(tools::file_ext(header)) == "RDATA") {
+      header <- readRDS(file = header)
+    } else {
+      stop("When header is a character string it must be the path to a .rds file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(header)) {
+    header <- header
+  } else if (!is.null(header)) {
+    stop("header must be a data frame or a filepath to an .Rdata file that contains the header data frame.")
+  }
+
+
+  if (verbose) {
+    message("Reading gap data")
+  }
+  if ("character" %in% class(gap_tall)) {
+    if (toupper(tools::file_ext(gap_tall)) == "RDATA") {
+      gap_tall <- readRDS(file = gap_tall)
+    } else {
+      stop("When gap_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(gap_tall)) {
+    gap_tall <- gap_tall
+  } else {
+    stop("gap_tall must be a data frame or a filepath to an .Rdata file that contains the gap_tall data frame.")
+  }
+
+  if (!is.null(header)) {
+    if ("PrimaryKey" %in% names(header)) {
+      pks <- unique(header$PrimaryKey)
+    } else {
+      warning("The variable 'PrimaryKey' does not appear in the provided header data. As a result, gap_tall will not be filtered prior to calculations. If you intend to restrict gap_tall to records based on PrimaryKey values, please provide that information in header or filter gap_tall prior to calling this function.")
+      pks <- NULL
+    }
+  } else {
+    pks <- NULL
+  }
+
+  if (length(pks) > 0) {
+    gap_tall <- dplyr::filter(.data = gap_tall,
+                              PrimaryKey %in% pks)
+  }
+
+
+  # Calculate indicators and rename them.
+  gap_values <- gap_cover(gap_tall = gap_tall,
+                          tall = FALSE)$percent |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(x = c("PrimaryKey",
+                                           GapCover_25_50 = "25-50",
+                                           GapCover_51_100 = "51-100",
+                                           GapCover_101_200 = "101-200",
+                                           GapCover_200_plus = "201-Inf")))
+
+  gap_values
+}
+
+
+#' @export height_calc
+#' @rdname aim_gdb
+# Calculate the Height indicators for AIM
+height_calc <- function(header,
+                        height_tall,
+                        species_file = species_file,
+                        source,
+                        generic_species_file = NULL,
+                        verbose = FALSE) {
+  if (verbose) {
+    message("Beginning height calculations")
+  }
+
+  if ("character" %in% class(header)) {
+    if (toupper(tools::file_ext(header)) == "RDATA") {
+      header <- readRDS(header)
+    } else {
+      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+    }
+  }
+  if ("character" %in% class(height_tall)) {
+    if (toupper(tools::file_ext(height_tall)) == "RDATA") {
+      height_tall <- readRDS(file = height_tall)
+    } else {
+      stop("When height_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(height_tall)) {
+    height_tall <- height_tall
+  }
+
+  height_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
+                                                           # Swapped from all_of()
+                                                           # because county was
+                                                           # missing from some
+                                                           # data.
+                                                           tidyselect::any_of(c("PrimaryKey",
+                                                                                "SpeciesState",
+                                                                                "State",
+                                                                                "County"))),
+                                         y = height_tall,
+                                         relationship = "one-to-many",
+                                         by = "PrimaryKey")
+
+  # If generic_species_file is not provided, assume it is the same as species_file
+  if(is.null(generic_species_file)) {
+    generic_species_file <- species_file
+  }
+
+  if (verbose) {
+    message("Joining species information to the height data.")
+  }
+  # This is way more complicated now that we're working with tblNationalPlants
+  # AND tblStateSpecies.
+  # First, we use species_join() to add the important information from
+  # tblNationalPlants and to handle the generic species stuff.
+  # Then we read in tblStateSpecies (discarding everything except the variables
+  # containing codes, the states, and the sage-grouse groups) and join that to
+  # the data to add in the SG_Group variable because that's all that
+  # tblStateSpecies is good for these days.
+  # Also, tblStateSpecies contains some duration and growth habit information
+  # that (as of May 2025) is not reflected in or directly contradicts
+  # tblNationalPlants or is flat-out incorrect. Those variables aren't being
+  # used, but discrepancies in indicators calculated before versus after 2024
+  # may be due to those not being applied.
+  tblNationalPlants <- sf::st_read(dsn = species_file,
+                                   layer = "tblNationalPlants",
+                                   quiet = TRUE)
+
+  tblStateSpecies <- sf::st_read(dsn = species_file,
+                                 layer = "tblStateSpecies",
+                                 quiet = TRUE) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(c(code = "SpeciesCode",
+                                       "Duration",
+                                       "GrowthHabit",
+                                       "GrowthHabitSub",
+                                       "SG_Group",
+                                       "SpeciesState"))) |>
+    dplyr::distinct()
+
+  if (verbose) {
+    message("Starting with tblNationalPlants and standardized generic codes.")
+  }
+  height_species <- species_join(data = height_tall_header,
+                                 data_code = "Species",
+                                 species_file = tblNationalPlants,
+                                 species_code = "NameCode",
+                                 update_species_codes = FALSE,
+                                 by_species_key = FALSE,
+                                 verbose = verbose) |>
+    # We want to use whatever is the currently accepted code in USDA PLANTS for
+    # the species, even though that may be less taxonomically correct.
+    # Using dplyr::case_when() lets us keep any codes that don't have a
+    # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
+    dplyr::mutate(.data = _,
+                  Species = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
+                                             .default = Species)) |>
+    # Not necessary, but I'm paranoid
+    dplyr::distinct()
+
+  if (verbose) {
+    message("Adding SG_Group from tblStateSpecies")
+  }
+
+  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
+  # make a new data frame where there's only one record per species code and
+  # we store all the per-state SG_Group assignments in a character string as
+  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
+  # This should be significantly faster than trying to join by both the species
+  # codes and SpeciesState, at least for very large data sets.
+  height_species <- dplyr::select(.data = tblStateSpecies,
+                                  tidyselect::all_of(c(Species = "code",
+                                                       "SpeciesState",
+                                                       "SG_Group"))) |>
+    dplyr::filter(.data = _,
+                  !is.na(SG_Group)) |>
+    dplyr::mutate(.data = _,
+                  sg_string = paste(SpeciesState,
+                                    SG_Group,
+                                    sep = ":")) |>
+    dplyr::summarize(.data = _,
+                     .by = Species,
+                     SG_Group = paste(sg_string,
+                                      collapse = "|")) |>
+    dplyr::left_join(x = height_species,
+                     y = _,
+                     relationship = "many-to-one",
+                     by = c("Species"),
+                     suffix = c("",
+                                "_tblstatespecies")) |>
+    dplyr::distinct()
+
+  #### Cleanup! ################################################################
+  # These are so we can assign a new variable called "pgpf" indicating which
+  # records contain heights for perennial grasses or perennial forbs.
+  pgpf_growthhabitsubs <- c("Forb/herb", "Forb", "Graminoid", "Grass")
+
+  # Clean up variables and then keep only valid records, e.g., records where a
+  # species was recorded with the a GrowthHabit_measured value that matches the
+  # GrowthHabit value added in the species join OR the species was NA but there
+  # was a recorded height value.
+  height_species <- dplyr::mutate(.data = height_species,
+                                  Duration = dplyr::case_when(stringr::str_detect(string = Duration,
+                                                                                  pattern = "[Pp]eren") ~ "Peren",
+                                                              .default = Duration),
+                                  # Correct the Non-Woody to NonWoody
+                                  GrowthHabit = dplyr::case_when(stringr::str_detect(string = GrowthHabit,
+                                                                                     pattern = "^Non(-)?[Ww]oody$") ~ "NonWoody",
+                                                                 .default = GrowthHabit),
+                                  GrowthHabitSub = dplyr::case_when(stringr::str_detect(string = GrowthHabitSub,
+                                                                                        pattern = "[Ff]orb") ~ "Forb",
+                                                                    stringr::str_detect(string = GrowthHabitSub,
+                                                                                        pattern = "[Gg]rass") ~ "Graminoid",
+                                                                    .default = GrowthHabitSub),
+                                  # Add a variable indicating if a record is tied to a perennial forb or grass
+                                  pgpf = dplyr::case_when(Duration == "Peren" &
+                                                            GrowthHabitSub %in% pgpf_growthhabitsubs ~ "PerenForbGraminoid",
+                                                          .default = NA),
+                                  # Get these values tuned up so we get the
+                                  # expected indicator names.
+                                  type = stringr::str_to_title(string = type),
+                                  # Make sure that Noxious actually reflects the
+                                  # assigned status for the state.
+                                  Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
+                                                                                 pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Nox",
+                                                             .default = "NonNox"),
+                                  # This makes sure that the value in SG_Group is
+                                  # only the string associated with the group for
+                                  # the species code in the relevant state.
+                                  # Records where there's not a group value for the
+                                  # associated state (or "US") will get NA instead.
+                                  SG_Group = stringr::str_remove_all(string = SG_Group,
+                                                                     pattern = "Stature") |>
+                                    stringr::str_replace_all(string = _,
+                                                             pattern = "Perennial",
+                                                             replacement = "Peren") |>
+                                    stringr::str_extract(string = _,
+                                                         pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                                  # This makes sure that we've assigned any shrubs
+                                  # that didn't get a sage-grouse group are
+                                  # assigned to "NonSagebrushShrub"
+                                  SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
+                                                              .default = SG_Group)
+  ) |>
+    # This is the bit that keeps records where the species was NA but there was
+    # a height recorded OR the GrowthHabit as recorded matches the species info
+    # added by species_join().
+    dplyr::filter(.data = _,
+                  is.na(Species) & !is.na(Height) |
+                    GrowthHabit_measured == GrowthHabit)
+
+  # Because we'll calculate "Hgt_Sagebrush_Live_Avg" if we ought to.
+  if (source %in% c("TerrADat", "AIM")) {
+    height_species <- dplyr::mutate(.data = height_species,
+                                    Chkbox = dplyr::case_when(Chkbox %in% c(0, "0") ~ "_Live",
+                                                              .default = as.character(Chkbox)))
+  }
+
+  #### Height calculations #####################################################
+  # These are the output variables we anticipate getting back (and want)
+  expected_indicator_variables <- c("Hgt_Woody_Avg",
+                                    "Hgt_Herbaceous_Avg",
+                                    "Hgt_Forb_Avg",
+                                    "Hgt_PerenForb_Avg",
+                                    "Hgt_Graminoid_Avg",
+                                    "Hgt_PerenGraminoid_Avg",
+                                    "Hgt_TallPerenGrass_Avg",
+                                    "Hgt_ShortPerenGrass_Avg",
+                                    "Hgt_PerenForbGraminoid_Avg",
+                                    "Hgt_Shrub_Avg",
+                                    "Hgt_NonSagebrushShrub_Avg",
+                                    "Hgt_Sagebrush_Avg")
+
+  # Let's do this with a lapply()!
+  # We'll need the definitions here for which variables should be used as
+  # indicator_variables for each pass.
+  indicator_variables_list <- list(c("type"),
+                                   c("GrowthHabitSub"),
+                                   c("Duration",
+                                     "GrowthHabitSub"),
+                                   c("pgpf"),
+                                   c("Noxious",
+                                     "Duration",
+                                     "GrowthHabitSub"),
+                                   c("SG_Group"))
+
+  # For TerrADat only
+  if (source %in% c("TerrADat", "AIM")) {
+    expected_indicator_variables <- c(expected_indicator_variables,
+                                      "Hgt_Sagebrush_Live_Avg")
+    indicator_variables_list[[length(indicator_variables_list) + 1]] <- c("SG_Group",
+                                                                          "Chkbox")
+  }
+
+  height_values_list <- lapply(X = indicator_variables_list,
+                               height_species = height_species,
+                               verbose = verbose,
+                               FUN = function(X, height_species, verbose){
+                                 if (verbose) {
+                                   message(paste(X,
+                                                 collapse = ", "))
+                                 }
+
+                                 mean_height(height_tall = height_species,
+                                             method = "mean",
+                                             tall = TRUE,
+                                             indicator_variables = X,
+                                             verbose = verbose) |>
+                                   dplyr::mutate(.data = _,
+                                                 indicator = stringr::str_remove_all(string = indicator,
+                                                                                     pattern = "\\.") |>
+                                                   paste0("Hgt_",
+                                                          . = _,
+                                                          "_Avg"))
+                               })
+
+  output <- dplyr::bind_rows(height_values_list) |>
+    dplyr::filter(.data = _,
+                  indicator %in% expected_indicator_variables) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = mean_height,
+                       values_fill = NA)
+
+  missing_indicators <- setdiff(x = expected_indicator_variables,
+                                y = names(output))
+  if (length(missing_indicators) > 0) {
+    warning(paste0("One or more expected indicators did not have qualifying data and will be returned with NA values. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
+                   paste(missing_indicators,
+                         collapse = ", ")))
+    output[, missing_indicators] <- NA
+  }
+
+  output
+}
+
+
+#' @export spp_inventory_calc
+#' @rdname aim_gdb
+# Calculate species inventory
+spp_inventory_calc <- function(header,
+                               spp_inventory_tall,
+                               species_file,
+                               source,
+                               generic_species_file = NULL,
+                               verbose = FALSE) {
+  if ("character" %in% class(header)) {
+    if (toupper(tools::file_ext(header)) == "RDATA") {
+      header <- readRDS(file = header)
+    } else {
+      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+    }
+  }
+  if ("character" %in% class(spp_inventory_tall)) {
+    if (toupper(tools::file_ext(spp_inventory_tall)) == "RDATA") {
+      data <- readRDS(file = spp_inventory_tall)
+    } else {
+      stop("When spp_inventory_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(spp_inventory_tall)) {
+    data <- spp_inventory_tall
+  }
+
+  data <- dplyr::left_join(x = dplyr::select(.data = header,
+                                             PrimaryKey,
+                                             SpeciesState),
+                           y = data,
+                           by = "PrimaryKey")
+
+  # If generic_species_file is not provided, assume it is the same as species_file
+  if (is.null(generic_species_file)) {
+    generic_species_file <- species_file
+  }
+
+  if (verbose) {
+    message("Joining species information to the species inventory data.")
+  }
+  # This is way more complicated now that we're working with tblNationalPlants
+  # AND tblStateSpecies.
+  # First, we use species_join() to add the important information from
+  # tblNationalPlants and to handle the generic species stuff.
+  # Then we read in tblStateSpecies (discarding everything except the variables
+  # containing codes, the states, and the sage-grouse groups) and join that to
+  # the data to add in the SG_Group variable because that's all that
+  # tblStateSpecies is good for these days.
+  # Also, tblStateSpecies contains some duration and growth habit information
+  # that (as of May 2025) is not reflected in or directly contradicts
+  # tblNationalPlants or is flat-out incorrect. Those variables aren't being
+  # used, but discrepancies in indicators calculated before versus after 2024
+  # may be due to those not being applied.
+  tblNationalPlants <- sf::st_read(dsn = species_file,
+                                   layer = "tblNationalPlants",
+                                   quiet = TRUE)
+
+  tblStateSpecies <- sf::st_read(dsn = species_file,
+                                 layer = "tblStateSpecies",
+                                 quiet = TRUE) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(c(code = "SpeciesCode",
+                                       "Duration",
+                                       "GrowthHabit",
+                                       "GrowthHabitSub",
+                                       "SG_Group",
+                                       "SpeciesState"))) |>
+    dplyr::distinct()
+
+  if (verbose) {
+    message("Starting with tblNationalPlants and standardized generic codes.")
+  }
+  data <- species_join(data = data,
+                       data_code = "Species",
+                       species_file = tblNationalPlants,
+                       species_code = "NameCode",
+                       update_species_codes = FALSE,
+                       by_species_key = FALSE,
+                       verbose = verbose) |>
+    # We want to use whatever is the currently accepted code in USDA PLANTS for
+    # the species, even though that may be less taxonomically correct.
+    # Using dplyr::case_when() lets us keep any codes that don't have a
+    # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
+    dplyr::mutate(.data = _,
+                  Species = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
+                                             .default = Species)) |>
+    # Not necessary, but I'm paranoid
+    dplyr::distinct()
+
+  if (verbose) {
+    message("Adding SG_Group from tblStateSpecies")
+  }
+
+  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
+  # make a new data frame where there's only one record per species code and
+  # we store all the per-state SG_Group assignments in a character string as
+  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
+  # This should be significantly faster than trying to join by both the species
+  # codes and SpeciesState, at least for very large data sets.
+  data <- dplyr::select(.data = tblStateSpecies,
+                        tidyselect::all_of(c(Species = "code",
+                                             "SpeciesState",
+                                             "SG_Group"))) |>
+    dplyr::filter(.data = _,
+                  !is.na(SG_Group)) |>
+    dplyr::mutate(.data = _,
+                  sg_string = paste(SpeciesState,
+                                    SG_Group,
+                                    sep = ":")) |>
+    dplyr::summarize(.data = _,
+                     .by = Species,
+                     SG_Group = paste(sg_string,
+                                      collapse = "|")) |>
+    dplyr::left_join(x = data,
+                     y = _,
+                     relationship = "many-to-one",
+                     by = c("Species"),
+                     suffix = c("",
+                                "_tblstatespecies")) |>
+    dplyr::distinct() |>
+    dplyr::mutate(.data = _,
+                  # This is to turn the SG_Group codes into values
+                  # that match the expected indicator names for
+                  # our convenience.
+                  SG_Group = stringr::str_remove_all(string = SG_Group,
+                                                     pattern = "Stature") |>
+                    stringr::str_replace_all(string = _,
+                                             pattern = "Perennial",
+                                             replacement = "Peren") |>
+                    # This makes sure that the value in SG_Group is
+                    # only the string associated with the group for
+                    # the species code in the relevant state.
+                    # Records where there's not a group value for the
+                    # associated state (or "US") will get NA instead.
+                    stringr::str_extract(string = _,
+                                         pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                  # This makes sure that we've assigned any shrubs
+                  # that didn't get a sage-grouse group are
+                  # assigned to "NonSagebrushShrub"
+                  SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
+                                              .default = SG_Group))
+
+  # Cleanup to get things in order for the indicators
+  data <- dplyr::mutate(.data = data,
+                        Total = "Total",
+                        ###### Invasive ---------------------------------
+                        # This is just to make the Invasive values match
+                        # the desired indicator names
+                        Invasive = stringr::str_to_title(string = Invasive),
+
+                        ###### Native -----------------------------------
+                        # This is for the native and non-native cover
+                        # It assumes that everything flagged as EXOTIC or
+                        # ABSENT should be considered NonNative and that
+                        # everything else is Native
+                        Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) ~ "Native",
+                                                  .default = "Nonnative"),
+
+                        ###### Noxious ----------------------------------
+                        # For noxious cover. This assumes that anything
+                        # flagged as YES is noxious and nothing else is.
+                        # NOTE: This is now disabled because noxious
+                        # status is being handled more appropriately and
+                        # through a different format. I'm leaving this
+                        # for posterity for the moment though.
+                        # Noxious = dplyr::case_when(Noxious %in% c("YES") ~ "Noxious",
+                        #                            .default = NA),
+                        # Noxious is now encoded as a character string
+                        # with localities separated by |s. We need to
+                        # check for the relevant locality based on the
+                        # State variable NOT the AdminState because these
+                        # determinations are made based on the physical
+                        # location of the sampling within the legal
+                        # boundaries of states, not which state is
+                        # administering the lands (which is sometimes
+                        # different).
+                        # The regex checks to see if the beginning of
+                        # the string or the characters immediately
+                        # following a | are "US", the code from the State
+                        # variable, or the code from the State variable
+                        # and the value from the County variable
+                        # separated by a :, e.g., "OR:Jefferson".
+                        # The single-letter designations for type of
+                        # noxiousness are not taken into account, e.g.,
+                        # "OR:A" and "OR:B" will be treated identically.
+                        # County-level designations may eventually be
+                        # removed, but for now they're still in there and
+                        # this regex will work regardless.
+                        Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
+                                                                       pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
+                                                   .default = "noxious_irrelevant"),)
+
+  #### Calculating #############################################################
+  # These are the output variables we anticipate getting back (and want)
+  expected_indicator_variables <- c("NumSpp_Total",
+                                    "NumSpp_Native",
+                                    "NumSpp_Nonnative",
+                                    "NumSpp_Invasive",
+                                    "NumSpp_Noxious",
+                                    "NumSpp_PreferredForb")
+
+  indicator_variables_list <- list(c("Total"),
+                                   c("Native"),
+                                   c("Invasive"),
+                                   c("Noxious"),
+                                   c("SG_Group"))
+  output_list <- lapply(X = indicator_variables_list,
+                        data = data,
+                        verbose = verbose,
+                        FUN = function(X, data, verbose){
+                          species_count(species_inventory_tall = data,
+                                        indicator_variables = X,
+                                        verbose = verbose) |>
+                            dplyr::mutate(.data = _,
+                                          indicator = paste0("NumSpp_",
+                                                             indicator))
+                        })
+
+  output <- dplyr::bind_rows(output_list) |>
+    dplyr::filter(.data = _,
+                  indicator %in% expected_indicator_variables) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = n,
+                       values_fill = 0)
+
+  missing_indicators <- setdiff(x = expected_indicator_variables,
+                                y = names(output))
+  if (length(missing_indicators) > 0) {
+    warning(paste0("One or more expected indicators did not have qualifying data and will be returned with 0 values. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
+                   paste(missing_indicators,
+                         collapse = ", ")))
+    output[, missing_indicators] <- 0
+  }
+
+  output
+}
+
+#' @export soil_stability_calc
+#' @rdname aim_gdb
+# Calculate soil stability values
+soil_stability_calc <- function(soil_stability_tall,
+                                verbose = FALSE) {
+  if ("character" %in% class(soil_stability_tall)) {
+    if (toupper(tools::file_ext(soil_stability_tall)) == "RDATA") {
+      data <- readRDS(file = soil_stability_tall)
+    } else {
+      stop("When soil_stability_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+    }
+  } else if ("data.frame" %in% class(soil_stability_tall)) {
+    data <- soil_stability_tall
+  }
+
+  # Drop the NA values
+  data <- dplyr::filter(.data = data,
+                        !is.na(Rating))
+
+  indicators <- soil_stability(data,
+                               all = TRUE,
+                               cover = TRUE,
+                               uncovered = TRUE,
+                               all_cover_types = FALSE,
+                               tall = FALSE)
+  indicators
 }

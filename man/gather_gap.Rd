@@ -15,7 +15,13 @@ gather_gap_terradat(
   verbose = FALSE
 )
 
-gather_gap_lmf(dsn = NULL, file_type = NULL, GINTERCEPT = NULL, POINT = NULL)
+gather_gap_lmf(
+  dsn = NULL,
+  file_type = NULL,
+  GINTERCEPT = NULL,
+  POINT = NULL,
+  verbose = FALSE
+)
 
 gather_gap(
   dsn = NULL,
@@ -25,7 +31,8 @@ gather_gap(
   tblGapDetail = NULL,
   POINT = NULL,
   GINTERCEPT = NULL,
-  autoQC = TRUE
+  autoQC = TRUE,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -95,12 +102,9 @@ gather_gap(source = "LMF",
 }
 \seealso{
 Other <gather>: 
-\code{\link{gather_all}()},
 \code{\link{gather_height}()},
 \code{\link{gather_lpi}()},
-\code{\link{gather_plot_characterization}()},
 \code{\link{gather_rangeland_health}()},
-\code{\link{gather_soil_horizon}()},
 \code{\link{gather_soil_stability}()},
 \code{\link{gather_species_inventory}()}
 }

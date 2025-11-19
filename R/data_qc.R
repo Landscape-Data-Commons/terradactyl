@@ -18,7 +18,8 @@
 check_orphaned_records <- function(x,
                                    y,
                                    joining_variables,
-                                   symmetric = TRUE){
+                                   symmetric = TRUE,
+                                   verbose = FALSE){
 
   if (!"data.frame" %in% class(x)) {
     stop("x must be a data frame.")
@@ -170,7 +171,8 @@ check_orphaned_records <- function(x,
 #'
 #' @export
 check_uniqueness <- function(data,
-                             uid_variables){
+                             uid_variables,
+                             verbose = FALSE){
   if (!"data.frame" %in% class(data)) {
     stop("data must be a data frame")
   }
@@ -317,8 +319,7 @@ check_terradat_data <- function(dsn,
                              tblSoilStabHeader = c("PrimaryKey",
                                                    "RecKey"),
                              tblSoilStabDetail = c("PrimaryKey",
-                                                   "RecKey",
-                                                   "BoxNum"))
+                                                   "RecKey"))
 
   # These are for running through check_orphaned_records()
   joining_variables_list <- list(tblLPIHeader = c("PrimaryKey",

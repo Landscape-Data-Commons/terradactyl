@@ -49,7 +49,8 @@ gap_cover <- function(gap_tall,
                       breaks = c(20, 24, 50, 100, 200),
                       type = "canopy",
                       no_max_cutoff = TRUE,
-                      by_line = FALSE) {
+                      by_line = FALSE,
+                      verbose = FALSE) {
 
   #### SETUP ###################################################################
   ##### Data checks ------------------------------------------------------------
@@ -218,7 +219,8 @@ gap_cover <- function(gap_tall,
   # transects should've been caught above.
   total_gap <- dplyr::summarize(.data = gap_tall,
                                 .by = tidyselect::all_of(grouping_vars),
-                                total_gap = sum(Gap)) |>
+                                total_gap = sum(Gap,
+                                                na.rm = TRUE)) |>
     dplyr::left_join(x = _,
                      y = line_lengths,
                      relationship = "one-to-one",
@@ -303,7 +305,8 @@ gap_cover <- function(gap_tall,
                                                             "break_min",
                                                             "break_max")),
                                  n = dplyr::n(),
-                                 length = sum(Gap)) |>
+                                 length = sum(Gap,
+                                              na.rm = TRUE)) |>
     dplyr::left_join(x = _,
                      y = line_lengths,
                      relationship = "many-to-one",
@@ -388,6 +391,5 @@ gap_cover <- function(gap_tall,
       dplyr::bind_rows()
   }
 
-  #### RETURN ##################################################################
   output
 }

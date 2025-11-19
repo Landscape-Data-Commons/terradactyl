@@ -1,7 +1,8 @@
 ### Plot Characterization and Observation
 
 ## Plot Coordinates
-coordinates <- function(dsn) {
+coordinates <- function(dsn,
+                        verbose = FALSE) {
   # Read in the coordinates
   coordinates <- sf::st_read(dsn,
     layer = "POINTCOORDINATES",

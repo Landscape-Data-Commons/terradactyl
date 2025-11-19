@@ -11,7 +11,8 @@ qc_data_inventory(
   height_tall,
   spp_inventory_tall,
   soil_stability_tall,
-  dsn
+  dsn,
+  verbose = FALSE
 )
 }
 \description{

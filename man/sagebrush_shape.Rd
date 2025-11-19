@@ -5,9 +5,9 @@
 \alias{sagebrush_shape}
 \title{Sagebrush Shape}
 \usage{
-sagebrush_shape_base(lpi_tall)
+sagebrush_shape_base(lpi_tall, verbose = FALSE)
 
-sagebrush_shape(lpi_tall, live = TRUE)
+sagebrush_shape(lpi_tall, live = TRUE, verbose = FALSE)
 }
 \arguments{
 \item{lpi_tall}{Dataframe. Gathered LPI dataframe in a tall format.}

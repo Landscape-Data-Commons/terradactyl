@@ -10,13 +10,17 @@ mean_height(
   omit_zero = TRUE,
   by_line = FALSE,
   tall = FALSE,
-  ...
+  ...,
+  indicator_variables = NULL,
+  missing_fill = 0,
+  digits = 1,
+  verbose = FALSE
 )
 }
 \arguments{
 \item{height_tall}{A tall/long-format data frame. Use the data frame \code{"height"} from the \code{gather.lpi()} output.}
 
-\item{method}{Character string. Indicates the type of indicator, \code{"max"}, which yields the average maximum height (of the herbaceous or woody heights) on the plot or \code{"mean"} which yields the mean height by functional group (woody/herbaceous).}
+\item{method}{Character string. Indicates the type of indicator, \code{"max"}, which returns the mean of the maximum heights at each pin drop on the plot or \code{"mean"} which yields the mean height by functional group (woody/herbaceous).}
 
 \item{omit_zero}{Logical. If \code{TRUE} the results omit height measurements of \code{0}. Defaults to \code{TRUE}.}
 

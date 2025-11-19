@@ -5,7 +5,7 @@
 \title{RAP data model
 Build data inputs for the Rangeland Analysis Platform.}
 \usage{
-data_model_RAP(lpi_species, header)
+data_model_RAP(lpi_species, header, verbose = FALSE)
 }
 \arguments{
 \item{lpi_species}{Dataframe in environment. An LPI tall table generated from \code{gather_lpi()} and \code{species_join()}.}

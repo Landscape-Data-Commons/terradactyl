@@ -14,7 +14,12 @@ gather_soil_stability_terradat(
   verbose = FALSE
 )
 
-gather_soil_stability_lmf(dsn = NULL, file_type = "gdb", SOILDISAG = NULL)
+gather_soil_stability_lmf(
+  dsn = NULL,
+  file_type = "gdb",
+  SOILDISAG = NULL,
+  verbose = FALSE
+)
 
 gather_soil_stability(
   dsn = NULL,
@@ -23,7 +28,8 @@ gather_soil_stability(
   tblSoilStabDetail = NULL,
   tblSoilStabHeader = NULL,
   SOILDISAG = NULL,
-  autoQC = TRUE
+  autoQC = TRUE,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -82,13 +88,10 @@ gather_soil_stability(source = "LMF",
 }
 \seealso{
 Other <gather>: 
-\code{\link{gather_all}()},
 \code{\link{gather_gap}()},
 \code{\link{gather_height}()},
 \code{\link{gather_lpi}()},
-\code{\link{gather_plot_characterization}()},
 \code{\link{gather_rangeland_health}()},
-\code{\link{gather_soil_horizon}()},
 \code{\link{gather_species_inventory}()}
 }
 \concept{<gather>}

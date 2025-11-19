@@ -4,7 +4,7 @@
 \name{terradactyl}
 \alias{terradactyl-package}
 \alias{terradactyl}
-\title{terrdactyl: A package for terrestrial data commons tools}
+\title{terradactyl: A package for terrestrial data commons tools}
 \description{
 This package provides functionality for gathering terrestrial core methods
 data, calculating standard variables and indicators, and producing

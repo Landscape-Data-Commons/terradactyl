@@ -13,7 +13,8 @@
 gather_header_terradat <- function(dsn = NULL,
                                    tblPlots = NULL,
                                    date_tables = NULL,
-                                   ...) {
+                                   ...,
+                                   verbose = FALSE) {
   # These are used for data management within a geodatabase and we're going to
   # drop them.
   internal_gdb_vars <- c("GlobalID",
@@ -84,14 +85,14 @@ gather_header_terradat <- function(dsn = NULL,
                                                Longitude_NAD83 = "Longitude",
                                                "State",
                                                "Elevation",
-                                               "County",
+                                               County = "CountyName",
                                                DateEstablished = "EstablishDate",
                                                "DateLoadedInDb",
-                                               "Design",
+                                               "SamplingApproach",
                                                "DesignFlag",
                                                "Purpose",
                                                "PurposeFlag",
-                                               "ProjectName"))) |>
+                                               "DesignName"))) |>
     # We only want to keep records with PrimaryKey values.
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey))
@@ -170,7 +171,8 @@ gather_header_terradat <- function(dsn = NULL,
 #' @export gather_header_lmf
 #' @rdname aim_gdb
 gather_header_lmf <- function(dsn = NULL,
-                              ...) {
+                              ...,
+                              verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -322,7 +324,8 @@ gather_header_lmf <- function(dsn = NULL,
 # Build the header portion of the LMF table
 #' @export gather_header_nri
 #' @rdname aim_gdb
-gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
+gather_header_nri <- function(dsn = NULL, speciesstate, ...,
+                              verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
@@ -530,7 +533,8 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...) {
 #' @rdname aim_gdb
 # Header build wrapper function
 gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, #PlotChar_0 = NULL,
-                          speciesstate = NULL, ..., autoQC = TRUE) {
+                          speciesstate = NULL, ..., autoQC = TRUE,
+                          verbose = FALSE) {
   # Error check
   # Check for a valid source
   try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
@@ -564,10 +568,10 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
   }
 
   # Apply QC helper functions to remove duplicates
-  if(autoQC){
-    message("Checking for duplicated rows. Disable by adding the parameter 'autoQC = FALSE'")
-    header <- tdact_remove_duplicates(header)
-  }
+  # if(autoQC){
+  #   message("Checking for duplicated rows. Disable by adding the parameter 'autoQC = FALSE'")
+  #   header <- tdact_remove_duplicates(header)
+  # }
 
   header
 }
@@ -752,36 +756,67 @@ gather_lpi_terradat <- function(dsn = NULL,
   # any(is.na(test$original))
   # any(is.na(test$test))
 
-  # Make a tall data frame the checkbox status by layer.
-  lpi_chkbox_tall <- dplyr::mutate(.data = detail,
-                                   # Make sure we don't have factors in play.
-                                   dplyr::across(.cols = tidyselect::where(fn = is.factor),
-                                                 .fns = ~ as.character(.x))) |>
-    # Get just the variables we need for this particular data frame.
-    dplyr::select(.data = _,
-                  PrimaryKey, RecKey,
-                  PointLoc, PointNbr,
-                  # We only want the chkbox values for the top, soil, and
-                  # numbered layers. This will exclude the woody and herbaceous
-                  # ones.
-                  tidyselect::matches(match = "^Chkbox(Top|Soil|Lower\\d)$")) |>
-    # Pivot it to be long (tall, in the older terminology).
-    tidyr::pivot_longer(data = _,
-                        cols = tidyselect::matches(match = "^Chkbox"),
-                        names_to = "layer",
-                        # Removing the prefix so that these values will match
-                        # the ones in our other tall data frame created above.
-                        names_prefix = "^Chkbox",
-                        values_to = "chckbox") |>
-    # Remove the records with invalid checkbox values.
-    dplyr::filter(.data = _,
-                  chckbox %in% c(1, 0)) |>
-    # And adjusting so that the non-numbered layers match those values we expect
-    dplyr::mutate(.data = _,
-                  layer = dplyr::case_when(layer == "Top" ~ "TopCanopy",
-                                           layer == "Soil" ~ "SoilSurface",
-                                           .default = layer)) |>
-    dplyr::distinct(.data = _)
+
+  # We want to handle the checkboxes, but sometimes they're not present because
+  # the data we're handling comes from sources like the New Mexico Department of
+  # Transportation which doesn't use those features.
+
+  # If there are checkbox variables, we'll make those data tall and then join
+  # them to lpi_hits_tall to create lpi_tall.
+  # If there aren't checkbox variables, we'll just make lpi_tall from
+  # lpi_hits_tall.
+  # The code for handling checkbox variables should work regardless of how many
+  # variables it finds as long as there's at least one.
+  has_checkbox_variables <- any(stringr::str_detect(string = names(detail),
+                                                    # This regex looks for a
+                                                    # string that starts with
+                                                    # "Chkbox" and ends in a
+                                                    # known suffix, e.g.
+                                                    # "ChkboxTop" or
+                                                    # "ChkboxLower5"
+                                                    pattern = "^Chkbox(Top|Soil|Lower\\d)$"))
+
+  if (has_checkbox_variables) {
+    # Make a tall data frame the checkbox status by layer.
+    lpi_tall <- dplyr::mutate(.data = detail,
+                              # Make sure we don't have factors in play.
+                              dplyr::across(.cols = tidyselect::where(fn = is.factor),
+                                            .fns = ~ as.character(.x))) |>
+      # Get just the variables we need for this particular data frame.
+      dplyr::select(.data = _,
+                    PrimaryKey, RecKey,
+                    PointLoc, PointNbr,
+                    # We only want the chkbox values for the top, soil, and
+                    # numbered layers. This will exclude the woody and herbaceous
+                    # ones.
+                    tidyselect::matches(match = "^Chkbox(Top|Soil|Lower\\d)$")) |>
+      # Pivot it to be long (tall, in the older terminology).
+      tidyr::pivot_longer(data = _,
+                          cols = tidyselect::matches(match = "^Chkbox"),
+                          names_to = "layer",
+                          # Removing the prefix so that these values will match
+                          # the ones in our other tall data frame created above.
+                          names_prefix = "^Chkbox",
+                          values_to = "chckbox") |>
+      # Keep only the records with valid checkbox values.
+      dplyr::filter(.data = _,
+                    chckbox %in% c(1, 0)) |>
+      # And adjusting so that the non-numbered layers match those values we expect
+      dplyr::mutate(.data = _,
+                    layer = dplyr::case_when(layer == "Top" ~ "TopCanopy",
+                                             layer == "Soil" ~ "SoilSurface",
+                                             .default = layer)) |>
+      dplyr::distinct(.data = _) |>
+      dplyr::left_join(x = lpi_hits_tall,
+                       y = _,
+                       # relationship = "one-to-one",
+                       by = c("PrimaryKey", "RecKey",
+                              "PointLoc", "PointNbr",
+                              "layer"))
+  } else {
+    warning("There were no 'checkbox' variables (usually used to record whether a record represents a live or dead plant part) in the provided data. If you were expecting them, please check your data.")
+    lpi_tall <- lpi_hits_tall
+  }
 
   # test <- dplyr::full_join(x = dplyr::mutate(lpi_chkbox_tall,
   #                                            original = TRUE),
@@ -790,27 +825,27 @@ gather_lpi_terradat <- function(dsn = NULL,
   # any(is.na(test$original))
   # any(is.na(test$test))
 
-
   # Print update because this function can take a while
   if (verbose) {
     message("Merging the header and detail tables")
   }
 
-  # Join the header information to the hit and checkbox data.
+  # Join the header information to the tall data.
   # The suppressWarnings() and lack of defined relationships in the joins are to
   # allow the user to run this with data that have not been adequately cleaned.
-  lpi_tall <- suppressWarnings(dplyr::left_join(x = lpi_hits_tall,
-                                                y = lpi_chkbox_tall,
-                                                # relationship = "one-to-one",
-                                                by = c("PrimaryKey", "RecKey",
-                                                       "PointLoc", "PointNbr",
-                                                       "layer")) |>
-                                 dplyr::left_join(x = dplyr::select(.data = header,
-                                                                    LineKey:CheckboxLabel,
-                                                                    PrimaryKey),
-                                                  y = _,
-                                                  # relationship = "one-to-many",
-                                                  by = c("PrimaryKey", "RecKey")))
+  lpi_tall <- dplyr::select(.data = header,
+                            # This is split so that we grab the first chunk of
+                            # assumed-to-be-present metadata variables and then
+                            # if we've got the checkbox ones we'll do those too
+                            LineKey:HeightUOM,
+                            tidyselect::any_of(c("ShowCheckbox",
+                                                 "CheckboxLabel")),
+                            PrimaryKey) |>
+    dplyr::left_join(x = _,
+                     y = lpi_tall,
+                     # relationship = "one-to-many",
+                     by = c("PrimaryKey", "RecKey")) |>
+    suppressWarnings()
 
   # We want to coerce dates into character strings.
   # Find variables with a date class.
@@ -842,14 +877,15 @@ gather_lpi_terradat <- function(dsn = NULL,
 
 gather_lpi_lmf <- function(dsn = NULL,
                            file_type = "gdb",
-                           PINTERCEPT = NULL) {
+                           PINTERCEPT = NULL,
+                           verbose = FALSE) {
   #### Reading and cleanup #####################################################
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(PINTERCEPT)) {
     pintercept <- PINTERCEPT
-  } else if(!is.null(dsn)){
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a database containing PINTERCEPT")
+  } else if (!is.null(dsn)) {
+    if (!file.exists(dsn)) {
+      stop("dsn must be a valid filepath.")
     }
     # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
     pintercept <- switch(file_type,
@@ -857,8 +893,7 @@ gather_lpi_lmf <- function(dsn = NULL,
                            sf::st_read(dsn = dsn,
                                        layer = "PINTERCEPT",
                                        stringsAsFactors = FALSE,
-                                       quiet = TRUE) |>
-                             suppressWarnings()
+                                       quiet = TRUE)
                          },
                          "txt" = {
                            utils::read.table(file = file.path(dsn,
@@ -880,11 +915,11 @@ gather_lpi_lmf <- function(dsn = NULL,
         terradactyl::nri.data.column.explanations$TABLE.NAME == "PINTERCEPT"
       ]
 
-      colnames <- colnames[1:ncol(pintercept)] %>% subset(!is.na(.))
+      colnames <- colnames[1:ncol(pintercept)] |> subset(!is.na(.))
       names(pintercept) <- colnames
     }
   } else {
-    stop("Supply either PINTERCEPT or the path to a GDB containing that table")
+    stop("Supply one of the following: a data frame as the argument PINTERCEPT, the path to a GDB (containing a table called PINTERCEPT) as the argument dsn, or the path to a folder containing a file called 'pintercept.txt' as the argument dsn.")
   }
 
   # Sometimes NAs might be introduced as variable names, but we can make sure to
@@ -1031,24 +1066,25 @@ gather_lpi_lmf <- function(dsn = NULL,
 
 # Gather LPI data from NPS I&M networks
 # currently not used
-gather_lpi_nps <- function(dsn) {
-  lpi_raw <- read.csv(dsn)
+gather_lpi_nps <- function(dsn,
+                           verbose = FALSE) {
+  lpi_raw <- read.csv(dsn) |>
 
-  # add plot metadata
-  lpi_raw <- lpi_raw %>% dplyr::mutate(
-    PrimaryKey = Unit_Plot,
-    DBKey = dsn,
-    FormDate = Start_Date,
-    LineLengthAmount = 50,
-    SpacingIntervalAmount = 0.5,
-    SpacingType = "m",
-    PointNbr = Point,
-    LineKey = Transect,
-    RecKey = paste(Unit_Plot, Visit_Year,
-                   Transect,
-                   sep = "_"
+    # add plot metadata
+    dplyr::mutate(.data = _,
+                  PrimaryKey = Unit_Plot,
+                  DBKey = dsn,
+                  FormDate = Start_Date,
+                  LineLengthAmount = 50,
+                  SpacingIntervalAmount = 0.5,
+                  SpacingType = "m",
+                  PointNbr = Point,
+                  LineKey = Transect,
+                  RecKey = paste(Unit_Plot, Visit_Year,
+                                 Transect,
+                                 sep = "_"
+                  )
     )
-  )
 }
 
 #' export gather_lpi_survey123
@@ -1214,7 +1250,8 @@ gather_lpi <- function(dsn = NULL,
                        tblLPIDetail = NULL,
                        tblLPIHeader = NULL,
                        PINTERCEPT = NULL,
-                       autoQC = TRUE
+                       autoQC = TRUE,
+                       verbose = FALSE
                        # LPI_0 = NULL,
                        # LPIDetail_1 = NULL
 ) {
@@ -1260,24 +1297,26 @@ gather_lpi <- function(dsn = NULL,
   lpi$LineKey <- as.character(lpi$LineKey)
 
   # reorder so that primary key is leftmost column
-  lpi <- lpi %>%
-    dplyr::select(PrimaryKey, LineKey, tidyselect::everything())
+  lpi <- dplyr::select(.data = lpi,
+                       tidyselect::all_of(c("PrimaryKey",
+                                            "LineKey")),
+                       tidyselect::everything())
 
   # Drop rows with no data
-  lpi <- lpi %>%
-    dplyr::filter(!(is.na(LineKey) &
-                      is.na(layer) &
-                      is.na(code) &
-                      is.na(ShrubShape) &
-                      is.na(PointNbr)))
+  lpi <- dplyr::filter(.data = lpi,
+                       !(is.na(LineKey) &
+                           is.na(layer) &
+                           is.na(code) &
+                           is.na(ShrubShape) &
+                           is.na(PointNbr)))
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    lpi <- lpi %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "lpi")
-  }
-
-  return(lpi)
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   lpi <- lpi %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "lpi")
+  # }
+  #
+  lpi
 }
 
 #### HEIGHT ####################################################################
@@ -1421,31 +1460,93 @@ gather_height_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
-  # Warn about introducing NAs by coercion.
-  nas_by_coercion <- sapply(X = c(woody = "Woody",
-                                  herbaceous = "Herbaceous",
-                                  'lower herbaceous' = "LowerHerb"),
-                            detail = detail,
-                            FUN = function(X, detail){
-                              if (class(detail[[paste0("Height", X)]]) %in% c("integer",
-                                                                              "numeric")) {
-                                0
-                              } else {
-                                current_na_count <- sum(is.na(detail[[paste0("Height", X)]]))
-                                coerced_na_count <- sum(is.na(as.numeric(detail[[paste0("Height", X)]]))) - current_na_count
-                                coerced_na_count
-                              }
-                            })
-  nas_by_coercion <- nas_by_coercion[nas_by_coercion > 0]
-  if (length(nas_by_coercion) > 0) {
-    warning(paste0("There are non-numeric values in at least one height variable in tblLPIDetail. There will be ",
-                   sum(nas_by_coercion),
-                   " invalid height values replaced with NA across the following height types: ",
-                   paste(names(nas_by_coercion),
-                         collapse = ", "),
-                   ". Any records with a height value of NA, including those which were NA before any coercion, will be dropped from the output during processing."))
+  # These are used to check for situations where there are going to be issues
+  # with coerced data types or just the presence of NA values because some data
+  # sets are not complete.
+  variable_types <- c(woody = "Woody",
+                      herbaceous = "Herbaceous",
+                      lower_herbaceous = "LowerHerb")
+  variable_classes <- list(Height = c("numeric",
+                                      "integer"),
+                           Species = "character")
+
+  # Warn about variables which are the incorrect class for the data type
+  coerced_variables_list <- lapply(X = setNames(object = names(variable_classes),
+                                                nm = tolower(names(variable_classes))),
+                                   variable_classes = variable_classes,
+                                   variable_types = variable_types,
+                                   detail = detail,
+                                   FUN = function(X, variable_classes, variable_types, detail){
+                                     detail_variables <- dplyr::select(.data = detail,
+                                                                       tidyselect::matches(match = paste0("^", X,
+                                                                                                          "((",
+                                                                                                          paste(variable_types,
+                                                                                                                collapse = ")|("),
+                                                                                                          "))$"))) |>
+                                       names()
+
+                                     detail_variables_misclassed <- sapply(X = setNames(object = detail_variables,
+                                                                                        nm = stringr::str_remove(string = detail_variables,
+                                                                                                                 pattern = paste0("^", X))),
+                                                                           detail = detail,
+                                                                           current_variable_classes = variable_classes[[X]],
+                                                                           FUN = function(X, detail, current_variable_classes){
+                                                                             !(class(detail[[X]]) %in% current_variable_classes)
+                                                                           })
+
+                                     names(detail_variables_misclassed)[detail_variables_misclassed]
+                                   })
+
+  for (current_variable_prefix in names(coerced_variables_list)) {
+    current_coerced_variables <- coerced_variables_list[[current_variable_prefix]]
+    if (length(current_coerced_variables) > 0) {
+      warning(paste0("There are one or more ", current_variable_prefix, " variables of the incorrect class in tblLPIDetail. ",
+                     "These variables (", paste(current_coerced_variables,
+                                                collapse = ", "), ") will be coerced into the correct class: ", variable_classes[[stringr::str_to_title(string = current_variable_prefix)]][1],"."))
+    }
   }
 
+  # Warn about introducing NAs by coercion.
+  coerced_nas_list <- lapply(X = setNames(object = names(variable_classes),
+                                          nm = tolower(names(variable_classes))),
+                             variable_classes = variable_classes,
+                             variable_types = variable_types,
+                             detail = detail,
+                             FUN = function(X, variable_classes, variable_types, detail){
+                               nas_by_coercion <- sapply(X = variable_types,
+                                                         variable_prefix = X,
+                                                         variable_class = variable_classes[[X]],
+                                                         detail = detail,
+                                                         FUN = function(X, variable_prefix, variable_class, detail){
+                                                           if (class(detail[[paste0(variable_prefix, X)]]) %in% variable_class) {
+                                                             0
+                                                           } else {
+                                                             current_na_count <- sum(is.na(detail[[paste0(variable_prefix, X)]]))
+                                                             coerced_na_count <- as.numeric(detail[[paste0(variable_prefix, X)]]) |>
+                                                               suppressWarnings(expr = _) |>
+                                                               is.na() |>
+                                                               sum() - current_na_count
+
+                                                             coerced_na_count
+                                                           }
+                                                         })
+                               nas_by_coercion <- nas_by_coercion[nas_by_coercion > 0]
+                             })
+
+  for (current_variable_prefix in names(coerced_nas_list)) {
+    current_nas_by_coercion <- coerced_nas_list[[current_variable_prefix]]
+    if (length(current_nas_by_coercion) > 0) {
+      warning(paste0("There are values that cannot be coerced into the correct class in at least one ", current_variable_prefix, " variable in tblLPIDetail. There will be ",
+                     sum(nas_by_coercion),
+                     " invalid ", current_variable_prefix, " values replaced with NA across the following ", current_variable_prefix, " types: ",
+                     paste(names(nas_by_coercion) |>
+                             stringr::str_replace(string = _,
+                                                  pattern = "_",
+                                                  replacement = " "),
+                           collapse = ", "),
+                     ". Any records with a ", current_variable_prefix, " value of NA, including those which were NA before any coercion, will be dropped from the output during processing."))
+    }
+  }
 
 
   # There are three height types that we're going to be working with here, so
@@ -1456,9 +1557,7 @@ gather_height_terradat <- function(dsn = NULL,
   # species are stored as character strings but heights are numeric) so we can't
   # put them all in one data frame variable when we pivot the data to a long
   # format.
-  lpi_heights_tall <- lapply(X = c(woody = "Woody",
-                                   herbaceous = "Herbaceous",
-                                   lower_herbaceous = "LowerHerb"),
+  lpi_heights_tall <- lapply(X = variable_types,
                              detail = detail,
                              FUN = function(X, detail){
                                dplyr::select(.data = detail,
@@ -1475,6 +1574,7 @@ gather_height_terradat <- function(dsn = NULL,
                                                # NAs in this coercion because we
                                                # already warned the user above.
                                                Height = suppressWarnings(as.numeric(Height)),
+                                               Species = suppressWarnings(as.character(Species)),
                                                type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
                                                                        .default = tolower(X)),
                                                GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
@@ -1518,7 +1618,8 @@ gather_height_terradat <- function(dsn = NULL,
 # Gather Height for LMF/NRI
 gather_height_lmf <- function(dsn = NULL,
                               file_type = "gdb",
-                              PASTUREHEIGHTS = NULL) {
+                              PASTUREHEIGHTS = NULL,
+                              verbose = FALSE) {
   #### Reading and cleanup #####################################################
   if(!is.null(PASTUREHEIGHTS)){
     vegheight <- PASTUREHEIGHTS
@@ -1831,7 +1932,8 @@ gather_height <- function(dsn = NULL,
                           tblLPIDetail = NULL,
                           tblLPIHeader = NULL,
                           PASTUREHEIGHTS = NULL,
-                          autoQC = TRUE#,
+                          autoQC = TRUE,
+                          verbose = FALSE#,
                           # LPI_0 = NULL,
                           # LPIDetail_1 = NULL
 ) {
@@ -1868,17 +1970,18 @@ gather_height <- function(dsn = NULL,
   }
 
   height <- dplyr::select(.data = height,
-                          PrimaryKey, LineKey,
+                          tidyselect::all_of(c("PrimaryKey",
+                                               "LineKey")),
                           tidyselect::everything())
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    height <- height %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "height")
-  }
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   height <- height %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "height")
+  # }
 
   # Output height
-  return(height)
+  dplyr::distinct(.data = height)
 }
 
 
@@ -2136,11 +2239,15 @@ gather_gap_terradat <- function(dsn = NULL,
 
   # Make sure that RecType is "P" for records where only perennial vegetation
   # was considered when evaluating if there was sufficient canopy to end a gap.
+  # This should only happen for CANOPY and not BASAL. "P" is specifically for
+  # records where the method was for perennial-only canopy, nothing to do with
+  # basal gaps.
   gap_tall <- dplyr::mutate(.data = gap_tall,
                             RecType = dplyr::case_when(PerennialsCanopy == 1 &
                                                          AnnualForbsCanopy == 0 &
                                                          AnnualGrassesCanopy == 0 &
-                                                         OtherCanopy == 0 ~ "P",
+                                                         OtherCanopy == 0 &
+                                                         RecType == "C" ~ "P",
                                                        .default = RecType))
 
   if (drop_na) {
@@ -2159,86 +2266,65 @@ gather_gap_terradat <- function(dsn = NULL,
 gather_gap_lmf <- function(dsn = NULL,
                            file_type = NULL,
                            GINTERCEPT = NULL,
-                           POINT = NULL) {
+                           POINT = NULL,
+                           verbose = FALSE) {
 
   #### Reading and cleanup #####################################################
-  # if file type is NULL, define it by checking the extension of dsn
-  valid_file_types <- c("csv", "gdb", "txt")
+  # Make sure we can read in the data.
+  valid_file_types <- c("gdb", "txt")
 
-  # if file type is NULL, define it by checking the extension of dsn
+  # We'll extract the extension if file_type isn't provided
   if(is.null(file_type)){
-    extension <- substr(dsn, nchar(dsn)-2, nchar(dsn))
-    if(extension == "csv") {
-      file_type <- "csv"
-    } else if(extension == "gdb") {
-      file_type <- "gdb"
-    } else {
-      file_type <- "txt"
-    }
+    file_type <- tools::file_ext(dsn)
   }
+  # Sanitize it.
+  file_type <- tolower(file_type)
+
 
   if(!is.null(GINTERCEPT) & !is.null(POINT)){
     gintercept <- GINTERCEPT
     point <- POINT
-  } else if(!is.null(dsn) & file_type %in% c("gdb", "csv", "txt")){
+  } else if (!is.null(dsn)){
     if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a database containing GINTERCEPT and POINT")
+      stop(paste0("The provided dsn (", dsn, ") does not exist."))
     }
+    if (!(file_type %in% valid_file_types)) {
+      stop(paste0("The current file_type value (", file_type, ") is invalid. ",
+                  "Valid file types are: ", paste(valid_file_types,
+                                                  collapse = ", ")))
+    }
+    # Read in GINTERCEPT
     gintercept <- switch(file_type,
                          "gdb" = {
-                           suppressWarnings(sf::st_read(
-                             dsn = dsn,
-                             layer = "GINTERCEPT",
-                             stringsAsFactors = FALSE,
-                             quiet = T
-                           )) %>%
-                             dplyr::select_if(!names(.) %in% c(
-                               'GlobalID',
-                               'created_user',
-                               'created_date',
-                               'last_edited_user',
-                               'last_edited_date'
-                             ))
+                           sf::st_read(dsn = dsn,
+                                       layer = "GINTERCEPT",
+                                       stringsAsFactors = FALSE,
+                                       quiet = TRUE)
                          },
                          "txt" = {
-                           read.table(paste(dsn, "gintercept.txt", sep = ""),
-                                      stringsAsFactors = FALSE, strip.white = TRUE,
-                                      header = FALSE, sep = "|"
-                           )
-                         },
-                         "csv" = {
-                           read.csv(dsn)
-                         }
-    )
+                           read.table(file = file.path(dsn,
+                                                       "gintercept.txt"),
+                                      stringsAsFactors = FALSE,
+                                      strip.white = TRUE,
+                                      header = FALSE,
+                                      sep = "|")
+                         })
     # Read in point file for other plot level information
     point <- switch(file_type,
                     "gdb" = {
-                      suppressWarnings(sf::st_read(
-                        dsn = dsn,
-                        layer = "POINT",
-                        stringsAsFactors = FALSE,
-                        quiet = T
-                      )) %>%
-                        dplyr::select_if(!names(.) %in% c(
-                          'GlobalID',
-                          'created_user',
-                          'created_date',
-                          'last_edited_user',
-                          'last_edited_date'
-                        ))
+                      sf::st_read(dsn = dsn,
+                                  layer = "POINT",
+                                  stringsAsFactors = FALSE,
+                                  quiet = TRUE)
                     },
                     "txt" = {
-                      read.table(paste(dsn, "point.txt", sep = ""),
+                      read.table(file = file.path(dsn,
+                                                  "point.txt"),
                                  stringsAsFactors = FALSE,
                                  strip.white = TRUE,
-                                 header = FALSE, sep = "|"
-                      )
-                    },
-                    "csv" = {
-                      stop("csv not currently supported for gap data")
-                      read.csv(point_dsn)
-                    }
-    )
+                                 header = FALSE,
+                                 sep = "|")
+                    })
 
 
     if (file_type == "txt") {
@@ -2252,9 +2338,8 @@ gather_gap_lmf <- function(dsn = NULL,
         table_name = "POINT"
       )
     }
-  }
-  else {
-    stop("Supply either GINTERCEPT and POINT, or the path to a GDB containing those tables")
+  } else {
+    stop("Supply either data frames for the arguments GINTERCEPT and POINT or the path to a GDB containing those tables as the argument dsn.")
   }
 
   # These are used for data management within a geodatabase and we're going to
@@ -2694,7 +2779,8 @@ gather_gap <- function(dsn = NULL,
                        tblGapDetail = NULL,
                        POINT = NULL,
                        GINTERCEPT = NULL,
-                       autoQC = TRUE#,
+                       autoQC = TRUE,
+                       verbose = FALSE#,
                        # Gap_0 = NULL,
                        # GapDetail_1 = NULL
 ) {
@@ -2727,28 +2813,30 @@ gather_gap <- function(dsn = NULL,
   }
 
   # reorder so that primary key is leftmost column
-  gap <- gap %>%
-    dplyr::select(PrimaryKey, LineKey, tidyselect::everything())
+  gap <- dplyr::select(.data = gap,
+                       tidyselect::all_of(c("PrimaryKey",
+                                            "LineKey")),
+                       tidyselect::everything())
 
   # Drop rows with no data
-  gap <- gap %>%
-    dplyr::filter(!(is.na(Gap) &
-                      is.na(GapEnd) &
-                      is.na(GapMin) &
-                      is.na(GapStart) &
-                      is.na(LineKey) &
-                      is.na(LineLengthAmount) &
-                      is.na(Measure) &
-                      is.na(RecType) &
-                      is.na(SeqNo)))
+  gap <- dplyr::filter(.data = gap,
+                       !(is.na(Gap) &
+                           is.na(GapEnd) &
+                           is.na(GapMin) &
+                           is.na(GapStart) &
+                           is.na(LineKey) &
+                           is.na(LineLengthAmount) &
+                           is.na(Measure) &
+                           is.na(RecType) &
+                           is.na(SeqNo)))
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    gap <- gap %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "gap")
-  }
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   gap <- gap %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "gap")
+  # }
 
-  dplyr::distinct(gap)
+  dplyr::distinct(.data = gap)
 }
 
 
@@ -2881,8 +2969,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                     uid_variables = list(header = c("PrimaryKey",
                                                     "RecKey"),
                                          detail = c("PrimaryKey",
-                                                    "RecKey",
-                                                    "BoxNum")),
+                                                    "RecKey")),
                     joining_variables = c("PrimaryKey",
                                           "RecKey"))
   }
@@ -2891,15 +2978,16 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   gathered <- tidyr::gather(detail,
                             key = variable,
                             value = value,
-                            -PrimaryKey, -BoxNum, -RecKey,
+                            -tidyselect::any_of(c("PrimaryKey",
+                                                  "BoxNum",
+                                                  "RecKey")),
                             na.rm = TRUE) |>
     dplyr::filter(.data = _,
                   value != "")
 
   detail_tall <- tidyr::pivot_longer(data = detail,
                                      cols = -tidyselect::all_of(c("PrimaryKey",
-                                                                  "RecKey",
-                                                                  "BoxNum")),
+                                                                  "RecKey")),
                                      names_to = c("variable",
                                                   "Position"),
                                      # This is a goofy regex, but the first
@@ -2956,8 +3044,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                   .f = dplyr::full_join,
                   by = c("RecKey",
                          "PrimaryKey",
-                         "Position",
-                         "BoxNum")) |>
+                         "Position")) |>
     #However, there are likely going to be records in the source data where
     # there were no ratings but somehow there were other kinds of values, so
     # those get dropped.
@@ -2998,43 +3085,56 @@ gather_soil_stability_terradat <- function(dsn = NULL,
 #' @rdname gather_soil_stability
 gather_soil_stability_lmf <- function(dsn = NULL,
                                       file_type = "gdb",
-                                      SOILDISAG = NULL) {
+                                      SOILDISAG = NULL,
+                                      verbose = FALSE) {
   #### Reading and cleanup #####################################################
-  if(!is.null(SOILDISAG)) {
-    soildisag <- SOILDISAG
-  } else if(!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing SOILDISAG")
-    }
+  # Make sure we can read in the data.
+  valid_file_types <- c("gdb", "txt")
 
+  # We'll extract the extension if file_type isn't provided
+  if (is.null(file_type)){
+    file_type <- tools::file_ext(dsn)
+  }
+  # Sanitize it.
+  file_type <- tolower(file_type)
+
+
+  if (!is.null(SOILDISAG)) {
+    soildisag <- SOILDISAG
+  } else if (!is.null(dsn)) {
+    if (!file.exists(dsn)) {
+      stop(paste0("The provided dsn (", dsn, ") does not exist."))
+    }
+    if (!(file_type %in% valid_file_types)) {
+      stop(paste0("The current file_type value (", file_type, ") is invalid. ",
+                  "Valid file types are: ", paste(valid_file_types,
+                                                  collapse = ", ")))
+    }
+    # Read in GINTERCEPT
     soildisag <- switch(file_type,
                         "gdb" = {
-                          suppressWarnings(sf::st_read(
-                            dsn = dsn, layer = "SOILDISAG",
-                            stringsAsFactors = FALSE, quiet = T
-                          ))
+                          sf::st_read(dsn = dsn,
+                                      layer = "SOILDISAG",
+                                      stringsAsFactors = FALSE,
+                                      quiet = TRUE)
                         },
                         "txt" = {
-                          read.table(paste(dsn, "soildisag.txt", sep = ""),
+                          read.table(file = file.path(dsn,
+                                                      "soildisag.txt"),
                                      stringsAsFactors = FALSE,
-                                     strip.white = TRUE, header = FALSE, sep = "|"
-                          )
-                        },
-                        "csv" = {
-                          read.csv(dsn)
-                        }
-    )
+                                     strip.white = TRUE,
+                                     header = FALSE,
+                                     sep = "|")
+                        })
 
-    # Add column names
+    # Update variable names
     if (file_type == "txt") {
-      soildisag <- name_variables_nri(
-        data = soildisag,
-        table_name = "SOILDISAG"
-      )
+      # Add meaningful column names
+      soildisag <- name_variables_nri(data = soildisag,
+                                      table_name = "SOILDISAG")
     }
-
   } else {
-    stop("Supply either SOILDISAG or a path to a gdb containing that table")
+    stop("Supply either a data frames for the argument SOILDISAG or the path to a GDB containing a table called SOILDISAG as the argument dsn.")
   }
 
   # These are used for data management within a geodatabase and we're going to
@@ -3226,22 +3326,21 @@ gather_soil_stability <- function(dsn = NULL,
                                   tblSoilStabDetail = NULL,
                                   tblSoilStabHeader = NULL,
                                   SOILDISAG = NULL,
-                                  autoQC = TRUE
+                                  autoQC = TRUE,
+                                  verbose = FALSE
 ) {
 
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    soil_stability <- gather_soil_stability_terradat(
-      dsn = dsn,
-      tblSoilStabDetail = tblSoilStabDetail,
-      tblSoilStabHeader = tblSoilStabHeader)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    soil_stability <- gather_soil_stability_lmf(
-      dsn = dsn,
-      file_type = file_type,
-      SOILDISAG = SOILDISAG)
+  if (toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+    soil_stability <- gather_soil_stability_terradat(dsn = dsn,
+                                                     tblSoilStabDetail = tblSoilStabDetail,
+                                                     tblSoilStabHeader = tblSoilStabHeader)
+  } else if (toupper(source) %in% c("LMF", "NRI")){
+    soil_stability <- gather_soil_stability_lmf(dsn = dsn,
+                                                file_type = file_type,
+                                                SOILDISAG = SOILDISAG)
 
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+    stop("source must be one of 'AIM', 'TerrADat', 'DIMA', 'LMF', or 'NRI' (all case independent).")
   }
 
   soil_stability$source <- source
@@ -3261,20 +3360,18 @@ gather_soil_stability <- function(dsn = NULL,
                                   tidyselect::everything())
 
   # Drop rows with no data
-  soil_stability <- soil_stability %>%
-    dplyr::filter(!(
-      is.na(Position) &
-        is.na(Rating) &
-        is.na(Veg)
-    ))
+  soil_stability <- dplyr::filter(.data = soil_stability,
+                                  !(is.na(Position) &
+                                      is.na(Rating) &
+                                      is.na(Veg)))
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    soil_stability <- soil_stability %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilstab")
-  }
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   soil_stability <- soil_stability %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilstab")
+  # }
 
-  return(soil_stability)
+  dplyr::distinct(.data = soil_stability)
 }
 
 #### INTERPRETING INDICATORS OF RANGELAND HEALTH ###############################
@@ -3328,7 +3425,8 @@ gather_soil_stability <- function(dsn = NULL,
 #' @rdname IIRH
 gather_rangeland_health_terradat <- function(dsn = NULL,
                                              tblQualHeader = NULL,
-                                             tblQualDetail = NULL) {
+                                             tblQualDetail = NULL,
+                                             verbose = FALSE) {
 
   if(!is.null(tblQualHeader) & !is.null(tblQualDetail)){
     IIRH_header <- tblQualHeader
@@ -3417,87 +3515,81 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
 #' @rdname IIRH
 gather_rangeland_health_lmf <- function(dsn = NULL,
                                         file_type = NULL,
-                                        RANGEHEALTH = NULL) {
-
-  if(!is.null(RANGEHEALTH)){
+                                        RANGEHEALTH = NULL,
+                                        verbose = FALSE) {
+  if ("character" %in% class(RANGEHEALTH)) {
+    if (tools::file_ext(RANGEHEALTH) == "Rdata") {
+      IIRH <- readRDS(file = RANGEHEALTH)
+    } else {
+      stop("When RANGEHEALTH is a character string it must be the path to a .Rdata file containing RANGEHEALTH data.")
+    }
+  } else if ("data.frame" %in% class(RANGEHEALTH)) {
     IIRH <- RANGEHEALTH
-  } else if(!is.null(dsn)){
-
-
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing RHSUMMARY or the filepath to a text file containing RHSUMMARY")
-    }
-
-    # if file type is NULL, define it by checking the extension of dsn
-    if(is.null(file_type)){
-      extension <- substr(dsn, nchar(dsn)-2, nchar(dsn))
-      if(extension == "csv") {
-        file_type <- "csv"
-      } else if(extension == "gdb") {
-        file_type <- "gdb"
-      } else {
-        file_type <- "txt"
-      }
-    }
-
-    # Read in the data as .txt or .gdb
-    IIRH <- switch(file_type,
-                   "gdb" = {
-                     suppressWarnings(sf::st_read(dsn,
-                                                  layer = "RANGEHEALTH",
-                                                  stringsAsFactors = FALSE, quiet = T
-                     ))
-                   },
-                   "txt" = {
-                     read.table(paste(dsn, "rangehealth.txt", sep = ""),
-                                stringsAsFactors = FALSE,
-                                header = FALSE,
-                                sep = "|",
-                                strip.white = TRUE
-                     )
-                   },
-                   "csv" = {
-                     read.csv(dsn)
-                   }
-    )
-
-    # if it is in a text file, there are no field names assigned.
-    if (file_type == "txt") {
-      IIRH <- name_variables_nri(
-        data = IIRH,
-        table_name = "RHSUMMARY"
-      )
-    }
   } else {
-    stop("Provide RANGEHEALTH or a path to a geodatabase containing that table")
+    if (!is.null(dsn)) {
+      if (!file.exists(dsn)) {
+        stop("dsn must be a valid filepath to a geodatabase containing a table called RANGEHEALTH or the filepath to a text file containing those values.")
+      }
+
+      file_type <- tools::file_ext(x = dsn) |>
+        toupper()
+
+      IIRH <- switch(file_type,
+                     "gdb" = {
+                       suppressWarnings(sf::st_read(dsn,
+                                                    layer = "RANGEHEALTH",
+                                                    stringsAsFactors = FALSE, quiet = T
+                       ))
+                     },
+                     "txt" = {
+                       read.table(paste(dsn, "rangehealth.txt", sep = ""),
+                                  stringsAsFactors = FALSE,
+                                  header = FALSE,
+                                  sep = "|",
+                                  strip.white = TRUE
+                       )
+                     },
+                     "csv" = {
+                       read.csv(dsn)
+                     }
+      )
+      # if it is in a text file, there are no field names assigned.
+      if (file_type == "txt") {
+        IIRH <- name_variables_nri(
+          data = IIRH,
+          table_name = "RHSUMMARY"
+        )
+      }
+    }else {
+      stop("Provide either dsn or RANGEHEALTH.")
+    }
+
+    # Clean up the field names so they are human readable and match TerrAdat names
+    output <- dplyr::select(.data = IIRH,
+                            tidyselect::all_of(x = c("PrimaryKey",
+                                                     RH_Rills = "RILLS",
+                                                     RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
+                                                     RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
+                                                     RH_BareGround = "BARE_GROUND",
+                                                     RH_Gullies = "GULLIES",
+                                                     RH_WindScouredAreas = "WIND_SCOURED_AREAS",
+                                                     RH_LitterMovement = "LITTER_MOVEMENT",
+                                                     RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
+                                                     RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
+                                                     RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
+                                                     RH_Compaction = "COMPACTION_LAYER",
+                                                     RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
+                                                     RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
+                                                     RH_LitterAmount = "LITTER_AMOUNT",
+                                                     RH_AnnualProd = "ANNUAL_PRODUCTION",
+                                                     RH_InvasivePlants = "INVASIVE_PLANTS",
+                                                     RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
+                                                     RH_SoilSiteStability = "SOILSITE_STABILITY",
+                                                     RH_BioticIntegrity = "BIOTIC_INTEGRITY",
+                                                     RH_HydrologicFunction = "HYDROLOGIC_FUNCTION")))
+
+    output
   }
-
-  # Clean up the field names so they are human readable and match TerrAdat names
-  IIRH_clean <- IIRH %>%
-    dplyr::select(PrimaryKey, DBKey,
-                  RH_Rills = "RILLS",
-                  RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
-                  RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
-                  RH_BareGround = "BARE_GROUND",
-                  RH_Gullies = "GULLIES",
-                  RH_WindScouredAreas = "WIND_SCOURED_AREAS",
-                  RH_LitterMovement = "LITTER_MOVEMENT",
-                  RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
-                  RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
-                  RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
-                  RH_Compaction = "COMPACTION_LAYER",
-                  RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
-                  RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
-                  RH_LitterAmount = "LITTER_AMOUNT",
-                  RH_AnnualProd = "ANNUAL_PRODUCTION",
-                  RH_InvasivePlants = "INVASIVE_PLANTS",
-                  RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
-                  RH_SoilSiteStability = "SOILSITE_STABILITY",
-                  RH_BioticIntegrity = "BIOTIC_INTEGRITY",
-                  RH_HydrologicFunction = "HYDROLOGIC_FUNCTION",
-    )
-
-  return(IIRH_clean)
 }
 
 #' export gather_rangeland_health_survey123
@@ -3586,7 +3678,8 @@ gather_rangeland_health <- function(dsn = NULL,
                                     tblQualHeader = NULL,
                                     tblQualDetail = NULL,
                                     RANGEHEALTH = NULL,
-                                    autoQC = TRUE) {
+                                    autoQC = TRUE,
+                                    verbose = FALSE) {
 
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -3673,104 +3766,101 @@ gather_rangeland_health <- function(dsn = NULL,
 #' @rdname gather_species_inventory
 gather_species_inventory_terradat <- function(dsn = NULL,
                                               tblSpecRichDetail = NULL,
-                                              tblSpecRichHeader = NULL) {
+                                              tblSpecRichHeader = NULL,
+                                              verbose = FALSE) {
 
-  if(!is.null(tblSpecRichDetail) & !is.null(tblSpecRichHeader)) {
-    species_inventory_detail <- tblSpecRichDetail
-    species_inventory_header <- tblSpecRichHeader
-  } else if (!is.null(dsn)){
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing tblSpecRichDetail and tblSpecRichHeader")
+  detail <- tblSpecRichDetail
+  header <- tblSpecRichHeader
+
+  if (is.null(header) | is.null(detail)) {
+    if (!is.null(dsn)){
+      if(!file.exists(dsn)){
+        stop("dsn must be a valid filepath to a geodatabase containing tblSpecRichDetail and tblSpecRichHeader")
+      }
+
+      if (is.null(header)) {
+        header <- sf::st_read(dsn = dsn,
+                              layer = "tblSpecRichHeader",
+                              quiet = TRUE)
+      }
+      if (is.null(detail)) {
+        detail <- sf::st_read(dsn = dsn,
+                              layer = "tblSpecRichDetail",
+                              quiet = TRUE)
+      }
+    } else {
+      stop("Please provide tblSpecRichHeader, tblSpecRichDetail, or a filepath to a geodatabase containing those tables.")
     }
-
-
-    # load raw tables
-    species_inventory_detail <- suppressWarnings(sf::st_read(dsn,
-                                                             layer = "tblSpecRichDetail",
-                                                             stringsAsFactors = FALSE, quiet = T
-    ))
-    species_inventory_header <- suppressWarnings(sf::st_read(dsn,
-                                                             layer = "tblSpecRichHeader",
-                                                             stringsAsFactors = FALSE, quiet = T
-    ))
-
-  } else {
-    stop("Supply either tblSpecRichDetail and tblSpecRichHeader, or the path to a GDB containing those tables")
   }
 
-  # Add null DBKey column if not present
-  if(!("DBKey" %in% colnames(species_inventory_header))) species_inventory_header$DBKey <- NA
-  if(!("DBKey" %in% colnames(species_inventory_detail))) species_inventory_detail$DBKey <- NA
+  # These are used for data management within a geodatabase and we're going to
+  # drop them.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "DBKey",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
 
-  # Make Species Inventory Detail  a tall dataframe
-  species_detail_tall <- tall_species(species_inventory_detail = species_inventory_detail)
+  # Clean these up!
+  detail <- dplyr::select(.data = detail,
+                          -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey)) |>
+    dplyr::distinct()
+
+  header <- dplyr::select(.data = header,
+                          -tidyselect::any_of(internal_gdb_vars)) |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey)) |>
+    dplyr::distinct()
+
+  # This shouldn't be necessary as of 2025, but working with older data requires
+  # that the species be separated because they're stored as a single character
+  # string with each species code separated by semicolons.
+  detail_tall <- tall_species(species_inventory_detail = detail)
 
   # Join with header data and strip out NA codes
-  species_inventory_tall <- dplyr::left_join(
-    x = species_inventory_header,
-    y = species_detail_tall#,
-    # by = c("RecKey", "PrimaryKey")
-  ) %>%
-    subset(!is.na(Species)) %>%
-    dplyr::select_if(!names(.) %in%
-                       c("DateModified", "FormType", "DataEntry",
-                         "DataErrorChecking", "DateLoadedInDb", "created_user", "created_date", "last_edited_user", "last_edited_date", "GlobalID")
-    )
+  output <- dplyr::left_join(x = header,
+                             y = detail_tall,
+                             by = c("RecKey", "PrimaryKey")) |>
+    dplyr::filter(.data = _,
+                  !is.na(Species))
 
-  return(species_inventory_tall)
+  output
 }
-#' @export species_count
-#' @rdname gather_species_inventory
-species_count <- function(species_inventory_tall, ...) {
-  grouping_variables <- rlang::quos(...)
 
-  if ("DBKey" %in% colnames(species_inventory_tall)) {
-    levels <- rlang::quos(DBKey, PrimaryKey)
-  } else {
-    levels <- rlang::quos(PrimaryKey)
-  }
-
-  # make sure that there are a unique set of species for each grouping level
-  species_inventory_tall <- species_inventory_tall %>%
-    dplyr::select(
-      !!!grouping_variables,
-      !!!levels,
-      Species
-    ) %>%
-    unique()
-
-  species_count <- species_inventory_tall %>%
-    dplyr::count(!!!levels, !!!grouping_variables) %>%
-    tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
-    dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
-
-
-
-  return(species_count)
-}
 
 #' @export tall_species
 #' @rdname gather_species_inventory
 tall_species <- function(species_inventory_detail) {
-  tall_list <- lapply(1:nrow(species_inventory_detail), FUN = function(X, df) {
-    # split species strings concatenated in a single field
-    codes <- stringr::str_split(df[X, "SpeciesList"], pattern = ";")[[1]]
+  tall_list <- apply(X = species_inventory_detail,
+                     MARGIN = 1,
+                     FUN = function(X) {
+                       current_species_string <- X["SpeciesList"]
+                       # message(class(current_species_string))
+                       # split species strings concatenated in a single field
+                       current_codes <- stringr::str_split(current_species_string,
+                                                           pattern = ";") |>
+                         unlist()
 
-    # Format output
-    output <- data.frame(
-      "PrimaryKey" = df$PrimaryKey[X],
-      "RecKey" = df$RecKey[X],
-      "Species" = codes
-    )
-    return(output)
-  }, df = species_inventory_detail)
+                       data.frame("PrimaryKey" = X["PrimaryKey"],
+                                  "RecKey" = X["RecKey"],
+                                  "Species" = current_codes)
+                     })
   # Combine output
-  output <- dplyr::bind_rows(tall_list)
+  output <- dplyr::bind_rows(tall_list) |>
+    dplyr::filter(.data = _,
+                  !(Species %in% c("", NA)))
 
-  # Remove NAs and blanks
-  output <- dplyr::filter(output, !(Species %in% c("", NA)))
-
-  return(output)
+  output
 }
 
 # Gather LMF data
@@ -3778,7 +3868,8 @@ tall_species <- function(species_inventory_detail) {
 #' @rdname gather_species_inventory
 gather_species_inventory_lmf <- function(dsn = NULL,
                                          file_type = "gdb",
-                                         PLANTCENSUS = NULL) {
+                                         PLANTCENSUS = NULL,
+                                         verbose = FALSE) {
   if(!is.null(PLANTCENSUS)){
     plantcensus <- PLANTCENSUS
   } else if(!is.null(dsn)){
@@ -3817,19 +3908,38 @@ gather_species_inventory_lmf <- function(dsn = NULL,
   }
 
   # Get species count
-  species_inventory <- plantcensus %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarize(., SpeciesCount = dplyr::n(), .groups = "drop") %>%
-    merge(., plantcensus)
+  species_inventory <- dplyr::summarize(.data = plantcensus,
+                                        .by = "PrimaryKey",
+                                        SpeciesCount = dplyr::n()) |>
+    dplyr::inner_join(x = _,
+                      y = plantcensus,
+                      by = "PrimaryKey",
+                      relationship = "one-to-many")
 
   # rename fields
-  species_inventory <- dplyr::rename(species_inventory,
-                                     Species = CPLANT
-  ) %>% dplyr::select(., -c(SURVEY:SEQNUM)) %>%
-    dplyr::select_if(!names(.) %in% c("GlobalID", "created_user",
-                                      "created_date", "last_edited_user", "last_edited_date"))
+  species_inventory <- dplyr::rename(.data = species_inventory,
+                                     Species = CPLANT)
 
-  return(species_inventory)
+  # Clean up unwanted variables
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         # For once these variables need to carry through!
+                         # "DateLoadedInDb",
+                         # "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+
+  dplyr::select(.data = species_inventory,
+                -c(SURVEY:SEQNUM),
+                tidyselect::any_of(internal_gdb_vars))
+
+  species_inventory
 }
 
 #' export gather_species_inventory_survey123
@@ -3887,7 +3997,8 @@ gather_species_inventory <- function(dsn = NULL,
                                      # SpeciesRichness_0 = NULL,
                                      # SpecRichDetail_1 = NULL,
                                      file_type = "gdb",
-                                     autoQC = TRUE) {
+                                     autoQC = TRUE,
+                                     verbose = FALSE) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     species_inventory <- gather_species_inventory_terradat(
@@ -3913,24 +4024,30 @@ gather_species_inventory <- function(dsn = NULL,
   # species_inventory$source <- toupper(source)
   species_inventory$source <- source
 
-  if("sf" %in% class(species_inventory)) species_inventory <- sf::st_drop_geometry(species_inventory)
+  if("sf" %in% class(species_inventory)) {
+    species_inventory <- sf::st_drop_geometry(species_inventory)
+  }
 
   if (any(class(species_inventory) %in% c("POSIXct", "POSIXt"))) {
-    change_vars <- names(species_inventory)[do.call(rbind, vapply(species_inventory,
-                                                                  class))[, 1] %in% c("POSIXct", "POSIXt")]
-    species_inventory <- dplyr::mutate_at(species_inventory, dplyr::vars(change_vars),
-                                          dplyr::funs(as.character))
+    # change_vars <- names(species_inventory)[do.call(rbind, vapply(species_inventory,
+    #                                                               class))[, 1] %in% c("POSIXct", "POSIXt")]
+    species_inventory <- dplyr::mutate(.data = species_inventory,
+                                       dplyr::across(.cols = tidyselect::where(fn = ~ class(.x) %in% c("POSIXct", "POSIXt")),
+                                                     .fns = as.character))
+    # species_inventory <- dplyr::mutate_at(species_inventory, dplyr::vars(change_vars),
+    #                                       dplyr::funs(as.character))
   }
 
   # reorder so that primary key is leftmost column
-  species_inventory <- species_inventory %>%
-    dplyr::select(PrimaryKey, tidyselect::everything())
+  species_inventory <- dplyr::select(.data = species_inventory,
+                                     PrimaryKey,
+                                     tidyselect::everything())
 
   # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    species_inventory <- species_inventory %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "specinv")
-  }
+  # if(autoQC){
+  #   message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+  #   species_inventory <- species_inventory %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "specinv")
+  # }
 
   return(species_inventory)
 }
@@ -3985,149 +4102,149 @@ gather_species_inventory <- function(dsn = NULL,
 #'                              POINTCOORDINATES = lmf_pointcoords,
 #'                              GPS = lmf_gps)
 
-#' @export gather_plot_characterization_terradat
-#' @rdname gather_plot_characterization
-gather_plot_characterization_terradat <- function(dsn = NULL,
-                                                  tblPlots = NULL){
-  if(!is.null(tblPlots)){
-    plot_raw <- tblPlots
-  } else if(!is.null(dsn)){
-    plot_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblPlots", stringsAsFactors = FALSE, quiet = T))
-  } else {
-    stop("Supply either tblPlots or the path to a GDB containing that table")
-  }
-  plot_tall <- plot_raw %>%
-    dplyr::select_if(names(.) %in% c(
-      'PrimaryKey', 'DBKey', 'ProjectKey',
-      'Latitude', 'Longitude',
-      'State', 'County',
-      'EcolSite', 'ParentMaterial', 'Slope', 'Elevation', 'Aspect', 'ESD_SlopeShape',
-      'LandscapeType', 'LandscapeTypeSecondary', #'HillslopeType',
-      'ESD_Series',
-      # 'Observer', 'Recorder',
-      'EstablishDate'
-      # 'ESD_Investigators'
-    )) %>%
-    dplyr::rename(
-      Latitude_NAD83 = Latitude,
-      Longitude_NAD83 = Longitude,
-      SlopeShape = ESD_SlopeShape,
-      SoilSeries = ESD_Series,
-    ) %>%
-    dplyr::mutate(
-      SlopeShapeVertical = dplyr::case_when(
-        SlopeShape %in% c("CC", "CV", "CL", "concave concave", "concave convex", "concave linear") ~ "concave",
-        SlopeShape %in% c("LC", "LV", "LL", "linear concave", "linear convex", "linear linear") ~ "linear",
-        SlopeShape %in% c("VC", "VV", "VL", "convex concave", "convex convex", "convex linear") ~ "convex"
-      ),
-      SlopeShapeHorizontal = dplyr::case_when(
-        SlopeShape %in% c("CC", "LC", "VC", "concave concave", "linear concave", "convex concave") ~ "concave",
-        SlopeShape %in% c("CL", "LL", "VL", "concave linear", "linear linear", "convex linear") ~ "linear",
-        SlopeShape %in% c("CV", "LV", "VV", "concave convex", "linear convex", "convex convex") ~ "convex"
-      ),
-      Aspect = suppressWarnings(as.numeric(Aspect)),
-      Slope = suppressWarnings(as.numeric(Slope)),
-      Latitude_NAD83 = suppressWarnings(as.numeric(Latitude_NAD83)),
-      Longitude_NAD83 = suppressWarnings(as.numeric(Longitude_NAD83)),
-      PrimaryKey = as.character(PrimaryKey),
-      MLRA = substr(EcolSite, 2, 5) %>% gsub("NKNO", NA, .)) %>%
-    dplyr::select(-SlopeShape)
-
-  return(plot_tall)
-}
-
-#' LMF plot characterization function
-#' @export gather_plot_characterization_lmf
-#' @rdname gather_plot_characterization
-gather_plot_characterization_lmf <-   function(dsn = NULL,
-                                               POINT = NULL,
-                                               POINTCOORDINATES = NULL,
-                                               GPS = NULL,
-                                               ESFSG = NULL,
-                                               file_type = NULL
-) {
-  ### input ####
-  if (!is.null(POINT) & !is.null(POINTCOORDINATES) & !is.null(GPS) & !is.null(ESFSG)){
-    point_lmf_raw <- POINT
-    coord_lmf_raw <- POINTCOORDINATES
-    gps_lmf_raw   <- GPS
-    esfsg_lmf_raw <- ESFSG
-  } else if(!is.null(dsn)){
-    point_lmf_raw <-
-      sf::st_read(dsn = dsn, layer = "POINT", stringsAsFactors = FALSE, quiet = T)
-
-    coord_lmf_raw <-
-      sf::st_read(dsn = dsn, layer = "POINTCOORDINATES", stringsAsFactors = FALSE, quiet = T)
-
-    gps_lmf_raw <-
-      sf::st_read(dsn = dsn, layer = "GPS", stringsAsFactors = FALSE, quiet = T)
-
-    esfsg_lmf_raw <-
-      sf::st_read(dsn = dsn, layer = "ESFSG", stringsAsFactors = FALSE, quiet = T)
-
-
-  } else{
-    stop("Supply either POINT, POINTCOORDINATES, ESFSG, and GPS, or the path to a GDB containing those tables")
-  }
-
-  # get slope shape from POINT
-  point_lmf <- point_lmf_raw %>% dplyr::select(
-    DBKey, PrimaryKey,
-    SlopeShapeVertical = VERTICAL_SLOPE_SHAPE,
-    SlopeShapeHorizontal = HORIZONTAL_SLOPE_SHAPE,
-    Slope = SLOPE_PERCENT, Aspect = SLOPE_ASPECT
-  ) %>% dplyr::mutate(
-    # reclass aspect into degrees
-    Aspect = suppressWarnings(as.numeric(dplyr::recode(Aspect,
-                                                       "N" = "0",
-                                                       "NE" = "45",
-                                                       "E" = "90",
-                                                       "SE" = "135",
-                                                       "S" = "180",
-                                                       "SW" = "225",
-                                                       "W" = "270",
-                                                       "NW" = "315")))
-    # get MLRA from ecological site id
-  )
-
-  # get gis data from POINTCOORDINATES
-  coord_lmf <- coord_lmf_raw %>% dplyr::select(
-    PrimaryKey, DBKey,
-    Latitude_NAD83 = REPORT_LATITUDE,
-    Longitude_NAD83 = REPORT_LONGITUDE,
-  )
-
-  # get gis from GPS
-  gps_lmf <- gps_lmf_raw %>% dplyr::select(
-    PrimaryKey, DBKey,
-    Elevation = ELEVATION
-  )
-
-  # get ecological site and mlra from ESFSG
-  esfsg_lmf <- esfsg_lmf_raw %>% dplyr::mutate(
-    EcolSite = paste0(ESFSG_MLRA, ESFSG_SITE, ESFSG_STATE),
-    MLRA = ESFSG_MLRA %>% gsub("^$", NA, .)
-  ) %>% dplyr::select(
-    PrimaryKey, DBKey,
-    EcolSite, MLRA
-  )
-
-  # join GIS
-  gis_lmf  <- dplyr::full_join(coord_lmf, gps_lmf, by = c("PrimaryKey", "DBKey"))
-
-  # join gis and plot data
-  plot_lmf <- dplyr::left_join(point_lmf, gis_lmf, by = c("PrimaryKey", "DBKey")) %>%
-    # and ecolsite data
-    dplyr::left_join(esfsg_lmf, by = c("PrimaryKey", "DBKey"))
-
-
-  # last drop
-  plot_lmf <- plot_lmf %>% dplyr::select_if(!names(.) %in% c(
-    "Shape", "StateNo", "CountyNo")
-  )
-
-  return(plot_lmf)
-}
+#' #' @export gather_plot_characterization_terradat
+#' #' @rdname gather_plot_characterization
+#' gather_plot_characterization_terradat <- function(dsn = NULL,
+#'                                                   tblPlots = NULL){
+#'   if(!is.null(tblPlots)){
+#'     plot_raw <- tblPlots
+#'   } else if(!is.null(dsn)){
+#'     plot_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblPlots", stringsAsFactors = FALSE, quiet = T))
+#'   } else {
+#'     stop("Supply either tblPlots or the path to a GDB containing that table")
+#'   }
+#'   plot_tall <- plot_raw %>%
+#'     dplyr::select_if(names(.) %in% c(
+#'       'PrimaryKey', 'DBKey', 'ProjectKey',
+#'       'Latitude', 'Longitude',
+#'       'State', 'County',
+#'       'EcolSite', 'ParentMaterial', 'Slope', 'Elevation', 'Aspect', 'ESD_SlopeShape',
+#'       'LandscapeType', 'LandscapeTypeSecondary', #'HillslopeType',
+#'       'ESD_Series',
+#'       # 'Observer', 'Recorder',
+#'       'EstablishDate'
+#'       # 'ESD_Investigators'
+#'     )) %>%
+#'     dplyr::rename(
+#'       Latitude_NAD83 = Latitude,
+#'       Longitude_NAD83 = Longitude,
+#'       SlopeShape = ESD_SlopeShape,
+#'       SoilSeries = ESD_Series,
+#'     ) %>%
+#'     dplyr::mutate(
+#'       SlopeShapeVertical = dplyr::case_when(
+#'         SlopeShape %in% c("CC", "CV", "CL", "concave concave", "concave convex", "concave linear") ~ "concave",
+#'         SlopeShape %in% c("LC", "LV", "LL", "linear concave", "linear convex", "linear linear") ~ "linear",
+#'         SlopeShape %in% c("VC", "VV", "VL", "convex concave", "convex convex", "convex linear") ~ "convex"
+#'       ),
+#'       SlopeShapeHorizontal = dplyr::case_when(
+#'         SlopeShape %in% c("CC", "LC", "VC", "concave concave", "linear concave", "convex concave") ~ "concave",
+#'         SlopeShape %in% c("CL", "LL", "VL", "concave linear", "linear linear", "convex linear") ~ "linear",
+#'         SlopeShape %in% c("CV", "LV", "VV", "concave convex", "linear convex", "convex convex") ~ "convex"
+#'       ),
+#'       Aspect = suppressWarnings(as.numeric(Aspect)),
+#'       Slope = suppressWarnings(as.numeric(Slope)),
+#'       Latitude_NAD83 = suppressWarnings(as.numeric(Latitude_NAD83)),
+#'       Longitude_NAD83 = suppressWarnings(as.numeric(Longitude_NAD83)),
+#'       PrimaryKey = as.character(PrimaryKey),
+#'       MLRA = substr(EcolSite, 2, 5) %>% gsub("NKNO", NA, .)) %>%
+#'     dplyr::select(-SlopeShape)
+#'
+#'   return(plot_tall)
+#' }
+#'
+#' #' LMF plot characterization function
+#' #' @export gather_plot_characterization_lmf
+#' #' @rdname gather_plot_characterization
+#' gather_plot_characterization_lmf <-   function(dsn = NULL,
+#'                                                POINT = NULL,
+#'                                                POINTCOORDINATES = NULL,
+#'                                                GPS = NULL,
+#'                                                ESFSG = NULL,
+#'                                                file_type = NULL
+#' ) {
+#'   ### input ####
+#'   if (!is.null(POINT) & !is.null(POINTCOORDINATES) & !is.null(GPS) & !is.null(ESFSG)){
+#'     point_lmf_raw <- POINT
+#'     coord_lmf_raw <- POINTCOORDINATES
+#'     gps_lmf_raw   <- GPS
+#'     esfsg_lmf_raw <- ESFSG
+#'   } else if(!is.null(dsn)){
+#'     point_lmf_raw <-
+#'       sf::st_read(dsn = dsn, layer = "POINT", stringsAsFactors = FALSE, quiet = T)
+#'
+#'     coord_lmf_raw <-
+#'       sf::st_read(dsn = dsn, layer = "POINTCOORDINATES", stringsAsFactors = FALSE, quiet = T)
+#'
+#'     gps_lmf_raw <-
+#'       sf::st_read(dsn = dsn, layer = "GPS", stringsAsFactors = FALSE, quiet = T)
+#'
+#'     esfsg_lmf_raw <-
+#'       sf::st_read(dsn = dsn, layer = "ESFSG", stringsAsFactors = FALSE, quiet = T)
+#'
+#'
+#'   } else{
+#'     stop("Supply either POINT, POINTCOORDINATES, ESFSG, and GPS, or the path to a GDB containing those tables")
+#'   }
+#'
+#'   # get slope shape from POINT
+#'   point_lmf <- point_lmf_raw %>% dplyr::select(
+#'     DBKey, PrimaryKey,
+#'     SlopeShapeVertical = VERTICAL_SLOPE_SHAPE,
+#'     SlopeShapeHorizontal = HORIZONTAL_SLOPE_SHAPE,
+#'     Slope = SLOPE_PERCENT, Aspect = SLOPE_ASPECT
+#'   ) %>% dplyr::mutate(
+#'     # reclass aspect into degrees
+#'     Aspect = suppressWarnings(as.numeric(dplyr::recode(Aspect,
+#'                                                        "N" = "0",
+#'                                                        "NE" = "45",
+#'                                                        "E" = "90",
+#'                                                        "SE" = "135",
+#'                                                        "S" = "180",
+#'                                                        "SW" = "225",
+#'                                                        "W" = "270",
+#'                                                        "NW" = "315")))
+#'     # get MLRA from ecological site id
+#'   )
+#'
+#'   # get gis data from POINTCOORDINATES
+#'   coord_lmf <- coord_lmf_raw %>% dplyr::select(
+#'     PrimaryKey, DBKey,
+#'     Latitude_NAD83 = REPORT_LATITUDE,
+#'     Longitude_NAD83 = REPORT_LONGITUDE,
+#'   )
+#'
+#'   # get gis from GPS
+#'   gps_lmf <- gps_lmf_raw %>% dplyr::select(
+#'     PrimaryKey, DBKey,
+#'     Elevation = ELEVATION
+#'   )
+#'
+#'   # get ecological site and mlra from ESFSG
+#'   esfsg_lmf <- esfsg_lmf_raw %>% dplyr::mutate(
+#'     EcolSite = paste0(ESFSG_MLRA, ESFSG_SITE, ESFSG_STATE),
+#'     MLRA = ESFSG_MLRA %>% gsub("^$", NA, .)
+#'   ) %>% dplyr::select(
+#'     PrimaryKey, DBKey,
+#'     EcolSite, MLRA
+#'   )
+#'
+#'   # join GIS
+#'   gis_lmf  <- dplyr::full_join(coord_lmf, gps_lmf, by = c("PrimaryKey", "DBKey"))
+#'
+#'   # join gis and plot data
+#'   plot_lmf <- dplyr::left_join(point_lmf, gis_lmf, by = c("PrimaryKey", "DBKey")) %>%
+#'     # and ecolsite data
+#'     dplyr::left_join(esfsg_lmf, by = c("PrimaryKey", "DBKey"))
+#'
+#'
+#'   # last drop
+#'   plot_lmf <- plot_lmf %>% dplyr::select_if(!names(.) %in% c(
+#'     "Shape", "StateNo", "CountyNo")
+#'   )
+#'
+#'   return(plot_lmf)
+#' }
 
 # export gather_plot_characterization_survey123
 # rdname gather_plot_characterization
@@ -4181,991 +4298,991 @@ gather_plot_characterization_lmf <-   function(dsn = NULL,
 
 
 
-#' Wrapper function
-#' @export gather_plot_characterization
-#' @rdname gather_plot_characterization
-gather_plot_characterization <- function(dsn = NULL,
-                                         source,
-                                         tblPlots = NULL,
-                                         POINT = NULL,
-                                         POINTCOORDINATES = NULL,
-                                         GPS = NULL,
-                                         ESFSG = NULL,
-                                         # PlotChar_0 = NULL,
-                                         file_type = "gdb"){
-
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    plotchar <- gather_plot_characterization_terradat(dsn = dsn,
-                                                      tblPlots = tblPlots)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    plotchar <- gather_plot_characterization_lmf(dsn = dsn,
-                                                 file_type = file_type,
-                                                 POINT = POINT,
-                                                 POINTCOORDINATES = POINTCOORDINATES,
-                                                 GPS = GPS,
-                                                 ESFSG = ESFSG)
-    # } else if(toupper(source) == "SURVEY123"){
-    # plotchar <- gather_plot_characterization_survey123(dsn = dsn,
-    # PlotChar_0 = PlotChar_0)
-  } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
-  }
-
-  # plotchar$source <- toupper(source)
-  plotchar$source <- source
-
-  if("sf" %in% class(plotchar)) plotchar <- sf::st_drop_geometry(plotchar)
-
-  if (any(class(plotchar) %in% c("POSIXct", "POSIXt"))) {
-    change_vars <- names(plotchar)[do.call(rbind, vapply(plotchar,
-                                                         class))[, 1] %in% c("POSIXct", "POSIXt")]
-    plotchar <- dplyr::mutate_at(plotchar, dplyr::vars(change_vars),
-                                 dplyr::funs(as.character))
-  }
-
-  # reorder so that primary key is leftmost column
-  plotchar <- plotchar %>%
-    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
-
-  return(plotchar)
-}
-
-
-#### SOIL HORIZONS #############################################################
-#' Convert horizon data into a tall, tidy data frame
+#' #' Wrapper function
+#' #' @export gather_plot_characterization
+#' #' @rdname gather_plot_characterization
+#' gather_plot_characterization <- function(dsn = NULL,
+#'                                          source,
+#'                                          tblPlots = NULL,
+#'                                          POINT = NULL,
+#'                                          POINTCOORDINATES = NULL,
+#'                                          GPS = NULL,
+#'                                          ESFSG = NULL,
+#'                                          # PlotChar_0 = NULL,
+#'                                          file_type = "gdb"){
 #'
-#' @description Given wide format soil horizon data, create a tall
-#' format data frame usable by other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase or text file containing the table of interest.
-#' This field is unnecessary if you provide either tblSoilPitHorizons
-#' (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).
-#' @param source Character string. The data source format,
-#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
-#' @param tblSoilPitHorizons Dataframe of the data structure tblSoilPitHorizons
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.
-#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from the
-#' LMF/NRI database with the addition of PrimaryKey and DBKey fields;
-#' alternately provide dsn.
-#' @importFrom magrittr %>%
-#' @name gather_soil_horizon
-#' @family <gather>
-#' @return A tall data frame containing soil horzon data.
-#' @examples
-#' gather_soil_horizon(dsn = "Path/To/AIM_Geodatabase.gdb",
-#'                     source = "AIM")
-#' gather_soil_horizon(dsn = "Path/To/LMF_Geodatabase.gdb",
-#'                     source = "LMF")
+#'   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+#'     plotchar <- gather_plot_characterization_terradat(dsn = dsn,
+#'                                                       tblPlots = tblPlots)
+#'   } else if(toupper(source) %in% c("LMF", "NRI")){
+#'     plotchar <- gather_plot_characterization_lmf(dsn = dsn,
+#'                                                  file_type = file_type,
+#'                                                  POINT = POINT,
+#'                                                  POINTCOORDINATES = POINTCOORDINATES,
+#'                                                  GPS = GPS,
+#'                                                  ESFSG = ESFSG)
+#'     # } else if(toupper(source) == "SURVEY123"){
+#'     # plotchar <- gather_plot_characterization_survey123(dsn = dsn,
+#'     # PlotChar_0 = PlotChar_0)
+#'   } else {
+#'     stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+#'   }
 #'
-#' aim_horizons <- read.csv("Path/To/tblSoilPitHorizons.csv")
-#' gather_soil_horizon(source = "AIM",
-#'                     tblSoilPitHorizons = aim_horizons)
+#'   # plotchar$source <- toupper(source)
+#'   plotchar$source <- source
 #'
-#' lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
-#' gather_soil_horizon(source = "LMF",
-#'                     SOILHORIZON = lmf_horizons)
-
-#' @export gather_soil_horizon_terradat
-#' @rdname gather_soil_horizon
-gather_soil_horizon_terradat <- function(dsn = NULL,
-                                         tblSoilPitHorizons = NULL){
-
-  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-  if (!is.null(tblSoilPitHorizons)) {
-    hz_aim_raw <- tblSoilPitHorizons
-  } else if(!is.null(dsn)){
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing tblSoilPitHorizons")
-    }
-
-    hz_aim_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblSoilPitHorizons",
-                                               stringsAsFactors = FALSE, quiet = T))
-  } else {
-    stop("Supply either tblSoilPitHorizons, or the path to a GDB containing those tables")
-  }
-
-  horizons_aim <- hz_aim_raw %>%
-    ### select ###
-    dplyr::select(
-      PrimaryKey, DBKey, HorizonKey, HorizonDepthUpper, HorizonDepthLower,
-      DepthUOM = DepthMeasure, HorizonName = ESD_Horizon,
-      Texture, TextureModifier = ESD_HorizonModifier,
-      pH = ESD_pH, EC = ESD_EC, Effervescence = Effer,
-      ClayPct = ESD_PctClay, SandPct = ESD_PctSand,
-
-      StructureGrade = ESD_Grade, StructureSize = ESD_Size, StructureType = ESD_Structure,
-      # StructureGrade2 = ESD_Grade2, StructureSize2 = ESD_Size2, StructureType2 = ESD_Structure2,
-      StructureQuality = ESD_StructQual,
-
-      # PetrocalcicRubble = ESD_PetrocalcicRubble, Gypsic = ESD_Gypsic,
-      # ClayFilm = ESD_ClayFilm,
-      Hue = ESD_Hue, Value = ESD_Value, Chroma = ESD_Chroma, ColorMoistDry = ESD_Color,
-      # RootSize = ESD_RootSize, RootQty = ESD_RootQty,
-
-      Fragment1VolPct = ESD_FragVolPct,  Fragment1Type = ESD_FragmentType,
-      Fragment2VolPct = ESD_FragVolPct2, Fragment2Type = ESD_FragmentType2,
-      Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3,
-
-      HorizonNotes = ESD_Notes
-
-      ### cleaning ###
-    ) %>%
-    dplyr::mutate_all(
-      stringr::str_trim # defensive, early qc seems to catch this well
-    ) %>%
-    ### recode class data###
-    dplyr::mutate(
-      StructureGrade = dplyr::recode(StructureGrade,
-                                     "0" = "Structureless",
-                                     "1" = "Weak",
-                                     "2" = "Moderate",
-                                     "3" = "Strong"),
-      # StructureGrade2 = dplyr::recode(StructureGrade2,
-      #                          "0" = "Structureless",
-      #                          "1" = "Weak",
-      #                          "2" = "Moderate",
-      #                          "3" = "Strong"),
-      StructureSize = dplyr::recode(StructureSize %>% tolower(),
-                                    "vf" = "Very fine",
-                                    "vn" = "Very thin",
-                                    "f"  = "Fine",
-                                    "tn" = "Thin",
-                                    "m"  = "Medium",
-                                    "co" = "Coarse",
-                                    "tk" = "Thick",
-                                    "vc" = "Very coarse",
-                                    "vk" = "Very thick",
-                                    "ec" = "Extremely coarse"),
-      # StructureSize2 = dplyr::recode(StructureSize2 %>% tolower(),
-      #                         "vf" = "Very fine",
-      #                         "vn" = "Very thin",
-      #                         "f"  = "Fine",
-      #                         "tn" = "Thin",
-      #                         "m"  = "Medium",
-      #                         "co" = "Coarse",
-      #                         "tk" = "Thick",
-      #                         "vc" = "Very coarse",
-      #                         "vk" = "Very thick",
-      #                         "ec" = "Extremely coarse"),
-      StructureType = dplyr::recode(StructureType %>% tolower(),
-                                    "gr"  = "Granular",
-                                    "abk" = "Angular blocky",
-                                    "sbk" = "Subangular blocky",
-                                    "pl"  = "Platy",
-                                    "weg" = "Wedge",
-                                    "pr"  = "Prismatic",
-                                    "col" = "Columnar",
-                                    "sg"  = "Single grain",
-                                    "ma"  = "Massive",
-                                    "cdy" = "Cloddy",
-                                    "other" = "Other"),
-      # StructureType2 = dplyr::recode(StructureType2 %>% tolower(),
-      #                         "gr"  = "Granular",
-      #                         "abk" = "Angular blocky",
-      #                         "sbk" = "Subangular blocky",
-      #                         "pl"  = "Platy",
-      #                         "weg" = "Wedge",
-      #                         "pr"  = "Prismatic",
-      #                         "col" = "Columnar",
-      #                         "sg"  = "Single grain",
-      #                         "ma"  = "Massive",
-      #                         "cdy" = "Cloddy",
-      #                         "other" = "Other"),
-    ) %>%
-    ### complex mutates that depend on >1 var ###
-    dplyr::mutate(
-      SiltPct = 100 - (as.numeric(SandPct) + as.numeric(ClayPct)),
-      FragVolGravel = dplyr::case_when(
-        Fragment1Type %in% c("GR", "Gravel", "1") ~ Fragment1VolPct,
-        Fragment2Type %in% c("GR", "Gravel", "1") ~ Fragment2VolPct,
-        Fragment3Type %in% c("GR", "Gravel", "1") ~ Fragment3VolPct
-      ),
-      FragVolCobble = dplyr::case_when(
-        Fragment1Type %in% c("CB", "Cobble", "2") ~ Fragment1VolPct,
-        Fragment2Type %in% c("CB", "Cobble", "2") ~ Fragment2VolPct,
-        Fragment3Type %in% c("CB", "Cobble", "2") ~ Fragment3VolPct
-      ),
-      FragVolStone = dplyr::case_when(
-        Fragment1Type %in% c("ST", "Stone", "6") ~ Fragment1VolPct,
-        Fragment2Type %in% c("ST", "Stone", "6") ~ Fragment2VolPct,
-        Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct
-      ),
-      FragVolNodule = dplyr::case_when(
-        Fragment1Type %in% c("8", "Nodule") ~ Fragment1VolPct,
-        Fragment2Type %in% c("8", "Nodule") ~ Fragment2VolPct,
-        Fragment3Type %in% c("8", "Nodule") ~ Fragment3VolPct
-      ),
-      FragVolDurinode = dplyr::case_when(
-        Fragment1Type %in% c("9", "Durinode") ~ Fragment1VolPct,
-        Fragment2Type %in% c("9", "Durinode") ~ Fragment2VolPct,
-        Fragment3Type %in% c("9", "Durinode") ~ Fragment3VolPct
-      ),
-      HorizonDepthLower = dplyr::case_when(
-        DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
-        DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthLower))),
-      HorizonDepthUpper = dplyr::case_when(
-        DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54,
-        DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthUpper))),
-      DepthUOM = "cm"
-    ) %>%
-    ### drop vars that are no longer relevant ###
-    dplyr::select(
-      -Fragment1Type,
-      -Fragment2Type,
-      -Fragment3Type,
-      -Fragment1VolPct,
-      -Fragment2VolPct,
-      -Fragment3VolPct,
-    )   %>%
-    dplyr::arrange(PrimaryKey, HorizonDepthUpper) %>%
-    dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
-      PrimaryKey
-    ) %>%
-
-    dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
-                  # across(c(RockFragments), ~ suppressWarnings(as.integer(.x))),
-                  across(c(pH,
-                           EC, ClayPct, SandPct, SiltPct, # poreqty,
-                           FragVolGravel, FragVolCobble, FragVolStone, FragVolNodule,
-                           FragVolDurinode, HorizonDepthUpper, HorizonDepthLower,
-                  ), ~ suppressWarnings(as.double(.x))),
-                  # across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
-    )
-  horizons_aim <- as.data.frame(horizons_aim)
-
-  return(horizons_aim)
-}
-
-#' @export gather_soil_horizon_lmf
-#' @rdname gather_soil_horizon
-gather_soil_horizon_lmf <- function(dsn = NULL,
-                                    SOILHORIZON = NULL){
-  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-  if (!is.null(SOILHORIZON)){
-    hz_lmf_raw <- SOILHORIZON
-  } else if(!is.null(dsn)){
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing SOILHORIZON")
-    }
-    hz_lmf_raw <- sf::st_read(dsn = dsn, layer = "SOILHORIZON", stringsAsFactors = FALSE, quiet = T)
-  } else {
-    stop("Supply either SOILHORIZON or the path to a GDB containing that table")
-  }
-
-  horizons_lmf <- hz_lmf_raw %>%
-    dplyr::select(
-      PrimaryKey, DBKey, HorizonNumber = SEQNUM,
-      HorizonDepthLower = DEPTH, Effervescence = EFFERVESCENCE_CLASS,
-      Texture = HORIZON_TEXTURE, TextureModifier = TEXTURE_MODIFIER,
-      HorizonNotes = UNUSUAL_FEATURES
-    )
-
-  horizons_lmf <- horizons_lmf %>% # have to have already created horizons_lmf before the HorizonDepthUpper parsing below, as it refers to the df by name
-    dplyr::mutate(
-      DepthUOM = "cm",
-      HorizonNumber = as.character(HorizonNumber),
-      HorizonDepthUpper = sapply(unique(PrimaryKey), function(x) {
-        lower <- horizons_lmf$HorizonDepthLower[horizons_lmf$PrimaryKey == x]
-        upper <- c(0, lower[1:length(lower) - 1])
-        return(upper)}
-      ) %>% unlist(),
-      ### ARE THEY ALWAYS INCHES? No measure type recorded, though they may use decifeet sometimes
-      HorizonDepthLower = suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
-      HorizonDepthUpper = suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54
-    )
-
-  return(horizons_lmf)
-}
-#' export gather_soil_horizon_survey123
-#' rdname gather_soil_horizon
-# gather_soil_horizon_survey123 <- function(dsn = NULL,
-#                                           PlotChar_0 = NULL,
-#                                           SoilPitHorizons_1 = NULL){
-#
-#   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-#   if (!is.null(SoilPitHorizons_1) & !is.null(PlotChar_0)) {
-#     hz_raw <- SoilPitHorizons_1
-#     plotchar_raw <- PlotChar_0
-#   } else if(!is.null(dsn)){
-#     if(!file.exists(dsn)){
-#       stop("dsn must be a valid filepath to a geodatabase containing tblSoilPitHorizons")
-#     }
-#
-#     hz_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblSoilPitHorizons",
-#                                                stringsAsFactors = FALSE, quiet = T))
-#   } else {
-#     stop("Supply either tblSoilPitHorizons, or the path to a GDB containing those tables")
-#   }
-#
-#   # Survey123 data uses PlotKey instead of PrimaryKey
-#   hz_raw <- dplyr::left_join(hz_raw, plotchar_raw %>% dplyr::select(PrimaryKey = PlotKey, GlobalID), by = c("ParentGlobalID" = "GlobalID"))
-#
-#   # Check for duplicate PrimaryKeys
-#   dupkeys <- hz_raw$PrimaryKey[duplicated(hz_raw$PrimaryKey)]
-#   if(length(dupkeys) > 0){
-#     dupnames <- paste(unique(dupkeys), collapse = ", ")
-#     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
-#   }
-#
-#   horizons <- hz_raw %>%
-#     ### select ###
-#     dplyr::select(
-#       PrimaryKey, DBKey, HorizonKey, HorizonDepthUpper, HorizonDepthLower,
-#       DepthUOM = DepthMeasure, HorizonName = ESD_Horizon,
-#       Texture, TextureModifier = ESD_HorizonModifier,
-#       pH = ESD_pH, EC = ESD_EC, Effervescence = Effer,
-#       ClayPct = ESD_PctClay, SandPct = ESD_PctSand,
-#
-#       StructureGrade = ESD_Grade, StructureSize = ESD_Size, StructureType = ESD_Structure,
-#       # StructureGrade2 = ESD_Grade2, StructureSize2 = ESD_Size2, StructureType2 = ESD_Structure2,
-#       StructureQuality = ESD_StructQual,
-#
-#       # PetrocalcicRubble = ESD_PetrocalcicRubble, Gypsic = ESD_Gypsic,
-#       # ClayFilm = ESD_ClayFilm,
-#       Hue = ESD_Hue, Value = ESD_Value, Chroma = ESD_Chroma, ColorMoistDry = ESD_Color,
-#       # RootSize = ESD_RootSize, RootQty = ESD_RootQty,
-#
-#       Fragment1VolPct = ESD_FragVolPct,  Fragment1Type = ESD_FragmentType,
-#       Fragment2VolPct = ESD_FragVolPct2, Fragment2Type = ESD_FragmentType2,
-#       Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3,
-#
-#       HorizonNotes = ESD_Notes
-#
-#       ### cleaning ###
-#     ) %>%
-#     dplyr::mutate_all(
-#       stringr::str_trim # defensive, early qc seems to catch this well
-#     ) %>%
-#     ### recode class data###
-#     dplyr::mutate(
-#       StructureGrade = dplyr::recode(StructureGrade,
-#                                      "0" = "Structureless",
-#                                      "1" = "Weak",
-#                                      "2" = "Moderate",
-#                                      "3" = "Strong"),
-#       # StructureGrade2 = dplyr::recode(StructureGrade2,
-#       #                          "0" = "Structureless",
-#       #                          "1" = "Weak",
-#       #                          "2" = "Moderate",
-#       #                          "3" = "Strong"),
-#       StructureSize = dplyr::recode(StructureSize %>% tolower(),
-#                                     "vf" = "Very fine",
-#                                     "vn" = "Very thin",
-#                                     "f"  = "Fine",
-#                                     "tn" = "Thin",
-#                                     "m"  = "Medium",
-#                                     "co" = "Coarse",
-#                                     "tk" = "Thick",
-#                                     "vc" = "Very coarse",
-#                                     "vk" = "Very thick",
-#                                     "ec" = "Extremely coarse"),
-#       # StructureSize2 = dplyr::recode(StructureSize2 %>% tolower(),
-#       #                         "vf" = "Very fine",
-#       #                         "vn" = "Very thin",
-#       #                         "f"  = "Fine",
-#       #                         "tn" = "Thin",
-#       #                         "m"  = "Medium",
-#       #                         "co" = "Coarse",
-#       #                         "tk" = "Thick",
-#       #                         "vc" = "Very coarse",
-#       #                         "vk" = "Very thick",
-#       #                         "ec" = "Extremely coarse"),
-#       StructureType = dplyr::recode(StructureType %>% tolower(),
-#                                     "gr"  = "Granular",
-#                                     "abk" = "Angular blocky",
-#                                     "sbk" = "Subangular blocky",
-#                                     "pl"  = "Platy",
-#                                     "weg" = "Wedge",
-#                                     "pr"  = "Prismatic",
-#                                     "col" = "Columnar",
-#                                     "sg"  = "Single grain",
-#                                     "ma"  = "Massive",
-#                                     "cdy" = "Cloddy",
-#                                     "other" = "Other"),
-#       # StructureType2 = dplyr::recode(StructureType2 %>% tolower(),
-#       #                         "gr"  = "Granular",
-#       #                         "abk" = "Angular blocky",
-#       #                         "sbk" = "Subangular blocky",
-#       #                         "pl"  = "Platy",
-#       #                         "weg" = "Wedge",
-#       #                         "pr"  = "Prismatic",
-#       #                         "col" = "Columnar",
-#       #                         "sg"  = "Single grain",
-#       #                         "ma"  = "Massive",
-#       #                         "cdy" = "Cloddy",
-#       #                         "other" = "Other"),
-#     ) %>%
-#     ### complex mutates that depend on >1 var ###
-#     dplyr::mutate(
-#       SiltPct = 100 - (as.numeric(SandPct) + as.numeric(ClayPct)),
-#       FragVolGravel = dplyr::case_when(
-#         Fragment1Type %in% c("GR", "Gravel", "1") ~ Fragment1VolPct,
-#         Fragment2Type %in% c("GR", "Gravel", "1") ~ Fragment2VolPct,
-#         Fragment3Type %in% c("GR", "Gravel", "1") ~ Fragment3VolPct
-#       ),
-#       FragVolCobble = dplyr::case_when(
-#         Fragment1Type %in% c("CB", "Cobble", "2") ~ Fragment1VolPct,
-#         Fragment2Type %in% c("CB", "Cobble", "2") ~ Fragment2VolPct,
-#         Fragment3Type %in% c("CB", "Cobble", "2") ~ Fragment3VolPct
-#       ),
-#       FragVolStone = dplyr::case_when(
-#         Fragment1Type %in% c("ST", "Stone", "6") ~ Fragment1VolPct,
-#         Fragment2Type %in% c("ST", "Stone", "6") ~ Fragment2VolPct,
-#         Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct
-#       ),
-#       FragVolNodule = dplyr::case_when(
-#         Fragment1Type %in% c("8", "Nodule") ~ Fragment1VolPct,
-#         Fragment2Type %in% c("8", "Nodule") ~ Fragment2VolPct,
-#         Fragment3Type %in% c("8", "Nodule") ~ Fragment3VolPct
-#       ),
-#       FragVolDurinode = dplyr::case_when(
-#         Fragment1Type %in% c("9", "Durinode") ~ Fragment1VolPct,
-#         Fragment2Type %in% c("9", "Durinode") ~ Fragment2VolPct,
-#         Fragment3Type %in% c("9", "Durinode") ~ Fragment3VolPct
-#       ),
-#       HorizonDepthLower = dplyr::case_when(
-#         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
-#         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthLower))),
-#       HorizonDepthUpper = dplyr::case_when(
-#         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54,
-#         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthUpper))),
-#       DepthUOM = "cm"
-#     ) %>%
-#     ### drop vars that are no longer relevant ###
-#     dplyr::select(
-#       -Fragment1Type,
-#       -Fragment2Type,
-#       -Fragment3Type,
-#       -Fragment1VolPct,
-#       -Fragment2VolPct,
-#       -Fragment3VolPct,
-#     )   %>%
-#     dplyr::arrange(PrimaryKey, HorizonDepthUpper) %>%
-#     dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
-#       PrimaryKey
-#     ) %>%
-#
-#     dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
-#                   # across(c(RockFragments), ~ suppressWarnings(as.integer(.x))),
-#                   across(c(pH,
-#                            EC, ClayPct, SandPct, SiltPct, # poreqty,
-#                            FragVolGravel, FragVolCobble, FragVolStone, FragVolNodule,
-#                            FragVolDurinode, HorizonDepthUpper, HorizonDepthLower,
-#                   ), ~ suppressWarnings(as.double(.x))),
-#                   # across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
-#     )
-#   horizons <- as.data.frame(horizons)
-#
-#   return(horizons)
-# }
-
-
-#' @export gather_soil_horizon
-#' @rdname gather_soil_horizon
-gather_soil_horizon <- function(dsn = NULL,
-                                source,
-                                SOILHORIZON = NULL,
-                                tblSoilPitHorizons = NULL,
-                                autoQC = TRUE) {
-
-  if(toupper(source) %in% c("AIM", "TERRADAT")) {
-    soil <- gather_soil_horizon_terradat(dsn = dsn, tblSoilPitHorizons = tblSoilPitHorizons)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    soil <- gather_soil_horizon_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
-  } else {
-    stop("source must be AIM, TerraDat, DIMA, LMF, or NRI (all case independent)")
-  }
-
-  soil$source <- source
-
-  if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
-
-  if (any(class(soil) %in% c("POSIXct", "POSIXt"))) {
-    change_vars <- names(soil)[do.call(rbind, vapply(soil,
-                                                     class))[, 1] %in% c("POSIXct", "POSIXt")]
-    soil <- dplyr::mutate_at(soil, dplyr::vars(change_vars),
-                             dplyr::funs(as.character))
-  }
-
-  # change from tibble to data frame
-  soil <- as.data.frame(soil) %>%
-
-    # reorder so that primary key is leftmost column
-    dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
-
-  # remove duplicates and empty rows
-  if(autoQC){
-    message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
-    soil <- soil %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilhz")
-  }
-
-  return(soil)
-}
-
-#### GATHER ALL ################################################################
-#' Gather tall tables for gap, vegetation height, LPI, plot characterization,
-#' IIRH, soil horizon, soil pit summary, soil stability, and species inventory.
+#'   if("sf" %in% class(plotchar)) plotchar <- sf::st_drop_geometry(plotchar)
 #'
-#' @description Given wide format AIM/LMF data, gather gap,
-#' vegetation height, LPI, header, IIRH, soil horizon,
-#' soil pit summary, soil stability, and species inventory data. Missing
-#' tables will be skipped. AIM-type and LMF-type data will both be processed.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase or text file containing thes table of interest.
-#' This field is unnecessary if you provide dflist.
-#' @param dflist Named list of data frames containing monitoring data. Tables
-#' must be named as expected by the individual gather_functions.
-#' @param outfolder Character string. Name of a folder to save all output to.
-#' If the specified folder does not exist, the function will create it.
-#' @param outtype Vector specifying output format, accepting "csv" and "rdata".
-#' Defaults to writing both.
-#' @param verbose True/False. When true, displays progress information, and
-#' reports missing input data.
-#' @param doLPI True/False. When false, LPI data will not be gathered. LPI data
-#' is large and the gather process is RAM-intensive. This function will function
-#' with fewer resources if LPI is run in batches, external to this wrapper.
-#' @importFrom magrittr %>%
-#' @name gather_all
-#' @family <gather>
-#' @return A list of tall data frames containing reformatted input data.
-#' @examples
-#' gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", outfolder = "output")
+#'   if (any(class(plotchar) %in% c("POSIXct", "POSIXt"))) {
+#'     change_vars <- names(plotchar)[do.call(rbind, vapply(plotchar,
+#'                                                          class))[, 1] %in% c("POSIXct", "POSIXt")]
+#'     plotchar <- dplyr::mutate_at(plotchar, dplyr::vars(change_vars),
+#'                                  dplyr::funs(as.character))
+#'   }
 #'
-#' names <- sf::st_layers(dsn = "Path/To/AIM-LMF_Geodatabase.gdb")$name
-#' all_data <- sapply(names, function(n){## Gather Height Data
-#'   sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
-#'   layer = n, quiet = T)
-#' })
-#' gather_all(dflist = all_data, outfolder = "output")
+#'   # reorder so that primary key is leftmost column
+#'   plotchar <- plotchar %>%
+#'     dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+#'
+#'   return(plotchar)
+#' }
 
 
-## Gather All Data
-#' @export gather_all
-#' @rdname gather_all
-
-gather_all <- function(dsn = NULL,
-                       dflist = NULL,
-                       outfolder,
-                       outtype = c("csv", "rdata"),
-                       verbose = TRUE,
-                       doLPI = TRUE) {
-  # prep ####
-  outtype <- tolower(outtype)
-
-  if(substr(outfolder, nchar(outfolder), nchar(outfolder)) != "/") {
-    outfolder <- paste0(outfolder, "/")
-  }
-
-  if(!dir.exists(outfolder)) dir.create(outfolder)
-
-  # if neither dsn or dflist are provided, stop
-  if(is.null(dflist) & is.null(dsn)) stop("Provide either dsn or dflist")
-
-  # if both dsn and dflist are provided, drop dsn
-  if(!is.null(dflist) & !is.null(dsn)){
-    dsn <- NULL
-    if(verbose) print("Both dsn and dflist were provided. Dsn will be ignored")
-  }
-
-  # extract names, check against these before trying to load data
-  if(is.null(dflist)){
-    names_rda <- NULL
-  } else {
-    names_rda <- names(dflist)
-  }
-  if(is.null(dsn)){
-    names_gdb <-NULL
-  } else {
-    names_gdb <- sf::st_layers(dsn) %>% unlist()
-  }
-
-  # pull tables out of dflist if supplied, so the lack of NULL inputs dont mess up the functions
-  # if dflist is NULL, all of these should be NULL
-  tblGapDetail <- dflist[["tblGapDetail"]]
-  tblGapHeader <- dflist[["tblGapHeader"]]
-  tblLPIDetail <- dflist[["tblLPIDetail"]]
-  tblLPIHeader <- dflist[["tblLPIHeader"]]
-  tblSoilStabDetail <- dflist[["tblSoilStabDetail"]]
-  tblSoilStabHeader <- dflist[["tblSoilStabHeader"]]
-  tblQualDetail <- dflist[["tblQualDetail"]]
-  tblQualHeader <- dflist[["tblQualHeader"]]
-  tblSoilPitHorizons <- dflist[["tblSoilPitHorizons"]]
-  tblSoilPits <- dflist[["tblSoilPits"]]
-  tblSpecRichDetail <- dflist[["tblSpecRichDetail"]]
-  tblSpecRichHeader <- dflist[["tblSpecRichHeader"]]
-  tblPlots <- dflist[["tblPlots"]]
-
-  GINTERCEPT <- dflist[["GINTERCEPT"]]
-  POINT <- dflist[["POINT"]]
-  PASTUREHEIGHTS <- dflist[["PASTUREHEIGHTS"]]
-  RANGEHEALTH <- dflist[["RANGEHEALTH"]]
-  PINTERCEPT <- dflist[["PINTERCEPT"]]
-  SOILDISAG <- dflist[["SOILDISAG"]]
-  PLANTCENSUS <- dflist[["PLANTCENSUS"]]
-  SOILHORIZON <- dflist[["SOILHORIZON"]]
-  POINTCOORDINATES <- dflist[["POINTCOORDINATES"]]
-  GPS <- dflist[["GPS"]]
-
-  rm(dflist)
-
-  # Gap ####
-  if(("tblGapDetail" %in% names_rda & "tblGapHeader" %in% names_rda) |
-     ("tblGapDetail" %in% names_gdb & "tblGapHeader" %in% names_gdb)){
-    if(verbose) print("Gathering AIM gap")
-    gap_aim <- gather_gap(dsn = dsn, source = "AIM",
-                          tblGapDetail = tblGapDetail,
-                          tblGapHeader = tblGapHeader)
-  } else {
-    gap_aim <- NULL
-    if(verbose) print("tblGapDetail and/or tblGapHeader not found. Skipping AIM Gap.")
-  }
-
-  if(("GINTERCEPT" %in% names_rda & "POINT" %in% names_rda) |
-     ("GINTERCEPT" %in% names_gdb & "POINT" %in% names_gdb)){
-    if(verbose) print("Gathering LMF gap")
-    gap_lmf <- gather_gap(dsn = dsn, source = "LMF",
-                          GINTERCEPT = GINTERCEPT,
-                          POINT = POINT)
-  } else {
-    gap_lmf <- NULL
-    if(verbose) print("GINTERCEPT and/or POINT not found. Skipping LMF Gap.")
-  }
-
-  gap_tall <- dplyr::bind_rows(gap_aim, gap_lmf)
-  if(1 <= nrow(gap_tall)){
-    if("csv" %in% outtype){
-      write.csv(gap_tall,
-                file = paste(outfolder, "gap_tall.csv", sep = ""), row.names = F)
-    }
-    if("rdata" %in% outtype){
-      saveRDS(gap_tall,
-              file = paste0(outfolder, "gap_tall.rdata"))
-    }
-
-  }
-  rm(gap_aim, gap_lmf)
-  invisible(gc())
-
-  # Soil stability ####
-  if(("tblSoilStabDetail" %in% names_rda & "tblSoilStabHeader" %in% names_rda) |
-     ("tblSoilStabDetail" %in% names_gdb & "tblSoilStabHeader" %in% names_gdb)){
-    if(verbose) print("Gathering AIM soil stability")
-    soilstab_aim <- gather_soil_stability(dsn = dsn, source = "AIM",
-                                          tblSoilStabDetail = tblSoilStabDetail,
-                                          tblSoilStabHeader = tblSoilStabHeader)
-  } else {
-    soilstab_aim <- NULL
-    if(verbose) print("tblSoilStabDetail and/or tblSoilStabHeader not found. Skipping AIM Soil Stability.")
-  }
-
-  if(("SOILDISAG" %in% names_rda) |
-     ("SOILDISAG" %in% names_gdb)){
-    if(verbose) print("Gathering LMF soil stability")
-    soilstab_lmf <- gather_soil_stability(dsn = dsn, source = "LMF",
-                                          SOILDISAG = SOILDISAG)
-  } else {
-    soilstab_lmf <- NULL
-    if(verbose) print("SOILDISAG not found. Skipping LMF Soil Stability.")
-  }
-
-  soilstab_tall <- dplyr::bind_rows(soilstab_aim, soilstab_lmf)
-  if(1 <= nrow(soilstab_tall)){
-
-    if("csv" %in% outtype){
-      write.csv(soilstab_tall,
-                file = paste(outfolder, "soil_stability_tall.csv", sep = ""), row.names = F)
-    }
-    if("rdata" %in% outtype){
-      saveRDS(soilstab_tall,
-              file = paste0(outfolder, "soil_stability_tall.rdata"))
-    }
-  }
-  rm(soilstab_aim, soilstab_lmf)
-  invisible(gc())
-
-  # LPI ####
-  if(doLPI == T){
-    if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-       ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
-      if(verbose) print("Gathering AIM LPI")
-      lpi_aim <- gather_lpi(dsn = dsn, file_type = "gdb", source = "AIM",
-                            tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)} else {
-                              lpi_aim <- NULL
-                              if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
-                            }
-
-    if(("PINTERCEPT" %in% names_rda) |
-       ("PINTERCEPT" %in% names_gdb)){
-      if(verbose) print("Gathering LMF LPI")
-      lpi_lmf <- gather_lpi(dsn = dsn, file_type = "gdb", source = "LMF",
-                            PINTERCEPT = PINTERCEPT)
-    } else {
-      lpi_lmf <- NULL
-      if(verbose) print("PINTERCEPT not found. Skipping LMF LPI.")
-    }
-
-    lpi_tall <- dplyr::bind_rows(lpi_aim, lpi_lmf)
-    if(1 <= nrow(lpi_tall)){
-      if("csv" %in% outtype){
-        write.csv(lpi_tall,
-                  file = paste(outfolder, "lpi_tall.csv", sep = ""), row.names = F)
-      }
-      if("rdata" %in% outtype){
-        saveRDS(lpi_tall,
-                file = paste0(outfolder, "lpi_tall.rdata"))
-      }
-    }
-    rm(lpi_aim, lpi_lmf)
-    invisible(gc())
-
-    # Height ####
-    if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-       ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
-      if(verbose) print("Gathering AIM Height")
-      height_aim <- gather_height(dsn = dsn, file_type = "gdb", source = "AIM",
-                                  tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
-    } else {
-      height_aim <- NULL
-      if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM Height.")
-    }
-
-    if(("PASTUREHEIGHTS" %in% names_rda) |
-       ("PASTUREHEIGHTS" %in% names_gdb)){
-      if(verbose) print("Gathering LMF Height")
-      height_lmf <- gather_height(dsn = dsn, file_type = "gdb", source = "LMF",
-                                  PASTUREHEIGHTS = PASTUREHEIGHTS)
-    } else {
-      height_lmf <- NULL
-      if(verbose) print("PASTUREHEIGHTS not found. Skipping LMF Height.")
-    }
-
-    height_tall <- dplyr::bind_rows(height_aim, height_lmf)
-    if(1 <= nrow(height_tall)){
-      if("csv" %in% outtype){
-        write.csv(height_tall,
-                  file = paste(outfolder, "height_tall.csv", sep = ""), row.names = F)
-      }
-      if("rdata" %in% outtype){
-        saveRDS(height_tall,
-                file = paste0(outfolder, "height_tall.rdata"))
-      }
-    }
-    rm(height_lmf, height_aim)
-    invisible(gc())
-
-
-
-
-  } else {
-    print("doLPI is false, skipping all lpi")
-  }
-
-  ##### Species inventory ####
-  if(("tblSpecRichDetail" %in% names_rda & "tblSpecRichHeader" %in% names_rda) |
-     ("tblSpecRichDetail" %in% names_gdb & "tblSpecRichHeader" %in% names_gdb)){
-    if(verbose) print("Gathering AIM species inventory")
-    spp_inventory_aim <- gather_species_inventory(dsn = dsn, source = "AIM",
-                                                  tblSpecRichDetail = tblSpecRichDetail,
-                                                  tblSpecRichHeader = tblSpecRichHeader)
-
-  } else {
-    spp_inventory_aim <- NULL
-    if(verbose) print("tblSpecRichDetail and/or tblSpecRichHeader not found. Skipping AIM Species Inventory.")
-  }
-  if(("PLANTCENSUS" %in% names_rda) |
-     ("PLANTCENSUS" %in% names_gdb)){
-    if(verbose) print("Gathering LMF species inventory")
-    spp_inventory_lmf <- gather_species_inventory(dsn = dsn, source = "LMF",
-                                                  PLANTCENSUS = PLANTCENSUS,
-                                                  file_type = "gdb")
-  } else {
-    spp_inventory_lmf <- NULL
-    if(verbose) print("PLANTCENSUS not found. Skipping LMF Species Inventory.")
-  }
-
-  spp_inventory_tall <- dplyr::bind_rows(spp_inventory_aim, spp_inventory_lmf)
-  if(1 <= nrow(spp_inventory_tall)){
-
-    if("csv" %in% outtype){
-      write.csv(spp_inventory_tall,
-                file = paste(outfolder, "species_inventory_tall.csv", sep = ""), row.names = F)
-    }
-    if("rdata" %in% outtype){
-      saveRDS(spp_inventory_tall,
-              file = paste0(outfolder, "spp_inventory_tall.rdata"))
-    }
-  }
-  rm(spp_inventory_aim, spp_inventory_lmf)
-  invisible(gc())
-
-  # soil horizons ####
-  if(("tblSoilPitHorizons" %in% names_rda) |
-     ("tblSoilPitHorizons" %in% names_gdb)){
-    if(verbose) print("Gathering AIM soil horizon data")
-    hz_aim <- gather_soil_horizon(dsn = dsn, source = "AIM",
-                                  tblSoilPitHorizons = tblSoilPitHorizons)
-  } else {
-    hz_aim <- NULL
-    if(verbose) print("tblSoilPitHorizons not found. Skipping AIM Horizons.")
-  }
-  if(("SOILHORIZON" %in% names_rda) |
-     ("SOILHORIZON" %in% names_gdb)){
-    if(verbose) print("Gathering LMF soil horizon data")
-    hz_lmf <- gather_soil_horizon(dsn = dsn, source = "LMF", SOILHORIZON = SOILHORIZON)
-  } else {
-    hz_lmf <- NULL
-    if(verbose) print("SOILHORIZON not found. Skipping LMF Horizons.")
-  }
-  hz_tall <- dplyr::bind_rows(hz_aim, hz_lmf)
-  if(1 <= nrow(hz_tall)){
-
-    if("csv" %in% outtype){
-      write.csv(hz_tall,
-                file = paste(outfolder, "soil_horizons_tall.csv", sep = ""), row.names = F)
-    }
-    if("rdata" %in% outtype){
-      saveRDS(hz_tall,
-              file = paste0(outfolder, "soil_horizons_tall.rdata"))
-    }
-
-  }
-  rm(hz_aim, hz_lmf)
-  invisible(gc())
-
-  # soil summary ####
-  if(("tblSoilPitHorizons" %in% names_rda & "tblSoilPits" %in% names_rda) |
-     ("tblSoilPitHorizons" %in% names_gdb & "tblSoilPits" %in% names_gdb)){
-    if(verbose) print("Gathering AIM soil summary")
-    pit_aim <- gather_soil_summary(dsn = dsn, source = "AIM",
-                                   tblSoilPitHorizons = tblSoilPitHorizons,
-                                   tblSoilPits = tblSoilPits)
-  } else {
-    pit_aim <- NULL
-    if(verbose) print("tblSoilPitHorizons and/or tblSoilPits not found. Skipping AIM Soil Summary.")
-  }
-  if(("SOILHORIZON" %in% names_rda) |
-     ("SOILHORIZON" %in% names_gdb)){
-    if(verbose) print("Gathering LMF soil summary")
-    pit_lmf <- gather_soil_summary(dsn = dsn, source = "LMF", SOILHORIZON = SOILHORIZON)
-  } else {
-    pit_lmf <- NULL
-    if(verbose) print("SOILHORIZON not found. Skipping LMF soil Summary.")
-  }
-  pit_tall <- dplyr::bind_rows(pit_aim, pit_lmf)
-  if(1 <= nrow(pit_tall)){
-    if("csv" %in% outtype){
-      write.csv(pit_tall,
-                file = paste(outfolder, "pit_tall.csv", sep = ""), row.names = F)
-    }
-    if("rdata" %in% outtype){
-      saveRDS(pit_tall,
-              file = paste0(outfolder, "pit_tall.rdata"))
-    }
-  }
-
-  rm(pit_aim, pit_lmf)
-  invisible(gc())
-
-  # iirh ####
-  if(("tblQualDetail" %in% names_rda & "tblQualHeader" %in% names_rda) |
-     ("tblQualDetail" %in% names_gdb & "tblQualHeader" %in% names_gdb)){
-    if(verbose) print("Gathering AIM IIRH data")
-    iirh_aim <- gather_rangeland_health(dsn = dsn, source = "AIM",
-                                        tblQualDetail = tblQualDetail,
-                                        tblQualHeader = tblQualHeader)
-  } else {
-    iirh_aim <- NULL
-    if(verbose) print("tblQualDetail and/or tblQualHeader not found. Skipping AIM Rangeland Health.")
-  }
-  if(("RANGEHEALTH" %in% names_rda) |
-     ("RANGEHEALTH" %in% names_gdb)){
-    if(verbose) print("Gathering LMF IIRH data")
-    iirh_lmf <- gather_rangeland_health(dsn = dsn, source = "LMF",
-                                        RANGEHEALTH = RANGEHEALTH)
-
-  } else {
-    iirh_lmf <- NULL
-    if(verbose) print("RANGEHEALTH not found. Skipping LMF Rangeland Health.")
-  }
-  iirh_tall <- dplyr::bind_rows(iirh_aim, iirh_lmf)
-  if(1 <= nrow(iirh_tall)){
-    if("csv" %in% outtype){
-      write.csv(iirh_tall,
-                file = paste(outfolder, "rangeland_health_tall.csv", sep = ""), row.names = F)
-    }
-    if("rdata" %in% outtype){
-      saveRDS(iirh_tall,
-              file = paste0(outfolder, "rangeland_health_tall.rdata"))
-    }  }
-  rm(iirh_aim, iirh_lmf)
-  invisible(gc())
-
-  # header ####
-  if(("tblPlots" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-     ("tblPlots" %in% names_gdb & "tblLPIHeader" %in% names_rda)){
-    if(verbose) print("Gathering AIM Header")
-    header_aim <- gather_header(dsn = dsn, source = "AIM",
-                                tblPlots = tblPlots,
-                                tblLPIHeader = tblLPIHeader)
-
-    #
-    #     if(verbose) print("Gathering AIM plot characterization")
-    #     plotchar_aim <- gather_plot_characterization(dsn = dsn,
-    #                                                  source = "AIM",
-    #                                                  tblPlots = tblPlots)
-
-  } else {
-    header_aim <- NULL
-
-    if(verbose) print("tblPlots not found. Skipping AIM header.")
-  }
-  if(("POINT" %in% names_rda) |
-     ("POINT" %in% names_gdb)){
-    if(verbose) print("Gathering LMF header")
-    header_lmf <- gather_header(dsn = dsn,
-                                source = "LMF")
-  } else {
-    header_lmf <- NULL
-    if(verbose) print("POINT not found. Skipping LMF header.")
-  }
-
-  header_tall <- dplyr::bind_rows(header_aim, header_lmf)
-  if(1 <= nrow(header_tall)){
-    if("csv" %in% outtype){
-      write.csv(header_tall,
-                file = paste(outfolder, "header.csv", sep = ""), row.names = F)
-    }
-    if("rdata" %in% outtype){
-      saveRDS(header_tall,
-              file = paste0(outfolder, "header.rdata"))
-    }  }
-  rm(header_aim, header_lmf)
-  invisible(gc())
-
-  # # output ####
-  # if(doLPI == T){
-  #
-  # list_out <- list(
-  #   gap_tall, height_tall, hz_tall, lpi_tall, pit_tall, header_tall,
-  #   soilstab_tall, spp_inventory_tall
-  # )
-  #
-  # names(list_out) <- c("Gap", "VegHeight", "SoilHorizons", "LPI", "SoilPitSummary",
-  #                      "Header",
-  #                      "SoilStability", "SpeciesInventory")
-  #
-  # } else {
-  #   list_out <- list(
-  #     gap_tall, hz_tall, #pit_tall,
-  #     header_tall,
-  #     soilstab_tall, spp_inventory_tall
-  #   )
-  #
-  #   names(list_out) <- c("Gap", "SoilHorizons", "SoilPitSummary",
-  #                        "Header", "SoilStability", "SpeciesInventory")
-  # }
-
-  # return(list_out)
-}
+#' #### SOIL HORIZONS #############################################################
+#' #' Convert horizon data into a tall, tidy data frame
+#' #'
+#' #' @description Given wide format soil horizon data, create a tall
+#' #' format data frame usable by other terradactyl functions.
+#' #' @param dsn Character string. The full filepath and filename (including file
+#' #' extension) of the geodatabase or text file containing the table of interest.
+#' #' This field is unnecessary if you provide either tblSoilPitHorizons
+#' #' (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).
+#' #' @param source Character string. The data source format,
+#' #' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' #' @param tblSoilPitHorizons Dataframe of the data structure tblSoilPitHorizons
+#' #' from the DIMA database with the addition of PrimaryKey and DBKey fields.
+#' #' Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.
+#' #' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from the
+#' #' LMF/NRI database with the addition of PrimaryKey and DBKey fields;
+#' #' alternately provide dsn.
+#' #' @importFrom magrittr %>%
+#' #' @name gather_soil_horizon
+#' #' @family <gather>
+#' #' @return A tall data frame containing soil horzon data.
+#' #' @examples
+#' #' gather_soil_horizon(dsn = "Path/To/AIM_Geodatabase.gdb",
+#' #'                     source = "AIM")
+#' #' gather_soil_horizon(dsn = "Path/To/LMF_Geodatabase.gdb",
+#' #'                     source = "LMF")
+#' #'
+#' #' aim_horizons <- read.csv("Path/To/tblSoilPitHorizons.csv")
+#' #' gather_soil_horizon(source = "AIM",
+#' #'                     tblSoilPitHorizons = aim_horizons)
+#' #'
+#' #' lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
+#' #' gather_soil_horizon(source = "LMF",
+#' #'                     SOILHORIZON = lmf_horizons)
+#'
+#' #' @export gather_soil_horizon_terradat
+#' #' @rdname gather_soil_horizon
+#' gather_soil_horizon_terradat <- function(dsn = NULL,
+#'                                          tblSoilPitHorizons = NULL){
+#'
+#'   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+#'   if (!is.null(tblSoilPitHorizons)) {
+#'     hz_aim_raw <- tblSoilPitHorizons
+#'   } else if(!is.null(dsn)){
+#'     if(!file.exists(dsn)){
+#'       stop("dsn must be a valid filepath to a geodatabase containing tblSoilPitHorizons")
+#'     }
+#'
+#'     hz_aim_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblSoilPitHorizons",
+#'                                                stringsAsFactors = FALSE, quiet = T))
+#'   } else {
+#'     stop("Supply either tblSoilPitHorizons, or the path to a GDB containing those tables")
+#'   }
+#'
+#'   horizons_aim <- hz_aim_raw %>%
+#'     ### select ###
+#'     dplyr::select(
+#'       PrimaryKey, DBKey, HorizonKey, HorizonDepthUpper, HorizonDepthLower,
+#'       DepthUOM = DepthMeasure, HorizonName = ESD_Horizon,
+#'       Texture, TextureModifier = ESD_HorizonModifier,
+#'       pH = ESD_pH, EC = ESD_EC, Effervescence = Effer,
+#'       ClayPct = ESD_PctClay, SandPct = ESD_PctSand,
+#'
+#'       StructureGrade = ESD_Grade, StructureSize = ESD_Size, StructureType = ESD_Structure,
+#'       # StructureGrade2 = ESD_Grade2, StructureSize2 = ESD_Size2, StructureType2 = ESD_Structure2,
+#'       StructureQuality = ESD_StructQual,
+#'
+#'       # PetrocalcicRubble = ESD_PetrocalcicRubble, Gypsic = ESD_Gypsic,
+#'       # ClayFilm = ESD_ClayFilm,
+#'       Hue = ESD_Hue, Value = ESD_Value, Chroma = ESD_Chroma, ColorMoistDry = ESD_Color,
+#'       # RootSize = ESD_RootSize, RootQty = ESD_RootQty,
+#'
+#'       Fragment1VolPct = ESD_FragVolPct,  Fragment1Type = ESD_FragmentType,
+#'       Fragment2VolPct = ESD_FragVolPct2, Fragment2Type = ESD_FragmentType2,
+#'       Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3,
+#'
+#'       HorizonNotes = ESD_Notes
+#'
+#'       ### cleaning ###
+#'     ) %>%
+#'     dplyr::mutate_all(
+#'       stringr::str_trim # defensive, early qc seems to catch this well
+#'     ) %>%
+#'     ### recode class data###
+#'     dplyr::mutate(
+#'       StructureGrade = dplyr::recode(StructureGrade,
+#'                                      "0" = "Structureless",
+#'                                      "1" = "Weak",
+#'                                      "2" = "Moderate",
+#'                                      "3" = "Strong"),
+#'       # StructureGrade2 = dplyr::recode(StructureGrade2,
+#'       #                          "0" = "Structureless",
+#'       #                          "1" = "Weak",
+#'       #                          "2" = "Moderate",
+#'       #                          "3" = "Strong"),
+#'       StructureSize = dplyr::recode(StructureSize %>% tolower(),
+#'                                     "vf" = "Very fine",
+#'                                     "vn" = "Very thin",
+#'                                     "f"  = "Fine",
+#'                                     "tn" = "Thin",
+#'                                     "m"  = "Medium",
+#'                                     "co" = "Coarse",
+#'                                     "tk" = "Thick",
+#'                                     "vc" = "Very coarse",
+#'                                     "vk" = "Very thick",
+#'                                     "ec" = "Extremely coarse"),
+#'       # StructureSize2 = dplyr::recode(StructureSize2 %>% tolower(),
+#'       #                         "vf" = "Very fine",
+#'       #                         "vn" = "Very thin",
+#'       #                         "f"  = "Fine",
+#'       #                         "tn" = "Thin",
+#'       #                         "m"  = "Medium",
+#'       #                         "co" = "Coarse",
+#'       #                         "tk" = "Thick",
+#'       #                         "vc" = "Very coarse",
+#'       #                         "vk" = "Very thick",
+#'       #                         "ec" = "Extremely coarse"),
+#'       StructureType = dplyr::recode(StructureType %>% tolower(),
+#'                                     "gr"  = "Granular",
+#'                                     "abk" = "Angular blocky",
+#'                                     "sbk" = "Subangular blocky",
+#'                                     "pl"  = "Platy",
+#'                                     "weg" = "Wedge",
+#'                                     "pr"  = "Prismatic",
+#'                                     "col" = "Columnar",
+#'                                     "sg"  = "Single grain",
+#'                                     "ma"  = "Massive",
+#'                                     "cdy" = "Cloddy",
+#'                                     "other" = "Other"),
+#'       # StructureType2 = dplyr::recode(StructureType2 %>% tolower(),
+#'       #                         "gr"  = "Granular",
+#'       #                         "abk" = "Angular blocky",
+#'       #                         "sbk" = "Subangular blocky",
+#'       #                         "pl"  = "Platy",
+#'       #                         "weg" = "Wedge",
+#'       #                         "pr"  = "Prismatic",
+#'       #                         "col" = "Columnar",
+#'       #                         "sg"  = "Single grain",
+#'       #                         "ma"  = "Massive",
+#'       #                         "cdy" = "Cloddy",
+#'       #                         "other" = "Other"),
+#'     ) %>%
+#'     ### complex mutates that depend on >1 var ###
+#'     dplyr::mutate(
+#'       SiltPct = 100 - (as.numeric(SandPct) + as.numeric(ClayPct)),
+#'       FragVolGravel = dplyr::case_when(
+#'         Fragment1Type %in% c("GR", "Gravel", "1") ~ Fragment1VolPct,
+#'         Fragment2Type %in% c("GR", "Gravel", "1") ~ Fragment2VolPct,
+#'         Fragment3Type %in% c("GR", "Gravel", "1") ~ Fragment3VolPct
+#'       ),
+#'       FragVolCobble = dplyr::case_when(
+#'         Fragment1Type %in% c("CB", "Cobble", "2") ~ Fragment1VolPct,
+#'         Fragment2Type %in% c("CB", "Cobble", "2") ~ Fragment2VolPct,
+#'         Fragment3Type %in% c("CB", "Cobble", "2") ~ Fragment3VolPct
+#'       ),
+#'       FragVolStone = dplyr::case_when(
+#'         Fragment1Type %in% c("ST", "Stone", "6") ~ Fragment1VolPct,
+#'         Fragment2Type %in% c("ST", "Stone", "6") ~ Fragment2VolPct,
+#'         Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct
+#'       ),
+#'       FragVolNodule = dplyr::case_when(
+#'         Fragment1Type %in% c("8", "Nodule") ~ Fragment1VolPct,
+#'         Fragment2Type %in% c("8", "Nodule") ~ Fragment2VolPct,
+#'         Fragment3Type %in% c("8", "Nodule") ~ Fragment3VolPct
+#'       ),
+#'       FragVolDurinode = dplyr::case_when(
+#'         Fragment1Type %in% c("9", "Durinode") ~ Fragment1VolPct,
+#'         Fragment2Type %in% c("9", "Durinode") ~ Fragment2VolPct,
+#'         Fragment3Type %in% c("9", "Durinode") ~ Fragment3VolPct
+#'       ),
+#'       HorizonDepthLower = dplyr::case_when(
+#'         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
+#'         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthLower))),
+#'       HorizonDepthUpper = dplyr::case_when(
+#'         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54,
+#'         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthUpper))),
+#'       DepthUOM = "cm"
+#'     ) %>%
+#'     ### drop vars that are no longer relevant ###
+#'     dplyr::select(
+#'       -Fragment1Type,
+#'       -Fragment2Type,
+#'       -Fragment3Type,
+#'       -Fragment1VolPct,
+#'       -Fragment2VolPct,
+#'       -Fragment3VolPct,
+#'     )   %>%
+#'     dplyr::arrange(PrimaryKey, HorizonDepthUpper) %>%
+#'     dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
+#'       PrimaryKey
+#'     ) %>%
+#'
+#'     dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
+#'                   # across(c(RockFragments), ~ suppressWarnings(as.integer(.x))),
+#'                   across(c(pH,
+#'                            EC, ClayPct, SandPct, SiltPct, # poreqty,
+#'                            FragVolGravel, FragVolCobble, FragVolStone, FragVolNodule,
+#'                            FragVolDurinode, HorizonDepthUpper, HorizonDepthLower,
+#'                   ), ~ suppressWarnings(as.double(.x))),
+#'                   # across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
+#'     )
+#'   horizons_aim <- as.data.frame(horizons_aim)
+#'
+#'   return(horizons_aim)
+#' }
+#'
+#' #' @export gather_soil_horizon_lmf
+#' #' @rdname gather_soil_horizon
+#' gather_soil_horizon_lmf <- function(dsn = NULL,
+#'                                     SOILHORIZON = NULL){
+#'   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+#'   if (!is.null(SOILHORIZON)){
+#'     hz_lmf_raw <- SOILHORIZON
+#'   } else if(!is.null(dsn)){
+#'     if(!file.exists(dsn)){
+#'       stop("dsn must be a valid filepath to a geodatabase containing SOILHORIZON")
+#'     }
+#'     hz_lmf_raw <- sf::st_read(dsn = dsn, layer = "SOILHORIZON", stringsAsFactors = FALSE, quiet = T)
+#'   } else {
+#'     stop("Supply either SOILHORIZON or the path to a GDB containing that table")
+#'   }
+#'
+#'   horizons_lmf <- hz_lmf_raw %>%
+#'     dplyr::select(
+#'       PrimaryKey, DBKey, HorizonNumber = SEQNUM,
+#'       HorizonDepthLower = DEPTH, Effervescence = EFFERVESCENCE_CLASS,
+#'       Texture = HORIZON_TEXTURE, TextureModifier = TEXTURE_MODIFIER,
+#'       HorizonNotes = UNUSUAL_FEATURES
+#'     )
+#'
+#'   horizons_lmf <- horizons_lmf %>% # have to have already created horizons_lmf before the HorizonDepthUpper parsing below, as it refers to the df by name
+#'     dplyr::mutate(
+#'       DepthUOM = "cm",
+#'       HorizonNumber = as.character(HorizonNumber),
+#'       HorizonDepthUpper = sapply(unique(PrimaryKey), function(x) {
+#'         lower <- horizons_lmf$HorizonDepthLower[horizons_lmf$PrimaryKey == x]
+#'         upper <- c(0, lower[1:length(lower) - 1])
+#'         return(upper)}
+#'       ) %>% unlist(),
+#'       ### ARE THEY ALWAYS INCHES? No measure type recorded, though they may use decifeet sometimes
+#'       HorizonDepthLower = suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
+#'       HorizonDepthUpper = suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54
+#'     )
+#'
+#'   return(horizons_lmf)
+#' }
+#' #' export gather_soil_horizon_survey123
+#' #' rdname gather_soil_horizon
+#' # gather_soil_horizon_survey123 <- function(dsn = NULL,
+#' #                                           PlotChar_0 = NULL,
+#' #                                           SoilPitHorizons_1 = NULL){
+#' #
+#' #   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+#' #   if (!is.null(SoilPitHorizons_1) & !is.null(PlotChar_0)) {
+#' #     hz_raw <- SoilPitHorizons_1
+#' #     plotchar_raw <- PlotChar_0
+#' #   } else if(!is.null(dsn)){
+#' #     if(!file.exists(dsn)){
+#' #       stop("dsn must be a valid filepath to a geodatabase containing tblSoilPitHorizons")
+#' #     }
+#' #
+#' #     hz_raw <- suppressWarnings(sf::st_read(dsn = dsn, layer = "tblSoilPitHorizons",
+#' #                                                stringsAsFactors = FALSE, quiet = T))
+#' #   } else {
+#' #     stop("Supply either tblSoilPitHorizons, or the path to a GDB containing those tables")
+#' #   }
+#' #
+#' #   # Survey123 data uses PlotKey instead of PrimaryKey
+#' #   hz_raw <- dplyr::left_join(hz_raw, plotchar_raw %>% dplyr::select(PrimaryKey = PlotKey, GlobalID), by = c("ParentGlobalID" = "GlobalID"))
+#' #
+#' #   # Check for duplicate PrimaryKeys
+#' #   dupkeys <- hz_raw$PrimaryKey[duplicated(hz_raw$PrimaryKey)]
+#' #   if(length(dupkeys) > 0){
+#' #     dupnames <- paste(unique(dupkeys), collapse = ", ")
+#' #     warning(paste("Duplicate PrimaryKeys found. Change PlotKey in the original data:", dupnames))
+#' #   }
+#' #
+#' #   horizons <- hz_raw %>%
+#' #     ### select ###
+#' #     dplyr::select(
+#' #       PrimaryKey, DBKey, HorizonKey, HorizonDepthUpper, HorizonDepthLower,
+#' #       DepthUOM = DepthMeasure, HorizonName = ESD_Horizon,
+#' #       Texture, TextureModifier = ESD_HorizonModifier,
+#' #       pH = ESD_pH, EC = ESD_EC, Effervescence = Effer,
+#' #       ClayPct = ESD_PctClay, SandPct = ESD_PctSand,
+#' #
+#' #       StructureGrade = ESD_Grade, StructureSize = ESD_Size, StructureType = ESD_Structure,
+#' #       # StructureGrade2 = ESD_Grade2, StructureSize2 = ESD_Size2, StructureType2 = ESD_Structure2,
+#' #       StructureQuality = ESD_StructQual,
+#' #
+#' #       # PetrocalcicRubble = ESD_PetrocalcicRubble, Gypsic = ESD_Gypsic,
+#' #       # ClayFilm = ESD_ClayFilm,
+#' #       Hue = ESD_Hue, Value = ESD_Value, Chroma = ESD_Chroma, ColorMoistDry = ESD_Color,
+#' #       # RootSize = ESD_RootSize, RootQty = ESD_RootQty,
+#' #
+#' #       Fragment1VolPct = ESD_FragVolPct,  Fragment1Type = ESD_FragmentType,
+#' #       Fragment2VolPct = ESD_FragVolPct2, Fragment2Type = ESD_FragmentType2,
+#' #       Fragment3VolPct = ESD_FragVolPct3, Fragment3Type = ESD_FragmentType3,
+#' #
+#' #       HorizonNotes = ESD_Notes
+#' #
+#' #       ### cleaning ###
+#' #     ) %>%
+#' #     dplyr::mutate_all(
+#' #       stringr::str_trim # defensive, early qc seems to catch this well
+#' #     ) %>%
+#' #     ### recode class data###
+#' #     dplyr::mutate(
+#' #       StructureGrade = dplyr::recode(StructureGrade,
+#' #                                      "0" = "Structureless",
+#' #                                      "1" = "Weak",
+#' #                                      "2" = "Moderate",
+#' #                                      "3" = "Strong"),
+#' #       # StructureGrade2 = dplyr::recode(StructureGrade2,
+#' #       #                          "0" = "Structureless",
+#' #       #                          "1" = "Weak",
+#' #       #                          "2" = "Moderate",
+#' #       #                          "3" = "Strong"),
+#' #       StructureSize = dplyr::recode(StructureSize %>% tolower(),
+#' #                                     "vf" = "Very fine",
+#' #                                     "vn" = "Very thin",
+#' #                                     "f"  = "Fine",
+#' #                                     "tn" = "Thin",
+#' #                                     "m"  = "Medium",
+#' #                                     "co" = "Coarse",
+#' #                                     "tk" = "Thick",
+#' #                                     "vc" = "Very coarse",
+#' #                                     "vk" = "Very thick",
+#' #                                     "ec" = "Extremely coarse"),
+#' #       # StructureSize2 = dplyr::recode(StructureSize2 %>% tolower(),
+#' #       #                         "vf" = "Very fine",
+#' #       #                         "vn" = "Very thin",
+#' #       #                         "f"  = "Fine",
+#' #       #                         "tn" = "Thin",
+#' #       #                         "m"  = "Medium",
+#' #       #                         "co" = "Coarse",
+#' #       #                         "tk" = "Thick",
+#' #       #                         "vc" = "Very coarse",
+#' #       #                         "vk" = "Very thick",
+#' #       #                         "ec" = "Extremely coarse"),
+#' #       StructureType = dplyr::recode(StructureType %>% tolower(),
+#' #                                     "gr"  = "Granular",
+#' #                                     "abk" = "Angular blocky",
+#' #                                     "sbk" = "Subangular blocky",
+#' #                                     "pl"  = "Platy",
+#' #                                     "weg" = "Wedge",
+#' #                                     "pr"  = "Prismatic",
+#' #                                     "col" = "Columnar",
+#' #                                     "sg"  = "Single grain",
+#' #                                     "ma"  = "Massive",
+#' #                                     "cdy" = "Cloddy",
+#' #                                     "other" = "Other"),
+#' #       # StructureType2 = dplyr::recode(StructureType2 %>% tolower(),
+#' #       #                         "gr"  = "Granular",
+#' #       #                         "abk" = "Angular blocky",
+#' #       #                         "sbk" = "Subangular blocky",
+#' #       #                         "pl"  = "Platy",
+#' #       #                         "weg" = "Wedge",
+#' #       #                         "pr"  = "Prismatic",
+#' #       #                         "col" = "Columnar",
+#' #       #                         "sg"  = "Single grain",
+#' #       #                         "ma"  = "Massive",
+#' #       #                         "cdy" = "Cloddy",
+#' #       #                         "other" = "Other"),
+#' #     ) %>%
+#' #     ### complex mutates that depend on >1 var ###
+#' #     dplyr::mutate(
+#' #       SiltPct = 100 - (as.numeric(SandPct) + as.numeric(ClayPct)),
+#' #       FragVolGravel = dplyr::case_when(
+#' #         Fragment1Type %in% c("GR", "Gravel", "1") ~ Fragment1VolPct,
+#' #         Fragment2Type %in% c("GR", "Gravel", "1") ~ Fragment2VolPct,
+#' #         Fragment3Type %in% c("GR", "Gravel", "1") ~ Fragment3VolPct
+#' #       ),
+#' #       FragVolCobble = dplyr::case_when(
+#' #         Fragment1Type %in% c("CB", "Cobble", "2") ~ Fragment1VolPct,
+#' #         Fragment2Type %in% c("CB", "Cobble", "2") ~ Fragment2VolPct,
+#' #         Fragment3Type %in% c("CB", "Cobble", "2") ~ Fragment3VolPct
+#' #       ),
+#' #       FragVolStone = dplyr::case_when(
+#' #         Fragment1Type %in% c("ST", "Stone", "6") ~ Fragment1VolPct,
+#' #         Fragment2Type %in% c("ST", "Stone", "6") ~ Fragment2VolPct,
+#' #         Fragment3Type %in% c("ST", "Stone", "6") ~ Fragment3VolPct
+#' #       ),
+#' #       FragVolNodule = dplyr::case_when(
+#' #         Fragment1Type %in% c("8", "Nodule") ~ Fragment1VolPct,
+#' #         Fragment2Type %in% c("8", "Nodule") ~ Fragment2VolPct,
+#' #         Fragment3Type %in% c("8", "Nodule") ~ Fragment3VolPct
+#' #       ),
+#' #       FragVolDurinode = dplyr::case_when(
+#' #         Fragment1Type %in% c("9", "Durinode") ~ Fragment1VolPct,
+#' #         Fragment2Type %in% c("9", "Durinode") ~ Fragment2VolPct,
+#' #         Fragment3Type %in% c("9", "Durinode") ~ Fragment3VolPct
+#' #       ),
+#' #       HorizonDepthLower = dplyr::case_when(
+#' #         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthLower)) * 2.54,
+#' #         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthLower))),
+#' #       HorizonDepthUpper = dplyr::case_when(
+#' #         DepthUOM == "in" ~ suppressWarnings(as.numeric(HorizonDepthUpper)) * 2.54,
+#' #         DepthUOM == "cm" ~ suppressWarnings(as.numeric(HorizonDepthUpper))),
+#' #       DepthUOM = "cm"
+#' #     ) %>%
+#' #     ### drop vars that are no longer relevant ###
+#' #     dplyr::select(
+#' #       -Fragment1Type,
+#' #       -Fragment2Type,
+#' #       -Fragment3Type,
+#' #       -Fragment1VolPct,
+#' #       -Fragment2VolPct,
+#' #       -Fragment3VolPct,
+#' #     )   %>%
+#' #     dplyr::arrange(PrimaryKey, HorizonDepthUpper) %>%
+#' #     dplyr::group_by( # group to add horizon number columnm. if this reduces nrows, theres a mistake
+#' #       PrimaryKey
+#' #     ) %>%
+#' #
+#' #     dplyr::mutate(HorizonNumber = as.character(dplyr::row_number()),
+#' #                   # across(c(RockFragments), ~ suppressWarnings(as.integer(.x))),
+#' #                   across(c(pH,
+#' #                            EC, ClayPct, SandPct, SiltPct, # poreqty,
+#' #                            FragVolGravel, FragVolCobble, FragVolStone, FragVolNodule,
+#' #                            FragVolDurinode, HorizonDepthUpper, HorizonDepthLower,
+#' #                   ), ~ suppressWarnings(as.double(.x))),
+#' #                   # across(c(ClayFilm, PetrocalcicRubble, Gypsic), ~ suppressWarnings(as.logical(as.integer(.x))))
+#' #     )
+#' #   horizons <- as.data.frame(horizons)
+#' #
+#' #   return(horizons)
+#' # }
+#'
+#'
+#' #' @export gather_soil_horizon
+#' #' @rdname gather_soil_horizon
+#' gather_soil_horizon <- function(dsn = NULL,
+#'                                 source,
+#'                                 SOILHORIZON = NULL,
+#'                                 tblSoilPitHorizons = NULL,
+#'                                 autoQC = TRUE) {
+#'
+#'   if(toupper(source) %in% c("AIM", "TERRADAT")) {
+#'     soil <- gather_soil_horizon_terradat(dsn = dsn, tblSoilPitHorizons = tblSoilPitHorizons)
+#'   } else if(toupper(source) %in% c("LMF", "NRI")){
+#'     soil <- gather_soil_horizon_lmf(dsn = dsn, SOILHORIZON = SOILHORIZON)
+#'   } else {
+#'     stop("source must be AIM, TerraDat, DIMA, LMF, or NRI (all case independent)")
+#'   }
+#'
+#'   soil$source <- source
+#'
+#'   if("sf" %in% class(soil)) soil <- sf::st_drop_geometry(soil)
+#'
+#'   if (any(class(soil) %in% c("POSIXct", "POSIXt"))) {
+#'     change_vars <- names(soil)[do.call(rbind, vapply(soil,
+#'                                                      class))[, 1] %in% c("POSIXct", "POSIXt")]
+#'     soil <- dplyr::mutate_at(soil, dplyr::vars(change_vars),
+#'                              dplyr::funs(as.character))
+#'   }
+#'
+#'   # change from tibble to data frame
+#'   soil <- as.data.frame(soil) %>%
+#'
+#'     # reorder so that primary key is leftmost column
+#'     dplyr::select(PrimaryKey, DBKey, tidyselect::everything())
+#'
+#'   # remove duplicates and empty rows
+#'   if(autoQC){
+#'     message("Removing duplicated rows and rows with no essential data. Disable by adding the parameter 'autoQC = FALSE'")
+#'     soil <- soil %>% tdact_remove_duplicates() %>% tdact_remove_empty(datatype = "soilhz")
+#'   }
+#'
+#'   return(soil)
+#' }
+#'
+#' #### GATHER ALL ################################################################
+#' #' Gather tall tables for gap, vegetation height, LPI, plot characterization,
+#' #' IIRH, soil horizon, soil pit summary, soil stability, and species inventory.
+#' #'
+#' #' @description Given wide format AIM/LMF data, gather gap,
+#' #' vegetation height, LPI, header, IIRH, soil horizon,
+#' #' soil pit summary, soil stability, and species inventory data. Missing
+#' #' tables will be skipped. AIM-type and LMF-type data will both be processed.
+#' #' @param dsn Character string. The full filepath and filename (including file
+#' #' extension) of the geodatabase or text file containing thes table of interest.
+#' #' This field is unnecessary if you provide dflist.
+#' #' @param dflist Named list of data frames containing monitoring data. Tables
+#' #' must be named as expected by the individual gather_functions.
+#' #' @param outfolder Character string. Name of a folder to save all output to.
+#' #' If the specified folder does not exist, the function will create it.
+#' #' @param outtype Vector specifying output format, accepting "csv" and "rdata".
+#' #' Defaults to writing both.
+#' #' @param verbose True/False. When true, displays progress information, and
+#' #' reports missing input data.
+#' #' @param doLPI True/False. When false, LPI data will not be gathered. LPI data
+#' #' is large and the gather process is RAM-intensive. This function will function
+#' #' with fewer resources if LPI is run in batches, external to this wrapper.
+#' #' @importFrom magrittr %>%
+#' #' @name gather_all
+#' #' @family <gather>
+#' #' @return A list of tall data frames containing reformatted input data.
+#' #' @examples
+#' #' gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", outfolder = "output")
+#' #'
+#' #' names <- sf::st_layers(dsn = "Path/To/AIM-LMF_Geodatabase.gdb")$name
+#' #' all_data <- sapply(names, function(n){## Gather Height Data
+#' #'   sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
+#' #'   layer = n, quiet = T)
+#' #' })
+#' #' gather_all(dflist = all_data, outfolder = "output")
+#'
+#'
+#' ## Gather All Data
+#' #' @export gather_all
+#' #' @rdname gather_all
+#'
+#' gather_all <- function(dsn = NULL,
+#'                        dflist = NULL,
+#'                        outfolder,
+#'                        outtype = c("csv", "rdata"),
+#'                        verbose = TRUE,
+#'                        doLPI = TRUE) {
+#'   # prep ####
+#'   outtype <- tolower(outtype)
+#'
+#'   if(substr(outfolder, nchar(outfolder), nchar(outfolder)) != "/") {
+#'     outfolder <- paste0(outfolder, "/")
+#'   }
+#'
+#'   if(!dir.exists(outfolder)) dir.create(outfolder)
+#'
+#'   # if neither dsn or dflist are provided, stop
+#'   if(is.null(dflist) & is.null(dsn)) stop("Provide either dsn or dflist")
+#'
+#'   # if both dsn and dflist are provided, drop dsn
+#'   if(!is.null(dflist) & !is.null(dsn)){
+#'     dsn <- NULL
+#'     if(verbose) print("Both dsn and dflist were provided. Dsn will be ignored")
+#'   }
+#'
+#'   # extract names, check against these before trying to load data
+#'   if(is.null(dflist)){
+#'     names_rda <- NULL
+#'   } else {
+#'     names_rda <- names(dflist)
+#'   }
+#'   if(is.null(dsn)){
+#'     names_gdb <-NULL
+#'   } else {
+#'     names_gdb <- sf::st_layers(dsn) %>% unlist()
+#'   }
+#'
+#'   # pull tables out of dflist if supplied, so the lack of NULL inputs dont mess up the functions
+#'   # if dflist is NULL, all of these should be NULL
+#'   tblGapDetail <- dflist[["tblGapDetail"]]
+#'   tblGapHeader <- dflist[["tblGapHeader"]]
+#'   tblLPIDetail <- dflist[["tblLPIDetail"]]
+#'   tblLPIHeader <- dflist[["tblLPIHeader"]]
+#'   tblSoilStabDetail <- dflist[["tblSoilStabDetail"]]
+#'   tblSoilStabHeader <- dflist[["tblSoilStabHeader"]]
+#'   tblQualDetail <- dflist[["tblQualDetail"]]
+#'   tblQualHeader <- dflist[["tblQualHeader"]]
+#'   tblSoilPitHorizons <- dflist[["tblSoilPitHorizons"]]
+#'   tblSoilPits <- dflist[["tblSoilPits"]]
+#'   tblSpecRichDetail <- dflist[["tblSpecRichDetail"]]
+#'   tblSpecRichHeader <- dflist[["tblSpecRichHeader"]]
+#'   tblPlots <- dflist[["tblPlots"]]
+#'
+#'   GINTERCEPT <- dflist[["GINTERCEPT"]]
+#'   POINT <- dflist[["POINT"]]
+#'   PASTUREHEIGHTS <- dflist[["PASTUREHEIGHTS"]]
+#'   RANGEHEALTH <- dflist[["RANGEHEALTH"]]
+#'   PINTERCEPT <- dflist[["PINTERCEPT"]]
+#'   SOILDISAG <- dflist[["SOILDISAG"]]
+#'   PLANTCENSUS <- dflist[["PLANTCENSUS"]]
+#'   SOILHORIZON <- dflist[["SOILHORIZON"]]
+#'   POINTCOORDINATES <- dflist[["POINTCOORDINATES"]]
+#'   GPS <- dflist[["GPS"]]
+#'
+#'   rm(dflist)
+#'
+#'   # Gap ####
+#'   if(("tblGapDetail" %in% names_rda & "tblGapHeader" %in% names_rda) |
+#'      ("tblGapDetail" %in% names_gdb & "tblGapHeader" %in% names_gdb)){
+#'     if(verbose) print("Gathering AIM gap")
+#'     gap_aim <- gather_gap(dsn = dsn, source = "AIM",
+#'                           tblGapDetail = tblGapDetail,
+#'                           tblGapHeader = tblGapHeader)
+#'   } else {
+#'     gap_aim <- NULL
+#'     if(verbose) print("tblGapDetail and/or tblGapHeader not found. Skipping AIM Gap.")
+#'   }
+#'
+#'   if(("GINTERCEPT" %in% names_rda & "POINT" %in% names_rda) |
+#'      ("GINTERCEPT" %in% names_gdb & "POINT" %in% names_gdb)){
+#'     if(verbose) print("Gathering LMF gap")
+#'     gap_lmf <- gather_gap(dsn = dsn, source = "LMF",
+#'                           GINTERCEPT = GINTERCEPT,
+#'                           POINT = POINT)
+#'   } else {
+#'     gap_lmf <- NULL
+#'     if(verbose) print("GINTERCEPT and/or POINT not found. Skipping LMF Gap.")
+#'   }
+#'
+#'   gap_tall <- dplyr::bind_rows(gap_aim, gap_lmf)
+#'   if(1 <= nrow(gap_tall)){
+#'     if("csv" %in% outtype){
+#'       write.csv(gap_tall,
+#'                 file = paste(outfolder, "gap_tall.csv", sep = ""), row.names = F)
+#'     }
+#'     if("rdata" %in% outtype){
+#'       saveRDS(gap_tall,
+#'               file = paste0(outfolder, "gap_tall.rdata"))
+#'     }
+#'
+#'   }
+#'   rm(gap_aim, gap_lmf)
+#'   invisible(gc())
+#'
+#'   # Soil stability ####
+#'   if(("tblSoilStabDetail" %in% names_rda & "tblSoilStabHeader" %in% names_rda) |
+#'      ("tblSoilStabDetail" %in% names_gdb & "tblSoilStabHeader" %in% names_gdb)){
+#'     if(verbose) print("Gathering AIM soil stability")
+#'     soilstab_aim <- gather_soil_stability(dsn = dsn, source = "AIM",
+#'                                           tblSoilStabDetail = tblSoilStabDetail,
+#'                                           tblSoilStabHeader = tblSoilStabHeader)
+#'   } else {
+#'     soilstab_aim <- NULL
+#'     if(verbose) print("tblSoilStabDetail and/or tblSoilStabHeader not found. Skipping AIM Soil Stability.")
+#'   }
+#'
+#'   if(("SOILDISAG" %in% names_rda) |
+#'      ("SOILDISAG" %in% names_gdb)){
+#'     if(verbose) print("Gathering LMF soil stability")
+#'     soilstab_lmf <- gather_soil_stability(dsn = dsn, source = "LMF",
+#'                                           SOILDISAG = SOILDISAG)
+#'   } else {
+#'     soilstab_lmf <- NULL
+#'     if(verbose) print("SOILDISAG not found. Skipping LMF Soil Stability.")
+#'   }
+#'
+#'   soilstab_tall <- dplyr::bind_rows(soilstab_aim, soilstab_lmf)
+#'   if(1 <= nrow(soilstab_tall)){
+#'
+#'     if("csv" %in% outtype){
+#'       write.csv(soilstab_tall,
+#'                 file = paste(outfolder, "soil_stability_tall.csv", sep = ""), row.names = F)
+#'     }
+#'     if("rdata" %in% outtype){
+#'       saveRDS(soilstab_tall,
+#'               file = paste0(outfolder, "soil_stability_tall.rdata"))
+#'     }
+#'   }
+#'   rm(soilstab_aim, soilstab_lmf)
+#'   invisible(gc())
+#'
+#'   # LPI ####
+#'   if(doLPI == T){
+#'     if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
+#'        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
+#'       if(verbose) print("Gathering AIM LPI")
+#'       lpi_aim <- gather_lpi(dsn = dsn, file_type = "gdb", source = "AIM",
+#'                             tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)} else {
+#'                               lpi_aim <- NULL
+#'                               if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
+#'                             }
+#'
+#'     if(("PINTERCEPT" %in% names_rda) |
+#'        ("PINTERCEPT" %in% names_gdb)){
+#'       if(verbose) print("Gathering LMF LPI")
+#'       lpi_lmf <- gather_lpi(dsn = dsn, file_type = "gdb", source = "LMF",
+#'                             PINTERCEPT = PINTERCEPT)
+#'     } else {
+#'       lpi_lmf <- NULL
+#'       if(verbose) print("PINTERCEPT not found. Skipping LMF LPI.")
+#'     }
+#'
+#'     lpi_tall <- dplyr::bind_rows(lpi_aim, lpi_lmf)
+#'     if(1 <= nrow(lpi_tall)){
+#'       if("csv" %in% outtype){
+#'         write.csv(lpi_tall,
+#'                   file = paste(outfolder, "lpi_tall.csv", sep = ""), row.names = F)
+#'       }
+#'       if("rdata" %in% outtype){
+#'         saveRDS(lpi_tall,
+#'                 file = paste0(outfolder, "lpi_tall.rdata"))
+#'       }
+#'     }
+#'     rm(lpi_aim, lpi_lmf)
+#'     invisible(gc())
+#'
+#'     # Height ####
+#'     if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
+#'        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
+#'       if(verbose) print("Gathering AIM Height")
+#'       height_aim <- gather_height(dsn = dsn, file_type = "gdb", source = "AIM",
+#'                                   tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
+#'     } else {
+#'       height_aim <- NULL
+#'       if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM Height.")
+#'     }
+#'
+#'     if(("PASTUREHEIGHTS" %in% names_rda) |
+#'        ("PASTUREHEIGHTS" %in% names_gdb)){
+#'       if(verbose) print("Gathering LMF Height")
+#'       height_lmf <- gather_height(dsn = dsn, file_type = "gdb", source = "LMF",
+#'                                   PASTUREHEIGHTS = PASTUREHEIGHTS)
+#'     } else {
+#'       height_lmf <- NULL
+#'       if(verbose) print("PASTUREHEIGHTS not found. Skipping LMF Height.")
+#'     }
+#'
+#'     height_tall <- dplyr::bind_rows(height_aim, height_lmf)
+#'     if(1 <= nrow(height_tall)){
+#'       if("csv" %in% outtype){
+#'         write.csv(height_tall,
+#'                   file = paste(outfolder, "height_tall.csv", sep = ""), row.names = F)
+#'       }
+#'       if("rdata" %in% outtype){
+#'         saveRDS(height_tall,
+#'                 file = paste0(outfolder, "height_tall.rdata"))
+#'       }
+#'     }
+#'     rm(height_lmf, height_aim)
+#'     invisible(gc())
+#'
+#'
+#'
+#'
+#'   } else {
+#'     print("doLPI is false, skipping all lpi")
+#'   }
+#'
+#'   ##### Species inventory ####
+#'   if(("tblSpecRichDetail" %in% names_rda & "tblSpecRichHeader" %in% names_rda) |
+#'      ("tblSpecRichDetail" %in% names_gdb & "tblSpecRichHeader" %in% names_gdb)){
+#'     if(verbose) print("Gathering AIM species inventory")
+#'     spp_inventory_aim <- gather_species_inventory(dsn = dsn, source = "AIM",
+#'                                                   tblSpecRichDetail = tblSpecRichDetail,
+#'                                                   tblSpecRichHeader = tblSpecRichHeader)
+#'
+#'   } else {
+#'     spp_inventory_aim <- NULL
+#'     if(verbose) print("tblSpecRichDetail and/or tblSpecRichHeader not found. Skipping AIM Species Inventory.")
+#'   }
+#'   if(("PLANTCENSUS" %in% names_rda) |
+#'      ("PLANTCENSUS" %in% names_gdb)){
+#'     if(verbose) print("Gathering LMF species inventory")
+#'     spp_inventory_lmf <- gather_species_inventory(dsn = dsn, source = "LMF",
+#'                                                   PLANTCENSUS = PLANTCENSUS,
+#'                                                   file_type = "gdb")
+#'   } else {
+#'     spp_inventory_lmf <- NULL
+#'     if(verbose) print("PLANTCENSUS not found. Skipping LMF Species Inventory.")
+#'   }
+#'
+#'   spp_inventory_tall <- dplyr::bind_rows(spp_inventory_aim, spp_inventory_lmf)
+#'   if(1 <= nrow(spp_inventory_tall)){
+#'
+#'     if("csv" %in% outtype){
+#'       write.csv(spp_inventory_tall,
+#'                 file = paste(outfolder, "species_inventory_tall.csv", sep = ""), row.names = F)
+#'     }
+#'     if("rdata" %in% outtype){
+#'       saveRDS(spp_inventory_tall,
+#'               file = paste0(outfolder, "spp_inventory_tall.rdata"))
+#'     }
+#'   }
+#'   rm(spp_inventory_aim, spp_inventory_lmf)
+#'   invisible(gc())
+#'
+#'   # soil horizons ####
+#'   if(("tblSoilPitHorizons" %in% names_rda) |
+#'      ("tblSoilPitHorizons" %in% names_gdb)){
+#'     if(verbose) print("Gathering AIM soil horizon data")
+#'     hz_aim <- gather_soil_horizon(dsn = dsn, source = "AIM",
+#'                                   tblSoilPitHorizons = tblSoilPitHorizons)
+#'   } else {
+#'     hz_aim <- NULL
+#'     if(verbose) print("tblSoilPitHorizons not found. Skipping AIM Horizons.")
+#'   }
+#'   if(("SOILHORIZON" %in% names_rda) |
+#'      ("SOILHORIZON" %in% names_gdb)){
+#'     if(verbose) print("Gathering LMF soil horizon data")
+#'     hz_lmf <- gather_soil_horizon(dsn = dsn, source = "LMF", SOILHORIZON = SOILHORIZON)
+#'   } else {
+#'     hz_lmf <- NULL
+#'     if(verbose) print("SOILHORIZON not found. Skipping LMF Horizons.")
+#'   }
+#'   hz_tall <- dplyr::bind_rows(hz_aim, hz_lmf)
+#'   if(1 <= nrow(hz_tall)){
+#'
+#'     if("csv" %in% outtype){
+#'       write.csv(hz_tall,
+#'                 file = paste(outfolder, "soil_horizons_tall.csv", sep = ""), row.names = F)
+#'     }
+#'     if("rdata" %in% outtype){
+#'       saveRDS(hz_tall,
+#'               file = paste0(outfolder, "soil_horizons_tall.rdata"))
+#'     }
+#'
+#'   }
+#'   rm(hz_aim, hz_lmf)
+#'   invisible(gc())
+#'
+#'   # soil summary ####
+#'   if(("tblSoilPitHorizons" %in% names_rda & "tblSoilPits" %in% names_rda) |
+#'      ("tblSoilPitHorizons" %in% names_gdb & "tblSoilPits" %in% names_gdb)){
+#'     if(verbose) print("Gathering AIM soil summary")
+#'     pit_aim <- gather_soil_summary(dsn = dsn, source = "AIM",
+#'                                    tblSoilPitHorizons = tblSoilPitHorizons,
+#'                                    tblSoilPits = tblSoilPits)
+#'   } else {
+#'     pit_aim <- NULL
+#'     if(verbose) print("tblSoilPitHorizons and/or tblSoilPits not found. Skipping AIM Soil Summary.")
+#'   }
+#'   if(("SOILHORIZON" %in% names_rda) |
+#'      ("SOILHORIZON" %in% names_gdb)){
+#'     if(verbose) print("Gathering LMF soil summary")
+#'     pit_lmf <- gather_soil_summary(dsn = dsn, source = "LMF", SOILHORIZON = SOILHORIZON)
+#'   } else {
+#'     pit_lmf <- NULL
+#'     if(verbose) print("SOILHORIZON not found. Skipping LMF soil Summary.")
+#'   }
+#'   pit_tall <- dplyr::bind_rows(pit_aim, pit_lmf)
+#'   if(1 <= nrow(pit_tall)){
+#'     if("csv" %in% outtype){
+#'       write.csv(pit_tall,
+#'                 file = paste(outfolder, "pit_tall.csv", sep = ""), row.names = F)
+#'     }
+#'     if("rdata" %in% outtype){
+#'       saveRDS(pit_tall,
+#'               file = paste0(outfolder, "pit_tall.rdata"))
+#'     }
+#'   }
+#'
+#'   rm(pit_aim, pit_lmf)
+#'   invisible(gc())
+#'
+#'   # iirh ####
+#'   if(("tblQualDetail" %in% names_rda & "tblQualHeader" %in% names_rda) |
+#'      ("tblQualDetail" %in% names_gdb & "tblQualHeader" %in% names_gdb)){
+#'     if(verbose) print("Gathering AIM IIRH data")
+#'     iirh_aim <- gather_rangeland_health(dsn = dsn, source = "AIM",
+#'                                         tblQualDetail = tblQualDetail,
+#'                                         tblQualHeader = tblQualHeader)
+#'   } else {
+#'     iirh_aim <- NULL
+#'     if(verbose) print("tblQualDetail and/or tblQualHeader not found. Skipping AIM Rangeland Health.")
+#'   }
+#'   if(("RANGEHEALTH" %in% names_rda) |
+#'      ("RANGEHEALTH" %in% names_gdb)){
+#'     if(verbose) print("Gathering LMF IIRH data")
+#'     iirh_lmf <- gather_rangeland_health(dsn = dsn, source = "LMF",
+#'                                         RANGEHEALTH = RANGEHEALTH)
+#'
+#'   } else {
+#'     iirh_lmf <- NULL
+#'     if(verbose) print("RANGEHEALTH not found. Skipping LMF Rangeland Health.")
+#'   }
+#'   iirh_tall <- dplyr::bind_rows(iirh_aim, iirh_lmf)
+#'   if(1 <= nrow(iirh_tall)){
+#'     if("csv" %in% outtype){
+#'       write.csv(iirh_tall,
+#'                 file = paste(outfolder, "rangeland_health_tall.csv", sep = ""), row.names = F)
+#'     }
+#'     if("rdata" %in% outtype){
+#'       saveRDS(iirh_tall,
+#'               file = paste0(outfolder, "rangeland_health_tall.rdata"))
+#'     }  }
+#'   rm(iirh_aim, iirh_lmf)
+#'   invisible(gc())
+#'
+#'   # header ####
+#'   if(("tblPlots" %in% names_rda & "tblLPIHeader" %in% names_rda) |
+#'      ("tblPlots" %in% names_gdb & "tblLPIHeader" %in% names_rda)){
+#'     if(verbose) print("Gathering AIM Header")
+#'     header_aim <- gather_header(dsn = dsn, source = "AIM",
+#'                                 tblPlots = tblPlots,
+#'                                 tblLPIHeader = tblLPIHeader)
+#'
+#'     #
+#'     #     if(verbose) print("Gathering AIM plot characterization")
+#'     #     plotchar_aim <- gather_plot_characterization(dsn = dsn,
+#'     #                                                  source = "AIM",
+#'     #                                                  tblPlots = tblPlots)
+#'
+#'   } else {
+#'     header_aim <- NULL
+#'
+#'     if(verbose) print("tblPlots not found. Skipping AIM header.")
+#'   }
+#'   if(("POINT" %in% names_rda) |
+#'      ("POINT" %in% names_gdb)){
+#'     if(verbose) print("Gathering LMF header")
+#'     header_lmf <- gather_header(dsn = dsn,
+#'                                 source = "LMF")
+#'   } else {
+#'     header_lmf <- NULL
+#'     if(verbose) print("POINT not found. Skipping LMF header.")
+#'   }
+#'
+#'   header_tall <- dplyr::bind_rows(header_aim, header_lmf)
+#'   if(1 <= nrow(header_tall)){
+#'     if("csv" %in% outtype){
+#'       write.csv(header_tall,
+#'                 file = paste(outfolder, "header.csv", sep = ""), row.names = F)
+#'     }
+#'     if("rdata" %in% outtype){
+#'       saveRDS(header_tall,
+#'               file = paste0(outfolder, "header.rdata"))
+#'     }  }
+#'   rm(header_aim, header_lmf)
+#'   invisible(gc())
+#'
+#'   # # output ####
+#'   # if(doLPI == T){
+#'   #
+#'   # list_out <- list(
+#'   #   gap_tall, height_tall, hz_tall, lpi_tall, pit_tall, header_tall,
+#'   #   soilstab_tall, spp_inventory_tall
+#'   # )
+#'   #
+#'   # names(list_out) <- c("Gap", "VegHeight", "SoilHorizons", "LPI", "SoilPitSummary",
+#'   #                      "Header",
+#'   #                      "SoilStability", "SpeciesInventory")
+#'   #
+#'   # } else {
+#'   #   list_out <- list(
+#'   #     gap_tall, hz_tall, #pit_tall,
+#'   #     header_tall,
+#'   #     soilstab_tall, spp_inventory_tall
+#'   #   )
+#'   #
+#'   #   names(list_out) <- c("Gap", "SoilHorizons", "SoilPitSummary",
+#'   #                        "Header", "SoilStability", "SpeciesInventory")
+#'   # }
+#'
+#'   # return(list_out)
+#' }
 

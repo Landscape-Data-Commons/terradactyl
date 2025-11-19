@@ -15,7 +15,12 @@ gather_lpi_terradat(
   verbose = FALSE
 )
 
-gather_lpi_lmf(dsn = NULL, file_type = "gdb", PINTERCEPT = NULL)
+gather_lpi_lmf(
+  dsn = NULL,
+  file_type = "gdb",
+  PINTERCEPT = NULL,
+  verbose = FALSE
+)
 
 gather_lpi(
   dsn = NULL,
@@ -24,7 +29,8 @@ gather_lpi(
   tblLPIDetail = NULL,
   tblLPIHeader = NULL,
   PINTERCEPT = NULL,
-  autoQC = TRUE
+  autoQC = TRUE,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -93,12 +99,9 @@ gather_lpi(source = "LMF",
 }
 \seealso{
 Other <gather>: 
-\code{\link{gather_all}()},
 \code{\link{gather_gap}()},
 \code{\link{gather_height}()},
-\code{\link{gather_plot_characterization}()},
 \code{\link{gather_rangeland_health}()},
-\code{\link{gather_soil_horizon}()},
 \code{\link{gather_soil_stability}()},
 \code{\link{gather_species_inventory}()}
 }

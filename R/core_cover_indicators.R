@@ -7,7 +7,8 @@
 
 #' @export core_cover_indicators
 #' @rdname core_cover_indicators
-core_cover_indicators <- function(lpi_species) {
+core_cover_indicators <- function(lpi_species,
+                                  verbose = FALSE) {
 
   # Correct the Non-Woody to NonWoody
   lpi_species$GrowthHabit[grepl(
@@ -122,7 +123,8 @@ core_cover_indicators <- function(lpi_species) {
   # we need to get a summed value (e.g., Soil =S+FG+LM_CM+AG)
   between.plant.cover <- between.plant.cover %>%
     dplyr::group_by(PrimaryKey, indicator) %>%
-    dplyr::summarise(percent = sum(percent))
+    dplyr::summarise(percent = sum(percent,
+                                   na.rm = TRUE))
 
   # Add a Total Litter Indicator
   between.plant.cover <- between.plant.cover %>%
@@ -132,7 +134,8 @@ core_cover_indicators <- function(lpi_species) {
     dplyr::group_by(PrimaryKey) %>%
     dplyr::summarize(
       indicator = "FH_TotalLitterCover",
-      percent = sum(percent)
+      percent = sum(percent,
+                    na.rm = TRUE)
     ) %>%
     # Add back to the rest of the between plant cover indicators
     dplyr::bind_rows(between.plant.cover, .)
