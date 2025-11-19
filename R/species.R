@@ -1,142 +1,96 @@
-#' #' Gather species attribute data
-#' #' @description Gather species attributes and join to species observations.
-#' #' @param species_file Character string. The full file path (including file extension)
-#' #' to the file containing the species list OR the species list as a data frame.
-#' #' @param species_growth_habit_code Character. The field name for the growth habit
-#' #'  codes in the species file. Defaults to \code{"GrowthHabitSub"}
-#' #' @param growth_habit_file Character string. The full file path (including file extension)
-#' #' to the file containing the growth habit list. If \code{""} we assume the species list contains those values. Defaults to \code{""}.
-#' #' @param growth_habit_code Character. The field name for the growth habit codes
-#' #' in the growth habit file. Defaults to \code{"Code"}
-#' #' @param species_code Character. The field name for the species codes in the species file.
-#' #' @param species_duration Character. the field name for the Duration field in the species file.
-#' #' @param data Dataframe containing species data
-#' #' @param data_code Character. The field name with the species codes in the data.
-#' #' @param species_list Dataframe. Species list output from \code{}
-#' #' @param generic_species_file Character. The full file path (including file extension)to the file containing the species list.
-#' #' @param by_species_key Logical. If \code{TRUE} then the join will attempt to use the variable \code{"SpeciesState"} if it exists. Defaults to \code{TRUE}.
-#'
-#'
-#' #' @export gather_species
-#' #' @rdname species
-#'
-#' # Function to gather species information
-#' gather_species <- function(species_file, #
-#'                            species_growth_habit_code = "GrowthHabitSub",
-#'                            growth_habit_file = "",
-#'                            growth_habit_code = "Code" #
-#' ) {
-#'   if (is.character(species_file)) {
-#'     # check to see if the species file exists and read in the appropriate file type
-#'     if (!file.exists(species_file)) {
-#'       stop("The species file does not exist")
-#'     }
-#'
-#'     # read from .csv or .gdb. If gdb we assume it is of the schema aim.gdb
-#'     species <- switch(EXPR = stringr::str_extract(species_file,
-#'                                                   pattern = "[A-z]{3}$") |>
-#'                         toupper(x = _),
-#'                       GDB = {
-#'                         sf::st_read(dsn = species_file,
-#'                                     layer = "tblStateSpecies",
-#'                                     stringsAsFactors = FALSE) |>
-#'                           suppressWarnings()
-#'                       },
-#'                       CSV = {
-#'                         read.csv(file = species_file,
-#'                                  stringsAsFactors = FALSE,
-#'                                  na.strings = c("", " "))
-#'                       })
-#'
-#'   } else if (is.data.frame(species_file)) {
-#'     species <- species_file
-#'   }
-#'
-#'   # If somehow species is NULL at this point, we've got to abort.
-#'   if (is.null(species)) {
-#'     stop("No valid species_file value. Must be a data frame, .csv, or .gdb file.")
-#'   } else {
-#'     # These are variables for internal use within the geodatabase, so we'll chuck
-#'     # them to prevent issues down the line, specifically trying to use distinct()
-#'     species <- dplyr::select(.data = species,
-#'                              -tidyselect::any_of(x = c("created_user",
-#'                                                        "created_date",
-#'                                                        "last_edited_user",
-#'                                                        "last_edited_date",
-#'                                                        "GlobalID",
-#'                                                        "DateLoadedInDb",
-#'                                                        "DBKey"))) |>
-#'       # Speaking of distinct(), this shouldn't be necessary but doesn't hurt.
-#'       dplyr::distinct()
-#'   }
-#'
-#'   # TODO: Consider removing growth habit info
-#'   # This bit tries to read in growth habit info if it can.
-#'   # As far as I know, this feature is vestigial in 2025, but we're keeping it
-#'   # in place because I don't want to break legacy code.
-#'   growth_habit <- switch(EXPR = stringr::str_extract(growth_habit_file,
-#'                                                      pattern = "[A-z]{3}$") |>
-#'                            toupper(x = _),
-#'                          # This no longer appears in the TerrADat geodatabase
-#'                          # and hasn't in a few years, so it's disabled for now.
-#'                          # GDB = {
-#'                          #   sf::st_read(dsn = growth_habit_file,
-#'                          #               layer = "tblSpeciesGrowthHabit",
-#'                          #               stringsAsFactors = FALSE) |>
-#'                          #     suppressWarnings()
-#'                          # },
-#'                          CSV = {
-#'                            read.csv(file = growth_habit_file,
-#'                                     stringsAsFactors = FALSE)
-#'                          })
-#'
-#'   if (!is.null(growth_habit)) {
-#'     # Rename the growth habit code variable to reflect the one in the species
-#'     # data we're working with.
-#'     growth_habit <- dplyr::rename(.data = growth_habit,
-#'                                   tidyselect::all_of(x = setNames(object = growth_habit_code,
-#'                                                                   nm = species_growth_habit_code)))
-#'
-#'     # Strip out any variables that are for internal-to-the-TerrADat-GDB purposes
-#'     growth_habit <- dplyr::select(.data = growth_habit,
-#'                                   -tidyselect::any_of(x = c("created_user",
-#'                                                             "created_date",
-#'                                                             "last_edited_user",
-#'                                                             "last_edited_date",
-#'                                                             "GlobalID",
-#'                                                             "DateLoadedInDb",
-#'                                                             "DBKey",
-#'                                                             "PrimaryKey")))
-#'
-#'     # Join the species list and the growth habit stuff
-#'     # This didn't have a "by" specified previously, so I've left it unspecified
-#'     # for now.
-#'     species <- dplyr::left_join(x = dplyr::select(.data = species,
-#'                                                   tidyselect::any_of(x = diff(x = names(growth_habit),
-#'                                                                               y = c("PrimaryKey")))),
-#'                                 y = growth_habit,
-#'                                 # I think that this should be a one-to-one but
-#'                                 # if this breaks things we can take it out.
-#'                                 relationship = "one-to-one")
-#'   } else if (growth_habit_file != "") {
-#'     warning("The provided value for growth_habit_file does not point to the filepath for a CSV file and has been ignored.")
-#'   }
-#'
-#'   # Final cleanup!
-#'   # Making sure that we have character variables instead of factors, that we've
-#'   # removed any leading or trailing whitespace from strings, and that we're not
-#'   # keeping any records where the species code is NA.
-#'   species <- dplyr::mutate(.data = species,
-#'                            dplyr::across(.cols = tidyselect::where(fn = is.factor),
-#'                                          .fns = ~ as.character(x = .x) |>
-#'                                            stringr::str_trim(string = _))) |>
-#'     dplyr::filter(.data = _,
-#'                   !is.na(dplyr::vars(species_code)))
-#'
-#'   species
-#' }
+species_read_aim <- function(dsn,
+                             verbose = FALSE) {
+  #### Validity checks #########################################################
+  if (!is.character(dsn)) {
+    stop("dsn must be a character string specifying the filepath to a geodatabase containing tables called 'tblNationalPlants' and 'tblStateSpecies'.")
+  }
+  if (!file.exists(dsn)) {
+    stop("dsn must be a character string specifying the filepath to a geodatabase containing tables called 'tblNationalPlants' and 'tblStateSpecies'.")
+  }
+  if (!(tools::file_ext(dsn) %in% c("GDB", "gdb"))) {
+    stop("dsn must be a character string specifying the filepath to a geodatabase containing tables called 'tblNationalPlants' and 'tblStateSpecies'.")
+  }
+  required_tables <- c("tblNationalPlants",
+                       "tblStateSpecies")
+  available_layers <- sf::st_layers(dsn = dsn)$name
+  missing_tables <- setdiff(x = required_tables,
+                            y = available_layers)
+  if (length(missing_tables) > 0) {
+    stop(paste0("The following tables are required but do not exist in the specified geodatabase: ",
+                paste(missing_tables,
+                      collapse = ", ")))
+  }
+
+  #### Reading #################################################################
+  # This is way more complicated now that we're working with tblNationalPlants
+  # AND tblStateSpecies. This combines them for use in species_join().
+  # First, we grab tblNationalPlants and tblStateSpecies.
+  # Then we discard everything from tblStateSpecies except the variables
+  # containing codes, the states, and the sage-grouse groups.
+  # We summarize tblStateSpecies to get a data frame of codes with a variable
+  # called SG_Group that contains the sage-grouse species info by state as a
+  # series of pipe-separated values in a character string.
+  # We finish up by joining the new sage-grouse data frame to tblNationalPlants
+  # using CurrentPLANTSCode (*NOT* NameCode) and SpeciesCode.
+
+  if (verbose) {
+    message("Reading in tblNationalPlants.")
+  }
+
+  tblNationalPlants <- sf::st_read(dsn = dsn,
+                                   layer = "tblNationalPlants",
+                                   quiet = TRUE)
+  if (verbose) {
+    message("Reading in tblStateSpecies and creating state sage-grouse lookup table.")
+  }
+
+  tblStateSpecies <- sf::st_read(dsn = dsn,
+                                 layer = "tblStateSpecies",
+                                 quiet = TRUE) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(c(code = "SpeciesCode",
+                                       "SG_Group",
+                                       "SpeciesState"))) |>
+    dplyr::distinct()
+
+  #### Munging #################################################################
+  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
+  # make a new data frame where there's only one record per species code and
+  # we store all the per-state SG_Group assignments in a character string as
+  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
+  # This should be significantly faster than trying to join by both the species
+  # codes and SpeciesState, at least for very large data sets.
+  sg_group_lookup <- dplyr::select(.data = tblStateSpecies,
+                                   tidyselect::all_of(c("CurrentPLANTSCode" = "code",
+                                                        "SpeciesState",
+                                                        "SG_Group"))) |>
+    dplyr::filter(.data = _,
+                  !is.na(SG_Group)) |>
+    dplyr::mutate(.data = _,
+                  sg_string = paste(SpeciesState,
+                                    SG_Group,
+                                    sep = ":")) |>
+    dplyr::summarize(.data = _,
+                     .by = Species,
+                     SG_Group = paste(sg_string,
+                                      collapse = "|"))
+
+  if (verbose) {
+    message("Adding SG_Group from tblStateSpecies to tblNationalPlants")
+  }
+
+  output <- dplyr::left_join(x = tblNationalPlants,
+                             y = tblStateSpecies,
+                             relationship = "many-to-one",
+                             by = "CurrentPLANTSCode") |>
+    # This is so that we have a variable that can be easily used internally
+    # because other sources use this variable name mostly.
+    dplyr::mutate(.data = _,
+                  SpeciesCode = NameCode)
 
 
+  output
+}
 #' @export generic_growth_habits
 #' @rdname species
 
@@ -273,7 +227,10 @@ generic_growth_habits <- function(data,
 
   # Append the generic codes to the species list!
   dplyr::bind_rows(species_list,
-                   missing_codes_df) |>
+                   missing_codes_df |>
+                     dplyr::mutate(.data = _,
+                                   dplyr::across(.cols = dplyr::where(fn = is.logical),
+                                                 .fns = as.character))) |>
     dplyr::distinct()
 }
 
