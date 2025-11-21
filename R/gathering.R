@@ -1,15 +1,39 @@
 #### HEADERS ###################################################################
-#' Build AIM Indicators Tables and Feature Classes
-#' @param dsn String File path to the TerrADat database.
-#' @param header Dataframe. Plot header containing plot metadata
-#' @param source String. Specifies data source, \code{"AIM", "LMF"}
-#' @param ... Query in grepl format that subsets plots.
-#' @return A \code{tbl} of indicators of either tall or wide format.
 
-
-# Build the header portion of the terradat table
-#' @export gather_header_terradat
-#' @rdname aim_gdb
+#' Gather AIM plot-level header data
+#' @description This reads in metadata from AIM sampling used as headers for
+#' various methods and returns it as a long-format data frame suitable for use
+#' in indicator calculations with the package \code{terradactyl}. Dates are
+#' added from one or more other tables associated with the specific data
+#' collection methods. The expected format is that used in the Terrestrial AIM
+#' Database (TerrADat).
+#'
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the feature class tblPlots, e.g.
+#'   \code{"C:/DATA/AIM.GDB"}. If this is NULL, then the argument
+#'   \code{tblPlots} must be provided. Defaults to \code{NULL}.
+#' @param tblPlots Optional data frame. If provided, this must contain the
+#'   expected plot metadata. If \code{NULL} then the argument \code{dsn} must be
+#'   provided. Defaults to \code{NULL}.
+#' @param date_tables Optional (contingent on other arguments) character vector
+#'   or list of data frames. This specifies the tables to extract date
+#'   information from. If \code{dsn} is not \code{NULL} AND the geodatabase
+#'   contains at least one feature class from the set tblLPIHeader,
+#'   tblGapHeader, "tblSpecRichHeader", this argument is optional and can be
+#'   left as \code{NULL}. Otherwise, if \code{dsn} is not \code{NULL} and the
+#'   desired tables to use are named anything else, this must be a vector of
+#'   character strings specifying the names of the relevant feature classes. If
+#'   \code{tblPlots} is being used, then this must be a list of data frames
+#'   containing the relevant data. Defaults to \code{NULL}.
+#' @param ... Additional optional filtering expressions to be used with
+#'   \code{dplyr::filter()} to restrict the processing and output to only a
+#'   subset of input data. If providing data via the argument \code{tblPlots} it
+#'   is recommended to filter the data before calling this function instead of
+#'   using additional arguments here.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns A long-format data frame of header data.
+#' @export
 gather_header_terradat <- function(dsn = NULL,
                                    tblPlots = NULL,
                                    date_tables = NULL,
@@ -167,10 +191,26 @@ gather_header_terradat <- function(dsn = NULL,
     dplyr::distinct()
 }
 
-# Build the header portion of the LMF table
-#' @export gather_header_lmf
-#' @rdname aim_gdb
-gather_header_lmf <- function(dsn = NULL,
+#' Gather AIM plot-level header data
+#' @description This reads in metadata from AIM sampling used as headers for
+#' various methods and returns it as a long-format data frame suitable for use
+#' in indicator calculations with the package \code{terradactyl}. The required
+#' feature classes in the geodatabase specified with \code{dsn} are POINT,
+#' POINTCOORDINATES, GPS, COUNTYNM, STATENM, and ESFSG. The expected formats for
+#' the input data are those used in the Landscape Monitoring Framework.
+#'
+#' @param dsn Character string. This must be the filepath to a geodatabase which
+#'   contains the relevant feature classes, e.g. \code{"C:/DATA/AIM.GDB"}. The
+#'   required feature classes are: POINT, POINTCOORDINATES, COUNTYNM, STATENM,
+#'   GPS, ESFSG.
+#' @param ... Additional optional filtering expressions to be used with
+#'   \code{dplyr::filter()} to restrict the processing and output to only a
+#'   subset of input data by filtering POINT.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns A long-format data frame of header data.
+#' @export
+gather_header_lmf <- function(dsn,
                               ...,
                               verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
@@ -321,10 +361,16 @@ gather_header_lmf <- function(dsn = NULL,
   point_ESD
 }
 
-# Build the header portion of the LMF table
-#' @export gather_header_nri
-#' @rdname aim_gdb
-gather_header_nri <- function(dsn = NULL, speciesstate, ...,
+
+#' Gather NRI plot-level header data
+#' @description This reads in metadata from NRI sampling used as headers for
+#' various methods and returns it as a long-format data frame suitable for use
+#' in indicator calculations with the package \code{terradactyl}.
+
+#' @export
+gather_header_nri <- function(dsn = NULL,
+                              speciesstate,
+                              ...,
                               verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
@@ -527,13 +573,65 @@ gather_header_nri <- function(dsn = NULL, speciesstate, ...,
 #     # Return the header file
 #     return(header)
 # }
-#
-# Build the header wrapper
-#' @export gather_header
-#' @rdname aim_gdb
-# Header build wrapper function
-gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NULL, #PlotChar_0 = NULL,
-                          speciesstate = NULL, ..., autoQC = TRUE,
+
+
+#' Gather plot-level header data
+#' @description This is a wrapper function for specialized functions which read
+#' in metadata from AIM sampling used as headers for various methods and returns
+#' it as a long-format data frame suitable for use in indicator calculations
+#' with the package \code{terradactyl}. Supported formats include those used in
+#' AIM (Assessment, Inventory, and Monitoring) and TerrADat (Terrestrial AIM
+#' Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
+#' Inventory, Monitoring, and Assessment). For additional information about
+#' arguments, see the documentation for the functions
+#' \code{gather_header_terradat()}, \code{gather_header_lmf()}, and
+#' \code{gather_header_nri()}
+#'
+#' @param dsn Optional (contingent) character string. This must be the filepath
+#'   to a geodatabase which contains the relevant feature classes, e.g.
+#'   \code{"C:/DATA/AIM.GDB"}. This is optional only when \code{source} is
+#'   \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{source} is
+#'   \code{"LMF"} or \code{"NRI"} this is required. Defaults to \code{NULL}
+#'   which results in it being ignored by the function.
+#' @param source Character string. This specifies the expected data format(s)
+#'   and determines which specialized gather function will be used. It must be
+#'   one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
+#'   \code{"NRI"}.
+#' @param tblPlots Optional data frame only used if \code{source} is
+#'   \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If provided, this must
+#'   contain the expected plot metadata. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. Defaults to \code{NULL}.
+#' @param date_tables Optional (contingent on other arguments) character vector
+#'   or list of data frames. Only used if \code{source} is \code{"AIM"},
+#'   \code{"TERRADAT"}, or \code{"DIMA"}. This specifies the tables to extract
+#'   date information from. If \code{dsn} is not \code{NULL} AND the geodatabase
+#'   contains at least one feature class from the set tblLPIHeader,
+#'   tblGapHeader, "tblSpecRichHeader", this argument is optional and can be
+#'   left as \code{NULL}. Otherwise, if \code{dsn} is not \code{NULL} and the
+#'   desired tables to use are named anything else, this must be a vector of
+#'   character strings specifying the names of the relevant feature classes. If
+#'   \code{tblPlots} is being used, then this must be a list of data frames
+#'   containing the relevant data. Defaults to \code{NULL}.
+#' @param speciesstate Optional. Used by NRI.
+#' @param ... Additional optional filtering expressions to be used with
+#'   \code{dplyr::filter()} to restrict the processing and output to only a
+#'   subset of input data.
+#' @param autoQC Logical (currently disabled). If \code{TRUE} then automatic
+#'   quality control functions will be applied to the data before returning the
+#'   output. Defaults to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns A long-format data frame of header data.
+#' @export
+#'
+gather_header <- function(dsn = NULL,
+                          source,
+                          tblPlots = NULL,
+                          date_tables = NULL,
+                          speciesstate = NULL,
+                          ...,
+                          autoQC = FALSE,
                           verbose = FALSE) {
   # Error check
   # Check for a valid source
@@ -586,33 +684,33 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
 #' extension) of the geodatabase or text file containing the table of interest.
 #' This field is unnecessary if you provide either both of tblLPIDetail and
 #' tblLPIHeader (AIM/DIMA/TerrADat) or PINTERCEPT (LMF/NRI).
-#' @param source Character string. The data source format,
-#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
+#' @param source Character string. The data source format, \code{"AIM",
+#'   "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
 #' @param tblLPIHeader Dataframe of the data structure tblLPIHeader from the
-#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-#' tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide
-#' dsn.
+#'   DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+#'   tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately
+#'   provide dsn.
 #' @param tblLPIDetail Dataframe of the data structure tblLPIDetail from the
-#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-#' tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide
-#' dsn.
+#'   DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+#'   tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately
+#'   provide dsn.
 #' @param PINTERCEPT Dataframe of the data structure PINTERCEPT from the LMF/NRI
-#' database with the addition of PrimaryKey and DBKey fields. Use when source
-#' is LMF or NRI; alternately provide dsn.
+#'   database with the addition of PrimaryKey and DBKey fields. Use when source
+#'   is LMF or NRI; alternately provide dsn.
 #' @param file_type Character string that denotes the source file type of the
-#' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-#' AIM/DIMA/TerrADat, or if PINTERCEPT is provided.
+#'   LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
+#'   AIM/DIMA/TerrADat, or if PINTERCEPT is provided.
 #' @param auto_qc Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
-#' checked for non-unique and orphaned records before doing processing. If any
-#' are found, a warning will be triggered but the gather will still be carried
-#' out. It is strongly recommended that any identified issues be addressed to
-#' avoid incorrect records in the output. Defaults to \code{TRUE}.
+#'   checked for non-unique and orphaned records before doing processing. If any
+#'   are found, a warning will be triggered but the gather will still be carried
+#'   out. It is strongly recommended that any identified issues be addressed to
+#'   avoid incorrect records in the output. Defaults to \code{TRUE}.
 #' @param null_is_na Logical. If \code{TRUE} then any instance of \code{"NULL"}
-#' as a value for a layer in \code{tblLPIDetail} will be considered to be \code{NA}.
-#' Defaults to \code{TRUE}.
+#'   as a value for a layer in \code{tblLPIDetail} will be considered to be
+#'   \code{NA}. Defaults to \code{TRUE}.
 #' @param verbose Logical. If \code{TRUE} then the function will report back
-#' diagnostic information as console messages while it works. Defaults to
-#' \code{FALSE}.
+#'   diagnostic information as console messages while it works. Defaults to
+#'   \code{FALSE}.
 #' @importFrom magrittr %>%
 #' @name gather_lpi
 #' @family <gather>
@@ -634,8 +732,15 @@ gather_header <- function(dsn = NULL, source, tblPlots = NULL, date_tables = NUL
 #'            RANGEHEALTH = lmf_pintercept)
 
 ## Function to make tall format of LPI data from TerrADat
-#' @export gather_lpi_terradat
-#' @rdname gather_lpi
+#' @param dsn
+#'
+#' @param tblLPIDetail tblLPIDetail
+#' @param tblLPIHeader tblLPIHeader
+#' @param auto_qc_warnings auto_qc_warnings
+#' @param null_is_na null_is_na
+#' @param verbose verbose
+#'
+#' @export
 gather_lpi_terradat <- function(dsn = NULL,
                                 tblLPIDetail = NULL,
                                 tblLPIHeader = NULL,
