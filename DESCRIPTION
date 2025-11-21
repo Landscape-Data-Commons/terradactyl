@@ -37,13 +37,15 @@ Imports:
     tidyselect
 Suggests:
     knitr,
-    rmarkdown, 
-    RODBC, 
+    rmarkdown,
+    RODBC,
     devtools,
     odbc,
     raster,
     readr,
     rlist,
     rstudioapi,
-    usethis
+    usethis,
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
+Config/testthat/edition: 3
