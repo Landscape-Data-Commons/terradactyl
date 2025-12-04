@@ -60,6 +60,7 @@ demo_data <- function(type,
                 "'"))
   }
 
+
   # This is here in case we ever support reading in multiple things at once.
   for (current_type in type) {
     load(file = file.path("data",
