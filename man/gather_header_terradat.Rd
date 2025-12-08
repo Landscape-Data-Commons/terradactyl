@@ -26,7 +26,7 @@ provided. Defaults to \code{NULL}.}
 or list of data frames. This specifies the tables to extract date
 information from. If \code{dsn} is not \code{NULL} AND the geodatabase
 contains at least one feature class from the set tblLPIHeader,
-tblGapHeader, "tblSpecRichHeader", this argument is optional and can be
+tblGapHeader, and tblSpecRichHeader, this argument is optional and can be
 left as \code{NULL}. Otherwise, if \code{dsn} is not \code{NULL} and the
 desired tables to use are named anything else, this must be a vector of
 character strings specifying the names of the relevant feature classes. If
@@ -47,9 +47,28 @@ A long-format data frame of header data.
 }
 \description{
 This reads in metadata from AIM sampling used as headers for
-various methods and returns it as a long-format data frame suitable for use
+various methods and returns it as a tall/long-format data frame suitable for use
 in indicator calculations with the package \code{terradactyl}. Dates are
 added from one or more other tables associated with the specific data
 collection methods. The expected format is that used in the Terrestrial AIM
 Database (TerrADat).
+}
+\examples{
+# Using a geodatabase which already contains the tables tblPLots and at least
+# one automatically-recognized table to pull dates from.
+gather_header_terradat(dsn = "data_folder/aim_data.gdb")
+
+# Using a data frame containing the contents of a tblPlots.
+# In this example, no path to a geodatabase is specified with dsn, so a list
+# containing at least one date table must also be provided.
+gather_header_terradat(tblPlots = tblPlots_data_frame,
+                       date_tables = list(tblLPIHeader,
+                       tblGapHeader))
+
+# Using a geodatabase which already contains the tables tblPLots in
+# conjunction with a filtering expression to limit the output to records
+# where the State variable contained either of the values "CO" and "NM".
+gather_header_terradat(dsn = "data_folder/aim_data.gdb",
+                       State \%in\% c("CO", "NM"))
+
 }

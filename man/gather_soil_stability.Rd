@@ -2,25 +2,8 @@
 % Please edit documentation in R/gathering.R
 \name{gather_soil_stability}
 \alias{gather_soil_stability}
-\alias{gather_soil_stability_terradat}
-\alias{gather_soil_stability_lmf}
 \title{Convert soil stability data into tall, tidy data frame}
 \usage{
-gather_soil_stability_terradat(
-  dsn = NULL,
-  tblSoilStabDetail = NULL,
-  tblSoilStabHeader = NULL,
-  auto_qc_warnings = TRUE,
-  verbose = FALSE
-)
-
-gather_soil_stability_lmf(
-  dsn = NULL,
-  file_type = "gdb",
-  SOILDISAG = NULL,
-  verbose = FALSE
-)
-
 gather_soil_stability(
   dsn = NULL,
   source,
@@ -38,26 +21,26 @@ extension) of the geodatabase containing the table of interest. This field
 is unnecessary if you supply either both of tblSoilStabDetail and
 tblSoilStabHeader (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).}
 
+\item{source}{Character string. The data source format, can be \code{"AIM"},
+\code{"TerrADat"}, \code{"DIMA"}, \code{"LMF"}, or \code{"NRI"} (case independent).}
+
 \item{tblSoilStabDetail}{Dataframe of the data structure tblSoilStabDetail
 from the DIMA database with the addition of PrimaryKey and DBKey fields.
-Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.}
+Use when data source is AIM, DIMA, or TerrADat; alternately provide \code{dsn}.}
 
 \item{tblSoilStabHeader}{Dataframe of the data structure tblSoilStabHeader
 from the DIMA database with the addition of PrimaryKey and DBKey fields.
-Use when data source is AIM, DIMA, or TerrADat; alternately provide dsn.}
+Use when data source is AIM, DIMA, or TerrADat; alternately provide \code{dsn}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to
 \code{FALSE}.}
 
-\item{source}{Character string. The data source format, can be \code{"AIM"},
-\code{"TerrADat"}, \code{"DIMA"}, \code{"LMF"}, or \code{"NRI"} (case independent).}
-
 \item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from LMF/NRI
 database with the addition of PrimaryKey and DBKey fields. Use when data
-source is LMF or NRI; alternately provide dsn.}
+source is LMF or NRI; alternately provide \code{dsn}.}
 
-\item{auto_qc}{Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
+\item{auto_qc}{Logical. Temporarily disabled. If \code{TRUE} then AIM/DIMA/TerrADat data will be
 checked for non-unique and orphaned records before doing processing. If any
 are found, a warning will be triggered but the gather will still be carried
 out. It is strongly recommended that any identified issues be addressed to
@@ -84,14 +67,5 @@ gather_soil_stability(source = "AIM",
 
 lmf_horizons <- read.csv("Path/To/SOILHORIZON.csv")
 gather_soil_stability(source = "LMF",
-                      SOILHORIZON = lmf_horizons)
+                      SOILDISAG = lmf_horizons)
 }
-\seealso{
-Other <gather>: 
-\code{\link{gather_gap}()},
-\code{\link{gather_height}()},
-\code{\link{gather_lpi}()},
-\code{\link{gather_rangeland_health}()},
-\code{\link{gather_species_inventory}()}
-}
-\concept{<gather>}

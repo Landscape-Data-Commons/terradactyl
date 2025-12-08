@@ -30,3 +30,14 @@ feature classes in the geodatabase specified with \code{dsn} are POINT,
 POINTCOORDINATES, GPS, COUNTYNM, STATENM, and ESFSG. The expected formats for
 the input data are those used in the Landscape Monitoring Framework.
 }
+\examples{
+# Basic use.
+gather_header_lmf(dsn = "data_path/lmf_data.gdb")
+
+# Using a filtering expression to restrict the processing and output to only
+# records where the SpeciesState variable in POINT contained either of the
+# values "CO" and "NM".
+gather_header_lmf(dsn = "data_path/lmf_data.gdb",
+                  SpeciesState \%in\% c("CO", "NM"))
+
+}

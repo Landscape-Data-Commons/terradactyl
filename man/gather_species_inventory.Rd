@@ -88,12 +88,4 @@ lmf_census <- read.csv("Path/To/PLANTCENSUS.csv")
 gather_species_inventory(source = "LMF",
                          PLANTCENSUS = lmf_census)
 }
-\seealso{
-Other <gather>: 
-\code{\link{gather_gap}()},
-\code{\link{gather_height}()},
-\code{\link{gather_lpi}()},
-\code{\link{gather_rangeland_health}()},
-\code{\link{gather_soil_stability}()}
-}
 \concept{<gather>}

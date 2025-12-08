@@ -1,3 +1,36 @@
+
+#' Read in and combine tblNationalPlants and tblStateSpecies
+#' @description The BLM Terrestrial AIM program uses two separate tables to
+#' store plant species characteristics used to calculate standard indicators for
+#' the Terrestrial AIM Database (TerrADat). Both tables are available through
+#' the AIM data portal and are included with geodatabase exports of TerrADat.
+#' The main table, tblNationalPlants contains information including taxonomic
+#' categories, growth habits, durations, and native and noxious statuses. The
+#' other table, tblStateSpecies, contains per-species assignments to categories
+#' relevant to sage-grouse habitat management. This function reads in both
+#' tables from a geodatabase and combines them, reformatting the contents of
+#' tblStateSpecies to do so. The output format is suitable for use with
+#' indicator calculation functions.
+#'
+#' This function is used by functions which calculate the standard set of
+#' TerrADat indicators and can also be used in other workflows in order to use
+#' the specific species characteristics assigned for Terrestrial AIM. These
+#' tables represent an effort to standardize and harmonize species data and
+#' reflect certain decisions, including treating any species known to live
+#' longer than one year as perennial. For additional information about
+#' tblNationalPlants, see the documentation available through the BLM AIM
+#' program.
+#'
+#' @param dsn Character string. The filepath (including the file extension) to
+#'   the geodatabase containing both tblNationalPlants and tblStateSpecies,
+#'   e.g., \code{"C:/data/terradat.gdb"}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns A data frame with one record per plant code and all expected
+#'   variables formatted appropriately for use with functions like
+#'   \code{lpi_calc()}.
+#' @export
 species_read_aim <- function(dsn,
                              verbose = FALSE) {
   #### Validity checks #########################################################
@@ -94,13 +127,36 @@ species_read_aim <- function(dsn,
 #' @export generic_growth_habits
 #' @rdname species
 
-# Attribute generic species growth habits, for now this assumes field names.
+#' Attribute growth habits and durations to generic species codes
+#' @description
+#' Given a data set with species codes and a species list containing growth habit and duration assignments,
+#' this function will identify species codes present in the data which do not occur in the species list
+#' and assign growth habits and durations to those that can be identified as standardized unknown species codes.
+#'
+#' Unknown species code formats supported include Terrestrial AIM and LMF. The identification is done using regular expressions and so will only find generic species codes which follow the exact patterns used by AIM and LMF.
+#'
+#' The output is the original species list data frame with any successfully identified and attributed
+#' generic species codes appended.
+#'
+#' @param data Data frame. The source data which contains species codes in the variable specified by \code{species_code}. The only required variable is the one containing the species codes; all others will be ignored.
+#' @param data_code Character string. The name of the variable in \code{data} which contains the species codes. Defaults to \code{"code"}.
+#' @param species_list Data frame. The existing species characteristics information containing the variables specified with \code{species_code}, \code{species_growthhabit}, \code{species_growthhabitsub}, and \code{species_duration}. For Terrestrial AIM, this is the output from \code{species_read_aim)()}.
+#' @param species_code Character string. The name of the variable in \code{species_list} which contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param species_growthhabit Character string. The name of the variable in \code{species_list} which contains the general growth habits, e.g. \code{"woody"}. Defaults to \code{"GrowthHabit"}.
+#' @param species_growthhabitsub Character string. The name of the variable in \code{species_list} which contains the specific growth habits, e.g. \code{"graminoid"}. Defaults to \code{"GrowthHabitSub"}.
+#' @param species_duration Character string. The name of the variable in \code{species_list} which contains the species duration, e.g. \code{"annual"} or \code{"perennial"}. Defaults to \code{"Duration"}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns The original data frame provided as \code{species_list} with records added for identified generic codes found in \code{data}.
+#' @export
+#'
 generic_growth_habits <- function(data,
                                   data_code = "code",
                                   species_list,
                                   species_code = "SpeciesCode",
-                                  species_growthhabit_code = "GrowthHabit",
-                                  species_growthhabitsub_code = "GrowthHabitSub",
+                                  species_growthhabit = "GrowthHabit",
+                                  species_growthhabitsub = "GrowthHabitSub",
                                   species_duration = "Duration",
                                   verbose = FALSE) {
   #### Setup ###################################################################
@@ -110,8 +166,6 @@ generic_growth_habits <- function(data,
   # formats differ between the two.
 
   # Growth habit
-  # The commented-out versions capture litter, which seems wrong but was the
-  # evident previous behavior.
   lmf_growthhabit_regexes <- c("Woody" = "^2(S(?!LIME)|T|[GV]W)",
                                "NonWoody" = "^2((F(?!SMUT|[FJRU]))|(G(?!W)|(VH)))",
                                "Nonvascular" = "^2(A|BRY|HORN|L(?!TR)|LTRL|MOSS|PROT|SLIME)",
@@ -158,8 +212,8 @@ generic_growth_habits <- function(data,
     stop("data must be a data frame.")
   }
   required_species_variables <- c(species_code = species_code,
-                                  species_growthhabit_code = species_growthhabit_code,
-                                  species_growthhabitsub_code = species_growthhabitsub_code)
+                                  species_growthhabit = species_growthhabit,
+                                  species_growthhabitsub = species_growthhabitsub)
   missing_species_list_variables <- setdiff(x = required_species_variables,
                                             y = names(species_list))
   if (length(missing_species_list_variables) > 0) {
@@ -234,11 +288,37 @@ generic_growth_habits <- function(data,
     dplyr::distinct()
 }
 
-#' @export species_join
-#' @rdname species
-
-
-# Join species with field data
+#' Join species characteristics to field data
+#'
+#' @description
+#' Joining species characteristics to data can be as simple as a join based on a single variable, but that isn't always the case.
+#' This function handles joining species information to data across a range of possible scenarios and formats.
+#'
+#' Some functionality is effectively deprecated due to changes in Terrestrial AIM data formats, but has been maintained for backwards compatibility and handling data collected using earlier schemas.
+#'
+#' @param data Data frame. The source data which contains species codes in the variable specified by \code{species_code}. The only required variable is the one containing the species codes.
+#' @param data_code Character string. The name of the variable in \code{data} which contains the species codes. Defaults to \code{"code"}.
+#' @param species_file Data frame or character string. If a character string, it must be the full path (including file extension) to either a CSV containing the species characteristics or a geodatabase containing a table specified with \code{species_layer}. If joining data for Terrestrial AIM indicator calculations using tblNationalPlants and tblStateSpecies, please use \code{species_read_aim()} and provide the output data frame as this argument.
+#' @param species_layer Character string. If \code{species_file} points to a geodatabase, this must correspond to the name of the feature class or table containing the species characteristics. Defaults to \code{"tblNationalPlants"}.
+#' @param species_code Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"NameCode"}.
+#' @param species_growth_habit_code Character string. The name of the variable in the species characteristics that contains the growth habit assignment values, e.g., \code{"graminoid"}. Defaults to \code{"NameCode"}.
+#' @param species_duration Character string. The name of the variable in the species characteristics that contains the duration assignment values, e.g., \code{"graminoid"}. Defaults to \code{"NameCode"}.
+#' @param species_property_vars Vector of character strings. These are the names of variables to carry forward from \code{species_file} and coerce into character strings. If variables in the vector are not found in the species characteristics, the function will skip them silently. Defaults to \code{c("GrowthHabit", "GrowthHabitSub", "Duration", "Family", "HigherTaxon", "Nonnative", "Invasive", "Noxious", "SpecialStatus", "Photosynthesis", "PJ", "CurrentPLANTSCode")}.
+# #' @param growth_habit_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{""} or \code{overwrite_generic_species} is \code{FALSE} then no action will be taken. Defaults to \code{""}.
+# #' @param growth_habit_code Optional character string. The name of the variable in the table pointed to by \code{growth_habit_file} that contains values corresponding to those in \code{data} in the variable specified with \code{data_code}. Defaults to \code{"Code"}.
+#' @param growth_habit_file Deprecated. Defaults to \code{""}.
+#' @param growth_habit_code Deprecated. Defaults to \code{"Code"}.
+#' @param overwrite_generic_species Logical. If \code{TRUE} then \code{generic_species_file} will be read in and applied. Defaults to \code{FALSE}.
+#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{""} or \code{overwrite_generic_species} is \code{FALSE} then no action will be taken. Defaults to \code{""}.
+#' @param update_species_codes Logical. If \code{TRUE} then the final output will replace the values in the variable specified with \code{data_code} using values from the variable UpdatedSpeciesCode. This is here for legacy support and is not recommended for ongoing use. Defaults to \code{FALSE}.
+#' @param by_species_key Logical. If \code{TRUE} then the species information will be joined to the data using the variable SpeciesState. This is here for legacy support and is not compatible with the current structure of Terrestrial AIM Database species information in the. Defaults to \code{FALSE}.
+#' @param check_species Deprecated. This has no effect on the function because checks for duplicate species are always carried out. Default to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns The original data frame provided as \code{data} with variables joined from \code{species_file} according to the species codes.
+#' @export
+#'
 species_join <- function(data, # field data,
                          data_code = "code", # Species field in the data
                          species_file, # path to .csv or .gdb holding  the species table
@@ -474,7 +554,7 @@ species_join <- function(data, # field data,
                                            data_code = data_code,
                                            species_list = species_list,
                                            species_code = species_code,
-                                           species_growthhabit_code = species_growth_habit_code, # field name in species file of the species code to link to GrowthHabit
+                                           species_growthhabit = species_growth_habit_code, # field name in species file of the species code to link to GrowthHabit
                                            species_duration = species_duration,
                                            verbose = verbose)
 
@@ -624,6 +704,7 @@ species_join <- function(data, # field data,
   data_species
 }
 
+#'
 #' @export species_count
 #' @rdname gather_species_inventory
 species_count <- function(species_inventory_tall,

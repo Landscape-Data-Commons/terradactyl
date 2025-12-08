@@ -1,8 +1,16 @@
-#' Basic percent cover function
+#' Calculate percent cover from Line-Point Intercept data
 #' @description
-#' Calculate the percent cover
-#' @param lpi_tall The tall LPI data
-#'
+#' Calculate the percent of a transect under cover based on one or more variables in a data frame in the long format produced by \code{gather_lpi()}. Records are grouped by and cover calculated for unique values in the PrimaryKey variable.
+#' @param lpi_tall Data frame. The long/tall-format line-point intercept data. This must be in the format produced by \code{gather_lpi()}.
+#' @param tall Logical. If \code{TRUE} then the output will be in a long/tall format. If \code{FALSE} then the output will be wide. Defaults to \code{FALSE}.
+#' @param hit Character string. This dictates how many and which layers at a pin drop will be used to calculate the percent cover. If \code{"any"} then every record for each pin drop may be considered, which will produce results which sum to more than 100% in the case that any pin drop recorded hits in multiple layers. If \code{"first"} then only the first (i.e., farthest from the ground) record at each pin drop will be considered. If \code{"basal"} then only records for which the layer variable contains the value \code{"SoilSurface"} will be considered, which should be one record per pin drop. Defaults to \code{"any"}.
+#' @param by_line Logical. If \code{TRUE} then the cover will be calculated for each unique combination of values in the PrimaryKey and LineKey variables instead of simply by PrimaryKey. Defaults to \code{FALSE}.
+#' @param ... Optional bare variable names. These must be variable names in \code{lpi_tall} and are used to determine the unique cover types. This is here for legacy support and the use of \code{indicator_variables} is recommended instead.
+#' @param indicator_variables Optional vector of character strings. These must be variable names in \code{lpi_tall} and are used to determine the unique cover types. For example, using \code{"code"} will result in calculating cover for each unique value in the code variable and using \code{c("Duration", "GrowthHabitSub")} will result in calculating cover for each unique combination of values in the Duration and GrowthHabitSub variables, e.g., PerennialGraminoid and AnnualGraminoid. If \code{NULL} and no variable names have been provided then cover will be calculated per-PrimaryKey and should be 100% for each. Defaults to \code{NULL}.
+#' @param digits Integer. The number of decimal places that the output cover percentages will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose  Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns A data frame containing PrimaryKeys and a variable for each cover type containing the percent cover.
 #' @export
 pct_cover <- function(lpi_tall,
                       tall = FALSE,
@@ -335,7 +343,54 @@ pct_cover <- function(lpi_tall,
   output
 }
 
-
+#' Calculate percent bare ground from Line-Point Intercept data
+#' @description
+#' Calculate the percent of a transect with bare soil at the surface and no cover from vegetation or rocks.
+#' This is a simple wrapper for \code{pct_cover()} and is equivalent to calculating first hit cover for the value \code{"S"}.
+#' @param lpi_tall Data frame. The long/tall-format line-point intercept data. This must be in the format produced by \code{gather_lpi()}.
+#' @param tall Logical. If \code{TRUE} then the output will be in a long/tall format. If \code{FALSE} then the output will be wide. Defaults to \code{FALSE}.
+#' @param by_line Logical. If \code{TRUE} then the cover will be calculated for each unique combination of values in the PrimaryKey and LineKey variables instead of simply by PrimaryKey. Defaults to \code{FALSE}.
+#' @param indicator_variable Optional character string. This must be the variable name in \code{lpi_tall} containing the value \code{"S"} for records where the pin came to rest on soil. Defaults to \code{"code}.
+#' @param soil_values Character string or vector of character strings. The values in the variable specified with \code{indicator_variable} that correspond to uncovered ground. Defaults to \code{c("S")}.
+#' @param digits Integer. The number of decimal places that the output cover percentages will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose  Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns A data frame containing PrimaryKeys and a variable called BareSoil containing the percent of bare soil.
+#' @export
+pct_bareground <- function(lpi_tall,
+                           tall = FALSE,
+                           by_line = FALSE,
+                           indicator_variable = "code",
+                           soil_values = c("S"),
+                           digits = 1,
+                           verbose = FALSE) {
+  # Strip the data down to the bare minimum, renaming the indicator variable
+  select(.data = lpi_tall,
+         tidyselect::all_of(x = c("PrimaryKey",
+                                  "LineKey")[c(TRUE,
+                                               by_line)]),
+         tidyselect::all_of(x = setNames(object = indicator_variable,
+                                         nm = "BareSoil"))) |>
+    # Replace all qualifying values in BareSoil with "BareSoil" and the rest
+    # with NA. This'll produce a variable called BareSoil in the pct_cover()
+    # output.
+    dplyr::mutate(.data = _,
+                  BareSoil = dplyr::case_when(BareSoil %in% soil_values ~ "BareSoil",
+                                              .defatul = NA)) |>
+    # Calculate!
+    pct_cover(lpi_tall = _,
+              tall = tall,
+              hit = "first",
+              by_line = by_line,
+              indicator_variables = "BareSoil",
+              digits = digits,
+              verbose = verbose) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(x = c("PrimaryKey",
+                                           "LineKey")[c(TRUE,
+                                                        by_line)]),
+                  tidyselect::all_of(x = c("BareSoil")))
+}
 
 
 

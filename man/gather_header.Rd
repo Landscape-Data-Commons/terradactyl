@@ -28,7 +28,7 @@ which results in it being ignored by the function.}
 \item{source}{Character string. This specifies the expected data format(s)
 and determines which specialized gather function will be used. It must be
 one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
-\code{"NRI"}.}
+\code{"NRI"}. This is case-insensitive.}
 
 \item{tblPlots}{Optional data frame only used if \code{source} is
 \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If provided, this must
@@ -73,5 +73,15 @@ Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
 Inventory, Monitoring, and Assessment). For additional information about
 arguments, see the documentation for the functions
 \code{gather_header_terradat()}, \code{gather_header_lmf()}, and
-\code{gather_header_nri()}
+\code{gather_header_nri()}.
+}
+\examples{
+# Headers from a geodatabase in the format of the Terrestrial AIM Database
+gather_header(dsn = "data_path/aim_data.gdb,
+              source = "terradat")
+
+# Headers from a geodatabase in the format of the Landscape Monitoring Framework
+gather_header(dsn = "data_path/lmf_data.gdb,
+              source = "lmf")
+
 }
