@@ -13,6 +13,7 @@
 #' @param all_cover_types Logical. When \code{TRUE}, indicators will be calculated for mean soil stability per cover type found in the Veg variable, e.g., \code{"SH"} or \code{"NC"}. If \code{tall = TRUE} these indicator values will be associated with corresponding code in the Veg variable. If \code{tall = FALSE} they will be found in the variable named for the associated code in Veg, e.g. SH or NC. Defaults to \code{FALSE}.
 #' @param exclude_na_cover Logical. When \code{TRUE}, all records with \code{NA} in the Veg variable will be removed prior to calculations. Defaults to \code{TRUE}.
 #' @param tall Logical. Indicates if output will be tall/long or wide. Defaults to \code{TRUE}.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
 #' @return Dataframe of calculated soil stability values by plot and cover type.
 
 #' @export soil_stability
@@ -24,6 +25,7 @@ soil_stability <- function(soil_stability_tall,
                            all_cover_types = FALSE,
                            exclude_na_cover = TRUE,
                            tall = FALSE,
+                           digits = 1,
                            verbose = FALSE) {
   #### Sanitization of inputs ##################################################
   current_indicator_type_vector <- c(all, cover, uncovered, all_cover_types)
@@ -147,7 +149,10 @@ soil_stability <- function(soil_stability_tall,
   }
 
   # Bind all the results produced into a single data frame.
-  soil_stability_rating_all <- dplyr::bind_rows(soil_stability_indicator_list)
+  soil_stability_rating_all <- dplyr::bind_rows(soil_stability_indicator_list) |>
+    dplyr::mutate(.data = _,
+                  rating = round(x = rating,
+                                 digits = digits))
 
   # If tall is FALSE, then we'll pivot the current data frame into a wide format
   if (!tall) {

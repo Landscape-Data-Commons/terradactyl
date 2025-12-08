@@ -3036,8 +3036,37 @@ gather_gap_lmf <- function(dsn = NULL,
 # }
 #
 
-#' @export gather_gap
-#' @rdname gather_gap
+#' Convert wide gap data into a long/tall format.
+#' @description
+#' This is a wrapper for the \code{gather_gap_terradat()} and \code{gather_gap_lmf()} functions.
+#'
+#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
+#'   to a geodatabase which contains either the feature classes tblGapHeader and
+#'   tblGapDetail or the feature classes GINTERCEPT and POINT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
+#'   the arguments \code{tblGapHeader} and \code{tblGapDetail} or \code{POINT} and \code{GINTERCEPT} are required. Defaults to
+#'   \code{NULL}.
+#' @param file_type Optional character string. The file extension for the file
+#'   pointed to by \code{dsn}. If \code{NULL} then the file extension will be
+#'   extracted from \code{dsn}. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.
+#' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
+#' @param tblGapDetail Optional data frame. If provided, this must contain the
+#'   expected gap data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.
+#' @param tblGapHeader Optional data frame. If provided, this must contain the
+#'   expected metadata for the gap data. If \code{NULL} then the argument \code{dsn} must be
+#'   provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.
+#' @param GINTERCEPT Optional data frame. If provided, this must contain the
+#'   expected gap data. If \code{NULL} then the argument \code{dsn} must be
+#'   provided. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.
+#' @param POINT Optional data frame. If provided, this must contain the expected
+#'   point metadata. Ignored if \code{source} is not \code{"lmf"}.  If \code{NULL} then the argument \code{dsn} must be
+#'   provided. Defaults to \code{NULL}.
+#' @param autoQC Disabled.
+#' @param verbose  Logical. If \code{TRUE} then the function will report back
+#'   diagnostic information as console messages while it works. Defaults to
+#'   \code{FALSE}.
+#'
+#' @export
 gather_gap <- function(dsn = NULL,
                        file_type = "gdb",
                        source,
@@ -4463,7 +4492,7 @@ gather_species_inventory <- function(dsn = NULL,
 
 
 
-#### PLOT CHARACTERIZATION #####################################################
+# PLOT CHARACTERIZATION ###
 # #' Convert plot data into a tall, tidy data frame
 # #'
 # #' @description Given wide format plot data, create a tall format data frame

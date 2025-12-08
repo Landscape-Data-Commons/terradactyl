@@ -704,9 +704,13 @@ species_join <- function(data, # field data,
   data_species
 }
 
-#'
-#' @export species_count
-#' @rdname gather_species_inventory
+#' Get a count of species
+#' @description Count the number of unique species found.
+#' @param species_inventory_tall Data frame. The long format species inventory data from \code{gather_spp_inventory()}.
+#' @param indicator_variables Optional character string or vector of character strings. The names of variables to group by for counts.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 species_count <- function(species_inventory_tall,
                           ...,
                           indicator_variables = NULL,
@@ -788,17 +792,13 @@ species_count <- function(species_inventory_tall,
 #' @examples
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 #' # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
-
 #'accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.rdata",
 #'                                                       spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.rdata",
 #'                                                        height_tall = "~/AIM/Data/height_tall.rdata",
 #'                                                        header = "~/AIM/Data/header.rdata",
 #'                                                        species_file = "species_file.csv",
 #'                                                        SpeciesState %in% "NM")
-
-
-#'@rdname accumulated_species
-#'@export accumulated_species
+#'@export
 
 accumulated_species <- function(header,
                                 lpi_tall = NULL,

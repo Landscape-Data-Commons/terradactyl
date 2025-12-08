@@ -12,6 +12,7 @@ soil_stability(
   all_cover_types = FALSE,
   exclude_na_cover = TRUE,
   tall = FALSE,
+  digits = 1,
   verbose = FALSE
 )
 }
@@ -27,6 +28,8 @@ soil_stability(
 \item{exclude_na_cover}{Logical. When \code{TRUE}, all records with \code{NA} in the Veg variable will be removed prior to calculations. Defaults to \code{TRUE}.}
 
 \item{tall}{Logical. Indicates if output will be tall/long or wide. Defaults to \code{TRUE}.}
+
+\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.}
 
 \item{uncovered.}{Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples not associated with perennial plant cover (defined as records which have \code{"NC"} in the Veg variable) will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"uncovered"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_Unprotected. Defaults to \code{TRUE}.}
 }

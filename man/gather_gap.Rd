@@ -3,7 +3,8 @@
 \name{gather_gap}
 \alias{gather_gap}
 \title{export gather_gap_survey123
-rdname gather_gap}
+rdname gather_gap
+Convert wide gap data into a long/tall format.}
 \usage{
 gather_gap(
   dsn = NULL,
@@ -17,7 +18,41 @@ gather_gap(
   verbose = FALSE
 )
 }
+\arguments{
+\item{dsn}{Optional (contingent) character string. If provided, this must be the filepath
+to a geodatabase which contains either the feature classes tblGapHeader and
+tblGapDetail or the feature classes GINTERCEPT and POINT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
+the arguments \code{tblGapHeader} and \code{tblGapDetail} or \code{POINT} and \code{GINTERCEPT} are required. Defaults to
+\code{NULL}.}
+
+\item{file_type}{Optional character string. The file extension for the file
+pointed to by \code{dsn}. If \code{NULL} then the file extension will be
+extracted from \code{dsn}. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.}
+
+\item{source}{Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).}
+
+\item{tblGapHeader}{Optional data frame. If provided, this must contain the
+expected metadata for the gap data. If \code{NULL} then the argument \code{dsn} must be
+provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.}
+
+\item{tblGapDetail}{Optional data frame. If provided, this must contain the
+expected gap data. If \code{NULL} then the argument
+\code{dsn} must be provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.}
+
+\item{POINT}{Optional data frame. If provided, this must contain the expected
+point metadata. Ignored if \code{source} is not \code{"lmf"}.  If \code{NULL} then the argument \code{dsn} must be
+provided. Defaults to \code{NULL}.}
+
+\item{GINTERCEPT}{Optional data frame. If provided, this must contain the
+expected gap data. If \code{NULL} then the argument \code{dsn} must be
+provided. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.}
+
+\item{autoQC}{Disabled.}
+
+\item{verbose}{Logical. If \code{TRUE} then the function will report back
+diagnostic information as console messages while it works. Defaults to
+\code{FALSE}.}
+}
 \description{
-export gather_gap_survey123
-rdname gather_gap
+This is a wrapper for the \code{gather_gap_terradat()} and \code{gather_gap_lmf()} functions.
 }
