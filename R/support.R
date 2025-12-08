@@ -25,7 +25,8 @@ unquoted_to_character <- function(...) {
 # Just for ease of use in those legacy code situations, if input is a data
 # frame then we'll just pass that through as the output.
 # The goal here is to handle all of those as seamlessly as possible.
-# ADD A BEST_GUESS ARGUMENT
+# If regex is TRUE and best_guess is also TRUE, then matching multiple feature
+# classes will be resolved by simply reading in the one with the shortest name.
 read_whatever <- function(input,
                           layer = NULL,
                           regex = FALSE,
@@ -97,12 +98,24 @@ read_whatever <- function(input,
                        if (regex) {
                          matched_layers <- available_layers[stringr::str_detect(string = available_layers,
                                                                                 pattern = layer)]
-                         if (length(matched_layers) > 1) {
-                           stop(paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase but must only match one. The following layers were found: ",
+                         # Order them according to string length in case we make
+                         # a best guess.
+                         matched_layers <- matched_layers[order(sapply(X = matched_layers,
+                                                                       FUN = nchar))][1]
+                         if (length(matched_layers) > 1 & !best_guess) {
+                           stop(paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase but must only match one if best_guess is FALSE. The following layers were found: ",
                                        paste(matched_layers,
                                              collapse = ", ")))
+                         } else if (length(matched_layers) > 1 & !best_guess) {
+                           # When making a best guess, this'll use the shortest
+                           # layer name
+                           if (verbose) {
+                             paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase. Because best_guess is TRUE, the following will be used: ",
+                                    matched_layer)
+                           }
+                           layer <- matched_layers[1]
                          } else {
-                           layer <- matched_layers
+                           layer <- matched_layers[1]
                          }
                        } else if (!(layer %in% available_layers)) {
                          stop(paste0("The geodatabase does not contain a layer/feature class called '", layer, "'. Did you intend to use it as a regular expression with the argument 'regex = TRUE'?"))
