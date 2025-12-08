@@ -1,5 +1,1 @@
-^data-raw$
-^codemeta\.json$
-^.*\.Rproj$
-^\.Rproj\.user$
-^README\.Rmd$
+^\.github$

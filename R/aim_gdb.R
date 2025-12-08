@@ -1,6 +1,23 @@
-#' @export build_terradat_indicators
-#' @rdname aim_gdb
 # Build indicators feature class
+#' Calculate the full set of standard Terrestrial AIM Database indicators
+#' @description
+#' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
+#'
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
+#' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
+#' @param species_code_var Character string. The name of the variable in the species characteristics that contain the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
+#' @returns A data frame with all standard TerrADat indicators in a format matching TerrADat.
+#'
 build_terradat_indicators <- function(header,
                                       dsn,
                                       species_file,
@@ -184,8 +201,25 @@ build_terradat_indicators <- function(header,
 }
 
 # Build LMF Indicators
-#' @export build_lmf_indicators
-#' @rdname aim_gdb
+#' Calculate the full set of standard Terrestrial AIM Database indicators from LMF data
+#' @description
+#' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
+#'
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
+#' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
+#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
+#' @returns A data frame with all standard TerrADat indicators in a format matching TerrADat.
+#'
 
 build_lmf_indicators <- function(header, source, dsn,
                                  species_file,
@@ -251,10 +285,27 @@ build_lmf_indicators <- function(header, source, dsn,
                 .x = indicators)
 }
 
-# Build LMF Indicators
-#' @export build_indicators
-#' @rdname aim_gdb
-# Build wrapper
+# Build Indicators
+#' Calculate the full set of standard Terrestrial AIM Database indicators
+#' @description
+#' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
+#'
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param source Character string. The expected input data format. Must be one of \code{"terradat"}, \code{"aim"}, \code{"lmf"}, or \code{"nri"}. Case insensitive.
+#' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
+#' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
+#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
+#' @returns A data frame with all standard TerrADat indicators in a format matching TerrADat.
+#'
 build_indicators <- function(header, source,
                              dsn = NULL, lpi_tall,
                              species_file,
@@ -264,8 +315,8 @@ build_indicators <- function(header, source,
                              soil_stability_tall, ...,
                              generic_species_file = NULL,
                              verbose = FALSE) {
-  all_indicators <- switch(source,
-                           "TerrADat" = {
+  all_indicators <- switch(toupper(source),
+                           "TERRADAT" = {
                              build_terradat_indicators(
                                dsn = dsn,
                                species_file = species_file,
@@ -412,15 +463,31 @@ build_indicators <- function(header, source,
 }
 
 
-#' @export lpi_calc
-#' @rdname aim_gdb
+
 # Calculate the LPI indicators
+#' Calculate the standard Terrestrial AIM Database (TerrADat) Line-Point Intercept indicators
+#' @description
+#' This function calculates the full set of LPI-derived indicators that are standard for TerrADat.
+#' These indicators are dependent on the species characteristics used by Terrestrial AIM and stored in the tblNationalPlants and tblStateSpecies tables in TerrADat. Attempting to use this function with any other format of species characteristic data will almost certainly fail.
+#'
+#' For any other LPI-derived indicators, use the underlying functions \code{pct_cover()} and \code{mean_height()}.
+#'
+#'
+#' @param header Data frame or character string. The metadata for the plots involved in the calculations, this must contain the variable PrimaryKey and any of SpeciesState, State, and County. If a character string, this must point to a CSV file containing the data.
+#' @param lpi_tall  Data frame or character string. The long/tall-format LPI data for the plots involved in the calculations. The format must match the output from \code{gather_lpi()}. If a character string, this must point to a CSV file containing the data.
+#' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
+#' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns A data frame matching the format of LPI indicators in TerrADat.
+#' @export
 lpi_calc <- function(header = NULL,
                      lpi_tall = NULL,
                      species_file,
-                     species_code_var,
-                     source,
-                     dsn = NULL,
+                     species_code_var = "SpeciesCode",
                      generic_species_file = NULL,
                      digits = 1,
                      verbose = FALSE) {
@@ -438,6 +505,8 @@ lpi_calc <- function(header = NULL,
     } else {
       stop("When header is a character string it must be the path to a .Rdata file containing header data.")
     }
+  } else if ("data.frame" %in% class(header)) {
+    header <- header
   }
   if ("character" %in% class(lpi_tall)) {
     if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
@@ -775,7 +844,7 @@ lpi_calc <- function(header = NULL,
 
   #### Joining species info ----------------------------------------------------
   # If generic_species_file is not provided, assume it is the same as species_file
-  if(is.null(generic_species_file)) {
+  if (is.null(generic_species_file)) {
     if (verbose) {
       message("No generic_species_file provided, using species_file in its place.")
     }
@@ -846,85 +915,6 @@ lpi_calc <- function(header = NULL,
                               check_species = FALSE,
                               verbose = verbose)
 
-  # # This is way more complicated now that we're working with tblNationalPlants
-  # # AND tblStateSpecies.
-  # # First, we use species_join() to add the important information from
-  # # tblNationalPlants and to handle the generic species stuff.
-  # # Then we read in tblStateSpecies (discarding everything except the variables
-  # # containing codes, the states, and the sage-grouse groups) and join that to
-  # # the data to add in the SG_Group variable because that's all that
-  # # tblStateSpecies is good for these days.
-  # # Also, tblStateSpecies contains some duration and growth habit information
-  # # that (as of May 2025) is not reflected in or directly contradicts
-  # # tblNationalPlants or is flat-out incorrect. Those variables aren't being
-  # # used, but discrepancies in indicators calculated before versus after 2024
-  # # may be due to those not being applied.
-  # tblNationalPlants <- sf::st_read(dsn = species_file,
-  #                                  layer = "tblNationalPlants",
-  #                                  quiet = TRUE)
-  #
-  # tblStateSpecies <- sf::st_read(dsn = species_file,
-  #                                layer = "tblStateSpecies",
-  #                                quiet = TRUE) |>
-  #   dplyr::select(.data = _,
-  #                 tidyselect::all_of(c(code = "SpeciesCode",
-  #                                      "Duration",
-  #                                      "GrowthHabit",
-  #                                      "GrowthHabitSub",
-  #                                      "SG_Group",
-  #                                      "SpeciesState"))) |>
-  #   dplyr::distinct()
-  #
-  # if (verbose) {
-  #   message("Starting with tblNationalPlants and standardized generic codes.")
-  # }
-  # lpi_species <- species_join(data = sf::st_drop_geometry(lpi_tall_header),
-  #                             species_file = tblNationalPlants,
-  #                             species_code = "NameCode",
-  #                             update_species_codes = FALSE,
-  #                             by_species_key = FALSE,
-  #                             verbose = verbose) |>
-  #   # We want to use whatever is the currently accepted code in USDA PLANTS for
-  #   # the species, even though that may be less taxonomically correct.
-  #   # Using dplyr::case_when() lets us keep any codes that don't have a
-  #   # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
-  #   dplyr::mutate(.data = _,
-  #                 code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
-  #                                         .default = code)) |>
-  #   # Not necessary, but I'm paranoid
-  #   dplyr::distinct()
-  #
-  # if (verbose) {
-  #   message("Adding SG_Group from tblStateSpecies")
-  # }
-  #
-  # # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
-  # # make a new data frame where there's only one record per species code and
-  # # we store all the per-state SG_Group assignments in a character string as
-  # # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
-  # # This should be significantly faster than trying to join by both the species
-  # # codes and SpeciesState, at least for very large data sets.
-  # lpi_species <- dplyr::select(.data = tblStateSpecies,
-  #                              tidyselect::all_of(c("code",
-  #                                                   "SpeciesState",
-  #                                                   "SG_Group"))) |>
-  #   dplyr::filter(.data = _,
-  #                 !is.na(SG_Group)) |>
-  #   dplyr::mutate(.data = _,
-  #                 sg_string = paste(SpeciesState,
-  #                                   SG_Group,
-  #                                   sep = ":")) |>
-  #   dplyr::summarize(.data = _,
-  #                    .by = code,
-  #                    SG_Group = paste(sg_string,
-  #                                     collapse = "|")) |>
-  #   dplyr::left_join(x = lpi_species,
-  #                    y = _,
-  #                    relationship = "many-to-one",
-  #                    by = c("code"),
-  #                    suffix = c("",
-  #                               "_tblstatespecies")) |>
-  #   dplyr::distinct()
 
   ##### Sanitization/harmonization #############################################
   # One big mutate() to do all this lifting.
@@ -1493,11 +1483,26 @@ lpi_calc <- function(header = NULL,
 }
 
 
-#' @export gap_calc
-#' @rdname aim_gdb
+
 # Calculate the Gap indicators for AIM
-gap_calc <- function(header,
+#' Calculate the standard Terrestrial AIM Database (TerrADat) Canopy Gap indicators
+#' @description
+#' This function calculates the full set of gap-derived indicators that are standard for TerrADat.
+#'
+#' For any other gap indicators, use the underlying function \code{gap_cover()}.
+#'
+#'
+#' @param header Optional data frame or character string. The metadata for the plots involved in the calculations, this is used to filter or subset the data being used for the calculations and must contain this must contain the variable PrimaryKey. If a character string, this must point to a CSV file containing the data. If \code{NULL} then no filtering will occur. Defaults to \code{NULL}.
+#' @param gap_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_gap()}. If a character string, this must point to a CSV file containing the data.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns A data frame matching the format of gap indicators in TerrADat.
+#' @export
+gap_calc <- function(header = NULL,
                      gap_tall,
+                     digits = 1,
                      verbose = FALSE) {
   if ("character" %in% class(header)) {
     if (toupper(tools::file_ext(header)) == "RDATA") {
@@ -1546,6 +1551,7 @@ gap_calc <- function(header,
 
   # Calculate indicators and rename them.
   gap_values <- gap_cover(gap_tall = gap_tall,
+                          digits = digits,
                           tall = FALSE)$percent |>
     dplyr::select(.data = _,
                   tidyselect::all_of(x = c("PrimaryKey",
@@ -1558,14 +1564,35 @@ gap_calc <- function(header,
 }
 
 
-#' @export height_calc
-#' @rdname aim_gdb
 # Calculate the Height indicators for AIM
+#' Calculate the standard Terrestrial AIM Database (TerrADat) height indicators
+#' @description
+#' This function calculates the full set of height-derived indicators that are standard for TerrADat.
+#'
+#' For any other gap indicators, use the underlying function \code{gap_cover()}.
+#'
+#'
+#' @param header Optional data frame or character string. The metadata for the plots involved in the calculations, this is used to filter or subset the data being used for the calculations and must contain this must contain the variable PrimaryKey. If a character string, this must point to a CSV file containing the data. If \code{NULL} then no filtering will occur. Defaults to \code{NULL}.
+#' @param gap_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_gap()}. If a character string, this must point to a CSV file containing the data.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
+#' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
+#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns A data frame matching the format of height indicators in TerrADat.
+#' @export
 height_calc <- function(header,
                         height_tall,
                         species_file = species_file,
-                        source,
+                        source = NULL,
                         generic_species_file = NULL,
+                        digits = 1,
                         verbose = FALSE) {
   if (verbose) {
     message("Beginning height calculations")
@@ -1601,94 +1628,78 @@ height_calc <- function(header,
                                          relationship = "one-to-many",
                                          by = "PrimaryKey")
 
+  #### Joining species info ----------------------------------------------------
   # If generic_species_file is not provided, assume it is the same as species_file
-  if(is.null(generic_species_file)) {
+  if (is.null(generic_species_file)) {
+    if (verbose) {
+      message("No generic_species_file provided, using species_file in its place.")
+    }
     generic_species_file <- species_file
   }
 
   if (verbose) {
-    message("Joining species information to the height data.")
+    message("Checking species_file and reading in as necessary.")
   }
-  # This is way more complicated now that we're working with tblNationalPlants
-  # AND tblStateSpecies.
-  # First, we use species_join() to add the important information from
-  # tblNationalPlants and to handle the generic species stuff.
-  # Then we read in tblStateSpecies (discarding everything except the variables
-  # containing codes, the states, and the sage-grouse groups) and join that to
-  # the data to add in the SG_Group variable because that's all that
-  # tblStateSpecies is good for these days.
-  # Also, tblStateSpecies contains some duration and growth habit information
-  # that (as of May 2025) is not reflected in or directly contradicts
-  # tblNationalPlants or is flat-out incorrect. Those variables aren't being
-  # used, but discrepancies in indicators calculated before versus after 2024
-  # may be due to those not being applied.
-  tblNationalPlants <- sf::st_read(dsn = species_file,
-                                   layer = "tblNationalPlants",
-                                   quiet = TRUE)
 
-  tblStateSpecies <- sf::st_read(dsn = species_file,
-                                 layer = "tblStateSpecies",
-                                 quiet = TRUE) |>
-    dplyr::select(.data = _,
-                  tidyselect::all_of(c(code = "SpeciesCode",
-                                       "Duration",
-                                       "GrowthHabit",
-                                       "GrowthHabitSub",
-                                       "SG_Group",
-                                       "SpeciesState"))) |>
-    dplyr::distinct()
+  if (is.character(species_file)) {
+    current_species_file_extension <- tools::file_ext(species_file)
+
+    if (nchar(current_species_file_extension) == 0) {
+      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+    } else if (current_species_file_extension %in% c("CSV", "csv")) {
+      if (!file.exists(species_file)) {
+        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+      }
+      species_list <- read.csv(file = species_file,
+                               stringsAsFactors = FALSE)
+    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+      species_list <- species_read_aim(dsn = species_file,
+                                       verbose = verbose)
+    }
+  } else if (is.data.frame(species_file)) {
+    species_list <- species_file
+  } else {
+    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
+  }
 
   if (verbose) {
-    message("Starting with tblNationalPlants and standardized generic codes.")
-  }
-  height_species <- species_join(data = height_tall_header,
-                                 data_code = "Species",
-                                 species_file = tblNationalPlants,
-                                 species_code = "NameCode",
-                                 update_species_codes = FALSE,
-                                 by_species_key = FALSE,
-                                 verbose = verbose) |>
-    # We want to use whatever is the currently accepted code in USDA PLANTS for
-    # the species, even though that may be less taxonomically correct.
-    # Using dplyr::case_when() lets us keep any codes that don't have a
-    # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
-    dplyr::mutate(.data = _,
-                  Species = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
-                                             .default = Species)) |>
-    # Not necessary, but I'm paranoid
-    dplyr::distinct()
-
-  if (verbose) {
-    message("Adding SG_Group from tblStateSpecies")
+    message("Attempting to join the species list to the height data.")
   }
 
-  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
-  # make a new data frame where there's only one record per species code and
-  # we store all the per-state SG_Group assignments in a character string as
-  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
-  # This should be significantly faster than trying to join by both the species
-  # codes and SpeciesState, at least for very large data sets.
-  height_species <- dplyr::select(.data = tblStateSpecies,
-                                  tidyselect::all_of(c(Species = "code",
-                                                       "SpeciesState",
-                                                       "SG_Group"))) |>
-    dplyr::filter(.data = _,
-                  !is.na(SG_Group)) |>
-    dplyr::mutate(.data = _,
-                  sg_string = paste(SpeciesState,
-                                    SG_Group,
-                                    sep = ":")) |>
-    dplyr::summarize(.data = _,
-                     .by = Species,
-                     SG_Group = paste(sg_string,
-                                      collapse = "|")) |>
-    dplyr::left_join(x = height_species,
-                     y = _,
-                     relationship = "many-to-one",
-                     by = c("Species"),
-                     suffix = c("",
-                                "_tblstatespecies")) |>
-    dplyr::distinct()
+  height_species <- species_join(data = sf::st_drop_geometry(height_tall_header),
+                              data_code = "code",
+                              species_file = species_list,
+                              # This isn't hardcoded to accommodate other, non-
+                              # AIM species lists.
+                              species_code = species_code_var,
+                              species_growth_habit_code = "GrowthHabitSub",
+                              species_duration = "Duration",
+                              # These won't all be present in every list, but
+                              # that shouldn't be a problem because they're only
+                              # used with an any_of().
+                              species_property_vars = c("GrowthHabit",
+                                                        "GrowthHabitSub",
+                                                        "Duration",
+                                                        "Family",
+                                                        "HigherTaxon",
+                                                        "Nonnative",
+                                                        "Invasive",
+                                                        "Noxious",
+                                                        "SpecialStatus",
+                                                        "Photosynthesis",
+                                                        "PJ",
+                                                        "CurrentPLANTSCode"),
+                              growth_habit_file = "",
+                              growth_habit_code = "Code",
+                              # This FALSE should prevent us from having to
+                              # worry about generic_species_file because that's
+                              # only used to overwrite generic species info.
+                              overwrite_generic_species = FALSE,
+                              generic_species_file = generic_species_file,
+                              update_species_codes = FALSE,
+                              by_species_key = FALSE,
+                              check_species = FALSE,
+                              verbose = verbose)
 
   #### Cleanup! ################################################################
   # These are so we can assign a new variable called "pgpf" indicating which
@@ -1750,7 +1761,7 @@ height_calc <- function(header,
                     GrowthHabit_measured == GrowthHabit)
 
   # Because we'll calculate "Hgt_Sagebrush_Live_Avg" if we ought to.
-  if (source %in% c("TerrADat", "AIM")) {
+  if (toupper(source) %in% c("TERRADAT", "AIM")) {
     height_species <- dplyr::mutate(.data = height_species,
                                     Chkbox = dplyr::case_when(Chkbox %in% c(0, "0") ~ "_Live",
                                                               .default = as.character(Chkbox)))
@@ -1795,7 +1806,8 @@ height_calc <- function(header,
   height_values_list <- lapply(X = indicator_variables_list,
                                height_species = height_species,
                                verbose = verbose,
-                               FUN = function(X, height_species, verbose){
+                               digits = digits,
+                               FUN = function(X, height_species, verbose, digits){
                                  if (verbose) {
                                    message(paste(X,
                                                  collapse = ", "))
@@ -1805,6 +1817,7 @@ height_calc <- function(header,
                                              method = "mean",
                                              tall = TRUE,
                                              indicator_variables = X,
+                                             digits = digits,
                                              verbose = verbose) |>
                                    dplyr::mutate(.data = _,
                                                  indicator = stringr::str_remove_all(string = indicator,
@@ -1835,9 +1848,26 @@ height_calc <- function(header,
 }
 
 
-#' @export spp_inventory_calc
-#' @rdname aim_gdb
+
 # Calculate species inventory
+#' Calculate the standard Terrestrial AIM Database (TerrADat) species indicators
+#' @description
+#' This function calculates the full set of species-specific indicators that are standard for TerrADat.
+#'
+#' This depends on the species characteristics used being those found in tblNationalPlants.
+#'
+#' @param header Data frame or character string. The metadata for the plots involved in the calculations, this is used to add the SpeciesState variable by joining with the PrimaryKey variable. If a character string, this must point to a CSV file containing the data.
+#' @param spp_inventory_tall  Data frame or character string. The long/tall-format species inventory data for the plots involved in the calculations. The format must match the output from \code{gather_species_inventory()}. If a character string, this must point to a CSV file containing the data.
+#' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
+#' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
+#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns A data frame matching the format of height indicators in TerrADat.
+#' @export
 spp_inventory_calc <- function(header,
                                spp_inventory_tall,
                                species_file,
@@ -1867,115 +1897,78 @@ spp_inventory_calc <- function(header,
                            y = data,
                            by = "PrimaryKey")
 
+  #### Joining species info ----------------------------------------------------
   # If generic_species_file is not provided, assume it is the same as species_file
   if (is.null(generic_species_file)) {
+    if (verbose) {
+      message("No generic_species_file provided, using species_file in its place.")
+    }
     generic_species_file <- species_file
   }
 
   if (verbose) {
-    message("Joining species information to the species inventory data.")
+    message("Checking species_file and reading in as necessary.")
   }
-  # This is way more complicated now that we're working with tblNationalPlants
-  # AND tblStateSpecies.
-  # First, we use species_join() to add the important information from
-  # tblNationalPlants and to handle the generic species stuff.
-  # Then we read in tblStateSpecies (discarding everything except the variables
-  # containing codes, the states, and the sage-grouse groups) and join that to
-  # the data to add in the SG_Group variable because that's all that
-  # tblStateSpecies is good for these days.
-  # Also, tblStateSpecies contains some duration and growth habit information
-  # that (as of May 2025) is not reflected in or directly contradicts
-  # tblNationalPlants or is flat-out incorrect. Those variables aren't being
-  # used, but discrepancies in indicators calculated before versus after 2024
-  # may be due to those not being applied.
-  tblNationalPlants <- sf::st_read(dsn = species_file,
-                                   layer = "tblNationalPlants",
-                                   quiet = TRUE)
 
-  tblStateSpecies <- sf::st_read(dsn = species_file,
-                                 layer = "tblStateSpecies",
-                                 quiet = TRUE) |>
-    dplyr::select(.data = _,
-                  tidyselect::all_of(c(code = "SpeciesCode",
-                                       "Duration",
-                                       "GrowthHabit",
-                                       "GrowthHabitSub",
-                                       "SG_Group",
-                                       "SpeciesState"))) |>
-    dplyr::distinct()
+  if (is.character(species_file)) {
+    current_species_file_extension <- tools::file_ext(species_file)
+
+    if (nchar(current_species_file_extension) == 0) {
+      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+    } else if (current_species_file_extension %in% c("CSV", "csv")) {
+      if (!file.exists(species_file)) {
+        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+      }
+      species_list <- read.csv(file = species_file,
+                               stringsAsFactors = FALSE)
+    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+      species_list <- species_read_aim(dsn = species_file,
+                                       verbose = verbose)
+    }
+  } else if (is.data.frame(species_file)) {
+    species_list <- species_file
+  } else {
+    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
+  }
 
   if (verbose) {
-    message("Starting with tblNationalPlants and standardized generic codes.")
-  }
-  data <- species_join(data = data,
-                       data_code = "Species",
-                       species_file = tblNationalPlants,
-                       species_code = "NameCode",
-                       update_species_codes = FALSE,
-                       by_species_key = FALSE,
-                       verbose = verbose) |>
-    # We want to use whatever is the currently accepted code in USDA PLANTS for
-    # the species, even though that may be less taxonomically correct.
-    # Using dplyr::case_when() lets us keep any codes that don't have a
-    # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
-    dplyr::mutate(.data = _,
-                  Species = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
-                                             .default = Species)) |>
-    # Not necessary, but I'm paranoid
-    dplyr::distinct()
-
-  if (verbose) {
-    message("Adding SG_Group from tblStateSpecies")
+    message("Attempting to join the species list to the height data.")
   }
 
-  # We'll take the SpeciesState and SG_Group variables from tblStateSpecies to
-  # make a new data frame where there's only one record per species code and
-  # we store all the per-state SG_Group assignments in a character string as
-  # pipe-separated values, e.g. "NM:PreferredForb|OR:PreferredForb".
-  # This should be significantly faster than trying to join by both the species
-  # codes and SpeciesState, at least for very large data sets.
-  data <- dplyr::select(.data = tblStateSpecies,
-                        tidyselect::all_of(c(Species = "code",
-                                             "SpeciesState",
-                                             "SG_Group"))) |>
-    dplyr::filter(.data = _,
-                  !is.na(SG_Group)) |>
-    dplyr::mutate(.data = _,
-                  sg_string = paste(SpeciesState,
-                                    SG_Group,
-                                    sep = ":")) |>
-    dplyr::summarize(.data = _,
-                     .by = Species,
-                     SG_Group = paste(sg_string,
-                                      collapse = "|")) |>
-    dplyr::left_join(x = data,
-                     y = _,
-                     relationship = "many-to-one",
-                     by = c("Species"),
-                     suffix = c("",
-                                "_tblstatespecies")) |>
-    dplyr::distinct() |>
-    dplyr::mutate(.data = _,
-                  # This is to turn the SG_Group codes into values
-                  # that match the expected indicator names for
-                  # our convenience.
-                  SG_Group = stringr::str_remove_all(string = SG_Group,
-                                                     pattern = "Stature") |>
-                    stringr::str_replace_all(string = _,
-                                             pattern = "Perennial",
-                                             replacement = "Peren") |>
-                    # This makes sure that the value in SG_Group is
-                    # only the string associated with the group for
-                    # the species code in the relevant state.
-                    # Records where there's not a group value for the
-                    # associated state (or "US") will get NA instead.
-                    stringr::str_extract(string = _,
-                                         pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
-                  # This makes sure that we've assigned any shrubs
-                  # that didn't get a sage-grouse group are
-                  # assigned to "NonSagebrushShrub"
-                  SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
-                                              .default = SG_Group))
+  data <- species_join(data = sf::st_drop_geometry(data),
+                                 data_code = "code",
+                                 species_file = species_list,
+                                 # This isn't hardcoded to accommodate other, non-
+                                 # AIM species lists.
+                                 species_code = species_code_var,
+                                 species_growth_habit_code = "GrowthHabitSub",
+                                 species_duration = "Duration",
+                                 # These won't all be present in every list, but
+                                 # that shouldn't be a problem because they're only
+                                 # used with an any_of().
+                                 species_property_vars = c("GrowthHabit",
+                                                           "GrowthHabitSub",
+                                                           "Duration",
+                                                           "Family",
+                                                           "HigherTaxon",
+                                                           "Nonnative",
+                                                           "Invasive",
+                                                           "Noxious",
+                                                           "SpecialStatus",
+                                                           "Photosynthesis",
+                                                           "PJ",
+                                                           "CurrentPLANTSCode"),
+                                 growth_habit_file = "",
+                                 growth_habit_code = "Code",
+                                 # This FALSE should prevent us from having to
+                                 # worry about generic_species_file because that's
+                                 # only used to overwrite generic species info.
+                                 overwrite_generic_species = FALSE,
+                                 generic_species_file = generic_species_file,
+                                 update_species_codes = FALSE,
+                                 by_species_key = FALSE,
+                                 check_species = FALSE,
+                                 verbose = verbose)
 
   # Cleanup to get things in order for the indicators
   data <- dplyr::mutate(.data = data,
@@ -2073,10 +2066,29 @@ spp_inventory_calc <- function(header,
   output
 }
 
-#' @export soil_stability_calc
-#' @rdname aim_gdb
+
 # Calculate soil stability values
+#' Calculate the standard Terrestrial AIM Database (TerrADat) soil stability indicators
+#' @description
+#' This function calculates the full set of soil stability-derived indicators that are standard for TerrADat.
+#'
+#'
+#' @param soil_stability_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_soil_stability()}. If a character string, this must point to a CSV file containing the data.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
+#' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
+#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns A data frame matching the format of height indicators in TerrADat.
+#' @export
 soil_stability_calc <- function(soil_stability_tall,
+                                digits = 1,
                                 verbose = FALSE) {
   if ("character" %in% class(soil_stability_tall)) {
     if (toupper(tools::file_ext(soil_stability_tall)) == "RDATA") {
@@ -2097,6 +2109,7 @@ soil_stability_calc <- function(soil_stability_tall,
                                cover = TRUE,
                                uncovered = TRUE,
                                all_cover_types = FALSE,
-                               tall = FALSE)
+                               tall = FALSE,
+                               digits = digits)
   indicators
 }

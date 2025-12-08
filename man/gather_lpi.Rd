@@ -2,26 +2,10 @@
 % Please edit documentation in R/gathering.R
 \name{gather_lpi}
 \alias{gather_lpi}
-\alias{gather_lpi_terradat}
-\alias{gather_lpi_lmf}
-\title{Convert line-point intercept (LPI) data into a tall, tidy data frame}
+\title{export gather_lpi_survey123
+rdname gather_lpi
+Function to convert LPI data into a long format.}
 \usage{
-gather_lpi_terradat(
-  dsn = NULL,
-  tblLPIDetail = NULL,
-  tblLPIHeader = NULL,
-  auto_qc_warnings = TRUE,
-  null_is_na = TRUE,
-  verbose = FALSE
-)
-
-gather_lpi_lmf(
-  dsn = NULL,
-  file_type = "gdb",
-  PINTERCEPT = NULL,
-  verbose = FALSE
-)
-
 gather_lpi(
   dsn = NULL,
   file_type = "gdb",
@@ -29,80 +13,62 @@ gather_lpi(
   tblLPIDetail = NULL,
   tblLPIHeader = NULL,
   PINTERCEPT = NULL,
-  autoQC = TRUE,
   verbose = FALSE
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file
-extension) of the geodatabase or text file containing the table of interest.
-This field is unnecessary if you provide either both of tblLPIDetail and
-tblLPIHeader (AIM/DIMA/TerrADat) or PINTERCEPT (LMF/NRI).}
+\item{dsn}{Optional (contingent) character string. If provided, this must be the filepath
+to a geodatabase which contains the feature classes tblLPIHeader and
+tblLPIDetail or the feature class PINTERCEPT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
+the arguments \code{tblLPIHeader} and \code{tblLPIDetail} or the argument \code{PINTERCEPT} must be provided.
+Defaults to \code{NULL}.}
 
-\item{tblLPIDetail}{Dataframe of the data structure tblLPIDetail from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide
-dsn.}
+\item{file_type}{Optional character string. This must be \code{"gdb"},
+\code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
+If \code{dsn} is \code{NULL} this argument is ignored.  Only used if \code{source} is \code{"LMF}. Defaults to
+\code{"gdb"}.}
 
-\item{tblLPIHeader}{Dataframe of the data structure tblLPIHeader from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide
-dsn.}
+\item{source}{Character string. This specifies the expected data format(s)
+and determines which specialized gather function will be used. It must be
+one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
+\code{"NRI"}. This is case-insensitive.}
 
-\item{null_is_na}{Logical. If \code{TRUE} then any instance of \code{"NULL"}
-as a value for a layer in \code{tblLPIDetail} will be considered to be \code{NA}.
-Defaults to \code{TRUE}.}
+\item{tblLPIDetail}{Optional data frame. If provided, this must contain the
+expected LPI data in the format of the tblLPIDetail table used by AIM.  Only used if \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{NULL} then the argument
+\code{dsn} must be provided. Defaults to \code{NULL}.}
+
+\item{tblLPIHeader}{Optional data frame. If provided, this must contain the
+expected metadata for the LPI data in the format of the tblLPIHeader table used by AIM. Only used if \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{NULL} then the argument \code{dsn} must be
+provided. Defaults to \code{NULL}.}
+
+\item{PINTERCEPT}{Optional (contingent) data frame. This is the data frame
+containing the LPI data in the format of the PINTERCEPT table used by LMF.  Only used if \code{source} is \code{"LMF}.
+If provided, this will be used even if \code{dsn} is also non-NULL.
+Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to
 \code{FALSE}.}
-
-\item{file_type}{Character string that denotes the source file type of the
-LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-AIM/DIMA/TerrADat, or if PINTERCEPT is provided.}
-
-\item{PINTERCEPT}{Dataframe of the data structure PINTERCEPT from the LMF/NRI
-database with the addition of PrimaryKey and DBKey fields. Use when source
-is LMF or NRI; alternately provide dsn.}
-
-\item{source}{Character string. The data source format,
-\code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
-
-\item{auto_qc}{Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
-checked for non-unique and orphaned records before doing processing. If any
-are found, a warning will be triggered but the gather will still be carried
-out. It is strongly recommended that any identified issues be addressed to
-avoid incorrect records in the output. Defaults to \code{TRUE}.}
-}
-\value{
-A tall data frame containing the data from the LPI pin intercepts
 }
 \description{
-Given wide format line-point intercept data, create a tall
-format data frame usable by other terradactyl functions.
+This is a wrapper function for specialized functions which read
+in Line-Point Intercept data from AIM anbd LMF sampling and return
+them as a long-format data frame suitable for use in indicator calculations
+with the package \code{terradactyl}. Supported formats include those used in
+AIM (Assessment, Inventory, and Monitoring) and TerrADat (Terrestrial AIM
+Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
+Inventory, Monitoring, and Assessment). For additional information about
+arguments, see the documentation for the functions
+\code{gather_lpi_terradat()} and \code{gather_lpi_lmf()}.
 }
 \examples{
-gather_lpi(dsn = "Path/To/AIM_Geodatabase.gdb",
-           source = "AIM")
-gather_lpi(dsn = "Path/To/LMF_Geodatabase.gdb",
-           source = "LMF")
+# LPI data from a geodatabase in the format of the Terrestrial AIM Database
+gather_lpi(dsn = "data_path/aim_data.gdb,
+           source = "terradat")
 
-aim_lpidetail <- read.csv("Path/To/tblLPIDetail.csv")
-aim_lpiheader <- read.csv("Path/To/tblLPIHeader.csv")
-gather_lpi(source = "AIM",
-           tblLPIDetail = aim_lpidetail,
-           tblLPIHeader = aim_lpiheader)
+# LPI data from a geodatabase in the format of the Landscape Monitoring Framework
+gather_lpi(dsn = "data_path/lmf_data.gdb,
+           source = "lmf")
 
-lmf_pintercept <- read.csv("Path/To/PINTERCEPT.csv")
-gather_lpi(source = "LMF",
-           RANGEHEALTH = lmf_pintercept)
+
 }
-\seealso{
-Other <gather>: 
-\code{\link{gather_gap}()},
-\code{\link{gather_height}()},
-\code{\link{gather_rangeland_health}()},
-\code{\link{gather_soil_stability}()},
-\code{\link{gather_species_inventory}()}
-}
-\concept{<gather>}

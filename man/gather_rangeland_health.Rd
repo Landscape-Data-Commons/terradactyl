@@ -2,25 +2,11 @@
 % Please edit documentation in R/gathering.R
 \name{gather_rangeland_health}
 \alias{gather_rangeland_health}
-\alias{gather_rangeland_health_terradat}
-\alias{gather_rangeland_health_lmf}
-\title{Convert Interpreting Indicators of Rangeland Health (IIRH) data into a tall,
+\title{export gather_rangeland_health_survey123
+rdname IIRH
+Convert Interpreting Indicators of Rangeland Health (IIRH) data into a tall,
 tidy data frame}
 \usage{
-gather_rangeland_health_terradat(
-  dsn = NULL,
-  tblQualHeader = NULL,
-  tblQualDetail = NULL,
-  verbose = FALSE
-)
-
-gather_rangeland_health_lmf(
-  dsn = NULL,
-  file_type = NULL,
-  RANGEHEALTH = NULL,
-  verbose = FALSE
-)
-
 gather_rangeland_health(
   dsn = NULL,
   source,
@@ -38,26 +24,26 @@ extension) of the geodatabase or text file containing the table of interest.
 This field is unnecessary if you provide either both of tblQualHeader and
 tblQualDetail (AIM/DIMA/TerrADat) or RANGEHEALTH (LMF/NRI).}
 
-\item{tblQualHeader}{Dataframe of the data structure tblQualHeader from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblQualDetail when data source is AIM, DIMA, or TerrADat; alternately provide
-dsn.}
-
-\item{tblQualDetail}{Dataframe of the data structure tblQualDetail from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblQualHeader when data source is AIM, DIMA, or TerrADat; alternately provide
-dsn.}
+\item{source}{Character string. The data source format,
+\code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case insensitive).}
 
 \item{file_type}{Character string that denotes the source file type of the
 LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
 AIM/DIMA/TerrADat, or if RANGEHEALT is provided.}
 
+\item{tblQualHeader}{Dataframe of the data structure tblQualHeader from the
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+tblQualDetail when data source is AIM, DIMA, or TerrADat; alternately provide
+\code{dsn}.}
+
+\item{tblQualDetail}{Dataframe of the data structure tblQualDetail from the
+DIMA database with the addition of PrimaryKey and DBKey fields. Use with
+tblQualHeader when data source is AIM, DIMA, or TerrADat; alternately provide
+\code{dsn}.}
+
 \item{RANGEHEALTH}{Dataframe of the data structure RANGEHEALTH from the
 LMF/NRI database. Use when data source if LMF or NRI; alternately provide
-dsn.}
-
-\item{source}{Character string. The data source format,
-\code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
+\code{dsn}.}
 }
 \value{
 A tall data frame containing the data from the rangeland health
@@ -83,12 +69,3 @@ lmf_rh <- read.csv("Path/To/RANGEHEALTH.csv")
 gather_rangeland_health(source = "LMF",
                         RANGEHEALTH = lmf_rh)
 }
-\seealso{
-Other <gather>: 
-\code{\link{gather_gap}()},
-\code{\link{gather_height}()},
-\code{\link{gather_lpi}()},
-\code{\link{gather_soil_stability}()},
-\code{\link{gather_species_inventory}()}
-}
-\concept{<gather>}

@@ -50,6 +50,7 @@ gap_cover <- function(gap_tall,
                       type = "canopy",
                       no_max_cutoff = TRUE,
                       by_line = FALSE,
+                      digits = 2,
                       verbose = FALSE) {
 
   #### SETUP ###################################################################
@@ -313,7 +314,7 @@ gap_cover <- function(gap_tall,
                      by = grouping_vars) |>
     dplyr::mutate(.data = _,
                   percent = round(100 * length / total_line_length,
-                                  digits = 2))
+                                  digits = digits))
 
   ##### Create the output list -------------------------------------------------
   # Right now, the indicators are in a wide-ish format where there's a record

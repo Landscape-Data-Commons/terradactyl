@@ -25,9 +25,11 @@ unquoted_to_character <- function(...) {
 # Just for ease of use in those legacy code situations, if input is a data
 # frame then we'll just pass that through as the output.
 # The goal here is to handle all of those as seamlessly as possible.
+# ADD A BEST_GUESS ARGUMENT
 read_whatever <- function(input,
                           layer = NULL,
                           regex = FALSE,
+                          best_guess = TRUE,
                           verbose = FALSE) {
   # Get the class of input
   input_class <- class(input)
