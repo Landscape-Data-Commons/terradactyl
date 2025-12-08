@@ -21,7 +21,7 @@ pct_bareground(
 
 \item{by_line}{Logical. If \code{TRUE} then the cover will be calculated for each unique combination of values in the PrimaryKey and LineKey variables instead of simply by PrimaryKey. Defaults to \code{FALSE}.}
 
-\item{indicator_variable}{Optional character string. This must be the variable name in \code{lpi_tall} containing the value \code{"S"} for records where the pin came to rest on soil. Defaults to \code{"code}.}
+\item{indicator_variable}{Optional character string. This must be the variable name in \code{lpi_tall} containing the value \code{"S"} for records where the pin came to rest on soil. Defaults to \code{"code"}.}
 
 \item{soil_values}{Character string or vector of character strings. The values in the variable specified with \code{indicator_variable} that correspond to uncovered ground. Defaults to \code{c("S")}.}
 
