@@ -10,7 +10,7 @@
 #'
 #' @param dsn Optional character string. If provided, this must be the filepath
 #'   to a geodatabase which contains the feature class tblPlots, e.g.
-#'   \code{"C:/DATA/AIM.GDB"}. If this is NULL, then the argument
+#'   \code{"C:/DATA/AIM.GDB"}. If \code{tblPlots} is a character string without a file extension, it will be used as the name of the table to read in from the geodatabase. If this is NULL, then the argument
 #'   \code{tblPlots} must be provided. Defaults to \code{NULL}.
 #' @param tblPlots Optional data frame. If provided, this must contain the
 #'   expected plot metadata. If \code{NULL} then the argument \code{dsn} must be
@@ -76,18 +76,15 @@ gather_header_terradat <- function(dsn = NULL,
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
-  # tblPlots provides the link between species tables
-  if(!is.null(tblPlots)){
-    header <- tblPlots
-  } else if (!is.null(dsn)){
-    header <- sf::st_read(dsn = dsn,
-                          layer = "tblPlots",
-                          stringsAsFactors = FALSE,
-                          quiet = TRUE) |>
-      sf::st_drop_geometry(x = _)
-  } else {
-    stop("Provide either tblPlots or a path to a GDB containing it")
-  }
+
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblPlots,
+                               default_name = "tblPlots",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose)
 
   # Restrict only to records which match the filtering criteria.
   header <- dplyr::filter(.data = header,
@@ -149,36 +146,41 @@ gather_header_terradat <- function(dsn = NULL,
                              "tblGapHeader",
                              "tblSpecRichHeader")
 
-    if (length(base::intersect(x = desired_date_tables,
-                               y = available_layers)) > 0) {
-      date_tables <- lapply(X = base::intersect(x = desired_date_tables,
-                                                y = available_layers),
-                            dsn = dsn,
-                            FUN = function(X, dsn){
-                              message(paste("Reading dates from",
+    date_tables <- lapply(X = desired_date_tables,
+                          dsn = dsn,
+                          verbose = verbose,
+                          FUN = function(X, dsn, verbose){
+                            if (verbose) {
+                              message(paste("Attempting to reading dates from",
                                             X))
-                              sf::st_read(dsn = dsn,
-                                          layer = X,
-                                          stringsAsFactors = FALSE,
-                                          quiet = TRUE) |>
-                                sf::st_drop_geometry() |>
+                            }
+                            current_date_table <- read_whatever(input = dsn,
+                                                                layer = X,
+                                                                regex = TRUE,
+                                                                best_guess = TRUE,
+                                                                accept_failure = TRUE,
+                                                                verbose = verbose)
+
+                            if (!is.null(current_date_table)) {
+                              current_date_table <- sf::st_drop_geometry(x = current_date_table) |>
                                 # This'll happen again in a bit, but just to
                                 # save on memory we'll pare it down here.
                                 dplyr::select(.data = _,
-                                              PrimaryKey,
+                                              tidyselect::all_of(x = c("PrimaryKey")),
                                               tidyselect::any_of(c(Date = "FormDate",
                                                                    Date = "CollectDate"))) |>
                                 dplyr::distinct()
-                            })
-    }
+                            }
+                            current_date_table
+                          })
   }
 
   if(is.null(date_tables)){
-    stop("date_tables must be provided if dsn is not. Provide a list of tables containing FormDate or collectDate")
+    stop("date_tables must be provided if dsn is not. Provide a list of tables containing the variables FormDate or collectDate.")
   }
 
   if(class(date_tables) != "list"){
-    stop("date_tables must be a list of minimum length 1")
+    stop("date_tables must be a list of minimum length 1. If you intend to provide a single data frame as date_tables, wrap it in list() like this: list(whatever_data_frame)")
   }
 
   # Take all the tables and return a record for each PrimaryKey with the first
@@ -214,7 +216,7 @@ gather_header_terradat <- function(dsn = NULL,
 #' various methods and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}. The required
 #' feature classes in the geodatabase specified with \code{dsn} are POINT,
-#' POINTCOORDINATES, GPS, COUNTYNM, STATENM, and ESFSG. The expected formats for
+#' POINTCOORDINATES, GPS, and ESFSG. The expected formats for
 #' the input data are those used in the Landscape Monitoring Framework.
 #'
 #' @param dsn Character string. This must be the filepath to a geodatabase which
@@ -238,16 +240,29 @@ gather_header_terradat <- function(dsn = NULL,
 #'                   SpeciesState %in% c("CO", "NM"))
 #'
 #' @export
-gather_header_lmf <- function(dsn,
+gather_header_lmf <- function(dsn = NULL,
+                              POINT = NULL,
+                              POINTCOORDINATES = NULL,
+                              GPS = NULL,
+                              ESFSG = NULL,
                               ...,
                               verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
-  point <- sf::read_sf(dsn = dsn,
-                       layer = "POINT",
-                       quiet = TRUE) |>
-    sf::st_drop_geometry(x = _) |>
+  #### Reading #################################################################
+  # This is the lookup table of state and county names with LMF numeric codes
+  lmf_locale_lookup <- read.csv(file = file.path("data", "lmf_locale_lookup.csv"),
+                                stringsAsFactors = FALSE)
+
+  # The basic info about sampling locations
+  point <- read_with_fallback(dsn = dsn,
+                              tbl = POINT,
+                              default_name = "POINT",
+                              regex = TRUE,
+                              best_guess = TRUE,
+                              accept_failure = FALSE,
+                              verbose = verbose) |>
     # Filter using the filtering expression specified by user
     dplyr::filter(.data = _,
                   !!!filter_exprs) |>
@@ -257,36 +272,65 @@ gather_header_lmf <- function(dsn,
                                        "COUNTY",
                                        "STATE")))
 
-  # County and State are referred to by number codes, let's use the name
-  point <- sf::st_read(dsn = dsn,
-                       layer = "COUNTYNM",
-                       stringsAsFactors = FALSE,
-                       quiet = TRUE) |>
+  # The coordinates for the sampling locations
+  pointcoordinates <- read_with_fallback(dsn = dsn,
+                                         tbl = POINTCOORDINATES,
+                                         default_name = "POINTCOORDINATES",
+                                         regex = TRUE,
+                                         best_guess = TRUE,
+                                         accept_failure = FALSE,
+                                         verbose = verbose) |>
+    sf::st_drop_geometry() |>
     dplyr::select(.data = _,
-                  tidyselect::all_of(c("COUNTY",
-                                       "COUNTYNM",
-                                       "STATE"))) |>
-    dplyr::distinct() |>
-    dplyr::left_join(x = point,
-                     y = _,
-                     relationship = "many-to-one",
-                     by = c("COUNTY",
-                            "STATE")) |>
-    # Add state
-    dplyr::left_join(x = _,
-                     y= sf::st_read(dsn = dsn,
-                                    layer = "STATENM",
-                                    stringsAsFactors = FALSE,
-                                    quiet = TRUE) |>
-                       dplyr::select(.data = _,
-                                     STATE,
-                                     STABBR) |>
-                       dplyr::distinct(),
-                     relationship = "many-to-one",
-                     by = "STATE") |>
-    dplyr::rename(.data = _,
-                  County = COUNTYNM,
-                  State = STABBR) |>
+                  PrimaryKey,
+                  Latitude_NAD83 = REPORT_LATITUDE,
+                  Longitude_NAD83 = REPORT_LONGITUDE,
+                  LocationType)
+
+  # The best source for elevation and sampling dates
+  gps <- read_with_fallback(dsn = dsn,
+                            tbl = GPS,
+                            default_name = "GPS",
+                            regex = TRUE,
+                            best_guess = TRUE,
+                            accept_failure = FALSE,
+                            verbose = verbose) |>
+    dplyr::select(.data = _,
+                  PrimaryKey,
+                  # The GPS capture date is the best approximation of the
+                  # sampling date.
+                  DateVisited = CAPDATE,
+                  Elevation = ELEVATION) |>
+    # Convert elevation to meters
+    dplyr::mutate(.data = _,
+                  Elevation = Elevation * 0.3048)
+
+  # Ecological site assignments
+  esfsg <- read_with_fallback(dsn = dsn,
+                              tbl = ESFSG,
+                              default_name = "ESFSG",
+                              regex = TRUE,
+                              best_guess = TRUE,
+                              accept_failure = FALSE,
+                              verbose = verbose)
+
+  # Add in ESFSG_PREFIX column to old data in order to keep up with LMF schema
+  # changes.
+  # # The prefix is the "F" or "R" typically found at the beginning of an ecosite
+  # ID.
+  if(!"ESFSG_PREFIX" %in% colnames(esfsg)) {
+    esfsg$ESFSG_PREFIX <- ""
+  }
+
+  #### Combining ###############################################################
+  # This creates then iterates on output.
+
+  # County and State are referred to by number codes, let's use the names
+  output <- dplyr::left_join(x = point,
+                             y = lmf_locale_lookup,
+                             relationship = "many-to-one",
+                             by = c("COUNTY",
+                                    "STATE")) |>
     # Pare down to needed fields
     dplyr::select(.data = _,
                   tidyselect::all_of(c("PrimaryKey",
@@ -295,57 +339,23 @@ gather_header_lmf <- function(dsn,
                                        "State"))) |>
     dplyr::mutate(.data = _,
                   PlotKey = PrimaryKey) |>
-    dplyr::distinct()
-
-  # Get the field coordinates
-  point_coordinate <- sf::st_read(dsn = dsn,
-                                  layer = "POINTCOORDINATES",
-                                  stringsAsFactors = FALSE,
-                                  quiet = TRUE) |>
-    sf::st_drop_geometry() |>
-    dplyr::select(.data = _,
-                  PrimaryKey,
-                  Latitude_NAD83 = REPORT_LATITUDE,
-                  Longitude_NAD83 = REPORT_LONGITUDE,
-                  LocationType) |>
-    dplyr::left_join(x = point,
-                     y = _,
+    dplyr::distinct() |>
+    # Add in the spatial info from POINTCOORDINATES
+    dplyr::left_join(x = _,
+                     y = pointcoordinates,
+                     relationship = "one-to-one",
+                     by = "PrimaryKey") |>
+    # Add the date and elevation from GPS
+    dplyr::left_join(x = _,
+                     y = gps,
                      relationship = "one-to-one",
                      by = "PrimaryKey")
 
-  # Add elevation data
-  point_elevation <- sf::read_sf(dsn = dsn,
-                                 layer = "GPS",
-                                 quiet = TRUE) |>
-    dplyr::select(.data = _,
-                  PrimaryKey,
-                  # The GPS capture date is the best approximation of the
-                  # sampling date.
-                  DateVisited = CAPDATE,
-                  Elevation = ELEVATION) |>
-    dplyr::left_join(x = point_coordinate,
-                     y = _,
-                     relationship = "one-to-one",
-                     by = "PrimaryKey") |>
-    # Convert elevation to meters
-    dplyr::mutate(.data = _,
-                  Elevation = Elevation * 0.3048)
-
-  # Add Ecological Site Id
-  point_ESD_raw <- sf::st_read(dsn = dsn,
-                               layer = "ESFSG",
-                               stringsAsFactors = FALSE,
-                               quiet = TRUE)
-
-  # Add in ESFSG_PREFIX column to old data in order to keep up with LMF schema
-  # changes.
-  if(!"ESFSG_PREFIX" %in% colnames(point_ESD_raw)) {
-    point_ESD_raw$ESFSG_PREFIX <- ""
-  }
-
-  point_ESD <- dplyr::left_join(x = point_elevation,
-                                y = point_ESD_raw,
-                                by = "PrimaryKey") |>
+  # This isn't part of the pipe chain above just because it's complicated and
+  # maintenance will be easier if it's separate
+  output <- dplyr::left_join(x = output,
+                             y = esfsg,
+                             by = "PrimaryKey") |>
     # If the ESD coverage !=all, figure what portion of the plot the dominant
     # ESD is on the plot by taking END_MARK - START_MARK and dividing by the
     # line length.
@@ -378,15 +388,125 @@ gather_header_lmf <- function(dsn,
                    .by_group = TRUE) |>
     dplyr::filter(.data = _,
                   dplyr::row_number() == 1) |>
-    # Join to point.elevation to build the final header
-    dplyr::left_join(x = point_elevation,
+    # Join to the previously-created output to build the final header
+    dplyr::left_join(x = output,
                      y = _,
                      relationship = "one-to-one",
                      by = "PrimaryKey") |>
     dplyr::mutate(.data = _,
                   PlotID = PrimaryKey)
 
-  point_ESD
+  output
+
+  # point <- sf::read_sf(dsn = dsn,
+  #                      layer = "POINT",
+  #                      quiet = TRUE) |>
+  #   sf::st_drop_geometry(x = _) |>
+  #   # Filter using the filtering expression specified by user
+  #   dplyr::filter(.data = _,
+  #                 !!!filter_exprs) |>
+  #   dplyr::select(.data = _,
+  #                 tidyselect::all_of(c("PrimaryKey",
+  #                                      "SpeciesState",
+  #                                      "COUNTY",
+  #                                      "STATE")))
+  #
+  #
+  #
+  #
+  #
+  #
+  # # Get the field coordinates
+  # point_coordinate <- sf::st_read(dsn = dsn,
+  #                                 layer = "POINTCOORDINATES",
+  #                                 stringsAsFactors = FALSE,
+  #                                 quiet = TRUE) |>
+  #   sf::st_drop_geometry() |>
+  #   dplyr::select(.data = _,
+  #                 PrimaryKey,
+  #                 Latitude_NAD83 = REPORT_LATITUDE,
+  #                 Longitude_NAD83 = REPORT_LONGITUDE,
+  #                 LocationType) |>
+  #   dplyr::left_join(x = point,
+  #                    y = _,
+  #                    relationship = "one-to-one",
+  #                    by = "PrimaryKey")
+  #
+  # # Add elevation data
+  # point_elevation <- sf::read_sf(dsn = dsn,
+  #                                layer = "GPS",
+  #                                quiet = TRUE) |>
+  #   dplyr::select(.data = _,
+  #                 PrimaryKey,
+  #                 # The GPS capture date is the best approximation of the
+  #                 # sampling date.
+  #                 DateVisited = CAPDATE,
+  #                 Elevation = ELEVATION) |>
+  #   dplyr::left_join(x = point_coordinate,
+  #                    y = _,
+  #                    relationship = "one-to-one",
+  #                    by = "PrimaryKey") |>
+  #   # Convert elevation to meters
+  #   dplyr::mutate(.data = _,
+  #                 Elevation = Elevation * 0.3048)
+  #
+  # # Add Ecological Site Id
+  # point_ESD_raw <- sf::st_read(dsn = dsn,
+  #                              layer = "ESFSG",
+  #                              stringsAsFactors = FALSE,
+  #                              quiet = TRUE)
+  #
+  # # Add in ESFSG_PREFIX column to old data in order to keep up with LMF schema
+  # # changes.
+  #
+  # if(!"ESFSG_PREFIX" %in% colnames(point_ESD_raw)) {
+  #   point_ESD_raw$ESFSG_PREFIX <- ""
+  # }
+  #
+  # point_ESD <- dplyr::left_join(x = point_elevation,
+  #                               y = point_ESD_raw,
+  #                               by = "PrimaryKey") |>
+  #   # If the ESD coverage !=all, figure what portion of the plot the dominant
+  #   # ESD is on the plot by taking END_MARK - START_MARK and dividing by the
+  #   # line length.
+  #   dplyr::mutate(.data = _,
+  #                 ESD_coverage = dplyr::if_else(condition = COVERAGE == "all",
+  #                                               true = as.integer(300),
+  #                                               false = (END_MARK - START_MARK)),
+  #                 # LMF schema is being updated to include F/R prefix under the
+  #                 # column ESFSG_PREFIX replace NA's with "" in ESFSG_PREFIX
+  #                 ESFSG_PREFIX = tidyr::replace_na(data = ESFSG_PREFIX,
+  #                                                  replace = ""),
+  #                 EcologicalSiteId = trimws(paste0(ESFSG_PREFIX,
+  #                                                  ESFSG_MLRA,
+  #                                                  ESFSG_SITE,
+  #                                                  ESFSG_STATE)),
+  #                 MLRA = gsub(x = ESFSG_MLRA,
+  #                             pattern = "^$",
+  #                             replacement = NA)) |>
+  #   # Add up the coverage on each plot and get the percent coverage
+  #   dplyr::group_by() |>
+  #   dplyr::summarize(.data = _,
+  #                    .by = tidyselect::all_of(c("PrimaryKey",
+  #                                               "EcologicalSiteId")),
+  #                    PercentCoveredByEcoSite = 100 * sum(ESD_coverage) / 300) |>
+  #   # Arrange by ESD_coverage and find the dominant ecological site
+  #   dplyr::group_by(.data = _,
+  #                   PrimaryKey) |>
+  #   dplyr::arrange(.data = _,
+  #                  dplyr::desc(PercentCoveredByEcoSite),
+  #                  .by_group = TRUE) |>
+  #   dplyr::filter(.data = _,
+  #                 dplyr::row_number() == 1) |>
+  #   # Join to point.elevation to build the final header
+  #   dplyr::left_join(x = point_elevation,
+  #                    y = _,
+  #                    relationship = "one-to-one",
+  #                    by = "PrimaryKey") |>
+  #   dplyr::mutate(.data = _,
+  #                 PlotID = PrimaryKey)
+  #
+  # point_ESD
 }
 
 
@@ -665,6 +785,10 @@ gather_header_nri <- function(dsn = NULL,
 gather_header <- function(dsn = NULL,
                           source,
                           tblPlots = NULL,
+                          POINT = NULL,
+                          POINTCOORDINATES = NULL,
+                          GPS = NULL,
+                          ESFSG = NULL,
                           date_tables = NULL,
                           speciesstate = NULL,
                           ...,
@@ -672,34 +796,40 @@ gather_header <- function(dsn = NULL,
                           verbose = FALSE) {
   # Error check
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
+  try(if (!(toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))) {
     stop("No valid source provided")
   })
 
   # Apply appropriate header function
 
   if (toupper(source) %in% c("TERRADAT", "AIM", "DIMA")) {
-    header <- gather_header_terradat(dsn = dsn,
+    output <- gather_header_terradat(dsn = dsn,
                                      tblPlots = tblPlots,
                                      date_tables = date_tables,
-                                     ...)
+                                     ...,
+                                     verbose = verbose)
   } else if (toupper(source) == "LMF") {
-    header <- gather_header_lmf(dsn = dsn,
-                                ...)
+    output <- gather_header_lmf(dsn = dsn,
+                                POINT = POINT,
+                                POINTCOORDINATES = POINTCOORDINATES,
+                                GPS = GPS,
+                                ESFSG = ESFSG,
+                                ...,
+                                verbose == verbose)
   } else if (toupper(source) == "NRI") {
-    gather_header_nri(dsn = dsn,
-                      speciesstate = speciesstate,
-                      ...)
+    output <- gather_header_nri(dsn = dsn,
+                                speciesstate = speciesstate,
+                                ...)
   } else {
     stop("No valid source provided")
   }
 
   # Add the source value to the data.
-  header$source <- source
+  output$source <- source
 
   # Make sure there's no geometry associated with the data.
   if("sf" %in% class(header)) {
-    header <- sf::st_drop_geometry(header)
+    output <- sf::st_drop_geometry(x = output)
   }
 
   # Apply QC helper functions to remove duplicates
@@ -708,7 +838,7 @@ gather_header <- function(dsn = NULL,
   #   header <- tdact_remove_duplicates(header)
   # }
 
-  header
+  output
 }
 
 
@@ -782,45 +912,70 @@ gather_lpi_terradat <- function(dsn = NULL,
                          "DateModified",
                          "FormType")
 
-  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-  if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
-    if (verbose) {
-      if (!is.null(dsn)) {
-        message("Using the provided data frames. The provided dsn value is being ignored.")
-      }
-    }
-    detail <- tblLPIDetail
-    header <- tblLPIHeader
-  } else if(!is.null(dsn)){
-    if (verbose) {
-      message("Attempting to use the provided dsn value.")
-    }
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
-    }
-    # The suppressWarnings() here are so that it doesn't complain about pulling
-    # tables without geometry. We know that's what should be happening.
-    detail <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblLPIDetail",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-    header <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblLPIHeader",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-  } else {
-    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
-  }
-
-  # Clean these up!
-  detail <- dplyr::select(.data = detail,
-                          -tidyselect::any_of(internal_gdb_vars)) |>
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblLPIHeader,
+                               default_name = "tblLPIHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
 
-  header <- dplyr::select(.data = header,
-                          -tidyselect::any_of(internal_gdb_vars)) |>
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblLPIDetail,
+                               default_name = "tblLPIDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
 
+
+  # # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+  # if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
+  #   if (verbose) {
+  #     if (!is.null(dsn)) {
+  #       message("Using the provided data frames. The provided dsn value is being ignored.")
+  #     }
+  #   }
+  #   detail <- tblLPIDetail
+  #   header <- tblLPIHeader
+  # } else if(!is.null(dsn)){
+  #   if (verbose) {
+  #     message("Attempting to use the provided dsn value.")
+  #   }
+  #   if(!file.exists(dsn)){
+  #     stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+  #   }
+  #   # The suppressWarnings() here are so that it doesn't complain about pulling
+  #   # tables without geometry. We know that's what should be happening.
+  #   detail <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblLPIDetail",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  #   header <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblLPIHeader",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  # } else {
+  #   stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
+  # }
+  #
+  # # Clean these up!
+  # detail <- dplyr::select(.data = detail,
+  #                         -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::distinct()
+  #
+  # header <- dplyr::select(.data = header,
+  #                         -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::distinct()
+
+  #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -844,7 +999,7 @@ gather_lpi_terradat <- function(dsn = NULL,
                           "NULL")
   }
 
-
+  #### Munging #################################################################
   # Make a tall data frame with the hit codes by layer.
   lpi_hits_tall <- dplyr::mutate(.data = detail,
                                  # Make sure we don't have factors in play.
@@ -1018,13 +1173,45 @@ gather_lpi_lmf <- function(dsn = NULL,
                            file_type = "gdb",
                            PINTERCEPT = NULL,
                            verbose = FALSE) {
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
+
   #### Reading and cleanup #####################################################
+  pintercept <- read_with_fallback(dsn = dsn,
+                                   tbl = PINTERCEPT,
+                                   default_name = "PINTERCEPT",
+                                   regex = TRUE,
+                                   best_guess = TRUE,
+                                   accept_failure = FALSE,
+                                   verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(PINTERCEPT)) {
     pintercept <- PINTERCEPT
   } else if (!is.null(dsn)) {
     if (!file.exists(dsn)) {
       stop("dsn must be a valid filepath.")
+    }
+    file_type <- tools::file_ext(x = dsn) |>
+      tolower()
+    if (!(file_type %in% c("gdb", "csv", "txt"))) {
+      stop("dsn must end in one of the following file extensions: gdb, csv, txt.")
     }
     # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
     pintercept <- switch(file_type,
@@ -1064,28 +1251,6 @@ gather_lpi_lmf <- function(dsn = NULL,
   # Sometimes NAs might be introduced as variable names, but we can make sure to
   # drop those.
   pintercept <- pintercept[, !is.na(colnames(pintercept))]
-
-  ##### Making sure these are distinct records ---------------------------------
-  # These are used for data management within a geodatabase and we're going to
-  # drop them. This helps us to weed out duplicate records created by quirks of
-  # the ingest processes.
-  internal_gdb_vars <- c("GlobalID",
-                         "created_user",
-                         "created_date",
-                         "last_edited_user",
-                         "last_edited_date",
-                         "DateLoadedInDb",
-                         "DateLoadedinDB",
-                         "rid",
-                         "DataErrorChecking",
-                         "DataEntry",
-                         "DateModified",
-                         "FormType",
-                         "DBKey")
-
-  pintercept <- dplyr::select(.data = pintercept,
-                              -tidyselect::any_of(internal_gdb_vars)) |>
-    dplyr::distinct()
 
   ##### Dealing with intersecting transects ------------------------------------
   # The arrangement of the transects for an LMF point crosses in the middle of
@@ -1443,11 +1608,13 @@ gather_lpi <- function(dsn = NULL,
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     lpi <- gather_lpi_terradat(dsn = dsn,
                                tblLPIDetail = tblLPIDetail,
-                               tblLPIHeader = tblLPIHeader)
+                               tblLPIHeader = tblLPIHeader,
+                               verbose = verbose)
   } else if(toupper(source) %in% c("LMF", "NRI")){
     lpi <- gather_lpi_lmf(dsn = dsn,
                           file_type = file_type,
-                          PINTERCEPT = PINTERCEPT)
+                          PINTERCEPT = PINTERCEPT,
+                          verbose = verbose)
     lpi$chckbox <- NA
     # } else if(toupper(source) == "SURVEY123"){
     #   lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
@@ -1569,37 +1736,60 @@ gather_height_terradat <- function(dsn = NULL,
                          "DateModified",
                          "FormType")
 
-  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-  if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
-    if (verbose) {
-      if (!is.null(dsn)) {
-        message("Using the provided data frames. The provided dsn value is being ignored.")
-      }
-    }
-    detail <- tblLPIDetail
-    header <- tblLPIHeader
-  } else if(!is.null(dsn)){
-    if (verbose) {
-      message("Attempting to use the provided dsn value.")
-    }
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
-    }
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblLPIHeader,
+                               default_name = "tblLPIHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
 
-    # The suppressWarnings() here are so that it doesn't complain about pulling
-    # tables without geometry. We know that's what should be happening.
-    detail <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblLPIDetail",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-    header <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblLPIHeader",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-  } else {
-    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
-  }
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblLPIDetail,
+                               default_name = "tblLPIDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
+  # # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+  # if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
+  #   if (verbose) {
+  #     if (!is.null(dsn)) {
+  #       message("Using the provided data frames. The provided dsn value is being ignored.")
+  #     }
+  #   }
+  #   detail <- tblLPIDetail
+  #   header <- tblLPIHeader
+  # } else if(!is.null(dsn)){
+  #   if (verbose) {
+  #     message("Attempting to use the provided dsn value.")
+  #   }
+  #   if(!file.exists(dsn)){
+  #     stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+  #   }
+  #
+  #   # The suppressWarnings() here are so that it doesn't complain about pulling
+  #   # tables without geometry. We know that's what should be happening.
+  #   detail <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblLPIDetail",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  #   header <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblLPIHeader",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  # } else {
+  #   stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
+  # }
 
+  #### Cleanup #################################################################
   # Clean these up!
   # We're deliberating excluding some variables in both tables here. No sense
   # in bogging down the munging with extraneous things we'll never use.
@@ -1618,6 +1808,7 @@ gather_height_terradat <- function(dsn = NULL,
     dplyr::distinct()
 
 
+  #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -1633,6 +1824,7 @@ gather_height_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
+  #### Munging #################################################################
   # These are used to check for situations where there are going to be issues
   # with coerced data types or just the presence of NA values because some data
   # sets are not complete.
@@ -1824,69 +2016,6 @@ gather_height_lmf <- function(dsn = NULL,
                               file_type = "gdb",
                               PASTUREHEIGHTS = NULL,
                               verbose = FALSE) {
-  #### Reading and cleanup #####################################################
-  if(!is.null(PASTUREHEIGHTS)){
-    vegheight <- PASTUREHEIGHTS
-  } else if (!is.null(dsn)) {
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing PASTUREHEIGHTS")
-    }
-
-    # Read in the data as .txt or .gdb
-    vegheight <- switch(file_type,
-                        "gdb" = {
-                          suppressWarnings(sf::st_read(dsn,
-                                                       layer = "PASTUREHEIGHTS",
-                                                       stringsAsFactors = FALSE,
-                                                       quiet = T
-                          ))
-                        },
-                        "txt" = {
-                          read.table(paste(dsn, "pastureheights.txt", sep = ""),
-                                     stringsAsFactors = FALSE,
-                                     header = FALSE,
-                                     sep = "|",
-                                     strip.white = TRUE
-                          )
-                        },
-                        "csv" = {
-                          read.csv(dsn)
-                        }
-    )
-
-    if (file_type == "txt") {
-      # if it is in a text file, there are no field names assigned.
-      colnames <- subset(
-        terradactyl::nri.data.column.explanations,
-        TABLE.NAME == "PASTUREHEIGHTS"
-      ) |>
-        dplyr::pull(FIELD.NAME) |>
-        unique()
-
-      vegheight <- vegheight[seq_len(length(colnames))]
-      names(vegheight) <- colnames
-
-      # We need to establish and/or fix the PLOTKEY so it exists in a single field.
-      vegheight$PrimaryKey <- paste(vegheight$SURVEY,
-                                    vegheight$STATE,
-                                    vegheight$COUNTY,
-                                    vegheight$PSU,
-                                    vegheight$POINT,
-                                    sep = ""
-      )
-
-      # Assign DBKey
-      vegheight$DBKey <- vegheight$SURVEY
-    }
-
-
-
-
-  } else {
-    stop("Supply either PASTUREHEIGHTS or a path to a gdb containing that table")
-  }
-
-  ##### Making sure these are distinct records ---------------------------------
   # These are used for data management within a geodatabase and we're going to
   # drop them. This helps us to weed out duplicate records created by quirks of
   # the ingest processes.
@@ -1904,9 +2033,75 @@ gather_height_lmf <- function(dsn = NULL,
                          "FormType",
                          "DBKey")
 
-  vegheight <- dplyr::select(.data = vegheight,
-                             -tidyselect::any_of(internal_gdb_vars)) |>
+  #### Reading and cleanup #####################################################
+  pastureheights <- read_with_fallback(dsn = dsn,
+                                       tbl = PASTUREHEIGHTS,
+                                       default_name = "PASTUREHEIGHTS",
+                                       regex = TRUE,
+                                       best_guess = TRUE,
+                                       accept_failure = FALSE,
+                                       verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
+
+  # if(!is.null(PASTUREHEIGHTS)){
+  #   pastureheights <- PASTUREHEIGHTS
+  # } else if (!is.null(dsn)) {
+  #   if (!file.exists(dsn)) {
+  #     stop("dsn must be a valid filepath to a geodatabase containing PASTUREHEIGHTS")
+  #   }
+  #
+  #   # Read in the data as .txt or .gdb
+  #   pastureheights <- switch(file_type,
+  #                       "gdb" = {
+  #                         suppressWarnings(sf::st_read(dsn,
+  #                                                      layer = "PASTUREHEIGHTS",
+  #                                                      stringsAsFactors = FALSE,
+  #                                                      quiet = T
+  #                         ))
+  #                       },
+  #                       "txt" = {
+  #                         read.table(paste(dsn, "pastureheights.txt", sep = ""),
+  #                                    stringsAsFactors = FALSE,
+  #                                    header = FALSE,
+  #                                    sep = "|",
+  #                                    strip.white = TRUE
+  #                         )
+  #                       },
+  #                       "csv" = {
+  #                         read.csv(dsn)
+  #                       }
+  #   )
+  #
+  #   if (file_type == "txt") {
+  #     # if it is in a text file, there are no field names assigned.
+  #     colnames <- subset(
+  #       terradactyl::nri.data.column.explanations,
+  #       TABLE.NAME == "PASTUREHEIGHTS"
+  #     ) |>
+  #       dplyr::pull(FIELD.NAME) |>
+  #       unique()
+  #
+  #     pastureheights <- pastureheights[seq_len(length(colnames))]
+  #     names(pastureheights) <- colnames
+  #
+  #     # We need to establish and/or fix the PLOTKEY so it exists in a single field.
+  #     pastureheights$PrimaryKey <- paste(pastureheights$SURVEY,
+  #                                   pastureheights$STATE,
+  #                                   pastureheights$COUNTY,
+  #                                   pastureheights$PSU,
+  #                                   pastureheights$POINT,
+  #                                   sep = ""
+  #     )
+  #
+  #     # Assign DBKey
+  #     pastureheights$DBKey <- pastureheights$SURVEY
+  #   }
+  # } else {
+  #   stop("Supply either PASTUREHEIGHTS or a path to a gdb containing that table")
+  # }
+
 
   ##### Dealing with intersecting transects ------------------------------------
   # The arrangement of the transects for an LMF point crosses in the middle of
@@ -1914,32 +2109,32 @@ gather_height_lmf <- function(dsn = NULL,
   # per transect. We'll drop the 75th record on the northeast-southwest transect
   # but we also want to warn the user that it's happening to any situations
   # where the assumption that they're identical is violated.
-  duplicated_75mark_indices <- dplyr::filter(.data = vegheight,
+  duplicated_75mark_indices <- dplyr::filter(.data = pastureheights,
                                              DISTANCE == 75) |>
     dplyr::select(.data = _,
                   -TRANSECT) |>
     duplicated(x = _)
-  vegheight_75mark <- dplyr::filter(.data = vegheight,
-                                    DISTANCE == 75)
-  vegheight_75mark[["duplicated"]] <- duplicated_75mark_indices
-  vegheight_75mark_summary <- dplyr::summarize(.data = vegheight_75mark,
-                                               .by = PrimaryKey,
-                                               n_records = dplyr::n(),
-                                               has_duplicate = any(duplicated))
-  if (any(!vegheight_75mark_summary$has_duplicate)) {
-    warning(paste0("There are ", sum(!vegheight_75mark_summary$has_duplicate),
+  pastureheights_75mark <- dplyr::filter(.data = pastureheights,
+                                         DISTANCE == 75)
+  pastureheights_75mark[["duplicated"]] <- duplicated_75mark_indices
+  pastureheights_75mark_summary <- dplyr::summarize(.data = pastureheights_75mark,
+                                                    .by = PrimaryKey,
+                                                    n_records = dplyr::n(),
+                                                    has_duplicate = any(duplicated))
+  if (any(!pastureheights_75mark_summary$has_duplicate)) {
+    warning(paste0("There are ", sum(!pastureheights_75mark_summary$has_duplicate),
                    " plots where the height records at the 75th sampling locations on the two transects are not identical to each other despite being the intersection of those transects. This is not unexpected and the records associated with the 'nesw' transects will still be dropped for these plots."))
   }
 
-  vegheight <- dplyr::filter(.data = vegheight,
-                             !(TRANSECT == "nesw" & DISTANCE == 75))
+  pastureheights <- dplyr::filter(.data = pastureheights,
+                                  !(TRANSECT == "nesw" & DISTANCE == 75))
 
   #### Reformatting and harmonizing ############################################
   # Most of the heavy lifting!
   # This will get us to the point where there's a separate record for each type
   # of measurement (woody and nonwoody) but there's a little more to adjust
   # after that.
-  data_long <- dplyr::select(.data = vegheight,
+  data_long <- dplyr::select(.data = pastureheights,
                              PrimaryKey,
                              LineKey = TRANSECT,
                              PointNbr = DISTANCE,
@@ -2188,23 +2383,22 @@ gather_height <- function(dsn = NULL,
                           # LPIDetail_1 = NULL
 ) {
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    height <- gather_height_terradat(
-      dsn = dsn,
-      tblLPIHeader = tblLPIHeader,
-      tblLPIDetail = tblLPIDetail
-    )
+    height <- gather_height_terradat(dsn = dsn,
+                                     tblLPIHeader = tblLPIHeader,
+                                     tblLPIDetail = tblLPIDetail,
+                                     verbose = verbose)
   } else if(toupper(source) %in% c("LMF", "NRI")){
-    height <- gather_height_lmf(
-      dsn = dsn, file_type = file_type,
-      PASTUREHEIGHTS = PASTUREHEIGHTS
-    )
+    height <- gather_height_lmf(dsn = dsn,
+                                file_type = file_type,
+                                PASTUREHEIGHTS = PASTUREHEIGHTS,
+                                verbose = verbose)
     # } else if(toupper(source) %in% c("SURVEY123")){
     #   height <- gather_height_survey123(
     #     LPI_0 = LPI_0,
     #     LPIDetail_1 = LPIDetail_1
     #   )
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+    stop('source must be "AIM", "TerrADat", "DIMA", "LMF", or "NRI" (case independent).')
   }
 
   # height$source <- toupper(source)
@@ -2301,50 +2495,76 @@ gather_gap_terradat <- function(dsn = NULL,
                          "DataEntry",
                          "DateModified",
                          "FormType")
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblGapHeader,
+                               default_name = "tblGapHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
+
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblGapDetail,
+                               default_name = "tblGapDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
   ### switch by input types
-  if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
-    if (verbose) {
-      if (!is.null(dsn)) {
-        message("Using the provided data frames. The provided dsn value is being ignored.")
-      }
-    }
-    detail <- tblGapDetail
-    header <- tblGapHeader
-  } else if(!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing tblGapDetail and tblGapHeader")
-    }
-    # The suppressWarnings() here are so that it doesn't complain about pulling
-    # tables without geometry. We know that's what should be happening.
-    # Read tblGapDetail
-    detail <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblGapDetail",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-
-    # Read tblGapHeader
-    header <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblGapHeader",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-
-  } else {
-    stop("Provide both tblGapDetail and tblGapHeader or the path to a GDB containing those tables.")
-  }
-
-  # Clean these up!
-  detail <- dplyr::select(.data = detail,
-                          -tidyselect::any_of(internal_gdb_vars)) |>
-    dplyr::filter(.data = _,
-                  !is.na(PrimaryKey)) |>
-    dplyr::distinct()
-
-  header <- dplyr::select(.data = header,
-                          -tidyselect::any_of(internal_gdb_vars)) |>
-    dplyr::filter(.data = _,
-                  !is.na(PrimaryKey)) |>
-    dplyr::distinct()
+  # if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
+  #   if (verbose) {
+  #     if (!is.null(dsn)) {
+  #       message("Using the provided data frames. The provided dsn value is being ignored.")
+  #     }
+  #   }
+  #   detail <- tblGapDetail
+  #   header <- tblGapHeader
+  # } else if(!is.null(dsn)){
+  #   if (!file.exists(dsn)) {
+  #     stop("dsn must be a valid filepath to a geodatabase containing tblGapDetail and tblGapHeader")
+  #   }
+  #   # The suppressWarnings() here are so that it doesn't complain about pulling
+  #   # tables without geometry. We know that's what should be happening.
+  #   # Read tblGapDetail
+  #   detail <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblGapDetail",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  #
+  #   # Read tblGapHeader
+  #   header <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblGapHeader",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  #
+  # } else {
+  #   stop("Provide both tblGapDetail and tblGapHeader or the path to a GDB containing those tables.")
+  # }
+  #
+  # # Clean these up!
+  # detail <- dplyr::select(.data = detail,
+  #                         -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::filter(.data = _,
+  #                 !is.na(PrimaryKey)) |>
+  #   dplyr::distinct()
+  #
+  # header <- dplyr::select(.data = header,
+  #                         -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::filter(.data = _,
+  #                 !is.na(PrimaryKey)) |>
+  #   dplyr::distinct()
 
   # # add null DBKey field if not present
   # if(!"DBKey" %in% colnames(header)) header$DBKey <- NA
@@ -2362,6 +2582,7 @@ gather_gap_terradat <- function(dsn = NULL,
                           dplyr::across(.cols = tidyselect::all_of(names(not_numeric_vars)),
                                         .fns = as.numeric))
 
+  #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -2381,6 +2602,7 @@ gather_gap_terradat <- function(dsn = NULL,
   }
 
 
+  #### Munging #################################################################
   # Merge header and detail data together.
   # We're suppressing warnings and not enforcing the relationship so that the
   # user can move ahead without cleaning their data first.
@@ -2534,80 +2756,6 @@ gather_gap_lmf <- function(dsn = NULL,
                            GINTERCEPT = NULL,
                            POINT = NULL,
                            verbose = FALSE) {
-
-  #### Reading and cleanup #####################################################
-  # Make sure we can read in the data.
-  valid_file_types <- c("gdb", "txt")
-
-  # We'll extract the extension if file_type isn't provided
-  if(is.null(file_type)){
-    file_type <- tools::file_ext(dsn)
-  }
-  # Sanitize it.
-  file_type <- tolower(file_type)
-
-
-  if(!is.null(GINTERCEPT) & !is.null(POINT)){
-    gintercept <- GINTERCEPT
-    point <- POINT
-  } else if (!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop(paste0("The provided dsn (", dsn, ") does not exist."))
-    }
-    if (!(file_type %in% valid_file_types)) {
-      stop(paste0("The current file_type value (", file_type, ") is invalid. ",
-                  "Valid file types are: ", paste(valid_file_types,
-                                                  collapse = ", ")))
-    }
-    # Read in GINTERCEPT
-    gintercept <- switch(file_type,
-                         "gdb" = {
-                           sf::st_read(dsn = dsn,
-                                       layer = "GINTERCEPT",
-                                       stringsAsFactors = FALSE,
-                                       quiet = TRUE)
-                         },
-                         "txt" = {
-                           read.table(file = file.path(dsn,
-                                                       "gintercept.txt"),
-                                      stringsAsFactors = FALSE,
-                                      strip.white = TRUE,
-                                      header = FALSE,
-                                      sep = "|")
-                         })
-    # Read in point file for other plot level information
-    point <- switch(file_type,
-                    "gdb" = {
-                      sf::st_read(dsn = dsn,
-                                  layer = "POINT",
-                                  stringsAsFactors = FALSE,
-                                  quiet = TRUE)
-                    },
-                    "txt" = {
-                      read.table(file = file.path(dsn,
-                                                  "point.txt"),
-                                 stringsAsFactors = FALSE,
-                                 strip.white = TRUE,
-                                 header = FALSE,
-                                 sep = "|")
-                    })
-
-
-    if (file_type == "txt") {
-      # Add meaningful column names
-      gintercept <- name_variables_nri(
-        data = gintercept,
-        table_name = "GINTERCEPT"
-      )
-      point <- name_variables_nri(
-        data = gintercept,
-        table_name = "POINT"
-      )
-    }
-  } else {
-    stop("Supply either data frames for the arguments GINTERCEPT and POINT or the path to a GDB containing those tables as the argument dsn.")
-  }
-
   # These are used for data management within a geodatabase and we're going to
   # drop them. This helps us to weed out duplicate records created by quirks of
   # the ingest processes.
@@ -2625,12 +2773,123 @@ gather_gap_lmf <- function(dsn = NULL,
                          "FormType",
                          "DBKey")
 
-  gintercept <- dplyr::select(.data = gintercept,
-                              -tidyselect::any_of(internal_gdb_vars)) |>
+  #### Reading and cleanup #####################################################
+  gintercept <- read_with_fallback(dsn = dsn,
+                                   tbl = GINTERCEPT,
+                                   default_name = "GINTERCEPT",
+                                   regex = TRUE,
+                                   best_guess = TRUE,
+                                   accept_failure = FALSE,
+                                   verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
-  point <- dplyr::select(.data = point,
-                         -tidyselect::any_of(internal_gdb_vars)) |>
+  point <- read_with_fallback(dsn = dsn,
+                              tbl = POINT,
+                              default_name = "POINT",
+                              regex = TRUE,
+                              best_guess = TRUE,
+                              accept_failure = FALSE,
+                              verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
+
+  # # Make sure we can read in the data.
+  # valid_file_types <- c("gdb", "txt")
+  #
+  # # We'll extract the extension if file_type isn't provided
+  # if(is.null(file_type)){
+  #   file_type <- tools::file_ext(dsn)
+  # }
+  # # Sanitize it.
+  # file_type <- tolower(file_type)
+  #
+  #
+  # if(!is.null(GINTERCEPT) & !is.null(POINT)){
+  #   gintercept <- GINTERCEPT
+  #   point <- POINT
+  # } else if (!is.null(dsn)){
+  #   if (!file.exists(dsn)) {
+  #     stop(paste0("The provided dsn (", dsn, ") does not exist."))
+  #   }
+  #   if (!(file_type %in% valid_file_types)) {
+  #     stop(paste0("The current file_type value (", file_type, ") is invalid. ",
+  #                 "Valid file types are: ", paste(valid_file_types,
+  #                                                 collapse = ", ")))
+  #   }
+  #   # Read in GINTERCEPT
+  #   gintercept <- switch(file_type,
+  #                        "gdb" = {
+  #                          sf::st_read(dsn = dsn,
+  #                                      layer = "GINTERCEPT",
+  #                                      stringsAsFactors = FALSE,
+  #                                      quiet = TRUE)
+  #                        },
+  #                        "txt" = {
+  #                          read.table(file = file.path(dsn,
+  #                                                      "gintercept.txt"),
+  #                                     stringsAsFactors = FALSE,
+  #                                     strip.white = TRUE,
+  #                                     header = FALSE,
+  #                                     sep = "|")
+  #                        })
+  #   # Read in point file for other plot level information
+  #   point <- switch(file_type,
+  #                   "gdb" = {
+  #                     sf::st_read(dsn = dsn,
+  #                                 layer = "POINT",
+  #                                 stringsAsFactors = FALSE,
+  #                                 quiet = TRUE)
+  #                   },
+  #                   "txt" = {
+  #                     read.table(file = file.path(dsn,
+  #                                                 "point.txt"),
+  #                                stringsAsFactors = FALSE,
+  #                                strip.white = TRUE,
+  #                                header = FALSE,
+  #                                sep = "|")
+  #                   })
+  #
+  #
+  #   if (file_type == "txt") {
+  #     # Add meaningful column names
+  #     gintercept <- name_variables_nri(
+  #       data = gintercept,
+  #       table_name = "GINTERCEPT"
+  #     )
+  #     point <- name_variables_nri(
+  #       data = gintercept,
+  #       table_name = "POINT"
+  #     )
+  #   }
+  # } else {
+  #   stop("Supply either data frames for the arguments GINTERCEPT and POINT or the path to a GDB containing those tables as the argument dsn.")
+  # }
+  #
+  #   # These are used for data management within a geodatabase and we're going to
+  #   # drop them. This helps us to weed out duplicate records created by quirks of
+  #   # the ingest processes.
+  #   internal_gdb_vars <- c("GlobalID",
+  #                          "created_user",
+  #                          "created_date",
+  #                          "last_edited_user",
+  #                          "last_edited_date",
+  #                          "DateLoadedInDb",
+  #                          "DateLoadedinDB",
+  #                          "rid",
+  #                          "DataErrorChecking",
+  #                          "DataEntry",
+  #                          "DateModified",
+  #                          "FormType",
+  #                          "DBKey")
+  #
+  #   gintercept <- dplyr::select(.data = gintercept,
+  #                               -tidyselect::any_of(internal_gdb_vars)) |>
+  #     dplyr::distinct()
+  #   point <- dplyr::select(.data = point,
+  #                          -tidyselect::any_of(internal_gdb_vars)) |>
+  #     dplyr::distinct()
 
   # Ensure START_GAP and END_GAP are numeric
   gintercept <- dplyr::mutate(.data = gintercept,
@@ -3084,12 +3343,14 @@ gather_gap <- function(dsn = NULL,
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     gap <- gather_gap_terradat(dsn = dsn,
                                tblGapDetail = tblGapDetail,
-                               tblGapHeader = tblGapHeader)
+                               tblGapHeader = tblGapHeader,
+                               verbose = verbose)
   } else if(toupper(source) %in% c("LMF", "NRI")){
     gap <- gather_gap_lmf(dsn = dsn,
                           file_type = file_type,
                           POINT = POINT,
-                          GINTERCEPT = GINTERCEPT)
+                          GINTERCEPT = GINTERCEPT,
+                          verbose = verbose)
     # } else if(toupper(source) %in% c("SURVEY123")){
     # gap <- gather_gap_survey123(Gap_0 = Gap_0, GapDetail_1 = GapDetail_1)
   } else {
@@ -3197,28 +3458,32 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                          "DataEntry",
                          "DateModified",
                          "FormType")
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblSoilStabHeader,
+                               default_name = "tblSoilStabHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
-  if(!is.null(tblSoilStabDetail) & !is.null(tblSoilStabHeader)){
-    detail <- tblSoilStabDetail
-    header <- tblSoilStabHeader
-  } else if (!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing tblSoilStabDetail and tblSoilStabHeader")
-    }
-    # The suppressWarnings() here are so that it doesn't complain about pulling
-    # tables without geometry. We know that's what should be happening.
-    detail <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblSoilStabDetail",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-
-    header <-suppressWarnings(sf::st_read(dsn = dsn,
-                                          layer = "tblSoilStabHeader",
-                                          stringsAsFactors = FALSE,
-                                          quiet = TRUE))
-  } else {
-    stop("Supply either both tblSoilStabDetail and tblSoilStabHeader or a path to a GDB containing those tables.")
-  }
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblSoilStabDetail,
+                               default_name = "tblSoilStabDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
   # Clean these up!
   detail <- dplyr::select(.data = detail,
@@ -3246,6 +3511,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                  !all(is.na(as.vector(X)))
                                })), ]
 
+  #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -3260,17 +3526,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
+  #### Munging #################################################################
   # Convert to tall format
-  gathered <- tidyr::gather(detail,
-                            key = variable,
-                            value = value,
-                            -tidyselect::any_of(c("PrimaryKey",
-                                                  "BoxNum",
-                                                  "RecKey")),
-                            na.rm = TRUE) |>
-    dplyr::filter(.data = _,
-                  value != "")
-
   detail_tall <- tidyr::pivot_longer(data = detail,
                                      cols = -tidyselect::all_of(c("PrimaryKey",
                                                                   "RecKey")),
@@ -3331,7 +3588,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                   by = c("RecKey",
                          "PrimaryKey",
                          "Position")) |>
-    #However, there are likely going to be records in the source data where
+    # However, there are likely going to be records in the source data where
     # there were no ratings but somehow there were other kinds of values, so
     # those get dropped.
     dplyr::filter(.data = _,
@@ -3392,56 +3649,6 @@ gather_soil_stability_lmf <- function(dsn = NULL,
                                       file_type = "gdb",
                                       SOILDISAG = NULL,
                                       verbose = FALSE) {
-  #### Reading and cleanup #####################################################
-  # Make sure we can read in the data.
-  valid_file_types <- c("gdb", "txt")
-
-  # We'll extract the extension if file_type isn't provided
-  if (is.null(file_type)){
-    file_type <- tools::file_ext(dsn)
-  }
-  # Sanitize it.
-  file_type <- tolower(file_type)
-
-
-  if (!is.null(SOILDISAG)) {
-    soildisag <- SOILDISAG
-  } else if (!is.null(dsn)) {
-    if (!file.exists(dsn)) {
-      stop(paste0("The provided dsn (", dsn, ") does not exist."))
-    }
-    if (!(file_type %in% valid_file_types)) {
-      stop(paste0("The current file_type value (", file_type, ") is invalid. ",
-                  "Valid file types are: ", paste(valid_file_types,
-                                                  collapse = ", ")))
-    }
-    # Read in GINTERCEPT
-    soildisag <- switch(file_type,
-                        "gdb" = {
-                          sf::st_read(dsn = dsn,
-                                      layer = "SOILDISAG",
-                                      stringsAsFactors = FALSE,
-                                      quiet = TRUE)
-                        },
-                        "txt" = {
-                          read.table(file = file.path(dsn,
-                                                      "soildisag.txt"),
-                                     stringsAsFactors = FALSE,
-                                     strip.white = TRUE,
-                                     header = FALSE,
-                                     sep = "|")
-                        })
-
-    # Update variable names
-    if (file_type == "txt") {
-      # Add meaningful column names
-      soildisag <- name_variables_nri(data = soildisag,
-                                      table_name = "SOILDISAG")
-    }
-  } else {
-    stop("Supply either a data frames for the argument SOILDISAG or the path to a GDB containing a table called SOILDISAG as the argument dsn.")
-  }
-
   # These are used for data management within a geodatabase and we're going to
   # drop them. This helps us to weed out duplicate records created by quirks of
   # the ingest processes.
@@ -3459,9 +3666,87 @@ gather_soil_stability_lmf <- function(dsn = NULL,
                          "FormType",
                          "DBKey")
 
-  soildisag <- dplyr::select(.data = soildisag,
-                             -tidyselect::any_of(internal_gdb_vars)) |>
+  #### Reading and cleanup #####################################################
+  soildisag <- read_with_fallback(dsn = dsn,
+                                  tbl = SOILDISAG,
+                                  default_name = "SOILDISAG",
+                                  regex = TRUE,
+                                  best_guess = TRUE,
+                                  accept_failure = FALSE,
+                                  verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
+
+  #   # Make sure we can read in the data.
+  # valid_file_types <- c("gdb", "txt")
+  #
+  # # We'll extract the extension if file_type isn't provided
+  # if (is.null(file_type)){
+  #   file_type <- tools::file_ext(dsn)
+  # }
+  # # Sanitize it.
+  # file_type <- tolower(file_type)
+  #
+  #
+  # if (!is.null(SOILDISAG)) {
+  #   soildisag <- SOILDISAG
+  # } else if (!is.null(dsn)) {
+  #   if (!file.exists(dsn)) {
+  #     stop(paste0("The provided dsn (", dsn, ") does not exist."))
+  #   }
+  #   if (!(file_type %in% valid_file_types)) {
+  #     stop(paste0("The current file_type value (", file_type, ") is invalid. ",
+  #                 "Valid file types are: ", paste(valid_file_types,
+  #                                                 collapse = ", ")))
+  #   }
+  #   # Read in GINTERCEPT
+  #   soildisag <- switch(file_type,
+  #                       "gdb" = {
+  #                         sf::st_read(dsn = dsn,
+  #                                     layer = "SOILDISAG",
+  #                                     stringsAsFactors = FALSE,
+  #                                     quiet = TRUE)
+  #                       },
+  #                       "txt" = {
+  #                         read.table(file = file.path(dsn,
+  #                                                     "soildisag.txt"),
+  #                                    stringsAsFactors = FALSE,
+  #                                    strip.white = TRUE,
+  #                                    header = FALSE,
+  #                                    sep = "|")
+  #                       })
+  #
+  #   # Update variable names
+  #   if (file_type == "txt") {
+  #     # Add meaningful column names
+  #     soildisag <- name_variables_nri(data = soildisag,
+  #                                     table_name = "SOILDISAG")
+  #   }
+  # } else {
+  #   stop("Supply either a data frames for the argument SOILDISAG or the path to a GDB containing a table called SOILDISAG as the argument dsn.")
+  # }
+  #
+  # # These are used for data management within a geodatabase and we're going to
+  # # drop them. This helps us to weed out duplicate records created by quirks of
+  # # the ingest processes.
+  # internal_gdb_vars <- c("GlobalID",
+  #                        "created_user",
+  #                        "created_date",
+  #                        "last_edited_user",
+  #                        "last_edited_date",
+  #                        "DateLoadedInDb",
+  #                        "DateLoadedinDB",
+  #                        "rid",
+  #                        "DataErrorChecking",
+  #                        "DataEntry",
+  #                        "DateModified",
+  #                        "FormType",
+  #                        "DBKey")
+  #
+  # soildisag <- dplyr::select(.data = soildisag,
+  #                            -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::distinct()
 
   #### Pivoting longer and harmonizing #########################################
   # This pares down the variables to only what we need and pivots to a long
@@ -3679,11 +3964,13 @@ gather_soil_stability <- function(dsn = NULL,
   if (toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     soil_stability <- gather_soil_stability_terradat(dsn = dsn,
                                                      tblSoilStabDetail = tblSoilStabDetail,
-                                                     tblSoilStabHeader = tblSoilStabHeader)
+                                                     tblSoilStabHeader = tblSoilStabHeader,
+                                                     verbose = verbose)
   } else if (toupper(source) %in% c("LMF", "NRI")){
     soil_stability <- gather_soil_stability_lmf(dsn = dsn,
                                                 file_type = file_type,
-                                                SOILDISAG = SOILDISAG)
+                                                SOILDISAG = SOILDISAG,
+                                                verbose = verbose)
 
   } else {
     stop("source must be one of 'AIM', 'TerrADat', 'DIMA', 'LMF', or 'NRI' (all case independent).")
@@ -3691,7 +3978,9 @@ gather_soil_stability <- function(dsn = NULL,
 
   soil_stability$source <- source
 
-  if("sf" %in% class(soil_stability)) soil_stability <- sf::st_drop_geometry(soil_stability)
+  if("sf" %in% class(soil_stability)) {
+    soil_stability <- sf::st_drop_geometry(x = soil_stability)
+  }
 
   if (any(class(soil_stability) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(soil_stability)[do.call(rbind, vapply(soil_stability,
@@ -3753,31 +4042,78 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
                                              tblQualHeader = NULL,
                                              tblQualDetail = NULL,
                                              verbose = FALSE) {
+  # These are used for data management within a geodatabase and we're going to
+  # drop them.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "DBKey",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblQualHeader,
+                               default_name = "tblQualHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
-  if(!is.null(tblQualHeader) & !is.null(tblQualDetail)){
-    IIRH_header <- tblQualHeader
-    IIRH_detail <- tblQualDetail
-  } else if(!is.null(dsn)) {
-    # check file
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing tblQualDetail and tblQualHeader")
-    }
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblQualDetail,
+                               default_name = "tblQualDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    # Just making sure these are for real numeric.
+    dplyr::mutate(.data = _,
+                  dplyr::across(.cols = tidyselect::all_of(x = c("Seq",
+                                                                 "Rating")),
+                                .fns = as.numeric)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
-    # Read in tblQualHeader
-    rh_header <- sf::st_read(dsn = dsn,
-                             layer = "tblQualHeader",
-                             stringsAsFactors = FALSE,
-                             quiet = TRUE)
 
-    # Read in tblQualDetail
-    rh_detail <- sf::st_read(dsn = dsn,
-                             layer = "tblQualDetail",
-                             stringsAsFactors = FALSE,
-                             quiet = TRUE)
-
-  } else {
-    stop("Provide either tblQualHeader and tblQualDetail or a path to a geodatabase containing those tables")
-  }
+  # if(!is.null(tblQualHeader) & !is.null(tblQualDetail)){
+  #   IIRH_header <- tblQualHeader
+  #   IIRH_detail <- tblQualDetail
+  # } else if(!is.null(dsn)) {
+  #   # check file
+  #   if (!file.exists(dsn)) {
+  #     stop("dsn must be a valid filepath to a geodatabase containing tblQualDetail and tblQualHeader")
+  #   }
+  #
+  #   # Read in tblQualHeader
+  #   rh_header <- sf::st_read(dsn = dsn,
+  #                            layer = "tblQualHeader",
+  #                            stringsAsFactors = FALSE,
+  #                            quiet = TRUE)
+  #
+  #   # Read in tblQualDetail
+  #   rh_detail <- sf::st_read(dsn = dsn,
+  #                            layer = "tblQualDetail",
+  #                            stringsAsFactors = FALSE,
+  #                            quiet = TRUE)
+  #
+  # } else {
+  #   stop("Provide either tblQualHeader and tblQualDetail or a path to a geodatabase containing those tables")
+  # }
 
   # The data are coming in with numeric variables identifying the indicators and
   # values, but we need to convert those into human-legible character strings
@@ -3811,82 +4147,108 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
                      "M",
                      "ME",
                      "ET")
-  value_strings_lookup <- data.frame(Rating = seq_len(length(value_strings) - 1),
+  value_strings_lookup <- data.frame(Rating = seq_len(length(value_strings)) - 1,
                                      rating_string = value_strings)
 
-  rh_detail <- dplyr::left_join(x = rh_detail,
-                                y = indicator_names_lookup,
-                                .by = "Seq",
-                                relationship = "many-to-one") |>
+  detail_wide <- dplyr::left_join(x = detail,
+                                  y = indicator_names_lookup,
+                                  by = "Seq",
+                                  relationship = "many-to-one") |>
     dplyr::left_join(x = _,
                      y = value_strings_lookup,
-                     .by = "Rating",
+                     by = "Rating",
                      relationship = "many-to-one") |>
     dplyr::mutate(.data = _,
-                  Rating = rating_string)
+                  Rating = rating_string) |>
+    dplyr::filter(.data = _,
+                  !is.na(Rating)) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(x = c("RecKey",
+                                           "indicator",
+                                           "Rating"))) |>
+    dplyr::distinct() |>
+    tidyr::pivot_wider(data = _,
+                       names_from = tidyselect::all_of(x = c("indicator")),
+                       values_from = tidyselect::all_of(x = c("Rating")))
 
-  # Clean up the Indicators Table
-  rangeland_health_indicators <- IIRH_detail %>%
-    dplyr::mutate(
-      indicator = Seq %>%
-        as.character() %>%
-        # Rename Seq from a number to an Indicator name
-        stringr::str_replace_all(c(
-          "\\b1\\b" = "RH_Rills",
-          "\\b2\\b" = "RH_WaterFlowPatterns",
-          "\\b3\\b" = "RH_PedestalsTerracettes",
-          "\\b4\\b" = "RH_BareGround",
-          "\\b5\\b" = "RH_Gullies",
-          "\\b6\\b" = "RH_WindScouredAreas", #
-          "\\b7\\b" = "RH_LitterMovement", #
-          "\\b8\\b" = "RH_SoilSurfResisErosion", #
-          "\\b9\\b" = "RH_SoilSurfLossDeg", #
-          "\\b10\\b" = "RH_PlantCommunityComp", #
-          "\\b11\\b" = "RH_Compaction", #
-          "\\b12\\b" = "RH_FuncSructGroup", #
-          "\\b13\\b" = "RH_DeadDyingPlantParts", #
-          "\\b14\\b" = "RH_LitterAmount", #
-          "\\b15\\b" = "RH_AnnualProd", #
-          "\\b16\\b" = "RH_InvasivePlants", #
-          "\\b17\\b" = "RH_ReprodCapabilityPeren"
-        )),
-      Rating = Rating %>%
-        as.character() %>%
-        stringr::str_replace_all(c(
-          "1" = "NS",
-          "2" = "SM",
-          "3" = "M",
-          "4" = "ME",
-          "5" = "ET",
-          "0" = NA
-        ))
-    ) %>%
-    subset(!is.na(Rating)) %>%
-    dplyr::select(RecKey, indicator, Rating) %>%
-    dplyr::distinct() %>%
-    tidyr::spread(key = indicator, value = Rating)
+  output <- dplyr::select(.data = header,
+                          # Renaming the various header variables that need it
+                          tidyselect::all_of(x = c("PrimaryKey",
+                                                   "RecKey",
+                                                   "RH_HydrologicFunction" = "HFVxWRatingFinal",
+                                                   "RH_BioticIntegrity" = "BIVxWRatingFinal",
+                                                   "RH_SoilSiteStability" = "SSSVxWRatingFinal",
+                                                   "RH_CommentsBI" = "CommentBI",
+                                                   "RH_CommentsHF" = "CommentHF",
+                                                   "RH_CommentsSS" = "CommentSSS"))) |>
+    dplyr::left_join(x = _,
+                     y = detail_wide,
+                     by = "RecKey",
+                     relationship = "one-to-many")
 
-  # Attributes and then joined to Indicators
-  IIRH <- dplyr::select(IIRH_header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
-                        RH_HydrologicFunction = HFVxWRatingFinal,
-                        RH_BioticIntegrity = BIVxWRatingFinal,
-                        RH_SoilSiteStability = SSSVxWRatingFinal,
-                        RH_CommentsBI = CommentBI,
-                        RH_CommentsHF = CommentHF,
-                        RH_CommentsSS = CommentSSS#,
-                        # Observer,
-                        # Recorder
-  ) %>%
-
-    # Add the indicators
-    dplyr::left_join(rangeland_health_indicators, by = "RecKey")
-
-  ## last drop
-  IIRH <- IIRH %>% dplyr::select(
-    -c(DateLoadedInDb)
-  )
-
-  return(IIRH)
+  output
+  # # Clean up the Indicators Table
+  # rangeland_health_indicators <- IIRH_detail %>%
+  #   dplyr::mutate(
+  #     indicator = Seq %>%
+  #       as.character() %>%
+  #       # Rename Seq from a number to an Indicator name
+  #       stringr::str_replace_all(c(
+  #         "\\b1\\b" = "RH_Rills",
+  #         "\\b2\\b" = "RH_WaterFlowPatterns",
+  #         "\\b3\\b" = "RH_PedestalsTerracettes",
+  #         "\\b4\\b" = "RH_BareGround",
+  #         "\\b5\\b" = "RH_Gullies",
+  #         "\\b6\\b" = "RH_WindScouredAreas", #
+  #         "\\b7\\b" = "RH_LitterMovement", #
+  #         "\\b8\\b" = "RH_SoilSurfResisErosion", #
+  #         "\\b9\\b" = "RH_SoilSurfLossDeg", #
+  #         "\\b10\\b" = "RH_PlantCommunityComp", #
+  #         "\\b11\\b" = "RH_Compaction", #
+  #         "\\b12\\b" = "RH_FuncSructGroup", #
+  #         "\\b13\\b" = "RH_DeadDyingPlantParts", #
+  #         "\\b14\\b" = "RH_LitterAmount", #
+  #         "\\b15\\b" = "RH_AnnualProd", #
+  #         "\\b16\\b" = "RH_InvasivePlants", #
+  #         "\\b17\\b" = "RH_ReprodCapabilityPeren"
+  #       )),
+  #     Rating = Rating %>%
+  #       as.character() %>%
+  #       stringr::str_replace_all(c(
+  #         "1" = "NS",
+  #         "2" = "SM",
+  #         "3" = "M",
+  #         "4" = "ME",
+  #         "5" = "ET",
+  #         "0" = NA
+  #       ))
+  #   ) %>%
+  #   subset(!is.na(Rating)) %>%
+  #   dplyr::select(RecKey, indicator, Rating) %>%
+  #   dplyr::distinct() %>%
+  #   tidyr::spread(key = indicator, value = Rating)
+  #
+  # # Attributes and then joined to Indicators
+  # IIRH <- dplyr::select(IIRH_header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
+  #                       RH_HydrologicFunction = HFVxWRatingFinal,
+  #                       RH_BioticIntegrity = BIVxWRatingFinal,
+  #                       RH_SoilSiteStability = SSSVxWRatingFinal,
+  #                       RH_CommentsBI = CommentBI,
+  #                       RH_CommentsHF = CommentHF,
+  #                       RH_CommentsSS = CommentSSS#,
+  #                       # Observer,
+  #                       # Recorder
+  # ) %>%
+  #
+  #   # Add the indicators
+  #   dplyr::left_join(rangeland_health_indicators, by = "RecKey")
+  #
+  # ## last drop
+  # IIRH <- IIRH %>% dplyr::select(
+  #   -c(DateLoadedInDb)
+  # )
+  #
+  # return(IIRH)
 }
 
 #' Convert LMF-format Interpreting Indicators of RangelandHealth data into a long/tall format.
@@ -3914,54 +4276,82 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
                                         file_type = NULL,
                                         RANGEHEALTH = NULL,
                                         verbose = FALSE) {
-  if ("character" %in% class(RANGEHEALTH)) {
-    if (tools::file_ext(RANGEHEALTH) == "Rdata") {
-      IIRH <- readRDS(file = RANGEHEALTH)
-    } else {
-      stop("When RANGEHEALTH is a character string it must be the path to a .Rdata file containing RANGEHEALTH data.")
-    }
-  } else if ("data.frame" %in% class(RANGEHEALTH)) {
-    IIRH <- RANGEHEALTH
-  } else {
-    if (!is.null(dsn)) {
-      if (!file.exists(dsn)) {
-        stop("dsn must be a valid filepath to a geodatabase containing a table called RANGEHEALTH or the filepath to a text file containing those values.")
-      }
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
 
-      file_type <- tools::file_ext(x = dsn) |>
-        toupper()
-
-      IIRH <- switch(file_type,
-                     "gdb" = {
-                       sf::st_read(dsn = dsn,
-                                   layer = "RANGEHEALTH",
-                                   stringsAsFactors = FALSE, quiet = TRUE)
-                     },
-                     "txt" = {
-                       read.table(paste(dsn, "rangehealth.txt", sep = ""),
-                                  stringsAsFactors = FALSE,
-                                  header = FALSE,
-                                  sep = "|",
-                                  strip.white = TRUE
-                       )
-                     },
-                     "csv" = {
-                       read.csv(dsn)
-                     }
-      )
-      # if it is in a text file, there are no field names assigned.
-      if (file_type == "txt") {
-        IIRH <- name_variables_nri(
-          data = IIRH,
-          table_name = "RHSUMMARY"
-        )
-      }
-    }else {
-      stop("Provide either dsn or RANGEHEALTH.")
-    }
+  #### Reading #################################################################
+  rangehealth <- read_with_fallback(dsn = dsn,
+                                    tbl = RANGEHEALTH,
+                                    default_name = "RANGEHEALTH",
+                                    regex = TRUE,
+                                    best_guess = TRUE,
+                                    accept_failure = FALSE,
+                                    verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
+  # if ("character" %in% class(RANGEHEALTH)) {
+  #   if (tools::file_ext(RANGEHEALTH) == "Rdata") {
+  #     IIRH <- readRDS(file = RANGEHEALTH)
+  #   } else {
+  #     stop("When RANGEHEALTH is a character string it must be the path to a .Rdata file containing RANGEHEALTH data.")
+  #   }
+  # } else if ("data.frame" %in% class(RANGEHEALTH)) {
+  #   IIRH <- RANGEHEALTH
+  # } else {
+  #   if (!is.null(dsn)) {
+  #     if (!file.exists(dsn)) {
+  #       stop("dsn must be a valid filepath to a geodatabase containing a table called RANGEHEALTH or the filepath to a text file containing those values.")
+  #     }
+  #
+  #     file_type <- tools::file_ext(x = dsn) |>
+  #       toupper()
+  #
+  #     IIRH <- switch(file_type,
+  #                    "gdb" = {
+  #                      sf::st_read(dsn = dsn,
+  #                                  layer = "RANGEHEALTH",
+  #                                  stringsAsFactors = FALSE, quiet = TRUE)
+  #                    },
+  #                    "txt" = {
+  #                      read.table(paste(dsn, "rangehealth.txt", sep = ""),
+  #                                 stringsAsFactors = FALSE,
+  #                                 header = FALSE,
+  #                                 sep = "|",
+  #                                 strip.white = TRUE
+  #                      )
+  #                    },
+  #                    "csv" = {
+  #                      read.csv(dsn)
+  #                    }
+  #     )
+  #     # if it is in a text file, there are no field names assigned.
+  #     if (file_type == "txt") {
+  #       IIRH <- name_variables_nri(
+  #         data = IIRH,
+  #         table_name = "RHSUMMARY"
+  #       )
+  #     }
+  #   }else {
+  #     stop("Provide either dsn or RANGEHEALTH.")
+  #   }
 
     # Clean up the field names so they are human readable and match TerrAdat names
-    output <- dplyr::select(.data = IIRH,
+    output <- dplyr::select(.data = rangehealth,
                             tidyselect::all_of(x = c("PrimaryKey",
                                                      RH_Rills = "RILLS",
                                                      RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
@@ -3985,7 +4375,7 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
                                                      RH_HydrologicFunction = "HYDROLOGIC_FUNCTION")))
 
     output
-  }
+  # }
 }
 
 #' export gather_rangeland_health_survey123
@@ -4207,30 +4597,6 @@ gather_species_inventory_terradat <- function(dsn = NULL,
                                               tblSpecRichHeader = NULL,
                                               verbose = FALSE) {
 
-  detail <- tblSpecRichDetail
-  header <- tblSpecRichHeader
-
-  if (is.null(header) | is.null(detail)) {
-    if (!is.null(dsn)){
-      if(!file.exists(dsn)){
-        stop("dsn must be a valid filepath to a geodatabase containing tblSpecRichDetail and tblSpecRichHeader")
-      }
-
-      if (is.null(header)) {
-        header <- sf::st_read(dsn = dsn,
-                              layer = "tblSpecRichHeader",
-                              quiet = TRUE)
-      }
-      if (is.null(detail)) {
-        detail <- sf::st_read(dsn = dsn,
-                              layer = "tblSpecRichDetail",
-                              quiet = TRUE)
-      }
-    } else {
-      stop("Please provide tblSpecRichHeader, tblSpecRichDetail, or a filepath to a geodatabase containing those tables.")
-    }
-  }
-
   # These are used for data management within a geodatabase and we're going to
   # drop them.
   internal_gdb_vars <- c("GlobalID",
@@ -4246,6 +4612,32 @@ gather_species_inventory_terradat <- function(dsn = NULL,
                          "DataEntry",
                          "DateModified",
                          "FormType")
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblSpecRichHeader,
+                               default_name = "tblSpecRichHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
+
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblSpecRichDetail,
+                               default_name = "tblSpecRichDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
   # Clean these up!
   detail <- dplyr::select(.data = detail,
@@ -4260,6 +4652,7 @@ gather_species_inventory_terradat <- function(dsn = NULL,
                   !is.na(PrimaryKey)) |>
     dplyr::distinct()
 
+  #### Munging #################################################################
   # This shouldn't be necessary as of 2025, but working with older data requires
   # that the species be separated because they're stored as a single character
   # string with each species code separated by semicolons.
@@ -4276,8 +4669,14 @@ gather_species_inventory_terradat <- function(dsn = NULL,
 }
 
 
-#' @export tall_species
-#' @rdname gather_species_inventory
+#' Create distinct species inventory records from semicolon-separated values
+#' @description
+#' Some species inventory data stored all species codes in a single character string as semicolon-separated values. This will create distinct records for each code.
+#' This will only work with a data frame that has the variables PrimaryKey, RecKey, and SpeciesList.
+#'
+#' @param species_inventory_detail Data frame. The detail species inventory data to split into multiple records. Must contain the variables PrimaryKey, RecKey, and SpeciesList. SpeciesList must contain character strings composed of the species codes separated by semicolons, e.g., "ARTRW8;PRGL2;ARTR4".
+#' @returns A data frame with the variables PrimaryKey, RecKey, and Species where each record represents one species code and its associated PrimaryKey and RecKey values.
+#' @export
 tall_species <- function(species_inventory_detail) {
   tall_list <- apply(X = species_inventory_detail,
                      MARGIN = 1,
@@ -4308,44 +4707,72 @@ gather_species_inventory_lmf <- function(dsn = NULL,
                                          file_type = "gdb",
                                          PLANTCENSUS = NULL,
                                          verbose = FALSE) {
-  if(!is.null(PLANTCENSUS)){
-    plantcensus <- PLANTCENSUS
-  } else if(!is.null(dsn)){
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
 
-    plantcensus <- switch(file_type,
-                          "gdb" = {
-                            suppressWarnings(sf::st_read(dsn,
-                                                         layer = "PLANTCENSUS",
-                                                         stringsAsFactors = FALSE, quiet = T
-                            ))
-                          },
-                          "txt" = {
-                            read.table(paste(dsn, "plantcensus.txt", sep = ""),
-                                       stringsAsFactors = FALSE,
-                                       header = FALSE, sep = "|",
-                                       strip.white = TRUE
-                            )
-                          },
-                          "csv" = {
-                            read.csv(dsn,
-                                     stringsAsFactors = FALSE
-                            )
-                          }
-    )
+  #### Reading #################################################################
+  plantcensus <- read_with_fallback(dsn = dsn,
+                                    tbl = PLANTCENSUS,
+                                    default_name = "PLANTCENSUS",
+                                    regex = TRUE,
+                                    best_guess = TRUE,
+                                    accept_failure = FALSE,
+                                    verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
+  # if(!is.null(PLANTCENSUS)){
+  #   plantcensus <- PLANTCENSUS
+  # } else if(!is.null(dsn)){
+  #
+  #   plantcensus <- switch(file_type,
+  #                         "gdb" = {
+  #                           suppressWarnings(sf::st_read(dsn,
+  #                                                        layer = "PLANTCENSUS",
+  #                                                        stringsAsFactors = FALSE, quiet = T
+  #                           ))
+  #                         },
+  #                         "txt" = {
+  #                           read.table(paste(dsn, "plantcensus.txt", sep = ""),
+  #                                      stringsAsFactors = FALSE,
+  #                                      header = FALSE, sep = "|",
+  #                                      strip.white = TRUE
+  #                           )
+  #                         },
+  #                         "csv" = {
+  #                           read.csv(dsn,
+  #                                    stringsAsFactors = FALSE
+  #                           )
+  #                         }
+  #   )
+  #
+  #   # if it is in a text file, there are no field names assigned.
+  #   if (file_type == "txt") {
+  #     plantcensus <- name_variables_nri(
+  #       data = plantcensus,
+  #       table_name = "PLANTCENSUS"
+  #     )
+  #   }
+  #
+  # } else {
+  #   stop("Supply either PLANTCENSUS or the path to a GDB containing that table")
+  # }
 
-    # if it is in a text file, there are no field names assigned.
-    if (file_type == "txt") {
-      plantcensus <- name_variables_nri(
-        data = plantcensus,
-        table_name = "PLANTCENSUS"
-      )
-    }
-
-  } else {
-    stop("Supply either PLANTCENSUS or the path to a GDB containing that table")
-  }
-
-  # Get species count
+  #### Munging #################################################################
   species_inventory <- dplyr::summarize(.data = plantcensus,
                                         .by = "PrimaryKey",
                                         SpeciesCount = dplyr::n()) |>
@@ -4358,24 +4785,10 @@ gather_species_inventory_lmf <- function(dsn = NULL,
   species_inventory <- dplyr::rename(.data = species_inventory,
                                      Species = CPLANT)
 
-  # Clean up unwanted variables
-  internal_gdb_vars <- c("GlobalID",
-                         "created_user",
-                         "created_date",
-                         "last_edited_user",
-                         "last_edited_date",
-                         # For once these variables need to carry through!
-                         # "DateLoadedInDb",
-                         # "DateLoadedinDB",
-                         "rid",
-                         "DataErrorChecking",
-                         "DataEntry",
-                         "DateModified",
-                         "FormType")
 
   dplyr::select(.data = species_inventory,
                 -c(SURVEY:SEQNUM),
-                tidyselect::any_of(internal_gdb_vars))
+                -tidyselect::any_of(internal_gdb_vars))
 
   species_inventory
 }
@@ -4439,16 +4852,15 @@ gather_species_inventory <- function(dsn = NULL,
                                      verbose = FALSE) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    species_inventory <- gather_species_inventory_terradat(
-      dsn = dsn,
-      tblSpecRichDetail = tblSpecRichDetail,
-      tblSpecRichHeader = tblSpecRichHeader
-    )
+    species_inventory <- gather_species_inventory_terradat(dsn = dsn,
+                                                           tblSpecRichDetail = tblSpecRichDetail,
+                                                           tblSpecRichHeader = tblSpecRichHeader,
+                                                           verbose = verbose)
   } else if(toupper(source) %in% c("LMF", "NRI")){
-    species_inventory <- gather_species_inventory_lmf(
-      dsn = dsn, file_type = file_type,
-      PLANTCENSUS = PLANTCENSUS
-    )
+    species_inventory <- gather_species_inventory_lmf(dsn = dsn,
+                                                      file_type = file_type,
+                                                      PLANTCENSUS = PLANTCENSUS,
+                                                      verbose = verbose)
     # } else if (toupper(source) == "SURVEY123"){
     #   species_inventory <- gather_species_inventory_survey123(
     #     SpeciesRichness_0 = SpeciesRichness_0,
