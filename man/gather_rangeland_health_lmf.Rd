@@ -12,16 +12,14 @@ gather_rangeland_health_lmf(
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. If provided, this must be the filepath
-to a geodatabase which contains the feature class RANGEHEALTH, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-the argument \code{RANGEHEALTH} is required. Defaults to
-\code{NULL}.}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.}
 
-\item{file_type}{Character string. The file extension for the path in \code{dsn}.}
+\item{file_type}{Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.}
 
-\item{RANGEHEALTH}{Optional data frame. If provided, this must contain the
-expected IIRH data. If \code{NULL} then the argument
-\code{dsn} must be provided. Defaults to \code{NULL}.}
+\item{RANGEHEALTH}{Optional data frame or character string. If provided, this must contain the
+expected rangeland health intercept data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called RANGEHEALTH (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to

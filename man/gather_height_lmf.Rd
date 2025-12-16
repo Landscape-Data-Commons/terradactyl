@@ -12,20 +12,14 @@ gather_height_lmf(
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. If provided, this must be
-the filepath to a geodatabase which contains the feature class
-PASTUREHEIGHTS, e.g. \code{"C:/DATA/LMF.GDB"}. If this is \code{NULL}, then
-the argument \code{PASTUREHEIGHTS} must be provided. Defaults to
-\code{NULL}.}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.}
 
-\item{file_type}{Optional character string. This must be \code{"gdb"},
-\code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-If \code{dsn} is \code{NULL} this argument is ignored. Defaults to
-\code{"gdb"}.}
+\item{file_type}{Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.}
 
-\item{PASTUREHEIGHTS}{Optional data frame. If provided, this must contain the
-expected heights data. If \code{NULL} then the argument \code{dsn} must be
-provided. Defaults to \code{NULL}.}
+\item{PASTUREHEIGHTS}{Optional data frame or character string. If provided, this must contain the
+expected height data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PASTUREHEIGHTS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to

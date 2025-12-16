@@ -2,9 +2,7 @@
 % Please edit documentation in R/gathering.R
 \name{gather_lpi}
 \alias{gather_lpi}
-\title{export gather_lpi_survey123
-rdname gather_lpi
-Function to convert LPI data into a long format.}
+\title{Function to convert LPI data into a long format.}
 \usage{
 gather_lpi(
   dsn = NULL,
@@ -17,34 +15,27 @@ gather_lpi(
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. If provided, this must be the filepath
-to a geodatabase which contains the feature classes tblLPIHeader and
-tblLPIDetail or the feature class PINTERCEPT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-the arguments \code{tblLPIHeader} and \code{tblLPIDetail} or the argument \code{PINTERCEPT} must be provided.
-Defaults to \code{NULL}.}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.}
 
-\item{file_type}{Optional character string. This must be \code{"gdb"},
-\code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-If \code{dsn} is \code{NULL} this argument is ignored.  Only used if \code{source} is \code{"LMF}. Defaults to
-\code{"gdb"}.}
+\item{file_type}{Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.}
 
 \item{source}{Character string. This specifies the expected data format(s)
 and determines which specialized gather function will be used. It must be
 one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
 \code{"NRI"}. This is case-insensitive.}
 
-\item{tblLPIDetail}{Optional data frame. If provided, this must contain the
-expected LPI data in the format of the tblLPIDetail table used by AIM.  Only used if \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{NULL} then the argument
-\code{dsn} must be provided. Defaults to \code{NULL}.}
+\item{tblLPIDetail}{Optional data frame or character string. If provided, this must contain the
+expected LPI data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
-\item{tblLPIHeader}{Optional data frame. If provided, this must contain the
-expected metadata for the LPI data in the format of the tblLPIHeader table used by AIM. Only used if \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{NULL} then the argument \code{dsn} must be
-provided. Defaults to \code{NULL}.}
+\item{tblLPIHeader}{Optional data frame or character string. If provided, this must contain the
+expected metadata for the LPI data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
-\item{PINTERCEPT}{Optional (contingent) data frame. This is the data frame
-containing the LPI data in the format of the PINTERCEPT table used by LMF.  Only used if \code{source} is \code{"LMF}.
-If provided, this will be used even if \code{dsn} is also non-NULL.
-Defaults to \code{NULL}.}
+\item{PINTERCEPT}{Optional data frame or character string. If provided, this must contain the
+expected LPI data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PINTERCEPT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to
@@ -58,8 +49,18 @@ with the package \code{terradactyl}. Supported formats include those used in
 AIM (Assessment, Inventory, and Monitoring) and TerrADat (Terrestrial AIM
 Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
 Inventory, Monitoring, and Assessment). For additional information about
-arguments, see the documentation for the functions
-\code{gather_lpi_terradat()} and \code{gather_lpi_lmf()}.
+arguments, see the documentation for the functions \code{\link[terradactyl:gather_lpi_terradat]{gather_lpi_terradat()}}, \code{\link[terradactyl:gather_lpi_lmf]{gather_lpi_lmf()}}, and
+\code{\link[terradactyl:gather_lpi_nri]{gather_lpi_nri()}}.
+}
+\details{
+The \code{source} argument determines which other arguments are used or ignored.
+
+When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+then the arguments \code{tblLPIHeader} and \code{tblLPIDetail} are both considered.
+
+When \code{source} is \code{"LMF"} then the argument \code{PINTERCEPT} is considered.
+
+Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 }
 \examples{
 # LPI data from a geodatabase in the format of the Terrestrial AIM Database
