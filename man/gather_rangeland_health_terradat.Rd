@@ -12,19 +12,16 @@ gather_rangeland_health_terradat(
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. If provided, this must be the filepath
-to a geodatabase which contains the feature classes tblQualHeader and
-tblQualDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-the arguments \code{tblQualHeader} and \code{tblQualDetail} are required. Defaults to
-\code{NULL}.}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes.}
 
-\item{tblQualHeader}{Optional data frame. If provided, this must contain the
-expected metadata for the IIRH data. If \code{NULL} then the argument \code{dsn} must be
-provided. Defaults to \code{NULL}.}
+\item{tblQualHeader}{Optional data frame or character string. If provided, this must contain the
+expected metadata for the IIRH data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblQualHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
-\item{tblQualDetail}{Optional data frame. If provided, this must contain the
+\item{tblQualDetail}{Optional data frame or character string. If provided, this must contain the
 expected IIRH data. If \code{NULL} then the argument
-\code{dsn} must be provided. Defaults to \code{NULL}.}
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblQualDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to
@@ -40,7 +37,7 @@ gather_rangeland_health_terradat(dsn = "data_folder/aim_data.gdb")
 # Using data frames for tblQualHeader and tblQualDetail
 aim_iirhheader <- read.csv("data_folder/iirh_headers.csv")
 aim_iirhdetail <- read.csv("data_folder/iirh_detail_records.csv")
-gather_gap_terradat(tblQualHeader = aim_iirhheader,
+gather_rangeland_health_terradat(tblQualHeader = aim_iirhheader,
                     tblQualDetail = aim_iirhdetail)
 
 

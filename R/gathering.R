@@ -1,5 +1,4 @@
 #### HEADERS ###################################################################
-
 #' Gather AIM plot-level header data
 #' @description This reads in metadata from AIM sampling used as headers for
 #' various methods and returns it as a tall/long-format data frame suitable for use
@@ -9,12 +8,8 @@
 #' Database (TerrADat).
 #'
 #' @param dsn Optional character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature class tblPlots, e.g.
-#'   \code{"C:/DATA/AIM.GDB"}. If \code{tblPlots} is a character string without a file extension, it will be used as the name of the table to read in from the geodatabase. If this is NULL, then the argument
-#'   \code{tblPlots} must be provided. Defaults to \code{NULL}.
-#' @param tblPlots Optional data frame. If provided, this must contain the
-#'   expected plot metadata. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param tblPlots Data frame or character string. If a data frame, must contain the variables PrimaryKey, SpeciesState, PlotID, PlotKey, EcolSite, Latitude, Longitude, State, Elevation, CountyName, EstablishDate, DateLoadedInDb, and SamplingApproach. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called tblPlots (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param date_tables Optional (contingent on other arguments) character vector
 #'   or list of data frames. This specifies the tables to extract date
 #'   information from. If \code{dsn} is not \code{NULL} AND the geodatabase
@@ -25,11 +20,9 @@
 #'   character strings specifying the names of the relevant feature classes. If
 #'   \code{tblPlots} is being used, then this must be a list of data frames
 #'   containing the relevant data. Defaults to \code{NULL}.
-#' @param ... Additional optional filtering expressions to be used with
-#'   \code{dplyr::filter()} to restrict the processing and output to only a
-#'   subset of input data. If providing data via the argument \code{tblPlots} it
-#'   is recommended to filter the data before calling this function instead of
-#'   using additional arguments here.
+#' @param ... Additional optional filtering expressions passed to
+#'   \code{\link[dplyr:filter]{dplyr::filter()}} to restrict the processing and output to only a
+#'   subset of input data.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #' @returns A long-format data frame of header data.
@@ -211,7 +204,7 @@ gather_header_terradat <- function(dsn = NULL,
     dplyr::distinct()
 }
 
-#' Gather AIM plot-level header data
+#' Gather LMF plot-level header data
 #' @description This reads in metadata from AIM sampling used as headers for
 #' various methods and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}. The required
@@ -219,18 +212,20 @@ gather_header_terradat <- function(dsn = NULL,
 #' POINTCOORDINATES, GPS, and ESFSG. The expected formats for
 #' the input data are those used in the Landscape Monitoring Framework.
 #'
-#' @param dsn Character string. This must be the filepath to a geodatabase which
-#'   contains the relevant feature classes, e.g. \code{"C:/DATA/AIM.GDB"}. The
-#'   required feature classes are: POINT, POINTCOORDINATES, COUNTYNM, STATENM,
-#'   GPS, ESFSG.
-#' @param ... Additional optional filtering expressions to be used with
-#'   \code{dplyr::filter()} to restrict the processing and output to only a
-#'   subset of input data by filtering POINT.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param POINT Data frame or character string. If a data frame, must contain the variables PrimaryKey, SpeciesState, COUNTY, and STATE. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called POINT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param POINTCOORDINATES Data frame or character string. If a data frame, must contain the variables PrimaryKey, LocationType, REPORT_LATITUDE, and REPORT_LONGITUDE. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called POINTCOORDINATES (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param GPS Data frame or character string. If a data frame, must contain the variables PrimaryKey, CAPDATE, and ELEVATION. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called GPS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param ESFSG Data frame or character string. If a data frame, must contain the variables COVERAGE, END_MARK, START_MARK, ESFSG_MLRA, ESFSG_SITE, and ESFSG_STATE (the variable ESFSG_PREFIX is optional). If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called ESFSG (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param ... Additional optional filtering expressions passed to
+#'   \code{\link[dplyr:filter]{dplyr::filter()}} to restrict the processing and output to only a
+#'   subset of input data.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #' @returns A long-format data frame of header data.
 #' @examples
-#' # Basic use.
+#' # Basic use assuming that all expected feature classes appear in lmf_data.gdb
 #' gather_header_lmf(dsn = "data_path/lmf_data.gdb")
 #'
 #' # Using a filtering expression to restrict the processing and output to only
@@ -515,7 +510,7 @@ gather_header_lmf <- function(dsn = NULL,
 #' various methods and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.
 
-#' @export
+# #' @export
 gather_header_nri <- function(dsn = NULL,
                               speciesstate,
                               ...,
@@ -672,9 +667,9 @@ gather_header_nri <- function(dsn = NULL,
   return(point_ESD)
 }
 
-# Build the header portion of the Survey123 table
-#' export gather_header_survey123
-#' rdname aim_gdb
+# # Build the header portion of the Survey123 table
+# #' export gather_header_survey123
+# #' rdname aim_gdb
 # gather_header_survey123 <- function(PlotChar, speciesstate, ...){
 #     # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
 #     filter_exprs <- rlang::quos(...)
@@ -731,53 +726,40 @@ gather_header_nri <- function(dsn = NULL,
 #' AIM (Assessment, Inventory, and Monitoring) and TerrADat (Terrestrial AIM
 #' Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
 #' Inventory, Monitoring, and Assessment). For additional information about
-#' arguments, see the documentation for the functions
-#' \code{gather_header_terradat()}, \code{gather_header_lmf()}, and
-#' \code{gather_header_nri()}.
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_header_terradat]{gather_header_terradat()}}, \code{\link[terradactyl:gather_header_lmf]{gather_header_lmf()}}, and
+#' \code{\link[terradactyl:gather_header_nri]{gather_header_nri()}}.
 #'
-#' @param dsn Optional (contingent) character string. This must be the filepath
-#'   to a geodatabase which contains the relevant feature classes, e.g.
-#'   \code{"C:/DATA/AIM.GDB"}. This is optional only when \code{source} is
-#'   \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{source} is
-#'   \code{"LMF"} or \code{"NRI"} this is required. Defaults to \code{NULL}
-#'   which results in it being ignored by the function.
+#' @inheritParams gather_header_terradat
+#' @inheritParams gather_header_lmf
 #' @param source Character string. This specifies the expected data format(s)
 #'   and determines which specialized gather function will be used. It must be
 #'   one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
 #'   \code{"NRI"}. This is case-insensitive.
-#' @param tblPlots Optional data frame only used if \code{source} is
-#'   \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If provided, this must
-#'   contain the expected plot metadata. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param date_tables Optional (contingent on other arguments) character vector
-#'   or list of data frames. Only used if \code{source} is \code{"AIM"},
-#'   \code{"TERRADAT"}, or \code{"DIMA"}. This specifies the tables to extract
-#'   date information from. If \code{dsn} is not \code{NULL} AND the geodatabase
-#'   contains at least one feature class from the set tblLPIHeader,
-#'   tblGapHeader, "tblSpecRichHeader", this argument is optional and can be
-#'   left as \code{NULL}. Otherwise, if \code{dsn} is not \code{NULL} and the
-#'   desired tables to use are named anything else, this must be a vector of
-#'   character strings specifying the names of the relevant feature classes. If
-#'   \code{tblPlots} is being used, then this must be a list of data frames
-#'   containing the relevant data. Defaults to \code{NULL}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblPlots} and \code{date_tables} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the arguments \code{POINT}, \code{POINTCOORDINATES}, \code{GPS}, and \code{ESFSG} are all considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
+#'
 #' @param speciesstate Optional. Used by NRI.
-#' @param ... Additional optional filtering expressions to be used with
-#'   \code{dplyr::filter()} to restrict the processing and output to only a
-#'   subset of input data.
-#' @param autoQC Logical (currently disabled). If \code{TRUE} then automatic
-#'   quality control functions will be applied to the data before returning the
-#'   output. Defaults to \code{FALSE}.
-#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
-#'   messages. Defaults to \code{FALSE}.
+# #' @param autoQC Logical (currently disabled). If \code{TRUE} then automatic
+# #'   quality control functions will be applied to the data before returning the
+# #'   output. Defaults to \code{FALSE}.
+# #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+# #'   messages. Defaults to \code{FALSE}.
 #'
 #' @returns A long-format data frame of header data.
 #' @examples
 #' # Headers from a geodatabase in the format of the Terrestrial AIM Database
-#' gather_header(dsn = "data_path/aim_data.gdb,
+#' gather_header(dsn = "data_path/aim_data.gdb",
 #'               source = "terradat")
 #'
 #' # Headers from a geodatabase in the format of the Landscape Monitoring Framework
-#' gather_header(dsn = "data_path/lmf_data.gdb,
+#' gather_header(dsn = "data_path/lmf_data.gdb",
 #'               source = "lmf")
 #'
 #' @export
@@ -848,16 +830,13 @@ gather_header <- function(dsn = NULL,
 #' in indicator calculations with the package \code{terradactyl}.The expected format is that used in the Terrestrial AIM
 #' Database (TerrADat).
 #' @param dsn Optional character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblLPIHeader and
-#'   tblLPIDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblLPIHeader} and \code{tblLPIDetail} must be provided.
-#'   Defaults to \code{NULL}.
-#' @param tblLPIDetail Optional data frame. If provided, this must contain the
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param tblLPIDetail Optional data frame or character string. If provided, this must contain the
+#'   expected LPI data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblLPIHeader Optional data frame or character string. If provided, this must contain the
 #'   expected metadata for the LPI data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblLPIHeader Optional data frame. If provided, this must contain the
-#'   expected LPI data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param auto_qc_warnings Logical. If \code{TRUE} the function will test the
 #'   data and metadata for duplicated records (records which are identical to
 #'   each other across all critical variables) and orphaned records (records
@@ -1139,22 +1118,13 @@ gather_lpi_terradat <- function(dsn = NULL,
 #' Function to convert LMF-format LPI data into a long format.
 #' @description This reads in Line-Point Intercept from LMF sampling and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.The expected format is that used in the Landscape Monitoring Framework (LMF).
-#' @param dsn Optional (contingent) character string. This is the filepath to
-#'   the source for the LMF data. If this points to a geodatabase, the
-#'   geodatabase must contain the feature class PINTERCEPT with the LPI data and
-#'   \code{file_type} must be \code{"gdb"}. If this points to a TXT or CSV file,
-#'   \code{file_type} must be \code{"txt"} and \code{"csv"}, respectively. If
-#'   \code{NULL}, then a data frame must be provided as the argument
-#'   \code{PINTERCEPT}. Defaults to \code{NULL}.
-#' @param file_type Optional character string. This must be \code{"gdb"},
-#'   \code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-#'   If \code{dsn} is \code{NULL} this argument is ignored. Defaults to
-#'   \code{"gdb"}.
-#' @param PINTERCEPT Optional (contingent) data frame. This is the data frame
-#'   containing the LPI data in the format of the PINTERCEPT table used by LMF.
-#'   If provided, this will be used even if \code{dsn} is also non-NULL.
-#'   Defaults to \code{NULL}.
-#' @param Logical. If \code{TRUE} then the function will report back diagnostic
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param PINTERCEPT Optional data frame or character string. If provided, this must contain the
+#'   expected LPI data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PINTERCEPT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param verbose Logical. If \code{TRUE} then the function will report back diagnostic
 #'   information as console messages while it works. Defaults to \code{FALSE}.
 #'
 #' @examples
@@ -1170,8 +1140,8 @@ gather_lpi_terradat <- function(dsn = NULL,
 #' @export
 
 gather_lpi_lmf <- function(dsn = NULL,
-                           file_type = "gdb",
                            PINTERCEPT = NULL,
+                           file_type = "gdb",
                            verbose = FALSE) {
   # These are used for data management within a geodatabase and we're going to
   # drop them. This helps us to weed out duplicate records created by quirks of
@@ -1391,8 +1361,8 @@ gather_lpi_nps <- function(dsn,
     )
 }
 
-#' export gather_lpi_survey123
-#' rdname gather_lpi
+# #' export gather_lpi_survey123
+# #' rdname gather_lpi
 # gather_lpi_survey123 <- function(dsn = NULL,
 #                                  LPI_0 = NULL,
 #                                  LPIDetail_1 = NULL) {
@@ -1552,34 +1522,27 @@ gather_lpi_nps <- function(dsn,
 #' AIM (Assessment, Inventory, and Monitoring) and TerrADat (Terrestrial AIM
 #' Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
 #' Inventory, Monitoring, and Assessment). For additional information about
-#' arguments, see the documentation for the functions
-#' \code{gather_lpi_terradat()} and \code{gather_lpi_lmf()}.
-#' @param dsn Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblLPIHeader and
-#'   tblLPIDetail or the feature class PINTERCEPT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblLPIHeader} and \code{tblLPIDetail} or the argument \code{PINTERCEPT} must be provided.
-#'   Defaults to \code{NULL}.
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_lpi_terradat]{gather_lpi_terradat()}}, \code{\link[terradactyl:gather_lpi_lmf]{gather_lpi_lmf()}}, and
+#' \code{\link[terradactyl:gather_lpi_nri]{gather_lpi_nri()}}.
+#'
+#' @inheritParams gather_lpi_terradat
+#' @inheritParams gather_lpi_lmf
 #' @param source Character string. This specifies the expected data format(s)
 #'   and determines which specialized gather function will be used. It must be
 #'   one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
 #'   \code{"NRI"}. This is case-insensitive.
-#' @param tblLPIDetail Optional data frame. If provided, this must contain the
-#'   expected LPI data in the format of the tblLPIDetail table used by AIM.  Only used if \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblLPIHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the LPI data in the format of the tblLPIHeader table used by AIM. Only used if \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
-#' @param PINTERCEPT Optional (contingent) data frame. This is the data frame
-#'   containing the LPI data in the format of the PINTERCEPT table used by LMF.  Only used if \code{source} is \code{"LMF}.
-#'   If provided, this will be used even if \code{dsn} is also non-NULL.
-#'   Defaults to \code{NULL}.
-#' @param file_type Optional character string. This must be \code{"gdb"},
-#'   \code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-#'   If \code{dsn} is \code{NULL} this argument is ignored.  Only used if \code{source} is \code{"LMF}. Defaults to
-#'   \code{"gdb"}.
 #' @param verbose Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblLPIHeader} and \code{tblLPIDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{PINTERCEPT} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 #' @examples
 #' # LPI data from a geodatabase in the format of the Terrestrial AIM Database
 #' gather_lpi(dsn = "data_path/aim_data.gdb,
@@ -1676,17 +1639,14 @@ gather_lpi <- function(dsn = NULL,
 #' @description This reads in height data from AIM sampling and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.The expected format is that used in the Terrestrial AIM
 #' Database (TerrADat).
-#' @param dsn Optional (contingent) character string. If provided, this must be
-#'   the filepath to a geodatabase which contains the feature classes
-#'   tblLPIHeader and tblLPIDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is
-#'   \code{NULL}, then the arguments \code{tblLPIHeader} and \code{tblLPIDetail}
-#'   must be provided. Defaults to \code{NULL}.
-#' @param tblLPIDetail Optional data frame. If provided, this must contain the
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes.
+#' @param tblLPIDetail Optional data frame or character string. If provided, this must contain the
 #'   expected LPI data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblLPIHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the LPI data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblLPIHeader Optional data frame or character string. If provided, this must contain the
+#'   expected metadata for the LPI data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param auto_qc_warnings  Logical. If \code{TRUE} the function will test the
 #'   data and metadata for duplicated records (records which are identical to
 #'   each other across all critical variables) and orphaned records (records
@@ -1982,18 +1942,12 @@ gather_height_terradat <- function(dsn = NULL,
 #' Convert LMF-format height data into a long format.
 #' @description This reads in height data from LMF sampling and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.The expected format is that used in the Landscape Monitoring Framework (LMF).
-#' @param dsn Optional (contingent) character string. If provided, this must be
-#'   the filepath to a geodatabase which contains the feature class
-#'   PASTUREHEIGHTS, e.g. \code{"C:/DATA/LMF.GDB"}. If this is \code{NULL}, then
-#'   the argument \code{PASTUREHEIGHTS} must be provided. Defaults to
-#'   \code{NULL}.
-#' @param file_type Optional character string. This must be \code{"gdb"},
-#'   \code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-#'   If \code{dsn} is \code{NULL} this argument is ignored. Defaults to
-#'   \code{"gdb"}.
-#' @param PASTUREHEIGHTS Optional data frame. If provided, this must contain the
-#'   expected heights data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param PASTUREHEIGHTS Optional data frame or character string. If provided, this must contain the
+#'   expected height data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PASTUREHEIGHTS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -2209,8 +2163,8 @@ gather_height_lmf <- function(dsn = NULL,
     dplyr::distinct()
 }
 
-#' export gather_height_survey123
-#' rdname gather_height
+# #' export gather_height_survey123
+# #' rdname gather_height
 # gather_height_survey123 <- function(LPI_0,
 #                                     LPIDetail_1) {
 #
@@ -2323,36 +2277,23 @@ gather_height_lmf <- function(dsn = NULL,
 
 #' Convert height data into a tall, tidy data frame
 #'
-#' @description Given wide format line-point intercept data, create a tall
-#' format data frame usable by other terradactyl functions.
+#' @description Given wide format line-point intercept or height data, create a tall
+#' format data frame usable by other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_height_terradat]{gather_height_terradat()}}, \code{\link[terradactyl:gather_height_lmf]{gather_height_lmf()}}, and
+#' \code{\link[terradactyl:gather_height_nri]{gather_height_nri()}}.
 #'
-#' @param dsn Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblLPIHeader and
-#'   tblLPIDetail or the feature class PASTUREHEIGHTS, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL} and \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"} (case-insensitive), then
-#'   the arguments \code{tblLPIHeader} and \code{tblLPIDetail}. If this is \code{NULL} and \code{source} is \code{"LMF"} (case-insensitive), then the argument \code{PASTUREHEIGHTS} must be provided.
-#'   Defaults to \code{NULL}.
+#' @inheritParams gather_height_terradat
+#' @inheritParams gather_height_lmf
 #' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
-#' @param tblLPIDetail Optional data frame. If provided, this must contain the
-#'   expected metadata for the LPI data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Only used if \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"}. Defaults to \code{NULL}.
-#' @param tblLPIHeader Optional data frame. If provided, this must contain the
-#'   expected LPI data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Only used if \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"}. Defaults to \code{NULL}.
-#' @param PASTUREHEIGHTS Optional data frame. If provided, this must contain the
-#'   expected heights data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Only used if \code{source} is \code{"LMF"}. Defaults to \code{NULL}.
-#' @param file_type Optional character string. This must be \code{"gdb"},
-#'   \code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-#'   If \code{dsn} is \code{NULL} this argument is ignored. Only used if \code{source} is \code{"LMF"}. Defaults to
-#'   \code{"gdb"}.
-#' @param auto_qc Logical (disabled). If \code{TRUE} then AIM/DIMA/TerrADat data will be
-#' checked for non-unique and orphaned records before doing processing. If any
-#' are found, a warning will be triggered but the gather will still be carried
-#' out. It is strongly recommended that any identified issues be addressed to
-#' avoid incorrect records in the output. Defaults to \code{TRUE}.
-#' @param verbose Logical. If \code{TRUE} then the function will report back
-#' diagnostic information as console messages while it works. Defaults to
-#' \code{FALSE}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblLPIHeader} and \code{tblLPIDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{PASTUREHEIGHTS} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 #' @return A tall data frame containing the data from the height measurements.
 #' @export
 #' @examples
@@ -2378,10 +2319,7 @@ gather_height <- function(dsn = NULL,
                           tblLPIHeader = NULL,
                           PASTUREHEIGHTS = NULL,
                           autoQC = TRUE,
-                          verbose = FALSE#,
-                          # LPI_0 = NULL,
-                          # LPIDetail_1 = NULL
-) {
+                          verbose = FALSE) {
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     height <- gather_height_terradat(dsn = dsn,
                                      tblLPIHeader = tblLPIHeader,
@@ -2431,17 +2369,14 @@ gather_height <- function(dsn = NULL,
 
 #### GAP #######################################################################
 #' Convert AIM-format gap data into a long/tall format.
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblGapHeader and
-#'   tblGapDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblGapHeader} and \code{tblGapDetail} are required. Defaults to
-#'   \code{NULL}.
-#' @param tblGapDetail Optional data frame. If provided, this must contain the
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes.
+#' @param tblGapDetail Optional data frame or character string. If provided, this must contain the
 #'   expected gap data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblGapHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the gap data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblGapDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblGapHeader Optional data frame or character string. If provided, this must contain the
+#'   expected metadata for the gap data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblGapHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param auto_qc_warnings  Logical. If \code{TRUE} the function will test the
 #'   data and metadata for duplicated records (records which are identical to
 #'   each other across all critical variables) and orphaned records (records
@@ -2718,19 +2653,14 @@ gather_gap_terradat <- function(dsn = NULL,
 }
 
 #' Convert LMF-format gap data into a long/tall format.
-#' @param dsn  Optional (contingent) character string. If provided, this must be
-#'   the filepath to a geodatabase which contains the feature classes GINTERCEPT
-#'   and POINT, e.g. \code{"C:/DATA/LMF.GDB"}. If this is \code{NULL}, then the
-#'   arguments \code{GINTERCEPT} and \code{POINT}. Defaults to \code{NULL}.
-#' @param file_type Optional character string. The file extension for the file
-#'   pointed to by \code{dsn}. If \code{NULL} then the file extension will be
-#'   extracted from \code{dsn}. Defaults to \code{NULL}.
-#' @param GINTERCEPT Optional data frame. If provided, this must contain the
-#'   expected gap data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
-#' @param POINT Optional data frame. If provided, this must contain the expected
-#'   point metadata. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param GINTERCEPT Optional data frame or character string. If provided, this must contain the
+#'   expected gap intercept data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called GINTERCEPT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param POINT Optional data frame or character string. If provided, this must contain the expected
+#'   point metadata. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called POINT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -3297,33 +3227,20 @@ gather_gap_lmf <- function(dsn = NULL,
 
 #' Convert wide gap data into a long/tall format.
 #' @description
-#' This is a wrapper for the \code{gather_gap_terradat()} and \code{gather_gap_lmf()} functions.
+#' Given wide format line-point intercept or height data, create a tall
+#' format data frame usable by other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_gap_terradat]{gather_gap_terradat()}} and \code{\link[terradactyl:gather_gap_lmf]{gather_gap_lmf()}}.
 #'
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains either the feature classes tblGapHeader and
-#'   tblGapDetail or the feature classes GINTERCEPT and POINT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblGapHeader} and \code{tblGapDetail} or \code{POINT} and \code{GINTERCEPT} are required. Defaults to
-#'   \code{NULL}.
-#' @param file_type Optional character string. The file extension for the file
-#'   pointed to by \code{dsn}. If \code{NULL} then the file extension will be
-#'   extracted from \code{dsn}. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.
 #' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
-#' @param tblGapDetail Optional data frame. If provided, this must contain the
-#'   expected gap data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.
-#' @param tblGapHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the gap data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.
-#' @param GINTERCEPT Optional data frame. If provided, this must contain the
-#'   expected gap data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.
-#' @param POINT Optional data frame. If provided, this must contain the expected
-#'   point metadata. Ignored if \code{source} is not \code{"lmf"}.  If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
-#' @param autoQC Disabled.
-#' @param verbose  Logical. If \code{TRUE} then the function will report back
-#'   diagnostic information as console messages while it works. Defaults to
-#'   \code{FALSE}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblGapHeader} and \code{tblGapDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the arguments \code{GINTERCEPT} and \code{POINT} are considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 #'
 #' @export
 gather_gap <- function(dsn = NULL,
@@ -3399,17 +3316,14 @@ gather_gap <- function(dsn = NULL,
 #### SOIL STABILITY ############################################################
 
 #' Convert AIM-format soil stability data into a long/tall format
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblSoiStabHeader and
-#'   tblSoilStabDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblSoilStabHeader} and \code{tblSoilStabDetail} are required. Defaults to
-#'   \code{NULL}.
-#' @param tblSoilStabDetail Optional data frame. If provided, this must contain the
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param tblSoilStabDetail Optional data frame or character string. If provided, this must contain the
+#'   expected soil stability data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSoilStabDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblSoilStabHeader Optional data frame or character string. If provided, this must contain the
 #'   expected metadata for the soil stability data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblSoilStabHeader Optional data frame. If provided, this must contain the
-#'   expected soil stability data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSoilStabHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param auto_qc_warnings  Logical. If \code{TRUE} the function will test the
 #'   data and metadata for duplicated records (records which are identical to
 #'   each other across all critical variables) and orphaned records (records
@@ -3625,14 +3539,12 @@ gather_soil_stability_terradat <- function(dsn = NULL,
 }
 
 #' Convert LMF-format soil stability data into a long/tall format
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classe SOILDISAG, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the argument \code{SOILDISAG} is required. Defaults to
-#'   \code{NULL}.
-#' @param file_type Character string. The file extension for the path in \code{dsn}.
-#' @param SOILDISAG Optional data frame. If provided, this must contain the
-#'   expected soil stability data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param SOILDISAG Optional data frame or character string. If provided, this must contain the
+#'   expected soil stability intercept data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called SOILDISAG (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -3910,30 +3822,21 @@ gather_soil_stability_lmf <- function(dsn = NULL,
 #' Convert soil stability data into tall, tidy data frame
 #'
 #' @description Given soil stability create a tall format data frame usable by
-#' other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase containing the table of interest. This field
-#' is unnecessary if you supply either both of tblSoilStabDetail and
-#' tblSoilStabHeader (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).
+#' other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_soil_stability_terradat]{gather_soil_stability_terradat()}} and \code{\link[terradactyl:gather_soil_stability_lmf]{gather_soil_stability_lmf()}}.
+#' @inheritParams gather_soil_stability_terradat
+#' @inheritParams gather_soil_stability_lmf
 #' @param source Character string. The data source format, can be \code{"AIM"},
 #' \code{"TerrADat"}, \code{"DIMA"}, \code{"LMF"}, or \code{"NRI"} (case independent).
-#' @param tblSoilStabDetail Dataframe of the data structure tblSoilStabDetail
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use when data source is AIM, DIMA, or TerrADat; alternately provide \code{dsn}.
-#' @param tblSoilStabHeader Dataframe of the data structure tblSoilStabHeader
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use when data source is AIM, DIMA, or TerrADat; alternately provide \code{dsn}.
-#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from LMF/NRI
-#' database with the addition of PrimaryKey and DBKey fields. Use when data
-#' source is LMF or NRI; alternately provide \code{dsn}.
-#' @param auto_qc Logical. Temporarily disabled. If \code{TRUE} then AIM/DIMA/TerrADat data will be
-#' checked for non-unique and orphaned records before doing processing. If any
-#' are found, a warning will be triggered but the gather will still be carried
-#' out. It is strongly recommended that any identified issues be addressed to
-#' avoid incorrect records in the output. Defaults to \code{TRUE}.
-#' @param verbose Logical. If \code{TRUE} then the function will report back
-#' diagnostic information as console messages while it works. Defaults to
-#' \code{FALSE}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblSoilStabHeader} and \code{tblSoilStabDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{SOILDISAG} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 #' @return A tall data frame containing soil horizon data.
 #' @examples
 #' gather_soil_stability(dsn = "Path/To/AIM_Geodatabase.gdb",
@@ -4011,17 +3914,14 @@ gather_soil_stability <- function(dsn = NULL,
 
 #### INTERPRETING INDICATORS OF RANGELAND HEALTH ###############################
 #' Convert AIM-format Interpreting Indicators of RangelandHealth data into a long/tall format.
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblQualHeader and
-#'   tblQualDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblQualHeader} and \code{tblQualDetail} are required. Defaults to
-#'   \code{NULL}.
-#' @param tblQualDetail Optional data frame. If provided, this must contain the
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes.
+#' @param tblQualDetail Optional data frame or character string. If provided, this must contain the
 #'   expected IIRH data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblQualHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the IIRH data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblQualDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblQualHeader Optional data frame or character string. If provided, this must contain the
+#'   expected metadata for the IIRH data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblQualHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -4032,7 +3932,7 @@ gather_soil_stability <- function(dsn = NULL,
 #' # Using data frames for tblQualHeader and tblQualDetail
 #' aim_iirhheader <- read.csv("data_folder/iirh_headers.csv")
 #' aim_iirhdetail <- read.csv("data_folder/iirh_detail_records.csv")
-#' gather_gap_terradat(tblQualHeader = aim_iirhheader,
+#' gather_rangeland_health_terradat(tblQualHeader = aim_iirhheader,
 #'                     tblQualDetail = aim_iirhdetail)
 #'
 #'
@@ -4252,14 +4152,12 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
 }
 
 #' Convert LMF-format Interpreting Indicators of RangelandHealth data into a long/tall format.
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature class RANGEHEALTH, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the argument \code{RANGEHEALTH} is required. Defaults to
-#'   \code{NULL}.
-#' @param file_type Character string. The file extension for the path in \code{dsn}.
-#' @param RANGEHEALTH Optional data frame. If provided, this must contain the
-#'   expected IIRH data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param RANGEHEALTH Optional data frame or character string. If provided, this must contain the
+#'   expected rangeland health intercept data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called RANGEHEALTH (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -4458,28 +4356,24 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
 #' Convert Interpreting Indicators of Rangeland Health (IIRH) data into a tall,
 #' tidy data frame
 #'
-#' @description Given wide format IIRH data, create a tall format data frame
-#' usable by other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase or text file containing the table of interest.
-#' This field is unnecessary if you provide either both of tblQualHeader and
-#' tblQualDetail (AIM/DIMA/TerrADat) or RANGEHEALTH (LMF/NRI).
-#' @param source Character string. The data source format,
-#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case insensitive).
-#' @param tblQualHeader Dataframe of the data structure tblQualHeader from the
-#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-#' tblQualDetail when data source is AIM, DIMA, or TerrADat; alternately provide
-#' \code{dsn}.
-#' @param tblQualDetail Dataframe of the data structure tblQualDetail from the
-#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-#' tblQualHeader when data source is AIM, DIMA, or TerrADat; alternately provide
-#' \code{dsn}.
-#' @param RANGEHEALTH Dataframe of the data structure RANGEHEALTH from the
-#' LMF/NRI database. Use when data source if LMF or NRI; alternately provide
-#' \code{dsn}.
-#' @param file_type Character string that denotes the source file type of the
-#' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-#' AIM/DIMA/TerrADat, or if RANGEHEALT is provided.
+#' @description
+#' Given wide format species richness data, create a tall
+#' format data frame usable by other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_rangeland_health_terradat]{gather_rangeland_health_terradat()}} and \code{\link[terradactyl:gather_rangeland_health_lmf]{gather_rangeland_health_lmf()}}.
+#'
+#' @inheritParams gather_rangeland_health_terradat
+#' @inheritParams gather_rangeland_health_lmf
+#' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblQualHeader} and \code{tblQualDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{RANGEHEALTH} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
+#'
 #' @returns A tall data frame containing the data from the rangeland health
 #' measurements.
 #' @examples
@@ -4549,49 +4443,19 @@ gather_rangeland_health <- function(dsn = NULL,
 
 
 #### SPECIES INVENTORY #########################################################
-#' Convert species inventory data into tall, tidy data frame
-#'
-#' @description Given species inventory data create a tall format data frame
-#' usable by other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase containing the table of interest. This field
-#' is unnecessary if you supply either both of tblSpecRichDetail and
-#' tblSpecRichHeader (AIM/DIMA/TerrADat) or PLANTCENSUS (LMF/NRI).
-#' @param source Character string. The data source format,
-#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
-#' @param tblSpecRichDetail Dataframe of the data structure tblSpecRichDetail
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use with tblSpecRichHeader when data source is AIM, DIMA, or TerrADat;
-#' alternately provide dsn.
-#' @param tblSpecRichHeader Dataframe of the data structure tblSpecRichHeader
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use with tblSpecRichDetail when data source is AIM, DIMA, or TerrADat;
-#' alternately provide dsn.
-#' @param PLANTCENSUS Dataframe of the data structure PLANTCENSUS from LMF/NRI
-#' database with the addition of PrimaryKey and DBKey fields. Use when data
-#' source is LMF or NRI; alternately provide dsn.
-#' @importFrom magrittr %>%
-#' @name gather_species_inventory
-#' @family <gather>
-#' @return A tall data frame containing species inventory data.
-#' @examples
-#' gather_species_inventory(dsn = "Path/To/AIM_Geodatabase.gdb",
-#'                          source = "AIM")
-#' gather_species_inventory(dsn = "Path/To/LMF_Geodatabase.gdb",
-#'                          source = "LMF")
-#'
-#' aim_specrichdetail <- read.csv("Path/To/tblSpecRichDetail.csv")
-#' aim_specrichheader <- read.csv("Path/To/tblSpecRichHeader.csv")
-#' gather_species_inventory(source = "AIM",
-#'                          tblSpecRichDetail = aim_specrichdetail,
-#'                          tblSpecRichHeader = aim_specrichheader)
-#'
-#' lmf_census <- read.csv("Path/To/PLANTCENSUS.csv")
-#' gather_species_inventory(source = "LMF",
-#'                          PLANTCENSUS = lmf_census)
-
-#' @export gather_species_inventory_terradat
-#' @rdname gather_species_inventory
+#' Convert AIM-format species inventory data into a long/tall format
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param tblSpecRichDetail Optional data frame or character string. If provided, this must contain the
+#'   expected species inventory data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSpecRichDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblSpecRichHeader Optional data frame or character string. If provided, this must contain the
+#'   expected metadata for the species inventory data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSpecRichHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param verbose  Logical. If \code{TRUE} then the function will report back
+#'   diagnostic information as console messages while it works. Defaults to
+#'   \code{FALSE}.
+#' @export
 gather_species_inventory_terradat <- function(dsn = NULL,
                                               tblSpecRichDetail = NULL,
                                               tblSpecRichHeader = NULL,
@@ -4701,8 +4565,26 @@ tall_species <- function(species_inventory_detail) {
 }
 
 # Gather LMF data
-#' @export gather_species_inventory_lmf
-#' @rdname gather_species_inventory
+#' Convert LMF-format soil stability data into a long/tall format
+#'
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param PLANTCENSUS Optional data frame or character string. If provided, this must contain the
+#'   expected species data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PLANTCENSUS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param verbose  Logical. If \code{TRUE} then the function will report back
+#'   diagnostic information as console messages while it works. Defaults to
+#'   \code{FALSE}.
+#' @examples
+#' # Using a geodatabase that contains the table SOILDISAG.
+#' gather_species_inventory_lmf(dsn = "data_folder/lmf_data.gdb")
+#'
+#' # Using a data frame for SOILDISAG.
+#' lmf_plantcensus <- read.csv("data_folder/PLANTCENSUS_detail_records.csv")
+#' gather_species_inventory_lmf(PLANTCENSUS = lmf_plantcensus)
+#'
+#' @export
 gather_species_inventory_lmf <- function(dsn = NULL,
                                          file_type = "gdb",
                                          PLANTCENSUS = NULL,
@@ -4838,15 +4720,30 @@ gather_species_inventory_lmf <- function(dsn = NULL,
 
 
 #' Species Inventory Gather wrapper
-#' @export gather_species_inventory
-#' @rdname gather_species_inventory
+#' @description
+#' Given wide format species richness data, create a tall
+#' format data frame usable by other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_species_inventory_terradat]{gather_species_inventory_terradat()}} and \code{\link[terradactyl:gather_species_inventory_lmf]{gather_species_inventory_lmf()}}.
+#'
+#' @inheritParams gather_species_inventory_terradat
+#' @inheritParams gather_species_inventory_lmf
+#' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblSpecRichHeader} and \code{tblSpecRichDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{PLANTCENSUS} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
+#' @returns A tall data frame containing the data from the species inventory inputs.
+#' @export
 gather_species_inventory <- function(dsn = NULL,
                                      source,
                                      tblSpecRichDetail = NULL,
                                      tblSpecRichHeader = NULL,
                                      PLANTCENSUS = NULL,
-                                     # SpeciesRichness_0 = NULL,
-                                     # SpecRichDetail_1 = NULL,
                                      file_type = "gdb",
                                      autoQC = TRUE,
                                      verbose = FALSE) {

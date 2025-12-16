@@ -14,19 +14,16 @@ gather_gap_terradat(
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. If provided, this must be the filepath
-to a geodatabase which contains the feature classes tblGapHeader and
-tblGapDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-the arguments \code{tblGapHeader} and \code{tblGapDetail} are required. Defaults to
-\code{NULL}.}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes.}
 
-\item{tblGapDetail}{Optional data frame. If provided, this must contain the
+\item{tblGapDetail}{Optional data frame or character string. If provided, this must contain the
 expected gap data. If \code{NULL} then the argument
-\code{dsn} must be provided. Defaults to \code{NULL}.}
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblGapDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
-\item{tblGapHeader}{Optional data frame. If provided, this must contain the
-expected metadata for the gap data. If \code{NULL} then the argument \code{dsn} must be
-provided. Defaults to \code{NULL}.}
+\item{tblGapHeader}{Optional data frame or character string. If provided, this must contain the
+expected metadata for the gap data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblGapHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{auto_qc_warnings}{Logical. If \code{TRUE} the function will test the
 data and metadata for duplicated records (records which are identical to

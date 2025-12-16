@@ -2,9 +2,7 @@
 % Please edit documentation in R/gathering.R
 \name{gather_height}
 \alias{gather_height}
-\title{export gather_height_survey123
-rdname gather_height
-Convert height data into a tall, tidy data frame}
+\title{Convert height data into a tall, tidy data frame}
 \usage{
 gather_height(
   dsn = NULL,
@@ -18,47 +16,47 @@ gather_height(
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. If provided, this must be the filepath
-to a geodatabase which contains the feature classes tblLPIHeader and
-tblLPIDetail or the feature class PASTUREHEIGHTS, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL} and \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"} (case-insensitive), then
-the arguments \code{tblLPIHeader} and \code{tblLPIDetail}. If this is \code{NULL} and \code{source} is \code{"LMF"} (case-insensitive), then the argument \code{PASTUREHEIGHTS} must be provided.
-Defaults to \code{NULL}.}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes.}
 
-\item{file_type}{Optional character string. This must be \code{"gdb"},
-\code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-If \code{dsn} is \code{NULL} this argument is ignored. Only used if \code{source} is \code{"LMF"}. Defaults to
-\code{"gdb"}.}
+\item{file_type}{Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.}
 
 \item{source}{Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).}
 
-\item{tblLPIDetail}{Optional data frame. If provided, this must contain the
+\item{tblLPIDetail}{Optional data frame or character string. If provided, this must contain the
+expected LPI data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{tblLPIHeader}{Optional data frame or character string. If provided, this must contain the
 expected metadata for the LPI data. If \code{NULL} then the argument
-\code{dsn} must be provided. Only used if \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"}. Defaults to \code{NULL}.}
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
-\item{tblLPIHeader}{Optional data frame. If provided, this must contain the
-expected LPI data. If \code{NULL} then the argument \code{dsn} must be
-provided. Only used if \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"}. Defaults to \code{NULL}.}
-
-\item{PASTUREHEIGHTS}{Optional data frame. If provided, this must contain the
-expected heights data. If \code{NULL} then the argument \code{dsn} must be
-provided. Only used if \code{source} is \code{"LMF"}. Defaults to \code{NULL}.}
+\item{PASTUREHEIGHTS}{Optional data frame or character string. If provided, this must contain the
+expected height data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PASTUREHEIGHTS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to
 \code{FALSE}.}
-
-\item{auto_qc}{Logical (disabled). If \code{TRUE} then AIM/DIMA/TerrADat data will be
-checked for non-unique and orphaned records before doing processing. If any
-are found, a warning will be triggered but the gather will still be carried
-out. It is strongly recommended that any identified issues be addressed to
-avoid incorrect records in the output. Defaults to \code{TRUE}.}
 }
 \value{
 A tall data frame containing the data from the height measurements.
 }
 \description{
-Given wide format line-point intercept data, create a tall
-format data frame usable by other terradactyl functions.
+Given wide format line-point intercept or height data, create a tall
+format data frame usable by other terradactyl functions. For additional information about
+arguments, see the documentation for the functions \code{\link[terradactyl:gather_height_terradat]{gather_height_terradat()}}, \code{\link[terradactyl:gather_height_lmf]{gather_height_lmf()}}, and
+\code{\link[terradactyl:gather_height_nri]{gather_height_nri()}}.
+}
+\details{
+The \code{source} argument determines which other arguments are used or ignored.
+
+When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+then the arguments \code{tblLPIHeader} and \code{tblLPIDetail} are both considered.
+
+When \code{source} is \code{"LMF"} then the argument \code{PASTUREHEIGHTS} is considered.
+
+Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 }
 \examples{
 gather_height(dsn = "Path/To/AIM_Geodatabase.gdb",

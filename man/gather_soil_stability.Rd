@@ -16,42 +16,47 @@ gather_soil_stability(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file
-extension) of the geodatabase containing the table of interest. This field
-is unnecessary if you supply either both of tblSoilStabDetail and
-tblSoilStabHeader (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.}
 
 \item{source}{Character string. The data source format, can be \code{"AIM"},
 \code{"TerrADat"}, \code{"DIMA"}, \code{"LMF"}, or \code{"NRI"} (case independent).}
 
-\item{tblSoilStabDetail}{Dataframe of the data structure tblSoilStabDetail
-from the DIMA database with the addition of PrimaryKey and DBKey fields.
-Use when data source is AIM, DIMA, or TerrADat; alternately provide \code{dsn}.}
+\item{file_type}{Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.}
 
-\item{tblSoilStabHeader}{Dataframe of the data structure tblSoilStabHeader
-from the DIMA database with the addition of PrimaryKey and DBKey fields.
-Use when data source is AIM, DIMA, or TerrADat; alternately provide \code{dsn}.}
+\item{tblSoilStabDetail}{Optional data frame or character string. If provided, this must contain the
+expected soil stability data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSoilStabDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{tblSoilStabHeader}{Optional data frame or character string. If provided, this must contain the
+expected metadata for the soil stability data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSoilStabHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{SOILDISAG}{Optional data frame or character string. If provided, this must contain the
+expected soil stability intercept data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called SOILDISAG (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to
 \code{FALSE}.}
-
-\item{SOILHORIZON}{Dataframe of the data structure SOILHORIZON from LMF/NRI
-database with the addition of PrimaryKey and DBKey fields. Use when data
-source is LMF or NRI; alternately provide \code{dsn}.}
-
-\item{auto_qc}{Logical. Temporarily disabled. If \code{TRUE} then AIM/DIMA/TerrADat data will be
-checked for non-unique and orphaned records before doing processing. If any
-are found, a warning will be triggered but the gather will still be carried
-out. It is strongly recommended that any identified issues be addressed to
-avoid incorrect records in the output. Defaults to \code{TRUE}.}
 }
 \value{
 A tall data frame containing soil horizon data.
 }
 \description{
 Given soil stability create a tall format data frame usable by
-other terradactyl functions.
+other terradactyl functions. For additional information about
+arguments, see the documentation for the functions \code{\link[terradactyl:gather_soil_stability_terradat]{gather_soil_stability_terradat()}} and \code{\link[terradactyl:gather_soil_stability_lmf]{gather_soil_stability_lmf()}}.
+}
+\details{
+The \code{source} argument determines which other arguments are used or ignored.
+
+When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+then the arguments \code{tblSoilStabHeader} and \code{tblSoilStabDetail} are both considered.
+
+When \code{source} is \code{"LMF"} then the argument \code{SOILDISAG} is considered.
+
+Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 }
 \examples{
 gather_soil_stability(dsn = "Path/To/AIM_Geodatabase.gdb",

@@ -19,40 +19,20 @@ gather_gap(
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. If provided, this must be the filepath
-to a geodatabase which contains either the feature classes tblGapHeader and
-tblGapDetail or the feature classes GINTERCEPT and POINT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-the arguments \code{tblGapHeader} and \code{tblGapDetail} or \code{POINT} and \code{GINTERCEPT} are required. Defaults to
-\code{NULL}.}
-
-\item{file_type}{Optional character string. The file extension for the file
-pointed to by \code{dsn}. If \code{NULL} then the file extension will be
-extracted from \code{dsn}. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.}
-
 \item{source}{Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).}
-
-\item{tblGapHeader}{Optional data frame. If provided, this must contain the
-expected metadata for the gap data. If \code{NULL} then the argument \code{dsn} must be
-provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.}
-
-\item{tblGapDetail}{Optional data frame. If provided, this must contain the
-expected gap data. If \code{NULL} then the argument
-\code{dsn} must be provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.}
-
-\item{POINT}{Optional data frame. If provided, this must contain the expected
-point metadata. Ignored if \code{source} is not \code{"lmf"}.  If \code{NULL} then the argument \code{dsn} must be
-provided. Defaults to \code{NULL}.}
-
-\item{GINTERCEPT}{Optional data frame. If provided, this must contain the
-expected gap data. If \code{NULL} then the argument \code{dsn} must be
-provided. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.}
-
-\item{autoQC}{Disabled.}
-
-\item{verbose}{Logical. If \code{TRUE} then the function will report back
-diagnostic information as console messages while it works. Defaults to
-\code{FALSE}.}
 }
 \description{
-This is a wrapper for the \code{gather_gap_terradat()} and \code{gather_gap_lmf()} functions.
+Given wide format line-point intercept or height data, create a tall
+format data frame usable by other terradactyl functions. For additional information about
+arguments, see the documentation for the functions \code{\link[terradactyl:gather_gap_terradat]{gather_gap_terradat()}} and \code{\link[terradactyl:gather_gap_lmf]{gather_gap_lmf()}}.
+}
+\details{
+The \code{source} argument determines which other arguments are used or ignored.
+
+When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+then the arguments \code{tblGapHeader} and \code{tblGapDetail} are both considered.
+
+When \code{source} is \code{"LMF"} then the arguments \code{GINTERCEPT} and \code{POINT} are considered.
+
+Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 }
