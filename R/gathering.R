@@ -1,3 +1,404 @@
+#### GATHER ALL WRAPPER ########################################################
+#' Gather data for plot metadata, line-point intercept, gap, vegetation height, soil stability, species inventory, and rangeland health.
+#'
+#' @description Given wide format AIM/LMF data, produce long/tall-format versions.
+#'
+#' This uses the family of gather functions in terradactyl. For additional
+#' documentation regarding those, please see \code{\link[terradactyl:gather_header]{gather_header()}},
+#' \code{\link[terradactyl:gather_lpi]{gather_lpi()}}, \code{\link[terradactyl:gather_height]{gather_height()}},
+#' \code{\link[terradactyl:gather_gap]{gather_gap()}}, \code{\link[terradactyl:gather_soil_stability]{gather_soil_stability()}},
+#' \code{\link[terradactyl:gather_species_inventory]{gather_species_inventory()}},
+#' \code{\link[terradactyl:gather_rangeland_health]{gather_rangeland_health()}}
+#'
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param source Character string. This specifies the expected data format(s)
+#'   and determines which gather function will be used. It must be
+#'   one or more of of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, or \code{"DIMA"}.
+#'   This is case-insensitive.
+#' @param data_list Named list of data frames or character strings. These may be
+#' data frames containing the data that will be gathered, character strings
+#' specifying the filepath to CSV or Rdata files containing the data, or character
+#' strings specifying the name of the corresponding feature class in a geodatabase
+#' specified by the argument \code{dsn}. The names in this list must match the
+#' argument names expected by the gather functions, e.g.
+#' \code{"PINTERCEPT"} or \code{"tblPlots"}. See the documentation for those
+#' functions for additional details. If \code{NULL} this will be ignored.
+#' Defaults to \code{NULL}.
+#' @param data_types Vector of character strings. These are the data types to
+#' gather into long/tall-format. Valid values are \code{"header"}, \code{"lpi"}, \code{"height"}, \code{"gap"}, \code{"soilstability"}, \code{"species"}, and \code{"rangelandhealth"}.
+#' This is case-insensitive. Defaults to \code{c("header", "lpi", "height", "gap", "soilstability", "species", "rangelandhealth")}.
+#' @param output_filepath Optional character string. The filepath to a folder to
+#' save all outputs to as RDS or CSV files. This folder must already exist. If
+#' this is not \code{NULL} then the function will write the output and will NOT
+#' return any outputs in the R environment. If this is \code{NULL} then no
+#' data will be written to file and the function will return a list of data frames,
+#' one for each data type. Defaults to \code{NULL}.
+#' @param output_filetype Optional vector of character strings. This determines
+#' what file(s) type to write the outputs as in \code{output_filepath}. Valid file
+#' values are \code{"CSV"} and \code{"RDS"}, case-insensitive. Only considered if
+#' \code{output_filepath} is not \code{NULL}. Defaults to \code{c("csv", "rds")}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns If \code{output_filepath} is \code{NULL}, a list of tall data frames containing reformatted input data. Otherwise, no outputs in the R environment but files written into \code{output_filepath}.
+#' @examples
+#' # To process all AIM and LMF data in a geodatabase and save them in the
+#' # folder called "output" in the working directory as both CSV and RDS files.
+#' gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
+#'            output_filepath = "output")
+#'
+#' # To process line-point intercept and gap data from AIM in a geodatabase and
+#' # store them in the environment as a list of data frames with diagnostic
+#' # messages active.
+#' long_data_list <- gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
+#'                              source = "aim",
+#'                              data_types = c("lpi",
+#'                                             "gap"),
+#'                              verbose = TRUE)
+#'
+#' # To process wide-format LMF height and species inventory data that are
+#' # already in a data frame in the environment.
+#' long_data_list <- gather_all(source = "lmf",
+#'                              data_types = c("height",
+#'                                             "speciesinventory"),
+#'                              data_list = list(PASTUREHEIGHTS = pastureheights_data_frame,
+#'                                               PLANTCENSUS = plantcensus_data_frame))
+#' @export
+
+gather_all <- function(dsn = NULL,
+                       source,
+                       data_list = NULL,
+                       data_types = c("header",
+                                      "lpi",
+                                      "height",
+                                      "gap",
+                                      "soilstability",
+                                      "species",
+                                      "rangelandhealth"),
+                       output_filepath = NULL,
+                       output_filetype = c("csv", "rds"),
+                       # skip_missing = FALSE,
+                       verbose = FALSE) {
+  #### Sanitization ------------------------------------------------------------
+  ##### Source -----------------------------------------------------------------
+  source <- tolower(source) |>
+    unique()
+
+  valid_source_values <- c("aim",
+                           "terradat",
+                           "dima",
+                           "lmf")
+
+  # This collapses synonyms to avoid reprocessing data multiple times.
+  if (sum(c("aim",
+            "terradat",
+            "dima") %in% source) > 1) {
+    message('Because the values "aim", "terradat", and "dima" are all handled the same way and more than one has been provided, they will be replaced with "aim" to avoid duplicating work.')
+
+    source <- c(setdiff(x = source,
+                        y = c("aim",
+                              "terradat",
+                              "dima")),
+                "aim") |>
+      unique()
+  }
+
+  recognized_sources <- intersect(x = source,
+                                  y = valid_source_values)
+  if (length(recognized_sources) < 1) {
+    stop(paste0('source must be a vector of one or more of the following character strings: "',
+                paste(valid_source_values,
+                      collapse = '", "'),
+                '"'))
+  }
+
+    ##### Check data_types -------------------------------------------------------
+  valid_data_types <- c("header" = "header",
+                        "LPI" = "lpi",
+                        "height" = "height",
+                        "gap" = "gap",
+                        "soil stability" = "soilstability",
+                        "species inventory" = "species",
+                        "rangeland health" = "rangelandhealth")
+
+  requested_data_types <- intersect(x = valid_data_types,
+                                    y = tolower(data_types))
+
+  # This bit brings the names through which we use for messages later.
+  requested_data_types <- valid_data_types[valid_data_types %in% requested_data_types]
+
+  if (length(requested_data_types) < 1) {
+    stop(paste0('None of the requested data types were recognized. The argument data_types must be a vector of one or more of the following character strings: "',
+                paste(valid_data_types,
+                      collapse = '", "')),
+         '"')
+  }
+
+  if (verbose) {
+    message(paste0("The following data types will be read in: ",
+                   paste(requested_data_types,
+                         collapse = ", ")))
+  }
+
+  ##### Check data_list --------------------------------------------------------
+  method_argument_names <- list("aim" = list("header" = c("tblPlots",
+                                                          "date_tables"),
+                                             "lpi" = c("tblLPIHeader",
+                                                       "tblLPIDetail"),
+                                             "height" = c("tblLPIHeader",
+                                                          "tblLPIDetail"),
+                                             "gap" = c("tblGapHeader",
+                                                       "tblGapDetail"),
+                                             "soilstability" = c("tblSoilStabHeader",
+                                                                 "tblSoilStabDetail"),
+                                             "species" = c("tblSpecRichHeader",
+                                                           "tblSpecRichDetail"),
+                                             "rangelandhealth" = c("tblQualHeader",
+                                                                   "tblQualDetail")),
+                                "lmf" = list( "header" = c("POINT",
+                                                           "POINTCOORDINATES",
+                                                           "GPS",
+                                                           "ESFSG"),
+                                              "lpi" = "PINTERCEPT",
+                                              "height" = "PASTUREHEIGHTS",
+                                              "gap" = "GINTERCEPT",
+                                              "soilstability" = "SOILDISAG",
+                                              "species" = "PLANTCENSUS",
+                                              "rangeland health" = "RANGEHEALTH"))
+
+  if (verbose) {
+    message("Checking data_list for superficial validity. Additional checks will take place later.")
+  }
+
+  bad_data_list_values <- lapply(X = recognized_sources,
+                                 method_argument_names = method_argument_names,
+                                 requested_data_types = requested_data_types,
+                                 data_list = data_list,
+                                 verbose = verbose,
+                                 FUN = function(X, method_argument_names, requested_data_types, data_list, verbose){
+                                   if (any(c("aim", "terradat", "dima") %in% X)) {
+                                     current_method_argument_names <- method_argument_names[["aim"]]
+                                   } else {
+                                     current_method_argument_names <- method_argument_names[[X]]
+                                   }
+
+                                   arguments_to_check <- current_method_argument_names[requested_data_types] |>
+                                     unlist()
+
+                                   valid_classes <- sapply(X = arguments_to_check,
+                                                           data_list = data_list,
+                                                           FUN = function(X, data_list){
+                                                             is.null(data_list[[X]]) | is.data.frame(data_list[[X]]) | is.character(data_list[[X]])
+                                                           })
+
+                                   arguments_to_check[!valid_classes]
+                                 }) |>
+    unlist()
+
+  if (length(bad_data_list_values) > 0) {
+    stop(paste0("The following in data_list are not a valid class (either data frame or character string): ",
+                paste(bad_data_list_values,
+                      collapse = ", ")))
+  }
+
+
+  anticipated_data_list_names <- lapply(X = recognized_sources,
+                                        method_argument_names = method_argument_names,
+                                        requested_data_types = requested_data_types,
+                                        FUN = function(X, method_argument_names, requested_data_types){
+                                          method_argument_names[[X]][requested_data_types]
+                                        }) |>
+    unlist()
+  extraneous_data_list_names <- setdiff(x = names(data_list),
+                                        anticipated_data_list_names)
+
+  if (length(extraneous_data_list_names) > 0) {
+    warning(paste0("The following were included in data_list but will not be used because they are not relevant to the data types being worked with: ",
+                   paste(extraneous_data_list_names,
+                         collapse = ", ")))
+  }
+
+
+  ##### Check output_filepath --------------------------------------------------
+  if (!is.null(output_filepath) & !is.character(output_filepath)) {
+    stop("output_filepath must be a character string specifying the filepath to an existing folder.")
+  }
+
+  if (is.character(output_filepath)) {
+    if (length(output_filepath) > 1) {
+      stop("output_filepath must be a single character string specifying the filepath to an existing folder.")
+    }
+    if (nchar(tools::file_ext(output_filepath)) > 0) {
+      stop(paste0("output_filepath must be a single character string specifying the filepath to an existing folder but it currently has the file extension ",
+                  tools::file_ext(output_filepath)))
+    }
+    if (!file.exists(output_filepath)) {
+      stop(paste0("The specified output_filepath, ", output_filepath, ", does not exist."))
+    }
+    if (verbose) {
+      message(paste0("Gathered data will be written to ", output_filepath))
+    }
+  } else if (is.null(output_filepath) & verbose) {
+    message(paste0("Gathered data will be returned as a list of data frames."))
+  }
+
+  ##### Check output_filetype --------------------------------------------------
+  if (!is.null(output_filetype)) {
+    output_filetype <- tolower(output_filetype) |>
+      unique()
+
+    valid_filetypes <- c("csv",
+                         "rds")
+
+    recognized_filetypes <- intersect(x = output_filetype,
+                                      y = valid_filetypes)
+
+    if (length(recognized_filetypes) < 1) {
+      stop(paste0('output_filetype must be a vector of one or more of the following character strings: "',
+                  paste(valid_filetypes,
+                        collapse = '", "'),
+                  '"'))
+    }
+  }
+
+
+  #### Reading, gathering, and writing -----------------------------------------
+  # For each of the requested data types, run the relevant gather function.
+  # If output_filepath is not NULL, the results will be written out to that
+  # location. Otherwise, the data are stored in an output list.
+
+  # If more than one recognized source is specified, the outputs will be written
+  # separately but the output list will have them combined by data type.
+
+  # TODO: If skip_missing is TRUE, the tryCatch() should let NULLs be returned
+  # (but not written anywhere).
+
+  output <- list()
+
+  for (current_source in recognized_sources) {
+    for (current_data_type in requested_data_types) {
+      if (verbose) {
+        message(paste0("Attempting to gather ", names(requested_data_types[requested_data_types %in% current_data_type]), " data."))
+      }
+
+      # Note that the arguments are being pulled from data_list by name because
+      # that will return NULL for any that weren't provided and that plays
+      # nicely with the internal functions read_whatever() and
+      # read_with_fallback() that the gather functions use.
+      current_output <- switch(EXPR = current_data_type,
+                               "header" = {
+                                 gather_header(dsn = dsn,
+                                               source = current_source,
+                                               tblPlots = data_list[["tblPlots"]],
+                                               POINT = data_list[["POINT"]],
+                                               POINTCOORDINATES = data_list[["POINTCOORDINATES"]],
+                                               GPS = data_list[["GPS"]],
+                                               ESFSG = data_list[["ESFSG"]],
+                                               date_tables = data_list[["date_tables"]],
+                                               verbose = verbose)
+                               },
+                               "lpi" = {
+                                 gather_lpi(dsn = dsn,
+                                            source = current_source,
+                                            tblLPIHeader = data_list[["tblLPIHeader"]],
+                                            tblLPIDetail = data_list[["tblLPIDetail"]],
+                                            PINTERCEPT = data_list[["PINTERCEPT"]],
+                                            verbose = verbose)
+                               },
+                               "height" = {
+                                 gather_height(dsn = dsn,
+                                               source = current_source,
+                                               tblLPIHeader = data_list[["tblLPIHeader"]],
+                                               tblLPIDetail = data_list[["tblLPIDetail"]],
+                                               PASTUREHEIGHTS = data_list[["PASTUREHEIGHTS"]],
+                                               verbose = verbose)
+                               },
+                               "gap" = {
+                                 gather_gap(dsn = dsn,
+                                            source = current_source,
+                                            tblGapHeader = data_list[["tblGapHeader"]],
+                                            tblGapDetail = data_list[["tblGapDetail"]],
+                                            GINTERCEPT = data_list[["GINTERCEPT"]],
+                                            verbose = verbose)
+                               },
+                               "soilstability" = {
+                                 gather_soil_stability(dsn = dsn,
+                                                       source = current_source,
+                                                       tblSoilStabHeader = data_list[["tblSoilStabHeader"]],
+                                                       tblSoilStabDetail = data_list[["tblSoilStabDetail"]],
+                                                       SOILDISAG = data_list[["SOILDISAG"]],
+                                                       verbose = verbose)
+                               },
+                               "species" = {
+                                 gather_species_inventory(dsn = dsn,
+                                                          source = current_source,
+                                                          tblSpecRichHeader = data_list[["tblSpecRichHeader"]],
+                                                          tblSpecRichDetail = data_list[["tblSpecRichDetail"]],
+                                                          PLANTCENSUS = data_list[["PLANTCENSUS"]],
+                                                          verbose = verbose)
+                               },
+                               "rangelandhealth" = {
+                                 gather_rangeland_health(dsn = dsn,
+                                                         source = current_source,
+                                                         tblQualHeader = data_list[["tblQualHeader"]],
+                                                         tblQualDetail = data_list[["tblQualDetail"]],
+                                                         RANGEHEALTH = data_list[["RANGEHEALTH"]],
+                                                         verbose = verbose)
+                               })
+
+      if (!is.null(output_filepath)) {
+        for (filetype in recognized_filetypes) {
+          current_output_filename <- paste0(current_data_type,
+                                            "_",
+                                            current_source,
+                                            ".",
+                                            filetype)
+          if (verbose) {
+            message(paste0("Writing ",
+                           current_output_filename))
+          }
+          switch(EXPR = filetype,
+                 "rds" = {
+                   saveRDS(object = current_output,
+                           file = file.path(output_filepath,
+                                            current_output_filename))
+                 },
+                 "csv" = {
+                   write.csv(x = current_output,
+                             file = file.path(output_filepath,
+                                              current_output_filename),
+                             row.names = FALSE)
+                 })
+        }
+      } else {
+        # If not being written out, bind it to whatever has already been read in
+        # because they should have a source variable anyway.
+        output[[current_data_type]] <- dplyr::bind_rows(output[[current_data_type]],
+                                                        current_output)
+      }
+
+      if (verbose) {
+        message("Cleaning up and freeing memory.")
+      }
+
+      # Remove the data from the working environment to save memory!
+      rm(current_output)
+
+      # And do some memory cleanup just to be safe. The function gc() always
+      # returns a matrix but one that isn't useful for us to expose to the user,
+      # so the invisible() hides that from appearing in the console.
+      gc() |>
+        invisible()
+    }
+  }
+
+
+  if (is.null(output_filepath)) {
+    return(output)
+  }
+}
+
+
 #### HEADERS ###################################################################
 #' Gather AIM plot-level header data
 #' @description This reads in metadata from AIM sampling used as headers for
@@ -810,7 +1211,7 @@ gather_header <- function(dsn = NULL,
   output$source <- source
 
   # Make sure there's no geometry associated with the data.
-  if("sf" %in% class(header)) {
+  if("sf" %in% class(output)) {
     output <- sf::st_drop_geometry(x = output)
   }
 
@@ -4248,31 +4649,31 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
   #     stop("Provide either dsn or RANGEHEALTH.")
   #   }
 
-    # Clean up the field names so they are human readable and match TerrAdat names
-    output <- dplyr::select(.data = rangehealth,
-                            tidyselect::all_of(x = c("PrimaryKey",
-                                                     RH_Rills = "RILLS",
-                                                     RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
-                                                     RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
-                                                     RH_BareGround = "BARE_GROUND",
-                                                     RH_Gullies = "GULLIES",
-                                                     RH_WindScouredAreas = "WIND_SCOURED_AREAS",
-                                                     RH_LitterMovement = "LITTER_MOVEMENT",
-                                                     RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
-                                                     RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
-                                                     RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
-                                                     RH_Compaction = "COMPACTION_LAYER",
-                                                     RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
-                                                     RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
-                                                     RH_LitterAmount = "LITTER_AMOUNT",
-                                                     RH_AnnualProd = "ANNUAL_PRODUCTION",
-                                                     RH_InvasivePlants = "INVASIVE_PLANTS",
-                                                     RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
-                                                     RH_SoilSiteStability = "SOILSITE_STABILITY",
-                                                     RH_BioticIntegrity = "BIOTIC_INTEGRITY",
-                                                     RH_HydrologicFunction = "HYDROLOGIC_FUNCTION")))
+  # Clean up the field names so they are human readable and match TerrAdat names
+  output <- dplyr::select(.data = rangehealth,
+                          tidyselect::all_of(x = c("PrimaryKey",
+                                                   RH_Rills = "RILLS",
+                                                   RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
+                                                   RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
+                                                   RH_BareGround = "BARE_GROUND",
+                                                   RH_Gullies = "GULLIES",
+                                                   RH_WindScouredAreas = "WIND_SCOURED_AREAS",
+                                                   RH_LitterMovement = "LITTER_MOVEMENT",
+                                                   RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
+                                                   RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
+                                                   RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
+                                                   RH_Compaction = "COMPACTION_LAYER",
+                                                   RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
+                                                   RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
+                                                   RH_LitterAmount = "LITTER_AMOUNT",
+                                                   RH_AnnualProd = "ANNUAL_PRODUCTION",
+                                                   RH_InvasivePlants = "INVASIVE_PLANTS",
+                                                   RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
+                                                   RH_SoilSiteStability = "SOILSITE_STABILITY",
+                                                   RH_BioticIntegrity = "BIOTIC_INTEGRITY",
+                                                   RH_HydrologicFunction = "HYDROLOGIC_FUNCTION")))
 
-    output
+  output
   # }
 }
 
@@ -4910,7 +5311,7 @@ gather_species_inventory <- function(dsn = NULL,
 # #'                                                ESFSG = NULL,
 # #'                                                file_type = NULL
 # #' ) {
-# #'   ### input ####
+# #'
 # #'   if (!is.null(POINT) & !is.null(POINTCOORDINATES) & !is.null(GPS) & !is.null(ESFSG)){
 # #'     point_lmf_raw <- POINT
 # #'     coord_lmf_raw <- POINTCOORDINATES
@@ -5567,469 +5968,5 @@ gather_species_inventory <- function(dsn = NULL,
 # #'   return(soil)
 # #' }
 # #'
-# #' #### GATHER ALL ################################################################
-# #' #' Gather tall tables for gap, vegetation height, LPI, plot characterization,
-# #' #' IIRH, soil horizon, soil pit summary, soil stability, and species inventory.
-# #' #'
-# #' #' @description Given wide format AIM/LMF data, gather gap,
-# #' #' vegetation height, LPI, header, IIRH, soil horizon,
-# #' #' soil pit summary, soil stability, and species inventory data. Missing
-# #' #' tables will be skipped. AIM-type and LMF-type data will both be processed.
-# #' #' @param dsn Character string. The full filepath and filename (including file
-# #' #' extension) of the geodatabase or text file containing thes table of interest.
-# #' #' This field is unnecessary if you provide dflist.
-# #' #' @param dflist Named list of data frames containing monitoring data. Tables
-# #' #' must be named as expected by the individual gather_functions.
-# #' #' @param outfolder Character string. Name of a folder to save all output to.
-# #' #' If the specified folder does not exist, the function will create it.
-# #' #' @param outtype Vector specifying output format, accepting "csv" and "rdata".
-# #' #' Defaults to writing both.
-# #' #' @param verbose True/False. When true, displays progress information, and
-# #' #' reports missing input data.
-# #' #' @param doLPI True/False. When false, LPI data will not be gathered. LPI data
-# #' #' is large and the gather process is RAM-intensive. This function will function
-# #' #' with fewer resources if LPI is run in batches, external to this wrapper.
-# #' #' @importFrom magrittr %>%
-# #' #' @name gather_all
-# #' #' @family <gather>
-# #' #' @return A list of tall data frames containing reformatted input data.
-# #' #' @examples
-# #' #' gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", outfolder = "output")
-# #' #'
-# #' #' names <- sf::st_layers(dsn = "Path/To/AIM-LMF_Geodatabase.gdb")$name
-# #' #' all_data <- sapply(names, function(n){## Gather Height Data
-# #' #'   sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
-# #' #'   layer = n, quiet = T)
-# #' #' })
-# #' #' gather_all(dflist = all_data, outfolder = "output")
-# #'
-# #'
-# #' ## Gather All Data
-# #' #' @export gather_all
-# #' #' @rdname gather_all
-# #'
-# #' gather_all <- function(dsn = NULL,
-# #'                        dflist = NULL,
-# #'                        outfolder,
-# #'                        outtype = c("csv", "rdata"),
-# #'                        verbose = TRUE,
-# #'                        doLPI = TRUE) {
-# #'   # prep ####
-# #'   outtype <- tolower(outtype)
-# #'
-# #'   if(substr(outfolder, nchar(outfolder), nchar(outfolder)) != "/") {
-# #'     outfolder <- paste0(outfolder, "/")
-# #'   }
-# #'
-# #'   if(!dir.exists(outfolder)) dir.create(outfolder)
-# #'
-# #'   # if neither dsn or dflist are provided, stop
-# #'   if(is.null(dflist) & is.null(dsn)) stop("Provide either dsn or dflist")
-# #'
-# #'   # if both dsn and dflist are provided, drop dsn
-# #'   if(!is.null(dflist) & !is.null(dsn)){
-# #'     dsn <- NULL
-# #'     if(verbose) print("Both dsn and dflist were provided. Dsn will be ignored")
-# #'   }
-# #'
-# #'   # extract names, check against these before trying to load data
-# #'   if(is.null(dflist)){
-# #'     names_rda <- NULL
-# #'   } else {
-# #'     names_rda <- names(dflist)
-# #'   }
-# #'   if(is.null(dsn)){
-# #'     names_gdb <-NULL
-# #'   } else {
-# #'     names_gdb <- sf::st_layers(dsn) %>% unlist()
-# #'   }
-# #'
-# #'   # pull tables out of dflist if supplied, so the lack of NULL inputs dont mess up the functions
-# #'   # if dflist is NULL, all of these should be NULL
-# #'   tblGapDetail <- dflist[["tblGapDetail"]]
-# #'   tblGapHeader <- dflist[["tblGapHeader"]]
-# #'   tblLPIDetail <- dflist[["tblLPIDetail"]]
-# #'   tblLPIHeader <- dflist[["tblLPIHeader"]]
-# #'   tblSoilStabDetail <- dflist[["tblSoilStabDetail"]]
-# #'   tblSoilStabHeader <- dflist[["tblSoilStabHeader"]]
-# #'   tblQualDetail <- dflist[["tblQualDetail"]]
-# #'   tblQualHeader <- dflist[["tblQualHeader"]]
-# #'   tblSoilPitHorizons <- dflist[["tblSoilPitHorizons"]]
-# #'   tblSoilPits <- dflist[["tblSoilPits"]]
-# #'   tblSpecRichDetail <- dflist[["tblSpecRichDetail"]]
-# #'   tblSpecRichHeader <- dflist[["tblSpecRichHeader"]]
-# #'   tblPlots <- dflist[["tblPlots"]]
-# #'
-# #'   GINTERCEPT <- dflist[["GINTERCEPT"]]
-# #'   POINT <- dflist[["POINT"]]
-# #'   PASTUREHEIGHTS <- dflist[["PASTUREHEIGHTS"]]
-# #'   RANGEHEALTH <- dflist[["RANGEHEALTH"]]
-# #'   PINTERCEPT <- dflist[["PINTERCEPT"]]
-# #'   SOILDISAG <- dflist[["SOILDISAG"]]
-# #'   PLANTCENSUS <- dflist[["PLANTCENSUS"]]
-# #'   SOILHORIZON <- dflist[["SOILHORIZON"]]
-# #'   POINTCOORDINATES <- dflist[["POINTCOORDINATES"]]
-# #'   GPS <- dflist[["GPS"]]
-# #'
-# #'   rm(dflist)
-# #'
-# #'   # Gap ####
-# #'   if(("tblGapDetail" %in% names_rda & "tblGapHeader" %in% names_rda) |
-# #'      ("tblGapDetail" %in% names_gdb & "tblGapHeader" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM gap")
-# #'     gap_aim <- gather_gap(dsn = dsn, source = "AIM",
-# #'                           tblGapDetail = tblGapDetail,
-# #'                           tblGapHeader = tblGapHeader)
-# #'   } else {
-# #'     gap_aim <- NULL
-# #'     if(verbose) print("tblGapDetail and/or tblGapHeader not found. Skipping AIM Gap.")
-# #'   }
-# #'
-# #'   if(("GINTERCEPT" %in% names_rda & "POINT" %in% names_rda) |
-# #'      ("GINTERCEPT" %in% names_gdb & "POINT" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF gap")
-# #'     gap_lmf <- gather_gap(dsn = dsn, source = "LMF",
-# #'                           GINTERCEPT = GINTERCEPT,
-# #'                           POINT = POINT)
-# #'   } else {
-# #'     gap_lmf <- NULL
-# #'     if(verbose) print("GINTERCEPT and/or POINT not found. Skipping LMF Gap.")
-# #'   }
-# #'
-# #'   gap_tall <- dplyr::bind_rows(gap_aim, gap_lmf)
-# #'   if(1 <= nrow(gap_tall)){
-# #'     if("csv" %in% outtype){
-# #'       write.csv(gap_tall,
-# #'                 file = paste(outfolder, "gap_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(gap_tall,
-# #'               file = paste0(outfolder, "gap_tall.rdata"))
-# #'     }
-# #'
-# #'   }
-# #'   rm(gap_aim, gap_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # Soil stability ####
-# #'   if(("tblSoilStabDetail" %in% names_rda & "tblSoilStabHeader" %in% names_rda) |
-# #'      ("tblSoilStabDetail" %in% names_gdb & "tblSoilStabHeader" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM soil stability")
-# #'     soilstab_aim <- gather_soil_stability(dsn = dsn, source = "AIM",
-# #'                                           tblSoilStabDetail = tblSoilStabDetail,
-# #'                                           tblSoilStabHeader = tblSoilStabHeader)
-# #'   } else {
-# #'     soilstab_aim <- NULL
-# #'     if(verbose) print("tblSoilStabDetail and/or tblSoilStabHeader not found. Skipping AIM Soil Stability.")
-# #'   }
-# #'
-# #'   if(("SOILDISAG" %in% names_rda) |
-# #'      ("SOILDISAG" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF soil stability")
-# #'     soilstab_lmf <- gather_soil_stability(dsn = dsn, source = "LMF",
-# #'                                           SOILDISAG = SOILDISAG)
-# #'   } else {
-# #'     soilstab_lmf <- NULL
-# #'     if(verbose) print("SOILDISAG not found. Skipping LMF Soil Stability.")
-# #'   }
-# #'
-# #'   soilstab_tall <- dplyr::bind_rows(soilstab_aim, soilstab_lmf)
-# #'   if(1 <= nrow(soilstab_tall)){
-# #'
-# #'     if("csv" %in% outtype){
-# #'       write.csv(soilstab_tall,
-# #'                 file = paste(outfolder, "soil_stability_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(soilstab_tall,
-# #'               file = paste0(outfolder, "soil_stability_tall.rdata"))
-# #'     }
-# #'   }
-# #'   rm(soilstab_aim, soilstab_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # LPI ####
-# #'   if(doLPI == T){
-# #'     if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-# #'        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
-# #'       if(verbose) print("Gathering AIM LPI")
-# #'       lpi_aim <- gather_lpi(dsn = dsn, file_type = "gdb", source = "AIM",
-# #'                             tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)} else {
-# #'                               lpi_aim <- NULL
-# #'                               if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
-# #'                             }
-# #'
-# #'     if(("PINTERCEPT" %in% names_rda) |
-# #'        ("PINTERCEPT" %in% names_gdb)){
-# #'       if(verbose) print("Gathering LMF LPI")
-# #'       lpi_lmf <- gather_lpi(dsn = dsn, file_type = "gdb", source = "LMF",
-# #'                             PINTERCEPT = PINTERCEPT)
-# #'     } else {
-# #'       lpi_lmf <- NULL
-# #'       if(verbose) print("PINTERCEPT not found. Skipping LMF LPI.")
-# #'     }
-# #'
-# #'     lpi_tall <- dplyr::bind_rows(lpi_aim, lpi_lmf)
-# #'     if(1 <= nrow(lpi_tall)){
-# #'       if("csv" %in% outtype){
-# #'         write.csv(lpi_tall,
-# #'                   file = paste(outfolder, "lpi_tall.csv", sep = ""), row.names = F)
-# #'       }
-# #'       if("rdata" %in% outtype){
-# #'         saveRDS(lpi_tall,
-# #'                 file = paste0(outfolder, "lpi_tall.rdata"))
-# #'       }
-# #'     }
-# #'     rm(lpi_aim, lpi_lmf)
-# #'     invisible(gc())
-# #'
-# #'     # Height ####
-# #'     if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-# #'        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
-# #'       if(verbose) print("Gathering AIM Height")
-# #'       height_aim <- gather_height(dsn = dsn, file_type = "gdb", source = "AIM",
-# #'                                   tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
-# #'     } else {
-# #'       height_aim <- NULL
-# #'       if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM Height.")
-# #'     }
-# #'
-# #'     if(("PASTUREHEIGHTS" %in% names_rda) |
-# #'        ("PASTUREHEIGHTS" %in% names_gdb)){
-# #'       if(verbose) print("Gathering LMF Height")
-# #'       height_lmf <- gather_height(dsn = dsn, file_type = "gdb", source = "LMF",
-# #'                                   PASTUREHEIGHTS = PASTUREHEIGHTS)
-# #'     } else {
-# #'       height_lmf <- NULL
-# #'       if(verbose) print("PASTUREHEIGHTS not found. Skipping LMF Height.")
-# #'     }
-# #'
-# #'     height_tall <- dplyr::bind_rows(height_aim, height_lmf)
-# #'     if(1 <= nrow(height_tall)){
-# #'       if("csv" %in% outtype){
-# #'         write.csv(height_tall,
-# #'                   file = paste(outfolder, "height_tall.csv", sep = ""), row.names = F)
-# #'       }
-# #'       if("rdata" %in% outtype){
-# #'         saveRDS(height_tall,
-# #'                 file = paste0(outfolder, "height_tall.rdata"))
-# #'       }
-# #'     }
-# #'     rm(height_lmf, height_aim)
-# #'     invisible(gc())
-# #'
-# #'
-# #'
-# #'
-# #'   } else {
-# #'     print("doLPI is false, skipping all lpi")
-# #'   }
-# #'
-# #'   ##### Species inventory ####
-# #'   if(("tblSpecRichDetail" %in% names_rda & "tblSpecRichHeader" %in% names_rda) |
-# #'      ("tblSpecRichDetail" %in% names_gdb & "tblSpecRichHeader" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM species inventory")
-# #'     spp_inventory_aim <- gather_species_inventory(dsn = dsn, source = "AIM",
-# #'                                                   tblSpecRichDetail = tblSpecRichDetail,
-# #'                                                   tblSpecRichHeader = tblSpecRichHeader)
-# #'
-# #'   } else {
-# #'     spp_inventory_aim <- NULL
-# #'     if(verbose) print("tblSpecRichDetail and/or tblSpecRichHeader not found. Skipping AIM Species Inventory.")
-# #'   }
-# #'   if(("PLANTCENSUS" %in% names_rda) |
-# #'      ("PLANTCENSUS" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF species inventory")
-# #'     spp_inventory_lmf <- gather_species_inventory(dsn = dsn, source = "LMF",
-# #'                                                   PLANTCENSUS = PLANTCENSUS,
-# #'                                                   file_type = "gdb")
-# #'   } else {
-# #'     spp_inventory_lmf <- NULL
-# #'     if(verbose) print("PLANTCENSUS not found. Skipping LMF Species Inventory.")
-# #'   }
-# #'
-# #'   spp_inventory_tall <- dplyr::bind_rows(spp_inventory_aim, spp_inventory_lmf)
-# #'   if(1 <= nrow(spp_inventory_tall)){
-# #'
-# #'     if("csv" %in% outtype){
-# #'       write.csv(spp_inventory_tall,
-# #'                 file = paste(outfolder, "species_inventory_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(spp_inventory_tall,
-# #'               file = paste0(outfolder, "spp_inventory_tall.rdata"))
-# #'     }
-# #'   }
-# #'   rm(spp_inventory_aim, spp_inventory_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # soil horizons ####
-# #'   if(("tblSoilPitHorizons" %in% names_rda) |
-# #'      ("tblSoilPitHorizons" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM soil horizon data")
-# #'     hz_aim <- gather_soil_horizon(dsn = dsn, source = "AIM",
-# #'                                   tblSoilPitHorizons = tblSoilPitHorizons)
-# #'   } else {
-# #'     hz_aim <- NULL
-# #'     if(verbose) print("tblSoilPitHorizons not found. Skipping AIM Horizons.")
-# #'   }
-# #'   if(("SOILHORIZON" %in% names_rda) |
-# #'      ("SOILHORIZON" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF soil horizon data")
-# #'     hz_lmf <- gather_soil_horizon(dsn = dsn, source = "LMF", SOILHORIZON = SOILHORIZON)
-# #'   } else {
-# #'     hz_lmf <- NULL
-# #'     if(verbose) print("SOILHORIZON not found. Skipping LMF Horizons.")
-# #'   }
-# #'   hz_tall <- dplyr::bind_rows(hz_aim, hz_lmf)
-# #'   if(1 <= nrow(hz_tall)){
-# #'
-# #'     if("csv" %in% outtype){
-# #'       write.csv(hz_tall,
-# #'                 file = paste(outfolder, "soil_horizons_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(hz_tall,
-# #'               file = paste0(outfolder, "soil_horizons_tall.rdata"))
-# #'     }
-# #'
-# #'   }
-# #'   rm(hz_aim, hz_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # soil summary ####
-# #'   if(("tblSoilPitHorizons" %in% names_rda & "tblSoilPits" %in% names_rda) |
-# #'      ("tblSoilPitHorizons" %in% names_gdb & "tblSoilPits" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM soil summary")
-# #'     pit_aim <- gather_soil_summary(dsn = dsn, source = "AIM",
-# #'                                    tblSoilPitHorizons = tblSoilPitHorizons,
-# #'                                    tblSoilPits = tblSoilPits)
-# #'   } else {
-# #'     pit_aim <- NULL
-# #'     if(verbose) print("tblSoilPitHorizons and/or tblSoilPits not found. Skipping AIM Soil Summary.")
-# #'   }
-# #'   if(("SOILHORIZON" %in% names_rda) |
-# #'      ("SOILHORIZON" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF soil summary")
-# #'     pit_lmf <- gather_soil_summary(dsn = dsn, source = "LMF", SOILHORIZON = SOILHORIZON)
-# #'   } else {
-# #'     pit_lmf <- NULL
-# #'     if(verbose) print("SOILHORIZON not found. Skipping LMF soil Summary.")
-# #'   }
-# #'   pit_tall <- dplyr::bind_rows(pit_aim, pit_lmf)
-# #'   if(1 <= nrow(pit_tall)){
-# #'     if("csv" %in% outtype){
-# #'       write.csv(pit_tall,
-# #'                 file = paste(outfolder, "pit_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(pit_tall,
-# #'               file = paste0(outfolder, "pit_tall.rdata"))
-# #'     }
-# #'   }
-# #'
-# #'   rm(pit_aim, pit_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # iirh ####
-# #'   if(("tblQualDetail" %in% names_rda & "tblQualHeader" %in% names_rda) |
-# #'      ("tblQualDetail" %in% names_gdb & "tblQualHeader" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM IIRH data")
-# #'     iirh_aim <- gather_rangeland_health(dsn = dsn, source = "AIM",
-# #'                                         tblQualDetail = tblQualDetail,
-# #'                                         tblQualHeader = tblQualHeader)
-# #'   } else {
-# #'     iirh_aim <- NULL
-# #'     if(verbose) print("tblQualDetail and/or tblQualHeader not found. Skipping AIM Rangeland Health.")
-# #'   }
-# #'   if(("RANGEHEALTH" %in% names_rda) |
-# #'      ("RANGEHEALTH" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF IIRH data")
-# #'     iirh_lmf <- gather_rangeland_health(dsn = dsn, source = "LMF",
-# #'                                         RANGEHEALTH = RANGEHEALTH)
-# #'
-# #'   } else {
-# #'     iirh_lmf <- NULL
-# #'     if(verbose) print("RANGEHEALTH not found. Skipping LMF Rangeland Health.")
-# #'   }
-# #'   iirh_tall <- dplyr::bind_rows(iirh_aim, iirh_lmf)
-# #'   if(1 <= nrow(iirh_tall)){
-# #'     if("csv" %in% outtype){
-# #'       write.csv(iirh_tall,
-# #'                 file = paste(outfolder, "rangeland_health_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(iirh_tall,
-# #'               file = paste0(outfolder, "rangeland_health_tall.rdata"))
-# #'     }  }
-# #'   rm(iirh_aim, iirh_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # header ####
-# #'   if(("tblPlots" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-# #'      ("tblPlots" %in% names_gdb & "tblLPIHeader" %in% names_rda)){
-# #'     if(verbose) print("Gathering AIM Header")
-# #'     header_aim <- gather_header(dsn = dsn, source = "AIM",
-# #'                                 tblPlots = tblPlots,
-# #'                                 tblLPIHeader = tblLPIHeader)
-# #'
-# #'     #
-# #'     #     if(verbose) print("Gathering AIM plot characterization")
-# #'     #     plotchar_aim <- gather_plot_characterization(dsn = dsn,
-# #'     #                                                  source = "AIM",
-# #'     #                                                  tblPlots = tblPlots)
-# #'
-# #'   } else {
-# #'     header_aim <- NULL
-# #'
-# #'     if(verbose) print("tblPlots not found. Skipping AIM header.")
-# #'   }
-# #'   if(("POINT" %in% names_rda) |
-# #'      ("POINT" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF header")
-# #'     header_lmf <- gather_header(dsn = dsn,
-# #'                                 source = "LMF")
-# #'   } else {
-# #'     header_lmf <- NULL
-# #'     if(verbose) print("POINT not found. Skipping LMF header.")
-# #'   }
-# #'
-# #'   header_tall <- dplyr::bind_rows(header_aim, header_lmf)
-# #'   if(1 <= nrow(header_tall)){
-# #'     if("csv" %in% outtype){
-# #'       write.csv(header_tall,
-# #'                 file = paste(outfolder, "header.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(header_tall,
-# #'               file = paste0(outfolder, "header.rdata"))
-# #'     }  }
-# #'   rm(header_aim, header_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # # output ####
-# #'   # if(doLPI == T){
-# #'   #
-# #'   # list_out <- list(
-# #'   #   gap_tall, height_tall, hz_tall, lpi_tall, pit_tall, header_tall,
-# #'   #   soilstab_tall, spp_inventory_tall
-# #'   # )
-# #'   #
-# #'   # names(list_out) <- c("Gap", "VegHeight", "SoilHorizons", "LPI", "SoilPitSummary",
-# #'   #                      "Header",
-# #'   #                      "SoilStability", "SpeciesInventory")
-# #'   #
-# #'   # } else {
-# #'   #   list_out <- list(
-# #'   #     gap_tall, hz_tall, #pit_tall,
-# #'   #     header_tall,
-# #'   #     soilstab_tall, spp_inventory_tall
-# #'   #   )
-# #'   #
-# #'   #   names(list_out) <- c("Gap", "SoilHorizons", "SoilPitSummary",
-# #'   #                        "Header", "SoilStability", "SpeciesInventory")
-# #'   # }
-# #'
-# #'   # return(list_out)
-# #' }
-#
+
+
