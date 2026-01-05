@@ -1257,7 +1257,7 @@ accumulated_species <- function(header,
     # Because we can't trust anything to be an expected data type, coerce LineKey
     # into character to ensure that it matches!
     dplyr::mutate(.data = _,
-                  LineKey = as.character(Linekey)) |>
+                  LineKey = as.character(LineKey)) |>
     # And if we have species inventory stuff, we'll bind that to the end row-wise
     # then make sure we keep only the first instance of each species for each
     # PrimaryKey because only species not encountered on LPI or measured for
@@ -1267,7 +1267,7 @@ accumulated_species <- function(header,
                        # Because we can't trust anything to be an expected data type, coerce LineKey
                        # into character to ensure that it matches!
                        dplyr::mutate(.data = _,
-                                     LineKey = as.character(Linekey))) |>
+                                     LineKey = as.character(LineKey))) |>
     dplyr::summarize(.data = _,
                      .by = tidyselect::all_of(x = c("PrimaryKey",
                                                     "Species")),
