@@ -791,12 +791,12 @@ species_count <- function(species_inventory_tall,
 #' @examples
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 #' # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
-#'accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.rdata",
-#'                                                       spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.rdata",
-#'                                                        height_tall = "~/AIM/Data/height_tall.rdata",
-#'                                                        header = "~/AIM/Data/header.rdata",
-#'                                                        species_file = "species_file.csv",
-#'                                                        SpeciesState %in% "NM")
+#' accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.rdata",
+#'                                            spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.rdata",
+#'                                            height_tall = "~/AIM/Data/height_tall.rdata",
+#'                                            header = "~/AIM/Data/header.rdata",
+#'                                            species_file = "species_file.csv",
+#'                                            SpeciesState %in% "NM")
 #'@export
 
 accumulated_species <- function(header,
