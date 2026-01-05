@@ -1254,12 +1254,20 @@ accumulated_species <- function(header,
                                              "heights")],
                           .f = dplyr::left_join,
                           by = c("PrimaryKey", "Species")) |>
+    # Because we can't trust anything to be an expected data type, coerce LineKey
+    # into character to ensure that it matches!
+    dplyr::mutate(.data = _,
+                  LineKey = as.character(Linekey)) |>
     # And if we have species inventory stuff, we'll bind that to the end row-wise
     # then make sure we keep only the first instance of each species for each
     # PrimaryKey because only species not encountered on LPI or measured for
     # heights should be added from species inventory
     dplyr::bind_rows(. = _,
-                     output_list[["species"]]) |>
+                     output_list[["species"]] |>
+                       # Because we can't trust anything to be an expected data type, coerce LineKey
+                       # into character to ensure that it matches!
+                       dplyr::mutate(.data = _,
+                                     LineKey = as.character(Linekey))) |>
     dplyr::summarize(.data = _,
                      .by = tidyselect::all_of(x = c("PrimaryKey",
                                                     "Species")),
