@@ -20,8 +20,8 @@ unquoted_to_character <- function(...) {
 }
 
 # OKAY! So this is a pain, but we've got a bunch of legacy code that expects
-# to be fed paths to .Rdata files but also sometimes paths to geodatabases
-# or .TXT or .CSV files.
+# to be fed paths to .Rdata and .rds files but also sometimes paths to
+# geodatabases or .TXT or .CSV files.
 # Just for ease of use in those legacy code situations, if input is a data
 # frame then we'll just pass that through as the output.
 # The goal here is to handle all of those as seamlessly as possible.
@@ -66,6 +66,7 @@ read_whatever <- function(input,
     # These are the supported filetypes (for now)
     valid_filetypes <- c("gdb",
                          "rdata",
+                         "rds",
                          "csv")
     current_input_filetype <- tools::file_ext(x = input) |>
       tolower(x = _)
@@ -148,6 +149,10 @@ read_whatever <- function(input,
                        # CSVs are also easy to handle.
                        read.csv(file = input,
                                 stringsAsFactors = FALSE)
+                     },
+                     "rds" = {
+                       # Aaaannnd RDS too
+                       readRDS(file = input)
                      })
   }
 
