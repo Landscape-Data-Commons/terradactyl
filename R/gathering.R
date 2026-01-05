@@ -377,9 +377,9 @@ gather_all <- function(dsn = NULL,
                                                         current_output)
       }
 
-      if (verbose) {
-        message("Cleaning up and freeing memory.")
-      }
+      # if (verbose) {
+      #   message("Cleaning up and freeing memory.")
+      # }
 
       # Remove the data from the working environment to save memory!
       rm(current_output)
