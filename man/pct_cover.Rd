@@ -26,7 +26,7 @@ pct_cover(
 
 \item{...}{Optional bare variable names. These must be variable names in \code{lpi_tall} and are used to determine the unique cover types. This is here for legacy support and the use of \code{indicator_variables} is recommended instead.}
 
-\item{indicator_variables}{Optional vector of character strings. These must be variable names in \code{lpi_tall} and are used to determine the unique cover types. For example, using \code{"code"} will result in calculating cover for each unique value in the code variable and using \code{c("Duration", "GrowthHabitSub")} will result in calculating cover for each unique combination of values in the Duration and GrowthHabitSub variables, e.g., PerennialGraminoid and AnnualGraminoid. If \code{NULL} and no variable names have been provided then cover will be calculated per-PrimaryKey and should be 100% for each. Defaults to \code{NULL}.}
+\item{indicator_variables}{Optional vector of character strings. These must be variable names in \code{lpi_tall} and are used to determine the unique cover types. For example, using \code{"code"} will result in calculating cover for each unique value in the code variable and using \code{c("Duration", "GrowthHabitSub")} will result in calculating cover for each unique combination of values in the Duration and GrowthHabitSub variables, e.g., PerennialGraminoid and AnnualGraminoid. If \code{NULL} and no variable names have been provided then cover will be calculated per-PrimaryKey and should be 100 percent for each. Defaults to \code{NULL}.}
 
 \item{digits}{Integer. The number of decimal places that the output cover percentages will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.}
 
