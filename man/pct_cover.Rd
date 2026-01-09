@@ -20,7 +20,7 @@ pct_cover(
 
 \item{tall}{Logical. If \code{TRUE} then the output will be in a long/tall format. If \code{FALSE} then the output will be wide. Defaults to \code{FALSE}.}
 
-\item{hit}{Character string. This dictates how many and which layers at a pin drop will be used to calculate the percent cover. If \code{"any"} then every record for each pin drop may be considered, which will produce results which sum to more than 100% in the case that any pin drop recorded hits in multiple layers. If \code{"first"} then only the first (i.e., farthest from the ground) record at each pin drop will be considered. If \code{"basal"} then only records for which the layer variable contains the value \code{"SoilSurface"} will be considered, which should be one record per pin drop. Defaults to \code{"any"}.}
+\item{hit}{Character string. This dictates how many and which layers at a pin drop will be used to calculate the percent cover. If \code{"any"} then every record for each pin drop may be considered, which will produce results which sum to more than 100 percent in the case that any pin drop recorded hits in multiple layers. If \code{"first"} then only the first (i.e., farthest from the ground) record at each pin drop will be considered. If \code{"basal"} then only records for which the layer variable contains the value \code{"SoilSurface"} will be considered, which should be one record per pin drop. Defaults to \code{"any"}.}
 
 \item{by_line}{Logical. If \code{TRUE} then the cover will be calculated for each unique combination of values in the PrimaryKey and LineKey variables instead of simply by PrimaryKey. Defaults to \code{FALSE}.}
 
