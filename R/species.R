@@ -954,6 +954,7 @@ accumulated_species <- function(header,
                                                                                  "Photosynthesis",
                                                                                  "PJ",
                                                                                  "CurrentPLANTSCode",
+                                                                                 "ScientificName",
                                                                                  "SG_Group",
                                                                                  "GrowthHabit_measured"),
                                                        update_species_codes = FALSE,
@@ -1276,7 +1277,8 @@ accumulated_species <- function(header,
 
   # If we added species info, we'll use it here.
   # It'd be slow to use species_join() again, so we'll use the inputs_list
-  if (species_file != "") {
+  if (!identical(species_file,
+                 "")) {
     if (verbose) {
       message("Joining species data to the output")
     }
@@ -1311,7 +1313,8 @@ accumulated_species <- function(header,
                                                                       "Invasive",
                                                                       "SpecialStatus",
                                                                       "SG_Group",
-                                                                      "CommonName"))) |>
+                                                                      "CommonName",
+                                                                      "ScientificName"))) |>
                                      dplyr::distinct()
                                  }) |>
       dplyr::bind_rows() |>
