@@ -8,9 +8,9 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = T)
-knitr::opts_chunk$set(warning = F)
-knitr::opts_chunk$set(message = F)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
 ```
 
 # terradactyl <img src="man/figures/logo.png" align="right" height="120"/>
@@ -44,18 +44,18 @@ The other cover functions demonstrated here are convenience functions that call 
 To use the `pct_cover` indicator function you must specify a grouping variable. This is a column header with values defining the groups you are summarizing data over, such as "Duration" to get cover of annual and perennial plants. This parameter must be provided at the end of the function call, and notably must be input as if it were a variable rather than in a string. Here we use "code" in order to aggregate data for each different plant and surface code, such as ARTR2 (*Artemisia tridentata*, big sagebrush) or S (bare soil).
 
 ```{r  pct_cover S hits demo}
-# get demo data
-lpi_tall <- terradactyl::tall_lpi_sample
+# Load the line-point intercept demo data.
+demo_lpi_tall <- terradactyl::demo_data(type = "lpi")
 
-cover_baresoil <-
-# calculate percent cover for all first hit codes  
-  pct_cover(lpi_tall = lpi_tall,
-            tall = T,
-            hit = "first",
-            by_line = F,
-            code) %>%
-# subset to only cover of exposed soil
-  dplyr::filter(indicator == "S")
+# Calculate percent of each plot with bare soil.
+# "Bare soil" corresponds to pin drops where no cover was recorded in canopy
+# layers and the SoilSurface value in the code variable was "S".
+# This can be calculated with pct_cover(hit = "first") and keeping only the
+# cover for the variable S in the output, but it's easier to do with the wrapper
+# function pct_bareground().
+cover_baresoil <- terradactyl::pct_bareground(lpi_tall = demo_lpi_tall,
+                                              indicator_variable = "code",
+                                              soil_values = c("S"))
 
 head(cover_baresoil)
 ```
@@ -63,18 +63,23 @@ head(cover_baresoil)
 If cover by species group is of interest, first assign species attributes based on the “code” field in the lpi_tall table. You can do this manually in the R environment or by using `species_join`. Here, *Artemisia tridentata* (big sagebrush) and its subspecies *tridentata*, *vaseyana*, and *wyomingensis* are assigned to a single group, and cover of that group is calculated.
 
 ```{r  custom indicator}
-# define a grouping variable
-lpi_tall$BigSagebrush <- "NotBigSage"
-lpi_tall[lpi_tall$code %in% c("ARTRW8", "ARTRT", "ARTRV", "ARTR2"), 
-         "BigSagebrush"] <- "BigSage"
+# Add a variable called BigSagebrush that has the value "BigSage" for all
+# records containing a qualifying species code in the variable called code and
+# NA for all records that don't correspond to a big sagebrush species.
 
-# calculate cover by Artemisia and non-Artemisia species
-cover_artemisia <-
-  pct_cover(lpi_tall = lpi_tall,
-            tall = F,
-            hit = "first",
-            by_line = F,
-            BigSagebrush)
+big_sagebrush_species <- c("ARTRW8", "ARTRT", "ARTRV", "ARTR2")
+demo_lpi_tall <- dplyr::mutate(.data = demo_lpi_tall,
+                               BigSagebrush = dplyr::case_when(code %in% big_sagebrush_species ~ "BigSage",
+                                                               .default = NA))
+
+# Use pct_cover() to calculate first hit cover using the variable BigSagebrush
+# to determine the types of cover.
+# Because the only values in BigSagebrush are NA and "BigSage", the resulting
+# data frame will have a variable called BigSage with the percent cover
+# provided by the combined species codes in big_sagebrush_species.
+cover_artemisia <- pct_cover(lpi_tall = demo_lpi_tall,
+                             hit = "first",
+                             indicator_variables = "BigSagebrush")
 
 head(cover_artemisia)
 
@@ -230,10 +235,10 @@ head(height_duration_mean)
 # calculate mean of maximum heights at each point
 height_duration_meanmax <-
   mean_height(height_species,
-             method = "max",
-             omit_zero = T,
-             by_line = F,
-             tall = T)
+              method = "max",
+              omit_zero = T,
+              by_line = F,
+              tall = T)
 head(height_duration_meanmax)
 
 ```
@@ -321,7 +326,7 @@ species_inventory_join <-
 # calculate number of annual and perennial species
 species_count_duration <- 
   species_count(species_inventory_tall = species_inventory_join,
-  Duration)
+                Duration)
 head(species_count_duration)
 ```
 

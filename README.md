@@ -1,12 +1,17 @@
 # terradactyl <img src='man/figures/logo.png' align="right" height="120" />
 
 ``` r
-# To install
+# To install this package from this repository, use remotess:install_github()
 remotes::install_github(repo = 'Landscape-Data-Commons/terradactyl')
+
+# Once installed, the package can be attached with library() or you can call
+# functions from it with ::, e.g., terradactyl::gather_all()
 library(terradactyl)
 ```
 
 `terradactyl` can be used to gather core rangeland monitoring data into a standard format, calculate standardized indicators, custom indicators, and produce consistent data models. There are also a few quality control scripts available to help users ensure that species data are handled correctly.
+
+If you use `terradactyl` in your work and would like to be added to a mailing list for updates regarding new releases and patches, please email the package maintainer ([nelson.stauffer@usda.gov](mailto:nelson.stauffer@usda.gov)) to let us know.
 
 The basic workflow of `terradactyl` is to first gather data into a standard format, also called a tall table. Then calculate indicators based on that format and grouping variables (if relevant). For some commonly calculated groups of indicators, such as for the AIM program or model inputs, there are also data model functions which take the tall table files and other data and produce data outputs specific to that user need. ([McCord et al., 2022](https://doi.org/10.1016/j.ecolind.2022.109511))
 
