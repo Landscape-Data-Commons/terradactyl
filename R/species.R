@@ -989,7 +989,7 @@ accumulated_species <- function(header,
                                           SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
                                                                       .default = SG_Group),
                                           SpecialStatus = stringr::str_extract(string = SpecialStatus,
-                                                                          pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                                                                               pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
                                           # This is just to make the Invasive values match
                                           # the desired indicator names
                                           Invasive = stringr::str_to_title(string = Invasive),
@@ -1254,20 +1254,12 @@ accumulated_species <- function(header,
                                              "heights")],
                           .f = dplyr::left_join,
                           by = c("PrimaryKey", "Species")) |>
-    # Because we can't trust anything to be an expected data type, coerce LineKey
-    # into character to ensure that it matches!
-    dplyr::mutate(.data = _,
-                  LineKey = as.character(LineKey)) |>
     # And if we have species inventory stuff, we'll bind that to the end row-wise
     # then make sure we keep only the first instance of each species for each
     # PrimaryKey because only species not encountered on LPI or measured for
     # heights should be added from species inventory
     dplyr::bind_rows(. = _,
-                     output_list[["species"]] |>
-                       # Because we can't trust anything to be an expected data type, coerce LineKey
-                       # into character to ensure that it matches!
-                       dplyr::mutate(.data = _,
-                                     LineKey = as.character(LineKey))) |>
+                     output_list[["species"]]) |>
     dplyr::summarize(.data = _,
                      .by = tidyselect::all_of(x = c("PrimaryKey",
                                                     "Species")),
@@ -1297,36 +1289,39 @@ accumulated_species <- function(header,
                                      }) |>
       which()
 
-    final_species_info <- dplyr::bind_rows(inputs_list[suitable_input_sources]) |>
-      dplyr::select(.data = _,
-                    tidyselect::all_of(x = c("PrimaryKey")),
-                    # Should only need the last one in this vector, but the
-                    # others don't hurt and were there from previous iterations
-                    # of the function. Consider removing them.
-                    tidyselect::any_of(x = c("Species",
-                                             "Species" = "NameCode",
-                                             "Species" = "code")),
-                    # We're going to put the PLANTS code in its own variable so
-                    # we don't collapse species codes that are distinct but
-                    # unrecognized by PLANTS.
-                    tidyselect::all_of(x = c("CurrentPLANTSCode")),
-                    tidyselect::any_of(c("GrowthHabit",
-                                         "GrowthHabitSub",
-                                         "Duration",
-                                         "Nonnative",
-                                         "Noxious",
-                                         "Invasive",
-                                         "SpecialStatus",
-                                         "SG_Group",
-                                         "CommonName"))) |>
+    final_species_info <- lapply(X = inputs_list[suitable_input_sources],
+                                 FUN = function(X){
+                                   dplyr::select(.data = X,
+                                                 tidyselect::all_of(x = c("PrimaryKey")),
+                                                 # Should only need the last one in this vector, but the
+                                                 # others don't hurt and were there from previous iterations
+                                                 # of the function. Consider removing them.
+                                                 tidyselect::any_of(x = c("Species",
+                                                                          "Species" = "NameCode",
+                                                                          "Species" = "code")),
+                                                 # We're going to put the PLANTS code in its own variable so
+                                                 # we don't collapse species codes that are distinct but
+                                                 # unrecognized by PLANTS.
+                                                 tidyselect::any_of(x = c("CurrentPLANTSCode")),
+                                                 tidyselect::any_of(c("GrowthHabit",
+                                                                      "GrowthHabitSub",
+                                                                      "Duration",
+                                                                      "Nonnative",
+                                                                      "Noxious",
+                                                                      "Invasive",
+                                                                      "SpecialStatus",
+                                                                      "SG_Group",
+                                                                      "CommonName"))) |>
+                                     dplyr::distinct()
+                                 }) |>
+      dplyr::bind_rows() |>
       dplyr::distinct()
 
-
     output <- dplyr::left_join(x = output,
-                       y = final_species_info,
-                       relationship = "many-to-one",
-                       by = c("PrimaryKey",
-                              "Species"))
+                               y = final_species_info,
+                               relationship = "many-to-one",
+                               by = c("PrimaryKey",
+                                      "Species"))
   }
 
   missing_indicators <- setdiff(x = c("AH_SpeciesCover",
@@ -1341,4 +1336,3 @@ accumulated_species <- function(header,
 
   output
 }
-
