@@ -134,10 +134,8 @@ build_terradat_indicators <- function(header,
   if (!is.null(lpi_tall)) {
     indicators_list[["lpi"]] <- lpi_calc(lpi_tall = lpi_tall,
                                          header = header,
-                                         source = "AIM",
                                          species_file = species_file,
                                          species_code_var = species_code_var,
-                                         dsn = dsn,
                                          verbose = verbose)
   } else {
     if (verbose) {
@@ -259,10 +257,8 @@ build_lmf_indicators <- function(header, source, dsn,
                      # LPI
                      lpi_calc(lpi_tall = lpi_tall,
                               header = header,
-                              source = source,
                               species_file = species_file,
-                              generic_species_file = generic_species_file,
-                              dsn = dsn),
+                              generic_species_file = generic_species_file),
                      # Gap
                      gap_calc(gap_tall = gap_tall,
                               header = header),
