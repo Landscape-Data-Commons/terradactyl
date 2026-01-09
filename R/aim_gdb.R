@@ -895,6 +895,7 @@ lpi_calc <- function(header = NULL,
                                                         "GrowthHabitSub",
                                                         "Duration",
                                                         "Family",
+                                                        "SG_Group",
                                                         "HigherTaxon",
                                                         "Nonnative",
                                                         "Invasive",
@@ -1668,39 +1669,40 @@ height_calc <- function(header,
   }
 
   height_species <- species_join(data = sf::st_drop_geometry(height_tall_header),
-                              data_code = "code",
-                              species_file = species_list,
-                              # This isn't hardcoded to accommodate other, non-
-                              # AIM species lists.
-                              species_code = species_code_var,
-                              species_growth_habit_code = "GrowthHabitSub",
-                              species_duration = "Duration",
-                              # These won't all be present in every list, but
-                              # that shouldn't be a problem because they're only
-                              # used with an any_of().
-                              species_property_vars = c("GrowthHabit",
-                                                        "GrowthHabitSub",
-                                                        "Duration",
-                                                        "Family",
-                                                        "HigherTaxon",
-                                                        "Nonnative",
-                                                        "Invasive",
-                                                        "Noxious",
-                                                        "SpecialStatus",
-                                                        "Photosynthesis",
-                                                        "PJ",
-                                                        "CurrentPLANTSCode"),
-                              growth_habit_file = "",
-                              growth_habit_code = "Code",
-                              # This FALSE should prevent us from having to
-                              # worry about generic_species_file because that's
-                              # only used to overwrite generic species info.
-                              overwrite_generic_species = FALSE,
-                              generic_species_file = generic_species_file,
-                              update_species_codes = FALSE,
-                              by_species_key = FALSE,
-                              check_species = FALSE,
-                              verbose = verbose)
+                                 data_code = "Species",
+                                 species_file = species_list,
+                                 # This isn't hardcoded to accommodate other, non-
+                                 # AIM species lists.
+                                 species_code = species_code_var,
+                                 species_growth_habit_code = "GrowthHabitSub",
+                                 species_duration = "Duration",
+                                 # These won't all be present in every list, but
+                                 # that shouldn't be a problem because they're only
+                                 # used with an any_of().
+                                 species_property_vars = c("GrowthHabit",
+                                                           "GrowthHabitSub",
+                                                           "Duration",
+                                                           "Family",
+                                                           "SG_Group",
+                                                           "HigherTaxon",
+                                                           "Nonnative",
+                                                           "Invasive",
+                                                           "Noxious",
+                                                           "SpecialStatus",
+                                                           "Photosynthesis",
+                                                           "PJ",
+                                                           "CurrentPLANTSCode"),
+                                 growth_habit_file = "",
+                                 growth_habit_code = "Code",
+                                 # This FALSE should prevent us from having to
+                                 # worry about generic_species_file because that's
+                                 # only used to overwrite generic species info.
+                                 overwrite_generic_species = FALSE,
+                                 generic_species_file = generic_species_file,
+                                 update_species_codes = FALSE,
+                                 by_species_key = FALSE,
+                                 check_species = FALSE,
+                                 verbose = verbose)
 
   #### Cleanup! ################################################################
   # These are so we can assign a new variable called "pgpf" indicating which
@@ -1937,39 +1939,40 @@ spp_inventory_calc <- function(header,
   }
 
   data <- species_join(data = sf::st_drop_geometry(data),
-                                 data_code = "code",
-                                 species_file = species_list,
-                                 # This isn't hardcoded to accommodate other, non-
-                                 # AIM species lists.
-                                 species_code = species_code_var,
-                                 species_growth_habit_code = "GrowthHabitSub",
-                                 species_duration = "Duration",
-                                 # These won't all be present in every list, but
-                                 # that shouldn't be a problem because they're only
-                                 # used with an any_of().
-                                 species_property_vars = c("GrowthHabit",
-                                                           "GrowthHabitSub",
-                                                           "Duration",
-                                                           "Family",
-                                                           "HigherTaxon",
-                                                           "Nonnative",
-                                                           "Invasive",
-                                                           "Noxious",
-                                                           "SpecialStatus",
-                                                           "Photosynthesis",
-                                                           "PJ",
-                                                           "CurrentPLANTSCode"),
-                                 growth_habit_file = "",
-                                 growth_habit_code = "Code",
-                                 # This FALSE should prevent us from having to
-                                 # worry about generic_species_file because that's
-                                 # only used to overwrite generic species info.
-                                 overwrite_generic_species = FALSE,
-                                 generic_species_file = generic_species_file,
-                                 update_species_codes = FALSE,
-                                 by_species_key = FALSE,
-                                 check_species = FALSE,
-                                 verbose = verbose)
+                       data_code = "code",
+                       species_file = species_list,
+                       # This isn't hardcoded to accommodate other, non-
+                       # AIM species lists.
+                       species_code = species_code_var,
+                       species_growth_habit_code = "GrowthHabitSub",
+                       species_duration = "Duration",
+                       # These won't all be present in every list, but
+                       # that shouldn't be a problem because they're only
+                       # used with an any_of().
+                       species_property_vars = c("GrowthHabit",
+                                                 "GrowthHabitSub",
+                                                 "Duration",
+                                                 "Family",
+                                                 "SG_Group",
+                                                 "HigherTaxon",
+                                                 "Nonnative",
+                                                 "Invasive",
+                                                 "Noxious",
+                                                 "SpecialStatus",
+                                                 "Photosynthesis",
+                                                 "PJ",
+                                                 "CurrentPLANTSCode"),
+                       growth_habit_file = "",
+                       growth_habit_code = "Code",
+                       # This FALSE should prevent us from having to
+                       # worry about generic_species_file because that's
+                       # only used to overwrite generic species info.
+                       overwrite_generic_species = FALSE,
+                       generic_species_file = generic_species_file,
+                       update_species_codes = FALSE,
+                       by_species_key = FALSE,
+                       check_species = FALSE,
+                       verbose = verbose)
 
   # Cleanup to get things in order for the indicators
   data <- dplyr::mutate(.data = data,

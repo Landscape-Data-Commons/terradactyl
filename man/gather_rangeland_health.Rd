@@ -19,39 +19,47 @@ gather_rangeland_health(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file
-extension) of the geodatabase or text file containing the table of interest.
-This field is unnecessary if you provide either both of tblQualHeader and
-tblQualDetail (AIM/DIMA/TerrADat) or RANGEHEALTH (LMF/NRI).}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes.}
 
-\item{source}{Character string. The data source format,
-\code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case insensitive).}
+\item{source}{Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).}
 
-\item{file_type}{Character string that denotes the source file type of the
-LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-AIM/DIMA/TerrADat, or if RANGEHEALT is provided.}
+\item{file_type}{Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.}
 
-\item{tblQualHeader}{Dataframe of the data structure tblQualHeader from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblQualDetail when data source is AIM, DIMA, or TerrADat; alternately provide
-\code{dsn}.}
+\item{tblQualHeader}{Optional data frame or character string. If provided, this must contain the
+expected metadata for the IIRH data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblQualHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
-\item{tblQualDetail}{Dataframe of the data structure tblQualDetail from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblQualHeader when data source is AIM, DIMA, or TerrADat; alternately provide
-\code{dsn}.}
+\item{tblQualDetail}{Optional data frame or character string. If provided, this must contain the
+expected IIRH data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblQualDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
-\item{RANGEHEALTH}{Dataframe of the data structure RANGEHEALTH from the
-LMF/NRI database. Use when data source if LMF or NRI; alternately provide
-\code{dsn}.}
+\item{RANGEHEALTH}{Optional data frame or character string. If provided, this must contain the
+expected rangeland health intercept data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called RANGEHEALTH (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{verbose}{Logical. If \code{TRUE} then the function will report back
+diagnostic information as console messages while it works. Defaults to
+\code{FALSE}.}
 }
 \value{
 A tall data frame containing the data from the rangeland health
 measurements.
 }
 \description{
-Given wide format IIRH data, create a tall format data frame
-usable by other terradactyl functions.
+Given wide format species richness data, create a tall
+format data frame usable by other terradactyl functions. For additional information about
+arguments, see the documentation for the functions \code{\link[terradactyl:gather_rangeland_health_terradat]{gather_rangeland_health_terradat()}} and \code{\link[terradactyl:gather_rangeland_health_lmf]{gather_rangeland_health_lmf()}}.
+}
+\details{
+The \code{source} argument determines which other arguments are used or ignored.
+
+When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+then the arguments \code{tblQualHeader} and \code{tblQualDetail} are both considered.
+
+When \code{source} is \code{"LMF"} then the argument \code{RANGEHEALTH} is considered.
+
+Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 }
 \examples{
 gather_rangeland_health(dsn = "Path/To/AIM_Geodatabase.gdb",

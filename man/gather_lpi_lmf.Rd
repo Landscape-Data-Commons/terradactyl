@@ -6,31 +6,22 @@
 \usage{
 gather_lpi_lmf(
   dsn = NULL,
-  file_type = "gdb",
   PINTERCEPT = NULL,
+  file_type = "gdb",
   verbose = FALSE
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. This is the filepath to
-the source for the LMF data. If this points to a geodatabase, the
-geodatabase must contain the feature class PINTERCEPT with the LPI data and
-\code{file_type} must be \code{"gdb"}. If this points to a TXT or CSV file,
-\code{file_type} must be \code{"txt"} and \code{"csv"}, respectively. If
-\code{NULL}, then a data frame must be provided as the argument
-\code{PINTERCEPT}. Defaults to \code{NULL}.}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.}
 
-\item{file_type}{Optional character string. This must be \code{"gdb"},
-\code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-If \code{dsn} is \code{NULL} this argument is ignored. Defaults to
-\code{"gdb"}.}
+\item{PINTERCEPT}{Optional data frame or character string. If provided, this must contain the
+expected LPI data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PINTERCEPT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
-\item{PINTERCEPT}{Optional (contingent) data frame. This is the data frame
-containing the LPI data in the format of the PINTERCEPT table used by LMF.
-If provided, this will be used even if \code{dsn} is also non-NULL.
-Defaults to \code{NULL}.}
+\item{file_type}{Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.}
 
-\item{Logical.}{If \code{TRUE} then the function will report back diagnostic
+\item{verbose}{Logical. If \code{TRUE} then the function will report back diagnostic
 information as console messages while it works. Defaults to \code{FALSE}.}
 }
 \description{

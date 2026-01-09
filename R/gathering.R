@@ -1,5 +1,405 @@
-#### HEADERS ###################################################################
+#### GATHER ALL WRAPPER ########################################################
+#' Gather data for plot metadata, line-point intercept, gap, vegetation height, soil stability, species inventory, and rangeland health.
+#'
+#' @description Given wide format AIM/LMF data, produce long/tall-format versions.
+#'
+#' This uses the family of gather functions in terradactyl. For additional
+#' documentation regarding those, please see \code{\link[terradactyl:gather_header]{gather_header()}},
+#' \code{\link[terradactyl:gather_lpi]{gather_lpi()}}, \code{\link[terradactyl:gather_height]{gather_height()}},
+#' \code{\link[terradactyl:gather_gap]{gather_gap()}}, \code{\link[terradactyl:gather_soil_stability]{gather_soil_stability()}},
+#' \code{\link[terradactyl:gather_species_inventory]{gather_species_inventory()}},
+#' \code{\link[terradactyl:gather_rangeland_health]{gather_rangeland_health()}}
+#'
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param source Character string. This specifies the expected data format(s)
+#'   and determines which gather function will be used. It must be
+#'   one or more of of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, or \code{"DIMA"}.
+#'   This is case-insensitive.
+#' @param data_list Named list of data frames or character strings. These may be
+#' data frames containing the data that will be gathered, character strings
+#' specifying the filepath to CSV or Rdata files containing the data, or character
+#' strings specifying the name of the corresponding feature class in a geodatabase
+#' specified by the argument \code{dsn}. The names in this list must match the
+#' argument names expected by the gather functions, e.g.
+#' \code{"PINTERCEPT"} or \code{"tblPlots"}. See the documentation for those
+#' functions for additional details. If \code{NULL} this will be ignored.
+#' Defaults to \code{NULL}.
+#' @param data_types Vector of character strings. These are the data types to
+#' gather into long/tall-format. Valid values are \code{"header"}, \code{"lpi"}, \code{"height"}, \code{"gap"}, \code{"soilstability"}, \code{"species"}, and \code{"rangelandhealth"}.
+#' This is case-insensitive. Defaults to \code{c("header", "lpi", "height", "gap", "soilstability", "species", "rangelandhealth")}.
+#' @param output_filepath Optional character string. The filepath to a folder to
+#' save all outputs to as RDS or CSV files. This folder must already exist. If
+#' this is not \code{NULL} then the function will write the output and will NOT
+#' return any outputs in the R environment. If this is \code{NULL} then no
+#' data will be written to file and the function will return a list of data frames,
+#' one for each data type. Defaults to \code{NULL}.
+#' @param output_filetype Optional vector of character strings. This determines
+#' what file(s) type to write the outputs as in \code{output_filepath}. Valid file
+#' values are \code{"CSV"} and \code{"RDS"}, case-insensitive. Only considered if
+#' \code{output_filepath} is not \code{NULL}. Defaults to \code{c("csv", "rds")}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns If \code{output_filepath} is \code{NULL}, a list of tall data frames containing reformatted input data. Otherwise, no outputs in the R environment but files written into \code{output_filepath}.
+#' @examples
+#' # To process all AIM and LMF data in a geodatabase and save them in the
+#' # folder called "output" in the working directory as both CSV and RDS files.
+#' gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
+#'            output_filepath = "output")
+#'
+#' # To process line-point intercept and gap data from AIM in a geodatabase and
+#' # store them in the environment as a list of data frames with diagnostic
+#' # messages active.
+#' long_data_list <- gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
+#'                              source = "aim",
+#'                              data_types = c("lpi",
+#'                                             "gap"),
+#'                              verbose = TRUE)
+#'
+#' # To process wide-format LMF height and species inventory data that are
+#' # already in a data frame in the environment.
+#' long_data_list <- gather_all(source = "lmf",
+#'                              data_types = c("height",
+#'                                             "speciesinventory"),
+#'                              data_list = list(PASTUREHEIGHTS = pastureheights_data_frame,
+#'                                               PLANTCENSUS = plantcensus_data_frame))
+#' @export
 
+gather_all <- function(dsn = NULL,
+                       source,
+                       data_list = NULL,
+                       data_types = c("header",
+                                      "lpi",
+                                      "height",
+                                      "gap",
+                                      "soilstability",
+                                      "species",
+                                      "rangelandhealth"),
+                       output_filepath = NULL,
+                       output_filetype = c("csv", "rds"),
+                       # skip_missing = FALSE,
+                       verbose = FALSE) {
+  #### Sanitization ------------------------------------------------------------
+  ##### Source -----------------------------------------------------------------
+  source <- tolower(source) |>
+    unique()
+
+  valid_source_values <- c("aim",
+                           "terradat",
+                           "dima",
+                           "lmf")
+
+  # This collapses synonyms to avoid reprocessing data multiple times.
+  if (sum(c("aim",
+            "terradat",
+            "dima") %in% source) > 1) {
+    message('Because the values "aim", "terradat", and "dima" are all handled the same way and more than one has been provided, they will be replaced with "aim" to avoid duplicating work.')
+
+    source <- c(setdiff(x = source,
+                        y = c("aim",
+                              "terradat",
+                              "dima")),
+                "aim") |>
+      unique()
+  }
+
+  recognized_sources <- intersect(x = source,
+                                  y = valid_source_values)
+  if (length(recognized_sources) < 1) {
+    stop(paste0('source must be a vector of one or more of the following character strings: "',
+                paste(valid_source_values,
+                      collapse = '", "'),
+                '"'))
+  }
+
+    ##### Check data_types -------------------------------------------------------
+  valid_data_types <- c("header" = "header",
+                        "LPI" = "lpi",
+                        "height" = "height",
+                        "gap" = "gap",
+                        "soil stability" = "soilstability",
+                        "species inventory" = "species",
+                        "rangeland health" = "rangelandhealth")
+
+  requested_data_types <- intersect(x = valid_data_types,
+                                    y = tolower(data_types))
+
+  # This bit brings the names through which we use for messages later.
+  requested_data_types <- valid_data_types[valid_data_types %in% requested_data_types]
+
+  if (length(requested_data_types) < 1) {
+    stop(paste0('None of the requested data types were recognized. The argument data_types must be a vector of one or more of the following character strings: "',
+                paste(valid_data_types,
+                      collapse = '", "')),
+         '"')
+  }
+
+  if (verbose) {
+    message(paste0("The following data types will be read in: ",
+                   paste(requested_data_types,
+                         collapse = ", ")))
+  }
+
+  ##### Check data_list --------------------------------------------------------
+  method_argument_names <- list("aim" = list("header" = c("tblPlots",
+                                                          "date_tables"),
+                                             "lpi" = c("tblLPIHeader",
+                                                       "tblLPIDetail"),
+                                             "height" = c("tblLPIHeader",
+                                                          "tblLPIDetail"),
+                                             "gap" = c("tblGapHeader",
+                                                       "tblGapDetail"),
+                                             "soilstability" = c("tblSoilStabHeader",
+                                                                 "tblSoilStabDetail"),
+                                             "species" = c("tblSpecRichHeader",
+                                                           "tblSpecRichDetail"),
+                                             "rangelandhealth" = c("tblQualHeader",
+                                                                   "tblQualDetail")),
+                                "lmf" = list( "header" = c("POINT",
+                                                           "POINTCOORDINATES",
+                                                           "GPS",
+                                                           "ESFSG"),
+                                              "lpi" = "PINTERCEPT",
+                                              "height" = "PASTUREHEIGHTS",
+                                              "gap" = "GINTERCEPT",
+                                              "soilstability" = "SOILDISAG",
+                                              "species" = "PLANTCENSUS",
+                                              "rangeland health" = "RANGEHEALTH"))
+
+  if (verbose) {
+    message("Checking data_list for superficial validity. Additional checks will take place later.")
+  }
+
+  bad_data_list_values <- lapply(X = recognized_sources,
+                                 method_argument_names = method_argument_names,
+                                 requested_data_types = requested_data_types,
+                                 data_list = data_list,
+                                 verbose = verbose,
+                                 FUN = function(X, method_argument_names, requested_data_types, data_list, verbose){
+                                   if (any(c("aim", "terradat", "dima") %in% X)) {
+                                     current_method_argument_names <- method_argument_names[["aim"]]
+                                   } else {
+                                     current_method_argument_names <- method_argument_names[[X]]
+                                   }
+
+                                   arguments_to_check <- current_method_argument_names[requested_data_types] |>
+                                     unlist()
+
+                                   valid_classes <- sapply(X = arguments_to_check,
+                                                           data_list = data_list,
+                                                           FUN = function(X, data_list){
+                                                             is.null(data_list[[X]]) | is.data.frame(data_list[[X]]) | is.character(data_list[[X]])
+                                                           })
+
+                                   arguments_to_check[!valid_classes]
+                                 }) |>
+    unlist()
+
+  if (length(bad_data_list_values) > 0) {
+    stop(paste0("The following in data_list are not a valid class (either data frame or character string): ",
+                paste(bad_data_list_values,
+                      collapse = ", ")))
+  }
+
+
+  anticipated_data_list_names <- lapply(X = recognized_sources,
+                                        method_argument_names = method_argument_names,
+                                        requested_data_types = requested_data_types,
+                                        FUN = function(X, method_argument_names, requested_data_types){
+                                          method_argument_names[[X]][requested_data_types]
+                                        }) |>
+    unlist()
+  extraneous_data_list_names <- setdiff(x = names(data_list),
+                                        anticipated_data_list_names)
+
+  if (length(extraneous_data_list_names) > 0) {
+    warning(paste0("The following were included in data_list but will not be used because they are not relevant to the data types being worked with: ",
+                   paste(extraneous_data_list_names,
+                         collapse = ", ")))
+  }
+
+
+  ##### Check output_filepath --------------------------------------------------
+  if (!is.null(output_filepath) & !is.character(output_filepath)) {
+    stop("output_filepath must be a character string specifying the filepath to an existing folder.")
+  }
+
+  if (is.character(output_filepath)) {
+    if (length(output_filepath) > 1) {
+      stop("output_filepath must be a single character string specifying the filepath to an existing folder.")
+    }
+    if (nchar(tools::file_ext(output_filepath)) > 0) {
+      stop(paste0("output_filepath must be a single character string specifying the filepath to an existing folder but it currently has the file extension ",
+                  tools::file_ext(output_filepath)))
+    }
+    if (!file.exists(output_filepath)) {
+      stop(paste0("The specified output_filepath, ", output_filepath, ", does not exist."))
+    }
+    if (verbose) {
+      message(paste0("Gathered data will be written to ", output_filepath))
+    }
+  } else if (is.null(output_filepath) & verbose) {
+    message(paste0("Gathered data will be returned as a list of data frames."))
+  }
+
+  ##### Check output_filetype --------------------------------------------------
+  if (!is.null(output_filetype)) {
+    output_filetype <- tolower(output_filetype) |>
+      unique()
+
+    valid_filetypes <- c("csv",
+                         "rds")
+
+    recognized_filetypes <- intersect(x = output_filetype,
+                                      y = valid_filetypes)
+
+    if (length(recognized_filetypes) < 1) {
+      stop(paste0('output_filetype must be a vector of one or more of the following character strings: "',
+                  paste(valid_filetypes,
+                        collapse = '", "'),
+                  '"'))
+    }
+  }
+
+
+  #### Reading, gathering, and writing -----------------------------------------
+  # For each of the requested data types, run the relevant gather function.
+  # If output_filepath is not NULL, the results will be written out to that
+  # location. Otherwise, the data are stored in an output list.
+
+  # If more than one recognized source is specified, the outputs will be written
+  # separately but the output list will have them combined by data type.
+
+  # TODO: If skip_missing is TRUE, the tryCatch() should let NULLs be returned
+  # (but not written anywhere).
+
+  output <- list()
+
+  for (current_source in recognized_sources) {
+    for (current_data_type in requested_data_types) {
+      if (verbose) {
+        message(paste0("Attempting to gather ", names(requested_data_types[requested_data_types %in% current_data_type]), " data."))
+      }
+
+      # Note that the arguments are being pulled from data_list by name because
+      # that will return NULL for any that weren't provided and that plays
+      # nicely with the internal functions read_whatever() and
+      # read_with_fallback() that the gather functions use.
+      current_output <- switch(EXPR = current_data_type,
+                               "header" = {
+                                 gather_header(dsn = dsn,
+                                               source = current_source,
+                                               tblPlots = data_list[["tblPlots"]],
+                                               POINT = data_list[["POINT"]],
+                                               POINTCOORDINATES = data_list[["POINTCOORDINATES"]],
+                                               GPS = data_list[["GPS"]],
+                                               ESFSG = data_list[["ESFSG"]],
+                                               date_tables = data_list[["date_tables"]],
+                                               verbose = verbose)
+                               },
+                               "lpi" = {
+                                 gather_lpi(dsn = dsn,
+                                            source = current_source,
+                                            tblLPIHeader = data_list[["tblLPIHeader"]],
+                                            tblLPIDetail = data_list[["tblLPIDetail"]],
+                                            PINTERCEPT = data_list[["PINTERCEPT"]],
+                                            verbose = verbose)
+                               },
+                               "height" = {
+                                 gather_height(dsn = dsn,
+                                               source = current_source,
+                                               tblLPIHeader = data_list[["tblLPIHeader"]],
+                                               tblLPIDetail = data_list[["tblLPIDetail"]],
+                                               PASTUREHEIGHTS = data_list[["PASTUREHEIGHTS"]],
+                                               verbose = verbose)
+                               },
+                               "gap" = {
+                                 gather_gap(dsn = dsn,
+                                            source = current_source,
+                                            tblGapHeader = data_list[["tblGapHeader"]],
+                                            tblGapDetail = data_list[["tblGapDetail"]],
+                                            GINTERCEPT = data_list[["GINTERCEPT"]],
+                                            verbose = verbose)
+                               },
+                               "soilstability" = {
+                                 gather_soil_stability(dsn = dsn,
+                                                       source = current_source,
+                                                       tblSoilStabHeader = data_list[["tblSoilStabHeader"]],
+                                                       tblSoilStabDetail = data_list[["tblSoilStabDetail"]],
+                                                       SOILDISAG = data_list[["SOILDISAG"]],
+                                                       verbose = verbose)
+                               },
+                               "species" = {
+                                 gather_species_inventory(dsn = dsn,
+                                                          source = current_source,
+                                                          tblSpecRichHeader = data_list[["tblSpecRichHeader"]],
+                                                          tblSpecRichDetail = data_list[["tblSpecRichDetail"]],
+                                                          PLANTCENSUS = data_list[["PLANTCENSUS"]],
+                                                          verbose = verbose)
+                               },
+                               "rangelandhealth" = {
+                                 gather_rangeland_health(dsn = dsn,
+                                                         source = current_source,
+                                                         tblQualHeader = data_list[["tblQualHeader"]],
+                                                         tblQualDetail = data_list[["tblQualDetail"]],
+                                                         RANGEHEALTH = data_list[["RANGEHEALTH"]],
+                                                         verbose = verbose)
+                               })
+
+      if (!is.null(output_filepath)) {
+        for (filetype in recognized_filetypes) {
+          current_output_filename <- paste0(current_data_type,
+                                            "_",
+                                            current_source,
+                                            ".",
+                                            filetype)
+          if (verbose) {
+            message(paste0("Writing ",
+                           current_output_filename))
+          }
+          switch(EXPR = filetype,
+                 "rds" = {
+                   saveRDS(object = current_output,
+                           file = file.path(output_filepath,
+                                            current_output_filename))
+                 },
+                 "csv" = {
+                   write.csv(x = current_output,
+                             file = file.path(output_filepath,
+                                              current_output_filename),
+                             row.names = FALSE)
+                 })
+        }
+      } else {
+        # If not being written out, bind it to whatever has already been read in
+        # because they should have a source variable anyway.
+        output[[current_data_type]] <- dplyr::bind_rows(output[[current_data_type]],
+                                                        current_output)
+      }
+
+      if (verbose) {
+        message("Cleaning up and freeing memory.")
+      }
+
+      # Remove the data from the working environment to save memory!
+      rm(current_output)
+
+      # And do some memory cleanup just to be safe. The function gc() always
+      # returns a matrix but one that isn't useful for us to expose to the user,
+      # so the invisible() hides that from appearing in the console.
+      gc() |>
+        invisible()
+    }
+  }
+
+
+  if (is.null(output_filepath)) {
+    return(output)
+  }
+}
+
+
+#### HEADERS ###################################################################
 #' Gather AIM plot-level header data
 #' @description This reads in metadata from AIM sampling used as headers for
 #' various methods and returns it as a tall/long-format data frame suitable for use
@@ -9,12 +409,8 @@
 #' Database (TerrADat).
 #'
 #' @param dsn Optional character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature class tblPlots, e.g.
-#'   \code{"C:/DATA/AIM.GDB"}. If this is NULL, then the argument
-#'   \code{tblPlots} must be provided. Defaults to \code{NULL}.
-#' @param tblPlots Optional data frame. If provided, this must contain the
-#'   expected plot metadata. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param tblPlots Data frame or character string. If a data frame, must contain the variables PrimaryKey, SpeciesState, PlotID, PlotKey, EcolSite, Latitude, Longitude, State, Elevation, CountyName, EstablishDate, DateLoadedInDb, and SamplingApproach. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called tblPlots (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param date_tables Optional (contingent on other arguments) character vector
 #'   or list of data frames. This specifies the tables to extract date
 #'   information from. If \code{dsn} is not \code{NULL} AND the geodatabase
@@ -25,11 +421,9 @@
 #'   character strings specifying the names of the relevant feature classes. If
 #'   \code{tblPlots} is being used, then this must be a list of data frames
 #'   containing the relevant data. Defaults to \code{NULL}.
-#' @param ... Additional optional filtering expressions to be used with
-#'   \code{dplyr::filter()} to restrict the processing and output to only a
-#'   subset of input data. If providing data via the argument \code{tblPlots} it
-#'   is recommended to filter the data before calling this function instead of
-#'   using additional arguments here.
+#' @param ... Additional optional filtering expressions passed to
+#'   \code{\link[dplyr:filter]{dplyr::filter()}} to restrict the processing and output to only a
+#'   subset of input data.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #' @returns A long-format data frame of header data.
@@ -76,18 +470,15 @@ gather_header_terradat <- function(dsn = NULL,
   # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
-  # tblPlots provides the link between species tables
-  if(!is.null(tblPlots)){
-    header <- tblPlots
-  } else if (!is.null(dsn)){
-    header <- sf::st_read(dsn = dsn,
-                          layer = "tblPlots",
-                          stringsAsFactors = FALSE,
-                          quiet = TRUE) |>
-      sf::st_drop_geometry(x = _)
-  } else {
-    stop("Provide either tblPlots or a path to a GDB containing it")
-  }
+
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblPlots,
+                               default_name = "tblPlots",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose)
 
   # Restrict only to records which match the filtering criteria.
   header <- dplyr::filter(.data = header,
@@ -149,36 +540,41 @@ gather_header_terradat <- function(dsn = NULL,
                              "tblGapHeader",
                              "tblSpecRichHeader")
 
-    if (length(base::intersect(x = desired_date_tables,
-                               y = available_layers)) > 0) {
-      date_tables <- lapply(X = base::intersect(x = desired_date_tables,
-                                                y = available_layers),
-                            dsn = dsn,
-                            FUN = function(X, dsn){
-                              message(paste("Reading dates from",
+    date_tables <- lapply(X = desired_date_tables,
+                          dsn = dsn,
+                          verbose = verbose,
+                          FUN = function(X, dsn, verbose){
+                            if (verbose) {
+                              message(paste("Attempting to reading dates from",
                                             X))
-                              sf::st_read(dsn = dsn,
-                                          layer = X,
-                                          stringsAsFactors = FALSE,
-                                          quiet = TRUE) |>
-                                sf::st_drop_geometry() |>
+                            }
+                            current_date_table <- read_whatever(input = dsn,
+                                                                layer = X,
+                                                                regex = TRUE,
+                                                                best_guess = TRUE,
+                                                                accept_failure = TRUE,
+                                                                verbose = verbose)
+
+                            if (!is.null(current_date_table)) {
+                              current_date_table <- sf::st_drop_geometry(x = current_date_table) |>
                                 # This'll happen again in a bit, but just to
                                 # save on memory we'll pare it down here.
                                 dplyr::select(.data = _,
-                                              PrimaryKey,
+                                              tidyselect::all_of(x = c("PrimaryKey")),
                                               tidyselect::any_of(c(Date = "FormDate",
                                                                    Date = "CollectDate"))) |>
                                 dplyr::distinct()
-                            })
-    }
+                            }
+                            current_date_table
+                          })
   }
 
   if(is.null(date_tables)){
-    stop("date_tables must be provided if dsn is not. Provide a list of tables containing FormDate or collectDate")
+    stop("date_tables must be provided if dsn is not. Provide a list of tables containing the variables FormDate or collectDate.")
   }
 
   if(class(date_tables) != "list"){
-    stop("date_tables must be a list of minimum length 1")
+    stop("date_tables must be a list of minimum length 1. If you intend to provide a single data frame as date_tables, wrap it in list() like this: list(whatever_data_frame)")
   }
 
   # Take all the tables and return a record for each PrimaryKey with the first
@@ -209,26 +605,28 @@ gather_header_terradat <- function(dsn = NULL,
     dplyr::distinct()
 }
 
-#' Gather AIM plot-level header data
+#' Gather LMF plot-level header data
 #' @description This reads in metadata from AIM sampling used as headers for
 #' various methods and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}. The required
 #' feature classes in the geodatabase specified with \code{dsn} are POINT,
-#' POINTCOORDINATES, GPS, COUNTYNM, STATENM, and ESFSG. The expected formats for
+#' POINTCOORDINATES, GPS, and ESFSG. The expected formats for
 #' the input data are those used in the Landscape Monitoring Framework.
 #'
-#' @param dsn Character string. This must be the filepath to a geodatabase which
-#'   contains the relevant feature classes, e.g. \code{"C:/DATA/AIM.GDB"}. The
-#'   required feature classes are: POINT, POINTCOORDINATES, COUNTYNM, STATENM,
-#'   GPS, ESFSG.
-#' @param ... Additional optional filtering expressions to be used with
-#'   \code{dplyr::filter()} to restrict the processing and output to only a
-#'   subset of input data by filtering POINT.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param POINT Data frame or character string. If a data frame, must contain the variables PrimaryKey, SpeciesState, COUNTY, and STATE. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called POINT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param POINTCOORDINATES Data frame or character string. If a data frame, must contain the variables PrimaryKey, LocationType, REPORT_LATITUDE, and REPORT_LONGITUDE. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called POINTCOORDINATES (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param GPS Data frame or character string. If a data frame, must contain the variables PrimaryKey, CAPDATE, and ELEVATION. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called GPS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param ESFSG Data frame or character string. If a data frame, must contain the variables COVERAGE, END_MARK, START_MARK, ESFSG_MLRA, ESFSG_SITE, and ESFSG_STATE (the variable ESFSG_PREFIX is optional). If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called ESFSG (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param ... Additional optional filtering expressions passed to
+#'   \code{\link[dplyr:filter]{dplyr::filter()}} to restrict the processing and output to only a
+#'   subset of input data.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #' @returns A long-format data frame of header data.
 #' @examples
-#' # Basic use.
+#' # Basic use assuming that all expected feature classes appear in lmf_data.gdb
 #' gather_header_lmf(dsn = "data_path/lmf_data.gdb")
 #'
 #' # Using a filtering expression to restrict the processing and output to only
@@ -238,16 +636,29 @@ gather_header_terradat <- function(dsn = NULL,
 #'                   SpeciesState %in% c("CO", "NM"))
 #'
 #' @export
-gather_header_lmf <- function(dsn,
+gather_header_lmf <- function(dsn = NULL,
+                              POINT = NULL,
+                              POINTCOORDINATES = NULL,
+                              GPS = NULL,
+                              ESFSG = NULL,
                               ...,
                               verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
   filter_exprs <- rlang::quos(...)
 
-  point <- sf::read_sf(dsn = dsn,
-                       layer = "POINT",
-                       quiet = TRUE) |>
-    sf::st_drop_geometry(x = _) |>
+  #### Reading #################################################################
+  # This is the lookup table of state and county names with LMF numeric codes
+  lmf_locale_lookup <- read.csv(file = file.path("data", "lmf_locale_lookup.csv"),
+                                stringsAsFactors = FALSE)
+
+  # The basic info about sampling locations
+  point <- read_with_fallback(dsn = dsn,
+                              tbl = POINT,
+                              default_name = "POINT",
+                              regex = TRUE,
+                              best_guess = TRUE,
+                              accept_failure = FALSE,
+                              verbose = verbose) |>
     # Filter using the filtering expression specified by user
     dplyr::filter(.data = _,
                   !!!filter_exprs) |>
@@ -257,36 +668,65 @@ gather_header_lmf <- function(dsn,
                                        "COUNTY",
                                        "STATE")))
 
-  # County and State are referred to by number codes, let's use the name
-  point <- sf::st_read(dsn = dsn,
-                       layer = "COUNTYNM",
-                       stringsAsFactors = FALSE,
-                       quiet = TRUE) |>
+  # The coordinates for the sampling locations
+  pointcoordinates <- read_with_fallback(dsn = dsn,
+                                         tbl = POINTCOORDINATES,
+                                         default_name = "POINTCOORDINATES",
+                                         regex = TRUE,
+                                         best_guess = TRUE,
+                                         accept_failure = FALSE,
+                                         verbose = verbose) |>
+    sf::st_drop_geometry() |>
     dplyr::select(.data = _,
-                  tidyselect::all_of(c("COUNTY",
-                                       "COUNTYNM",
-                                       "STATE"))) |>
-    dplyr::distinct() |>
-    dplyr::left_join(x = point,
-                     y = _,
-                     relationship = "many-to-one",
-                     by = c("COUNTY",
-                            "STATE")) |>
-    # Add state
-    dplyr::left_join(x = _,
-                     y= sf::st_read(dsn = dsn,
-                                    layer = "STATENM",
-                                    stringsAsFactors = FALSE,
-                                    quiet = TRUE) |>
-                       dplyr::select(.data = _,
-                                     STATE,
-                                     STABBR) |>
-                       dplyr::distinct(),
-                     relationship = "many-to-one",
-                     by = "STATE") |>
-    dplyr::rename(.data = _,
-                  County = COUNTYNM,
-                  State = STABBR) |>
+                  PrimaryKey,
+                  Latitude_NAD83 = REPORT_LATITUDE,
+                  Longitude_NAD83 = REPORT_LONGITUDE,
+                  LocationType)
+
+  # The best source for elevation and sampling dates
+  gps <- read_with_fallback(dsn = dsn,
+                            tbl = GPS,
+                            default_name = "GPS",
+                            regex = TRUE,
+                            best_guess = TRUE,
+                            accept_failure = FALSE,
+                            verbose = verbose) |>
+    dplyr::select(.data = _,
+                  PrimaryKey,
+                  # The GPS capture date is the best approximation of the
+                  # sampling date.
+                  DateVisited = CAPDATE,
+                  Elevation = ELEVATION) |>
+    # Convert elevation to meters
+    dplyr::mutate(.data = _,
+                  Elevation = Elevation * 0.3048)
+
+  # Ecological site assignments
+  esfsg <- read_with_fallback(dsn = dsn,
+                              tbl = ESFSG,
+                              default_name = "ESFSG",
+                              regex = TRUE,
+                              best_guess = TRUE,
+                              accept_failure = FALSE,
+                              verbose = verbose)
+
+  # Add in ESFSG_PREFIX column to old data in order to keep up with LMF schema
+  # changes.
+  # # The prefix is the "F" or "R" typically found at the beginning of an ecosite
+  # ID.
+  if(!"ESFSG_PREFIX" %in% colnames(esfsg)) {
+    esfsg$ESFSG_PREFIX <- ""
+  }
+
+  #### Combining ###############################################################
+  # This creates then iterates on output.
+
+  # County and State are referred to by number codes, let's use the names
+  output <- dplyr::left_join(x = point,
+                             y = lmf_locale_lookup,
+                             relationship = "many-to-one",
+                             by = c("COUNTY",
+                                    "STATE")) |>
     # Pare down to needed fields
     dplyr::select(.data = _,
                   tidyselect::all_of(c("PrimaryKey",
@@ -295,57 +735,23 @@ gather_header_lmf <- function(dsn,
                                        "State"))) |>
     dplyr::mutate(.data = _,
                   PlotKey = PrimaryKey) |>
-    dplyr::distinct()
-
-  # Get the field coordinates
-  point_coordinate <- sf::st_read(dsn = dsn,
-                                  layer = "POINTCOORDINATES",
-                                  stringsAsFactors = FALSE,
-                                  quiet = TRUE) |>
-    sf::st_drop_geometry() |>
-    dplyr::select(.data = _,
-                  PrimaryKey,
-                  Latitude_NAD83 = REPORT_LATITUDE,
-                  Longitude_NAD83 = REPORT_LONGITUDE,
-                  LocationType) |>
-    dplyr::left_join(x = point,
-                     y = _,
+    dplyr::distinct() |>
+    # Add in the spatial info from POINTCOORDINATES
+    dplyr::left_join(x = _,
+                     y = pointcoordinates,
+                     relationship = "one-to-one",
+                     by = "PrimaryKey") |>
+    # Add the date and elevation from GPS
+    dplyr::left_join(x = _,
+                     y = gps,
                      relationship = "one-to-one",
                      by = "PrimaryKey")
 
-  # Add elevation data
-  point_elevation <- sf::read_sf(dsn = dsn,
-                                 layer = "GPS",
-                                 quiet = TRUE) |>
-    dplyr::select(.data = _,
-                  PrimaryKey,
-                  # The GPS capture date is the best approximation of the
-                  # sampling date.
-                  DateVisited = CAPDATE,
-                  Elevation = ELEVATION) |>
-    dplyr::left_join(x = point_coordinate,
-                     y = _,
-                     relationship = "one-to-one",
-                     by = "PrimaryKey") |>
-    # Convert elevation to meters
-    dplyr::mutate(.data = _,
-                  Elevation = Elevation * 0.3048)
-
-  # Add Ecological Site Id
-  point_ESD_raw <- sf::st_read(dsn = dsn,
-                               layer = "ESFSG",
-                               stringsAsFactors = FALSE,
-                               quiet = TRUE)
-
-  # Add in ESFSG_PREFIX column to old data in order to keep up with LMF schema
-  # changes.
-  if(!"ESFSG_PREFIX" %in% colnames(point_ESD_raw)) {
-    point_ESD_raw$ESFSG_PREFIX <- ""
-  }
-
-  point_ESD <- dplyr::left_join(x = point_elevation,
-                                y = point_ESD_raw,
-                                by = "PrimaryKey") |>
+  # This isn't part of the pipe chain above just because it's complicated and
+  # maintenance will be easier if it's separate
+  output <- dplyr::left_join(x = output,
+                             y = esfsg,
+                             by = "PrimaryKey") |>
     # If the ESD coverage !=all, figure what portion of the plot the dominant
     # ESD is on the plot by taking END_MARK - START_MARK and dividing by the
     # line length.
@@ -378,15 +784,125 @@ gather_header_lmf <- function(dsn,
                    .by_group = TRUE) |>
     dplyr::filter(.data = _,
                   dplyr::row_number() == 1) |>
-    # Join to point.elevation to build the final header
-    dplyr::left_join(x = point_elevation,
+    # Join to the previously-created output to build the final header
+    dplyr::left_join(x = output,
                      y = _,
                      relationship = "one-to-one",
                      by = "PrimaryKey") |>
     dplyr::mutate(.data = _,
                   PlotID = PrimaryKey)
 
-  point_ESD
+  output
+
+  # point <- sf::read_sf(dsn = dsn,
+  #                      layer = "POINT",
+  #                      quiet = TRUE) |>
+  #   sf::st_drop_geometry(x = _) |>
+  #   # Filter using the filtering expression specified by user
+  #   dplyr::filter(.data = _,
+  #                 !!!filter_exprs) |>
+  #   dplyr::select(.data = _,
+  #                 tidyselect::all_of(c("PrimaryKey",
+  #                                      "SpeciesState",
+  #                                      "COUNTY",
+  #                                      "STATE")))
+  #
+  #
+  #
+  #
+  #
+  #
+  # # Get the field coordinates
+  # point_coordinate <- sf::st_read(dsn = dsn,
+  #                                 layer = "POINTCOORDINATES",
+  #                                 stringsAsFactors = FALSE,
+  #                                 quiet = TRUE) |>
+  #   sf::st_drop_geometry() |>
+  #   dplyr::select(.data = _,
+  #                 PrimaryKey,
+  #                 Latitude_NAD83 = REPORT_LATITUDE,
+  #                 Longitude_NAD83 = REPORT_LONGITUDE,
+  #                 LocationType) |>
+  #   dplyr::left_join(x = point,
+  #                    y = _,
+  #                    relationship = "one-to-one",
+  #                    by = "PrimaryKey")
+  #
+  # # Add elevation data
+  # point_elevation <- sf::read_sf(dsn = dsn,
+  #                                layer = "GPS",
+  #                                quiet = TRUE) |>
+  #   dplyr::select(.data = _,
+  #                 PrimaryKey,
+  #                 # The GPS capture date is the best approximation of the
+  #                 # sampling date.
+  #                 DateVisited = CAPDATE,
+  #                 Elevation = ELEVATION) |>
+  #   dplyr::left_join(x = point_coordinate,
+  #                    y = _,
+  #                    relationship = "one-to-one",
+  #                    by = "PrimaryKey") |>
+  #   # Convert elevation to meters
+  #   dplyr::mutate(.data = _,
+  #                 Elevation = Elevation * 0.3048)
+  #
+  # # Add Ecological Site Id
+  # point_ESD_raw <- sf::st_read(dsn = dsn,
+  #                              layer = "ESFSG",
+  #                              stringsAsFactors = FALSE,
+  #                              quiet = TRUE)
+  #
+  # # Add in ESFSG_PREFIX column to old data in order to keep up with LMF schema
+  # # changes.
+  #
+  # if(!"ESFSG_PREFIX" %in% colnames(point_ESD_raw)) {
+  #   point_ESD_raw$ESFSG_PREFIX <- ""
+  # }
+  #
+  # point_ESD <- dplyr::left_join(x = point_elevation,
+  #                               y = point_ESD_raw,
+  #                               by = "PrimaryKey") |>
+  #   # If the ESD coverage !=all, figure what portion of the plot the dominant
+  #   # ESD is on the plot by taking END_MARK - START_MARK and dividing by the
+  #   # line length.
+  #   dplyr::mutate(.data = _,
+  #                 ESD_coverage = dplyr::if_else(condition = COVERAGE == "all",
+  #                                               true = as.integer(300),
+  #                                               false = (END_MARK - START_MARK)),
+  #                 # LMF schema is being updated to include F/R prefix under the
+  #                 # column ESFSG_PREFIX replace NA's with "" in ESFSG_PREFIX
+  #                 ESFSG_PREFIX = tidyr::replace_na(data = ESFSG_PREFIX,
+  #                                                  replace = ""),
+  #                 EcologicalSiteId = trimws(paste0(ESFSG_PREFIX,
+  #                                                  ESFSG_MLRA,
+  #                                                  ESFSG_SITE,
+  #                                                  ESFSG_STATE)),
+  #                 MLRA = gsub(x = ESFSG_MLRA,
+  #                             pattern = "^$",
+  #                             replacement = NA)) |>
+  #   # Add up the coverage on each plot and get the percent coverage
+  #   dplyr::group_by() |>
+  #   dplyr::summarize(.data = _,
+  #                    .by = tidyselect::all_of(c("PrimaryKey",
+  #                                               "EcologicalSiteId")),
+  #                    PercentCoveredByEcoSite = 100 * sum(ESD_coverage) / 300) |>
+  #   # Arrange by ESD_coverage and find the dominant ecological site
+  #   dplyr::group_by(.data = _,
+  #                   PrimaryKey) |>
+  #   dplyr::arrange(.data = _,
+  #                  dplyr::desc(PercentCoveredByEcoSite),
+  #                  .by_group = TRUE) |>
+  #   dplyr::filter(.data = _,
+  #                 dplyr::row_number() == 1) |>
+  #   # Join to point.elevation to build the final header
+  #   dplyr::left_join(x = point_elevation,
+  #                    y = _,
+  #                    relationship = "one-to-one",
+  #                    by = "PrimaryKey") |>
+  #   dplyr::mutate(.data = _,
+  #                 PlotID = PrimaryKey)
+  #
+  # point_ESD
 }
 
 
@@ -395,7 +911,7 @@ gather_header_lmf <- function(dsn,
 #' various methods and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.
 
-#' @export
+# #' @export
 gather_header_nri <- function(dsn = NULL,
                               speciesstate,
                               ...,
@@ -552,9 +1068,9 @@ gather_header_nri <- function(dsn = NULL,
   return(point_ESD)
 }
 
-# Build the header portion of the Survey123 table
-#' export gather_header_survey123
-#' rdname aim_gdb
+# # Build the header portion of the Survey123 table
+# #' export gather_header_survey123
+# #' rdname aim_gdb
 # gather_header_survey123 <- function(PlotChar, speciesstate, ...){
 #     # Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
 #     filter_exprs <- rlang::quos(...)
@@ -611,53 +1127,40 @@ gather_header_nri <- function(dsn = NULL,
 #' AIM (Assessment, Inventory, and Monitoring) and TerrADat (Terrestrial AIM
 #' Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
 #' Inventory, Monitoring, and Assessment). For additional information about
-#' arguments, see the documentation for the functions
-#' \code{gather_header_terradat()}, \code{gather_header_lmf()}, and
-#' \code{gather_header_nri()}.
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_header_terradat]{gather_header_terradat()}}, \code{\link[terradactyl:gather_header_lmf]{gather_header_lmf()}}, and
+#' \code{\link[terradactyl:gather_header_nri]{gather_header_nri()}}.
 #'
-#' @param dsn Optional (contingent) character string. This must be the filepath
-#'   to a geodatabase which contains the relevant feature classes, e.g.
-#'   \code{"C:/DATA/AIM.GDB"}. This is optional only when \code{source} is
-#'   \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{source} is
-#'   \code{"LMF"} or \code{"NRI"} this is required. Defaults to \code{NULL}
-#'   which results in it being ignored by the function.
+#' @inheritParams gather_header_terradat
+#' @inheritParams gather_header_lmf
 #' @param source Character string. This specifies the expected data format(s)
 #'   and determines which specialized gather function will be used. It must be
 #'   one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
 #'   \code{"NRI"}. This is case-insensitive.
-#' @param tblPlots Optional data frame only used if \code{source} is
-#'   \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If provided, this must
-#'   contain the expected plot metadata. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param date_tables Optional (contingent on other arguments) character vector
-#'   or list of data frames. Only used if \code{source} is \code{"AIM"},
-#'   \code{"TERRADAT"}, or \code{"DIMA"}. This specifies the tables to extract
-#'   date information from. If \code{dsn} is not \code{NULL} AND the geodatabase
-#'   contains at least one feature class from the set tblLPIHeader,
-#'   tblGapHeader, "tblSpecRichHeader", this argument is optional and can be
-#'   left as \code{NULL}. Otherwise, if \code{dsn} is not \code{NULL} and the
-#'   desired tables to use are named anything else, this must be a vector of
-#'   character strings specifying the names of the relevant feature classes. If
-#'   \code{tblPlots} is being used, then this must be a list of data frames
-#'   containing the relevant data. Defaults to \code{NULL}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblPlots} and \code{date_tables} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the arguments \code{POINT}, \code{POINTCOORDINATES}, \code{GPS}, and \code{ESFSG} are all considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
+#'
 #' @param speciesstate Optional. Used by NRI.
-#' @param ... Additional optional filtering expressions to be used with
-#'   \code{dplyr::filter()} to restrict the processing and output to only a
-#'   subset of input data.
-#' @param autoQC Logical (currently disabled). If \code{TRUE} then automatic
-#'   quality control functions will be applied to the data before returning the
-#'   output. Defaults to \code{FALSE}.
-#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
-#'   messages. Defaults to \code{FALSE}.
+# #' @param autoQC Logical (currently disabled). If \code{TRUE} then automatic
+# #'   quality control functions will be applied to the data before returning the
+# #'   output. Defaults to \code{FALSE}.
+# #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+# #'   messages. Defaults to \code{FALSE}.
 #'
 #' @returns A long-format data frame of header data.
 #' @examples
 #' # Headers from a geodatabase in the format of the Terrestrial AIM Database
-#' gather_header(dsn = "data_path/aim_data.gdb,
+#' gather_header(dsn = "data_path/aim_data.gdb",
 #'               source = "terradat")
 #'
 #' # Headers from a geodatabase in the format of the Landscape Monitoring Framework
-#' gather_header(dsn = "data_path/lmf_data.gdb,
+#' gather_header(dsn = "data_path/lmf_data.gdb",
 #'               source = "lmf")
 #'
 #' @export
@@ -665,6 +1168,10 @@ gather_header_nri <- function(dsn = NULL,
 gather_header <- function(dsn = NULL,
                           source,
                           tblPlots = NULL,
+                          POINT = NULL,
+                          POINTCOORDINATES = NULL,
+                          GPS = NULL,
+                          ESFSG = NULL,
                           date_tables = NULL,
                           speciesstate = NULL,
                           ...,
@@ -672,34 +1179,40 @@ gather_header <- function(dsn = NULL,
                           verbose = FALSE) {
   # Error check
   # Check for a valid source
-  try(if (!toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI")) {
+  try(if (!(toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))) {
     stop("No valid source provided")
   })
 
   # Apply appropriate header function
 
   if (toupper(source) %in% c("TERRADAT", "AIM", "DIMA")) {
-    header <- gather_header_terradat(dsn = dsn,
+    output <- gather_header_terradat(dsn = dsn,
                                      tblPlots = tblPlots,
                                      date_tables = date_tables,
-                                     ...)
+                                     ...,
+                                     verbose = verbose)
   } else if (toupper(source) == "LMF") {
-    header <- gather_header_lmf(dsn = dsn,
-                                ...)
+    output <- gather_header_lmf(dsn = dsn,
+                                POINT = POINT,
+                                POINTCOORDINATES = POINTCOORDINATES,
+                                GPS = GPS,
+                                ESFSG = ESFSG,
+                                ...,
+                                verbose == verbose)
   } else if (toupper(source) == "NRI") {
-    gather_header_nri(dsn = dsn,
-                      speciesstate = speciesstate,
-                      ...)
+    output <- gather_header_nri(dsn = dsn,
+                                speciesstate = speciesstate,
+                                ...)
   } else {
     stop("No valid source provided")
   }
 
   # Add the source value to the data.
-  header$source <- source
+  output$source <- source
 
   # Make sure there's no geometry associated with the data.
-  if("sf" %in% class(header)) {
-    header <- sf::st_drop_geometry(header)
+  if("sf" %in% class(output)) {
+    output <- sf::st_drop_geometry(x = output)
   }
 
   # Apply QC helper functions to remove duplicates
@@ -708,7 +1221,7 @@ gather_header <- function(dsn = NULL,
   #   header <- tdact_remove_duplicates(header)
   # }
 
-  header
+  output
 }
 
 
@@ -718,16 +1231,13 @@ gather_header <- function(dsn = NULL,
 #' in indicator calculations with the package \code{terradactyl}.The expected format is that used in the Terrestrial AIM
 #' Database (TerrADat).
 #' @param dsn Optional character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblLPIHeader and
-#'   tblLPIDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblLPIHeader} and \code{tblLPIDetail} must be provided.
-#'   Defaults to \code{NULL}.
-#' @param tblLPIDetail Optional data frame. If provided, this must contain the
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param tblLPIDetail Optional data frame or character string. If provided, this must contain the
+#'   expected LPI data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblLPIHeader Optional data frame or character string. If provided, this must contain the
 #'   expected metadata for the LPI data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblLPIHeader Optional data frame. If provided, this must contain the
-#'   expected LPI data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param auto_qc_warnings Logical. If \code{TRUE} the function will test the
 #'   data and metadata for duplicated records (records which are identical to
 #'   each other across all critical variables) and orphaned records (records
@@ -782,45 +1292,70 @@ gather_lpi_terradat <- function(dsn = NULL,
                          "DateModified",
                          "FormType")
 
-  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-  if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
-    if (verbose) {
-      if (!is.null(dsn)) {
-        message("Using the provided data frames. The provided dsn value is being ignored.")
-      }
-    }
-    detail <- tblLPIDetail
-    header <- tblLPIHeader
-  } else if(!is.null(dsn)){
-    if (verbose) {
-      message("Attempting to use the provided dsn value.")
-    }
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
-    }
-    # The suppressWarnings() here are so that it doesn't complain about pulling
-    # tables without geometry. We know that's what should be happening.
-    detail <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblLPIDetail",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-    header <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblLPIHeader",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-  } else {
-    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
-  }
-
-  # Clean these up!
-  detail <- dplyr::select(.data = detail,
-                          -tidyselect::any_of(internal_gdb_vars)) |>
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblLPIHeader,
+                               default_name = "tblLPIHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
 
-  header <- dplyr::select(.data = header,
-                          -tidyselect::any_of(internal_gdb_vars)) |>
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblLPIDetail,
+                               default_name = "tblLPIDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
 
+
+  # # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+  # if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
+  #   if (verbose) {
+  #     if (!is.null(dsn)) {
+  #       message("Using the provided data frames. The provided dsn value is being ignored.")
+  #     }
+  #   }
+  #   detail <- tblLPIDetail
+  #   header <- tblLPIHeader
+  # } else if(!is.null(dsn)){
+  #   if (verbose) {
+  #     message("Attempting to use the provided dsn value.")
+  #   }
+  #   if(!file.exists(dsn)){
+  #     stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+  #   }
+  #   # The suppressWarnings() here are so that it doesn't complain about pulling
+  #   # tables without geometry. We know that's what should be happening.
+  #   detail <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblLPIDetail",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  #   header <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblLPIHeader",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  # } else {
+  #   stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
+  # }
+  #
+  # # Clean these up!
+  # detail <- dplyr::select(.data = detail,
+  #                         -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::distinct()
+  #
+  # header <- dplyr::select(.data = header,
+  #                         -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::distinct()
+
+  #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -844,7 +1379,7 @@ gather_lpi_terradat <- function(dsn = NULL,
                           "NULL")
   }
 
-
+  #### Munging #################################################################
   # Make a tall data frame with the hit codes by layer.
   lpi_hits_tall <- dplyr::mutate(.data = detail,
                                  # Make sure we don't have factors in play.
@@ -984,22 +1519,13 @@ gather_lpi_terradat <- function(dsn = NULL,
 #' Function to convert LMF-format LPI data into a long format.
 #' @description This reads in Line-Point Intercept from LMF sampling and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.The expected format is that used in the Landscape Monitoring Framework (LMF).
-#' @param dsn Optional (contingent) character string. This is the filepath to
-#'   the source for the LMF data. If this points to a geodatabase, the
-#'   geodatabase must contain the feature class PINTERCEPT with the LPI data and
-#'   \code{file_type} must be \code{"gdb"}. If this points to a TXT or CSV file,
-#'   \code{file_type} must be \code{"txt"} and \code{"csv"}, respectively. If
-#'   \code{NULL}, then a data frame must be provided as the argument
-#'   \code{PINTERCEPT}. Defaults to \code{NULL}.
-#' @param file_type Optional character string. This must be \code{"gdb"},
-#'   \code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-#'   If \code{dsn} is \code{NULL} this argument is ignored. Defaults to
-#'   \code{"gdb"}.
-#' @param PINTERCEPT Optional (contingent) data frame. This is the data frame
-#'   containing the LPI data in the format of the PINTERCEPT table used by LMF.
-#'   If provided, this will be used even if \code{dsn} is also non-NULL.
-#'   Defaults to \code{NULL}.
-#' @param Logical. If \code{TRUE} then the function will report back diagnostic
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param PINTERCEPT Optional data frame or character string. If provided, this must contain the
+#'   expected LPI data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PINTERCEPT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param verbose Logical. If \code{TRUE} then the function will report back diagnostic
 #'   information as console messages while it works. Defaults to \code{FALSE}.
 #'
 #' @examples
@@ -1015,16 +1541,48 @@ gather_lpi_terradat <- function(dsn = NULL,
 #' @export
 
 gather_lpi_lmf <- function(dsn = NULL,
-                           file_type = "gdb",
                            PINTERCEPT = NULL,
+                           file_type = "gdb",
                            verbose = FALSE) {
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
+
   #### Reading and cleanup #####################################################
+  pintercept <- read_with_fallback(dsn = dsn,
+                                   tbl = PINTERCEPT,
+                                   default_name = "PINTERCEPT",
+                                   regex = TRUE,
+                                   best_guess = TRUE,
+                                   accept_failure = FALSE,
+                                   verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
   if (!is.null(PINTERCEPT)) {
     pintercept <- PINTERCEPT
   } else if (!is.null(dsn)) {
     if (!file.exists(dsn)) {
       stop("dsn must be a valid filepath.")
+    }
+    file_type <- tools::file_ext(x = dsn) |>
+      tolower()
+    if (!(file_type %in% c("gdb", "csv", "txt"))) {
+      stop("dsn must end in one of the following file extensions: gdb, csv, txt.")
     }
     # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
     pintercept <- switch(file_type,
@@ -1064,28 +1622,6 @@ gather_lpi_lmf <- function(dsn = NULL,
   # Sometimes NAs might be introduced as variable names, but we can make sure to
   # drop those.
   pintercept <- pintercept[, !is.na(colnames(pintercept))]
-
-  ##### Making sure these are distinct records ---------------------------------
-  # These are used for data management within a geodatabase and we're going to
-  # drop them. This helps us to weed out duplicate records created by quirks of
-  # the ingest processes.
-  internal_gdb_vars <- c("GlobalID",
-                         "created_user",
-                         "created_date",
-                         "last_edited_user",
-                         "last_edited_date",
-                         "DateLoadedInDb",
-                         "DateLoadedinDB",
-                         "rid",
-                         "DataErrorChecking",
-                         "DataEntry",
-                         "DateModified",
-                         "FormType",
-                         "DBKey")
-
-  pintercept <- dplyr::select(.data = pintercept,
-                              -tidyselect::any_of(internal_gdb_vars)) |>
-    dplyr::distinct()
 
   ##### Dealing with intersecting transects ------------------------------------
   # The arrangement of the transects for an LMF point crosses in the middle of
@@ -1226,8 +1762,8 @@ gather_lpi_nps <- function(dsn,
     )
 }
 
-#' export gather_lpi_survey123
-#' rdname gather_lpi
+# #' export gather_lpi_survey123
+# #' rdname gather_lpi
 # gather_lpi_survey123 <- function(dsn = NULL,
 #                                  LPI_0 = NULL,
 #                                  LPIDetail_1 = NULL) {
@@ -1387,34 +1923,27 @@ gather_lpi_nps <- function(dsn,
 #' AIM (Assessment, Inventory, and Monitoring) and TerrADat (Terrestrial AIM
 #' Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
 #' Inventory, Monitoring, and Assessment). For additional information about
-#' arguments, see the documentation for the functions
-#' \code{gather_lpi_terradat()} and \code{gather_lpi_lmf()}.
-#' @param dsn Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblLPIHeader and
-#'   tblLPIDetail or the feature class PINTERCEPT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblLPIHeader} and \code{tblLPIDetail} or the argument \code{PINTERCEPT} must be provided.
-#'   Defaults to \code{NULL}.
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_lpi_terradat]{gather_lpi_terradat()}}, \code{\link[terradactyl:gather_lpi_lmf]{gather_lpi_lmf()}}, and
+#' \code{\link[terradactyl:gather_lpi_nri]{gather_lpi_nri()}}.
+#'
+#' @inheritParams gather_lpi_terradat
+#' @inheritParams gather_lpi_lmf
 #' @param source Character string. This specifies the expected data format(s)
 #'   and determines which specialized gather function will be used. It must be
 #'   one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
 #'   \code{"NRI"}. This is case-insensitive.
-#' @param tblLPIDetail Optional data frame. If provided, this must contain the
-#'   expected LPI data in the format of the tblLPIDetail table used by AIM.  Only used if \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblLPIHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the LPI data in the format of the tblLPIHeader table used by AIM. Only used if \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
-#' @param PINTERCEPT Optional (contingent) data frame. This is the data frame
-#'   containing the LPI data in the format of the PINTERCEPT table used by LMF.  Only used if \code{source} is \code{"LMF}.
-#'   If provided, this will be used even if \code{dsn} is also non-NULL.
-#'   Defaults to \code{NULL}.
-#' @param file_type Optional character string. This must be \code{"gdb"},
-#'   \code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-#'   If \code{dsn} is \code{NULL} this argument is ignored.  Only used if \code{source} is \code{"LMF}. Defaults to
-#'   \code{"gdb"}.
 #' @param verbose Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblLPIHeader} and \code{tblLPIDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{PINTERCEPT} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 #' @examples
 #' # LPI data from a geodatabase in the format of the Terrestrial AIM Database
 #' gather_lpi(dsn = "data_path/aim_data.gdb,
@@ -1443,11 +1972,13 @@ gather_lpi <- function(dsn = NULL,
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     lpi <- gather_lpi_terradat(dsn = dsn,
                                tblLPIDetail = tblLPIDetail,
-                               tblLPIHeader = tblLPIHeader)
+                               tblLPIHeader = tblLPIHeader,
+                               verbose = verbose)
   } else if(toupper(source) %in% c("LMF", "NRI")){
     lpi <- gather_lpi_lmf(dsn = dsn,
                           file_type = file_type,
-                          PINTERCEPT = PINTERCEPT)
+                          PINTERCEPT = PINTERCEPT,
+                          verbose = verbose)
     lpi$chckbox <- NA
     # } else if(toupper(source) == "SURVEY123"){
     #   lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
@@ -1509,17 +2040,14 @@ gather_lpi <- function(dsn = NULL,
 #' @description This reads in height data from AIM sampling and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.The expected format is that used in the Terrestrial AIM
 #' Database (TerrADat).
-#' @param dsn Optional (contingent) character string. If provided, this must be
-#'   the filepath to a geodatabase which contains the feature classes
-#'   tblLPIHeader and tblLPIDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is
-#'   \code{NULL}, then the arguments \code{tblLPIHeader} and \code{tblLPIDetail}
-#'   must be provided. Defaults to \code{NULL}.
-#' @param tblLPIDetail Optional data frame. If provided, this must contain the
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes.
+#' @param tblLPIDetail Optional data frame or character string. If provided, this must contain the
 #'   expected LPI data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblLPIHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the LPI data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblLPIHeader Optional data frame or character string. If provided, this must contain the
+#'   expected metadata for the LPI data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param auto_qc_warnings  Logical. If \code{TRUE} the function will test the
 #'   data and metadata for duplicated records (records which are identical to
 #'   each other across all critical variables) and orphaned records (records
@@ -1569,37 +2097,60 @@ gather_height_terradat <- function(dsn = NULL,
                          "DateModified",
                          "FormType")
 
-  # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-  if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
-    if (verbose) {
-      if (!is.null(dsn)) {
-        message("Using the provided data frames. The provided dsn value is being ignored.")
-      }
-    }
-    detail <- tblLPIDetail
-    header <- tblLPIHeader
-  } else if(!is.null(dsn)){
-    if (verbose) {
-      message("Attempting to use the provided dsn value.")
-    }
-    if(!file.exists(dsn)){
-      stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
-    }
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblLPIHeader,
+                               default_name = "tblLPIHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
 
-    # The suppressWarnings() here are so that it doesn't complain about pulling
-    # tables without geometry. We know that's what should be happening.
-    detail <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblLPIDetail",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-    header <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblLPIHeader",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-  } else {
-    stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
-  }
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblLPIDetail,
+                               default_name = "tblLPIDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
+  # # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
+  # if (!is.null(tblLPIDetail) & !is.null(tblLPIHeader)) {
+  #   if (verbose) {
+  #     if (!is.null(dsn)) {
+  #       message("Using the provided data frames. The provided dsn value is being ignored.")
+  #     }
+  #   }
+  #   detail <- tblLPIDetail
+  #   header <- tblLPIHeader
+  # } else if(!is.null(dsn)){
+  #   if (verbose) {
+  #     message("Attempting to use the provided dsn value.")
+  #   }
+  #   if(!file.exists(dsn)){
+  #     stop("dsn must be a valid filepath to a geodatabase containing tblLPIDetail and tblLPIHeader")
+  #   }
+  #
+  #   # The suppressWarnings() here are so that it doesn't complain about pulling
+  #   # tables without geometry. We know that's what should be happening.
+  #   detail <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblLPIDetail",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  #   header <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblLPIHeader",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  # } else {
+  #   stop("Supply either tblLPIDetail and tblLPIHeader, or the path to a GDB containing tables with those names.")
+  # }
 
+  #### Cleanup #################################################################
   # Clean these up!
   # We're deliberating excluding some variables in both tables here. No sense
   # in bogging down the munging with extraneous things we'll never use.
@@ -1618,6 +2169,7 @@ gather_height_terradat <- function(dsn = NULL,
     dplyr::distinct()
 
 
+  #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -1633,6 +2185,7 @@ gather_height_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
+  #### Munging #################################################################
   # These are used to check for situations where there are going to be issues
   # with coerced data types or just the presence of NA values because some data
   # sets are not complete.
@@ -1790,18 +2343,12 @@ gather_height_terradat <- function(dsn = NULL,
 #' Convert LMF-format height data into a long format.
 #' @description This reads in height data from LMF sampling and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.The expected format is that used in the Landscape Monitoring Framework (LMF).
-#' @param dsn Optional (contingent) character string. If provided, this must be
-#'   the filepath to a geodatabase which contains the feature class
-#'   PASTUREHEIGHTS, e.g. \code{"C:/DATA/LMF.GDB"}. If this is \code{NULL}, then
-#'   the argument \code{PASTUREHEIGHTS} must be provided. Defaults to
-#'   \code{NULL}.
-#' @param file_type Optional character string. This must be \code{"gdb"},
-#'   \code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-#'   If \code{dsn} is \code{NULL} this argument is ignored. Defaults to
-#'   \code{"gdb"}.
-#' @param PASTUREHEIGHTS Optional data frame. If provided, this must contain the
-#'   expected heights data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param PASTUREHEIGHTS Optional data frame or character string. If provided, this must contain the
+#'   expected height data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PASTUREHEIGHTS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -1824,69 +2371,6 @@ gather_height_lmf <- function(dsn = NULL,
                               file_type = "gdb",
                               PASTUREHEIGHTS = NULL,
                               verbose = FALSE) {
-  #### Reading and cleanup #####################################################
-  if(!is.null(PASTUREHEIGHTS)){
-    vegheight <- PASTUREHEIGHTS
-  } else if (!is.null(dsn)) {
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing PASTUREHEIGHTS")
-    }
-
-    # Read in the data as .txt or .gdb
-    vegheight <- switch(file_type,
-                        "gdb" = {
-                          suppressWarnings(sf::st_read(dsn,
-                                                       layer = "PASTUREHEIGHTS",
-                                                       stringsAsFactors = FALSE,
-                                                       quiet = T
-                          ))
-                        },
-                        "txt" = {
-                          read.table(paste(dsn, "pastureheights.txt", sep = ""),
-                                     stringsAsFactors = FALSE,
-                                     header = FALSE,
-                                     sep = "|",
-                                     strip.white = TRUE
-                          )
-                        },
-                        "csv" = {
-                          read.csv(dsn)
-                        }
-    )
-
-    if (file_type == "txt") {
-      # if it is in a text file, there are no field names assigned.
-      colnames <- subset(
-        terradactyl::nri.data.column.explanations,
-        TABLE.NAME == "PASTUREHEIGHTS"
-      ) |>
-        dplyr::pull(FIELD.NAME) |>
-        unique()
-
-      vegheight <- vegheight[seq_len(length(colnames))]
-      names(vegheight) <- colnames
-
-      # We need to establish and/or fix the PLOTKEY so it exists in a single field.
-      vegheight$PrimaryKey <- paste(vegheight$SURVEY,
-                                    vegheight$STATE,
-                                    vegheight$COUNTY,
-                                    vegheight$PSU,
-                                    vegheight$POINT,
-                                    sep = ""
-      )
-
-      # Assign DBKey
-      vegheight$DBKey <- vegheight$SURVEY
-    }
-
-
-
-
-  } else {
-    stop("Supply either PASTUREHEIGHTS or a path to a gdb containing that table")
-  }
-
-  ##### Making sure these are distinct records ---------------------------------
   # These are used for data management within a geodatabase and we're going to
   # drop them. This helps us to weed out duplicate records created by quirks of
   # the ingest processes.
@@ -1904,9 +2388,75 @@ gather_height_lmf <- function(dsn = NULL,
                          "FormType",
                          "DBKey")
 
-  vegheight <- dplyr::select(.data = vegheight,
-                             -tidyselect::any_of(internal_gdb_vars)) |>
+  #### Reading and cleanup #####################################################
+  pastureheights <- read_with_fallback(dsn = dsn,
+                                       tbl = PASTUREHEIGHTS,
+                                       default_name = "PASTUREHEIGHTS",
+                                       regex = TRUE,
+                                       best_guess = TRUE,
+                                       accept_failure = FALSE,
+                                       verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
+
+  # if(!is.null(PASTUREHEIGHTS)){
+  #   pastureheights <- PASTUREHEIGHTS
+  # } else if (!is.null(dsn)) {
+  #   if (!file.exists(dsn)) {
+  #     stop("dsn must be a valid filepath to a geodatabase containing PASTUREHEIGHTS")
+  #   }
+  #
+  #   # Read in the data as .txt or .gdb
+  #   pastureheights <- switch(file_type,
+  #                       "gdb" = {
+  #                         suppressWarnings(sf::st_read(dsn,
+  #                                                      layer = "PASTUREHEIGHTS",
+  #                                                      stringsAsFactors = FALSE,
+  #                                                      quiet = T
+  #                         ))
+  #                       },
+  #                       "txt" = {
+  #                         read.table(paste(dsn, "pastureheights.txt", sep = ""),
+  #                                    stringsAsFactors = FALSE,
+  #                                    header = FALSE,
+  #                                    sep = "|",
+  #                                    strip.white = TRUE
+  #                         )
+  #                       },
+  #                       "csv" = {
+  #                         read.csv(dsn)
+  #                       }
+  #   )
+  #
+  #   if (file_type == "txt") {
+  #     # if it is in a text file, there are no field names assigned.
+  #     colnames <- subset(
+  #       terradactyl::nri.data.column.explanations,
+  #       TABLE.NAME == "PASTUREHEIGHTS"
+  #     ) |>
+  #       dplyr::pull(FIELD.NAME) |>
+  #       unique()
+  #
+  #     pastureheights <- pastureheights[seq_len(length(colnames))]
+  #     names(pastureheights) <- colnames
+  #
+  #     # We need to establish and/or fix the PLOTKEY so it exists in a single field.
+  #     pastureheights$PrimaryKey <- paste(pastureheights$SURVEY,
+  #                                   pastureheights$STATE,
+  #                                   pastureheights$COUNTY,
+  #                                   pastureheights$PSU,
+  #                                   pastureheights$POINT,
+  #                                   sep = ""
+  #     )
+  #
+  #     # Assign DBKey
+  #     pastureheights$DBKey <- pastureheights$SURVEY
+  #   }
+  # } else {
+  #   stop("Supply either PASTUREHEIGHTS or a path to a gdb containing that table")
+  # }
+
 
   ##### Dealing with intersecting transects ------------------------------------
   # The arrangement of the transects for an LMF point crosses in the middle of
@@ -1914,32 +2464,32 @@ gather_height_lmf <- function(dsn = NULL,
   # per transect. We'll drop the 75th record on the northeast-southwest transect
   # but we also want to warn the user that it's happening to any situations
   # where the assumption that they're identical is violated.
-  duplicated_75mark_indices <- dplyr::filter(.data = vegheight,
+  duplicated_75mark_indices <- dplyr::filter(.data = pastureheights,
                                              DISTANCE == 75) |>
     dplyr::select(.data = _,
                   -TRANSECT) |>
     duplicated(x = _)
-  vegheight_75mark <- dplyr::filter(.data = vegheight,
-                                    DISTANCE == 75)
-  vegheight_75mark[["duplicated"]] <- duplicated_75mark_indices
-  vegheight_75mark_summary <- dplyr::summarize(.data = vegheight_75mark,
-                                               .by = PrimaryKey,
-                                               n_records = dplyr::n(),
-                                               has_duplicate = any(duplicated))
-  if (any(!vegheight_75mark_summary$has_duplicate)) {
-    warning(paste0("There are ", sum(!vegheight_75mark_summary$has_duplicate),
+  pastureheights_75mark <- dplyr::filter(.data = pastureheights,
+                                         DISTANCE == 75)
+  pastureheights_75mark[["duplicated"]] <- duplicated_75mark_indices
+  pastureheights_75mark_summary <- dplyr::summarize(.data = pastureheights_75mark,
+                                                    .by = PrimaryKey,
+                                                    n_records = dplyr::n(),
+                                                    has_duplicate = any(duplicated))
+  if (any(!pastureheights_75mark_summary$has_duplicate)) {
+    warning(paste0("There are ", sum(!pastureheights_75mark_summary$has_duplicate),
                    " plots where the height records at the 75th sampling locations on the two transects are not identical to each other despite being the intersection of those transects. This is not unexpected and the records associated with the 'nesw' transects will still be dropped for these plots."))
   }
 
-  vegheight <- dplyr::filter(.data = vegheight,
-                             !(TRANSECT == "nesw" & DISTANCE == 75))
+  pastureheights <- dplyr::filter(.data = pastureheights,
+                                  !(TRANSECT == "nesw" & DISTANCE == 75))
 
   #### Reformatting and harmonizing ############################################
   # Most of the heavy lifting!
   # This will get us to the point where there's a separate record for each type
   # of measurement (woody and nonwoody) but there's a little more to adjust
   # after that.
-  data_long <- dplyr::select(.data = vegheight,
+  data_long <- dplyr::select(.data = pastureheights,
                              PrimaryKey,
                              LineKey = TRANSECT,
                              PointNbr = DISTANCE,
@@ -2014,8 +2564,8 @@ gather_height_lmf <- function(dsn = NULL,
     dplyr::distinct()
 }
 
-#' export gather_height_survey123
-#' rdname gather_height
+# #' export gather_height_survey123
+# #' rdname gather_height
 # gather_height_survey123 <- function(LPI_0,
 #                                     LPIDetail_1) {
 #
@@ -2128,36 +2678,23 @@ gather_height_lmf <- function(dsn = NULL,
 
 #' Convert height data into a tall, tidy data frame
 #'
-#' @description Given wide format line-point intercept data, create a tall
-#' format data frame usable by other terradactyl functions.
+#' @description Given wide format line-point intercept or height data, create a tall
+#' format data frame usable by other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_height_terradat]{gather_height_terradat()}}, \code{\link[terradactyl:gather_height_lmf]{gather_height_lmf()}}, and
+#' \code{\link[terradactyl:gather_height_nri]{gather_height_nri()}}.
 #'
-#' @param dsn Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblLPIHeader and
-#'   tblLPIDetail or the feature class PASTUREHEIGHTS, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL} and \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"} (case-insensitive), then
-#'   the arguments \code{tblLPIHeader} and \code{tblLPIDetail}. If this is \code{NULL} and \code{source} is \code{"LMF"} (case-insensitive), then the argument \code{PASTUREHEIGHTS} must be provided.
-#'   Defaults to \code{NULL}.
+#' @inheritParams gather_height_terradat
+#' @inheritParams gather_height_lmf
 #' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
-#' @param tblLPIDetail Optional data frame. If provided, this must contain the
-#'   expected metadata for the LPI data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Only used if \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"}. Defaults to \code{NULL}.
-#' @param tblLPIHeader Optional data frame. If provided, this must contain the
-#'   expected LPI data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Only used if \code{source} is one of \code{"AIM"}, \code{"TerrADat"}, or \code{"DIMA"}. Defaults to \code{NULL}.
-#' @param PASTUREHEIGHTS Optional data frame. If provided, this must contain the
-#'   expected heights data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Only used if \code{source} is \code{"LMF"}. Defaults to \code{NULL}.
-#' @param file_type Optional character string. This must be \code{"gdb"},
-#'   \code{"txt"}, or \code{"csv"} and must match the file type of \code{dsn}.
-#'   If \code{dsn} is \code{NULL} this argument is ignored. Only used if \code{source} is \code{"LMF"}. Defaults to
-#'   \code{"gdb"}.
-#' @param auto_qc Logical (disabled). If \code{TRUE} then AIM/DIMA/TerrADat data will be
-#' checked for non-unique and orphaned records before doing processing. If any
-#' are found, a warning will be triggered but the gather will still be carried
-#' out. It is strongly recommended that any identified issues be addressed to
-#' avoid incorrect records in the output. Defaults to \code{TRUE}.
-#' @param verbose Logical. If \code{TRUE} then the function will report back
-#' diagnostic information as console messages while it works. Defaults to
-#' \code{FALSE}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblLPIHeader} and \code{tblLPIDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{PASTUREHEIGHTS} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 #' @return A tall data frame containing the data from the height measurements.
 #' @export
 #' @examples
@@ -2183,28 +2720,24 @@ gather_height <- function(dsn = NULL,
                           tblLPIHeader = NULL,
                           PASTUREHEIGHTS = NULL,
                           autoQC = TRUE,
-                          verbose = FALSE#,
-                          # LPI_0 = NULL,
-                          # LPIDetail_1 = NULL
-) {
+                          verbose = FALSE) {
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    height <- gather_height_terradat(
-      dsn = dsn,
-      tblLPIHeader = tblLPIHeader,
-      tblLPIDetail = tblLPIDetail
-    )
+    height <- gather_height_terradat(dsn = dsn,
+                                     tblLPIHeader = tblLPIHeader,
+                                     tblLPIDetail = tblLPIDetail,
+                                     verbose = verbose)
   } else if(toupper(source) %in% c("LMF", "NRI")){
-    height <- gather_height_lmf(
-      dsn = dsn, file_type = file_type,
-      PASTUREHEIGHTS = PASTUREHEIGHTS
-    )
+    height <- gather_height_lmf(dsn = dsn,
+                                file_type = file_type,
+                                PASTUREHEIGHTS = PASTUREHEIGHTS,
+                                verbose = verbose)
     # } else if(toupper(source) %in% c("SURVEY123")){
     #   height <- gather_height_survey123(
     #     LPI_0 = LPI_0,
     #     LPIDetail_1 = LPIDetail_1
     #   )
   } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+    stop('source must be "AIM", "TerrADat", "DIMA", "LMF", or "NRI" (case independent).')
   }
 
   # height$source <- toupper(source)
@@ -2237,17 +2770,14 @@ gather_height <- function(dsn = NULL,
 
 #### GAP #######################################################################
 #' Convert AIM-format gap data into a long/tall format.
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblGapHeader and
-#'   tblGapDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblGapHeader} and \code{tblGapDetail} are required. Defaults to
-#'   \code{NULL}.
-#' @param tblGapDetail Optional data frame. If provided, this must contain the
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes.
+#' @param tblGapDetail Optional data frame or character string. If provided, this must contain the
 #'   expected gap data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblGapHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the gap data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblGapDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblGapHeader Optional data frame or character string. If provided, this must contain the
+#'   expected metadata for the gap data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblGapHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param auto_qc_warnings  Logical. If \code{TRUE} the function will test the
 #'   data and metadata for duplicated records (records which are identical to
 #'   each other across all critical variables) and orphaned records (records
@@ -2301,50 +2831,76 @@ gather_gap_terradat <- function(dsn = NULL,
                          "DataEntry",
                          "DateModified",
                          "FormType")
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblGapHeader,
+                               default_name = "tblGapHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
+
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblGapDetail,
+                               default_name = "tblGapDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
   ### switch by input types
-  if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
-    if (verbose) {
-      if (!is.null(dsn)) {
-        message("Using the provided data frames. The provided dsn value is being ignored.")
-      }
-    }
-    detail <- tblGapDetail
-    header <- tblGapHeader
-  } else if(!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing tblGapDetail and tblGapHeader")
-    }
-    # The suppressWarnings() here are so that it doesn't complain about pulling
-    # tables without geometry. We know that's what should be happening.
-    # Read tblGapDetail
-    detail <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblGapDetail",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-
-    # Read tblGapHeader
-    header <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblGapHeader",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-
-  } else {
-    stop("Provide both tblGapDetail and tblGapHeader or the path to a GDB containing those tables.")
-  }
-
-  # Clean these up!
-  detail <- dplyr::select(.data = detail,
-                          -tidyselect::any_of(internal_gdb_vars)) |>
-    dplyr::filter(.data = _,
-                  !is.na(PrimaryKey)) |>
-    dplyr::distinct()
-
-  header <- dplyr::select(.data = header,
-                          -tidyselect::any_of(internal_gdb_vars)) |>
-    dplyr::filter(.data = _,
-                  !is.na(PrimaryKey)) |>
-    dplyr::distinct()
+  # if(!is.null(tblGapDetail) & !is.null(tblGapHeader)){
+  #   if (verbose) {
+  #     if (!is.null(dsn)) {
+  #       message("Using the provided data frames. The provided dsn value is being ignored.")
+  #     }
+  #   }
+  #   detail <- tblGapDetail
+  #   header <- tblGapHeader
+  # } else if(!is.null(dsn)){
+  #   if (!file.exists(dsn)) {
+  #     stop("dsn must be a valid filepath to a geodatabase containing tblGapDetail and tblGapHeader")
+  #   }
+  #   # The suppressWarnings() here are so that it doesn't complain about pulling
+  #   # tables without geometry. We know that's what should be happening.
+  #   # Read tblGapDetail
+  #   detail <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblGapDetail",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  #
+  #   # Read tblGapHeader
+  #   header <- suppressWarnings(sf::st_read(dsn = dsn,
+  #                                          layer = "tblGapHeader",
+  #                                          stringsAsFactors = FALSE,
+  #                                          quiet = TRUE))
+  #
+  # } else {
+  #   stop("Provide both tblGapDetail and tblGapHeader or the path to a GDB containing those tables.")
+  # }
+  #
+  # # Clean these up!
+  # detail <- dplyr::select(.data = detail,
+  #                         -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::filter(.data = _,
+  #                 !is.na(PrimaryKey)) |>
+  #   dplyr::distinct()
+  #
+  # header <- dplyr::select(.data = header,
+  #                         -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::filter(.data = _,
+  #                 !is.na(PrimaryKey)) |>
+  #   dplyr::distinct()
 
   # # add null DBKey field if not present
   # if(!"DBKey" %in% colnames(header)) header$DBKey <- NA
@@ -2362,6 +2918,7 @@ gather_gap_terradat <- function(dsn = NULL,
                           dplyr::across(.cols = tidyselect::all_of(names(not_numeric_vars)),
                                         .fns = as.numeric))
 
+  #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -2381,6 +2938,7 @@ gather_gap_terradat <- function(dsn = NULL,
   }
 
 
+  #### Munging #################################################################
   # Merge header and detail data together.
   # We're suppressing warnings and not enforcing the relationship so that the
   # user can move ahead without cleaning their data first.
@@ -2496,19 +3054,14 @@ gather_gap_terradat <- function(dsn = NULL,
 }
 
 #' Convert LMF-format gap data into a long/tall format.
-#' @param dsn  Optional (contingent) character string. If provided, this must be
-#'   the filepath to a geodatabase which contains the feature classes GINTERCEPT
-#'   and POINT, e.g. \code{"C:/DATA/LMF.GDB"}. If this is \code{NULL}, then the
-#'   arguments \code{GINTERCEPT} and \code{POINT}. Defaults to \code{NULL}.
-#' @param file_type Optional character string. The file extension for the file
-#'   pointed to by \code{dsn}. If \code{NULL} then the file extension will be
-#'   extracted from \code{dsn}. Defaults to \code{NULL}.
-#' @param GINTERCEPT Optional data frame. If provided, this must contain the
-#'   expected gap data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
-#' @param POINT Optional data frame. If provided, this must contain the expected
-#'   point metadata. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param GINTERCEPT Optional data frame or character string. If provided, this must contain the
+#'   expected gap intercept data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called GINTERCEPT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param POINT Optional data frame or character string. If provided, this must contain the expected
+#'   point metadata. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called POINT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -2534,80 +3087,6 @@ gather_gap_lmf <- function(dsn = NULL,
                            GINTERCEPT = NULL,
                            POINT = NULL,
                            verbose = FALSE) {
-
-  #### Reading and cleanup #####################################################
-  # Make sure we can read in the data.
-  valid_file_types <- c("gdb", "txt")
-
-  # We'll extract the extension if file_type isn't provided
-  if(is.null(file_type)){
-    file_type <- tools::file_ext(dsn)
-  }
-  # Sanitize it.
-  file_type <- tolower(file_type)
-
-
-  if(!is.null(GINTERCEPT) & !is.null(POINT)){
-    gintercept <- GINTERCEPT
-    point <- POINT
-  } else if (!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop(paste0("The provided dsn (", dsn, ") does not exist."))
-    }
-    if (!(file_type %in% valid_file_types)) {
-      stop(paste0("The current file_type value (", file_type, ") is invalid. ",
-                  "Valid file types are: ", paste(valid_file_types,
-                                                  collapse = ", ")))
-    }
-    # Read in GINTERCEPT
-    gintercept <- switch(file_type,
-                         "gdb" = {
-                           sf::st_read(dsn = dsn,
-                                       layer = "GINTERCEPT",
-                                       stringsAsFactors = FALSE,
-                                       quiet = TRUE)
-                         },
-                         "txt" = {
-                           read.table(file = file.path(dsn,
-                                                       "gintercept.txt"),
-                                      stringsAsFactors = FALSE,
-                                      strip.white = TRUE,
-                                      header = FALSE,
-                                      sep = "|")
-                         })
-    # Read in point file for other plot level information
-    point <- switch(file_type,
-                    "gdb" = {
-                      sf::st_read(dsn = dsn,
-                                  layer = "POINT",
-                                  stringsAsFactors = FALSE,
-                                  quiet = TRUE)
-                    },
-                    "txt" = {
-                      read.table(file = file.path(dsn,
-                                                  "point.txt"),
-                                 stringsAsFactors = FALSE,
-                                 strip.white = TRUE,
-                                 header = FALSE,
-                                 sep = "|")
-                    })
-
-
-    if (file_type == "txt") {
-      # Add meaningful column names
-      gintercept <- name_variables_nri(
-        data = gintercept,
-        table_name = "GINTERCEPT"
-      )
-      point <- name_variables_nri(
-        data = gintercept,
-        table_name = "POINT"
-      )
-    }
-  } else {
-    stop("Supply either data frames for the arguments GINTERCEPT and POINT or the path to a GDB containing those tables as the argument dsn.")
-  }
-
   # These are used for data management within a geodatabase and we're going to
   # drop them. This helps us to weed out duplicate records created by quirks of
   # the ingest processes.
@@ -2625,12 +3104,123 @@ gather_gap_lmf <- function(dsn = NULL,
                          "FormType",
                          "DBKey")
 
-  gintercept <- dplyr::select(.data = gintercept,
-                              -tidyselect::any_of(internal_gdb_vars)) |>
+  #### Reading and cleanup #####################################################
+  gintercept <- read_with_fallback(dsn = dsn,
+                                   tbl = GINTERCEPT,
+                                   default_name = "GINTERCEPT",
+                                   regex = TRUE,
+                                   best_guess = TRUE,
+                                   accept_failure = FALSE,
+                                   verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
-  point <- dplyr::select(.data = point,
-                         -tidyselect::any_of(internal_gdb_vars)) |>
+  point <- read_with_fallback(dsn = dsn,
+                              tbl = POINT,
+                              default_name = "POINT",
+                              regex = TRUE,
+                              best_guess = TRUE,
+                              accept_failure = FALSE,
+                              verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
+
+  # # Make sure we can read in the data.
+  # valid_file_types <- c("gdb", "txt")
+  #
+  # # We'll extract the extension if file_type isn't provided
+  # if(is.null(file_type)){
+  #   file_type <- tools::file_ext(dsn)
+  # }
+  # # Sanitize it.
+  # file_type <- tolower(file_type)
+  #
+  #
+  # if(!is.null(GINTERCEPT) & !is.null(POINT)){
+  #   gintercept <- GINTERCEPT
+  #   point <- POINT
+  # } else if (!is.null(dsn)){
+  #   if (!file.exists(dsn)) {
+  #     stop(paste0("The provided dsn (", dsn, ") does not exist."))
+  #   }
+  #   if (!(file_type %in% valid_file_types)) {
+  #     stop(paste0("The current file_type value (", file_type, ") is invalid. ",
+  #                 "Valid file types are: ", paste(valid_file_types,
+  #                                                 collapse = ", ")))
+  #   }
+  #   # Read in GINTERCEPT
+  #   gintercept <- switch(file_type,
+  #                        "gdb" = {
+  #                          sf::st_read(dsn = dsn,
+  #                                      layer = "GINTERCEPT",
+  #                                      stringsAsFactors = FALSE,
+  #                                      quiet = TRUE)
+  #                        },
+  #                        "txt" = {
+  #                          read.table(file = file.path(dsn,
+  #                                                      "gintercept.txt"),
+  #                                     stringsAsFactors = FALSE,
+  #                                     strip.white = TRUE,
+  #                                     header = FALSE,
+  #                                     sep = "|")
+  #                        })
+  #   # Read in point file for other plot level information
+  #   point <- switch(file_type,
+  #                   "gdb" = {
+  #                     sf::st_read(dsn = dsn,
+  #                                 layer = "POINT",
+  #                                 stringsAsFactors = FALSE,
+  #                                 quiet = TRUE)
+  #                   },
+  #                   "txt" = {
+  #                     read.table(file = file.path(dsn,
+  #                                                 "point.txt"),
+  #                                stringsAsFactors = FALSE,
+  #                                strip.white = TRUE,
+  #                                header = FALSE,
+  #                                sep = "|")
+  #                   })
+  #
+  #
+  #   if (file_type == "txt") {
+  #     # Add meaningful column names
+  #     gintercept <- name_variables_nri(
+  #       data = gintercept,
+  #       table_name = "GINTERCEPT"
+  #     )
+  #     point <- name_variables_nri(
+  #       data = gintercept,
+  #       table_name = "POINT"
+  #     )
+  #   }
+  # } else {
+  #   stop("Supply either data frames for the arguments GINTERCEPT and POINT or the path to a GDB containing those tables as the argument dsn.")
+  # }
+  #
+  #   # These are used for data management within a geodatabase and we're going to
+  #   # drop them. This helps us to weed out duplicate records created by quirks of
+  #   # the ingest processes.
+  #   internal_gdb_vars <- c("GlobalID",
+  #                          "created_user",
+  #                          "created_date",
+  #                          "last_edited_user",
+  #                          "last_edited_date",
+  #                          "DateLoadedInDb",
+  #                          "DateLoadedinDB",
+  #                          "rid",
+  #                          "DataErrorChecking",
+  #                          "DataEntry",
+  #                          "DateModified",
+  #                          "FormType",
+  #                          "DBKey")
+  #
+  #   gintercept <- dplyr::select(.data = gintercept,
+  #                               -tidyselect::any_of(internal_gdb_vars)) |>
+  #     dplyr::distinct()
+  #   point <- dplyr::select(.data = point,
+  #                          -tidyselect::any_of(internal_gdb_vars)) |>
+  #     dplyr::distinct()
 
   # Ensure START_GAP and END_GAP are numeric
   gintercept <- dplyr::mutate(.data = gintercept,
@@ -3038,33 +3628,20 @@ gather_gap_lmf <- function(dsn = NULL,
 
 #' Convert wide gap data into a long/tall format.
 #' @description
-#' This is a wrapper for the \code{gather_gap_terradat()} and \code{gather_gap_lmf()} functions.
+#' Given wide format line-point intercept or height data, create a tall
+#' format data frame usable by other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_gap_terradat]{gather_gap_terradat()}} and \code{\link[terradactyl:gather_gap_lmf]{gather_gap_lmf()}}.
 #'
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains either the feature classes tblGapHeader and
-#'   tblGapDetail or the feature classes GINTERCEPT and POINT, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblGapHeader} and \code{tblGapDetail} or \code{POINT} and \code{GINTERCEPT} are required. Defaults to
-#'   \code{NULL}.
-#' @param file_type Optional character string. The file extension for the file
-#'   pointed to by \code{dsn}. If \code{NULL} then the file extension will be
-#'   extracted from \code{dsn}. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.
 #' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
-#' @param tblGapDetail Optional data frame. If provided, this must contain the
-#'   expected gap data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.
-#' @param tblGapHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the gap data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Ignored if \code{source} is not one of \code{"aim"}, \code{"terradat"}, or \code{"dima"}. Defaults to \code{NULL}.
-#' @param GINTERCEPT Optional data frame. If provided, this must contain the
-#'   expected gap data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Ignored if \code{source} is not \code{"lmf"}. Defaults to \code{NULL}.
-#' @param POINT Optional data frame. If provided, this must contain the expected
-#'   point metadata. Ignored if \code{source} is not \code{"lmf"}.  If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
-#' @param autoQC Disabled.
-#' @param verbose  Logical. If \code{TRUE} then the function will report back
-#'   diagnostic information as console messages while it works. Defaults to
-#'   \code{FALSE}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblGapHeader} and \code{tblGapDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the arguments \code{GINTERCEPT} and \code{POINT} are considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 #'
 #' @export
 gather_gap <- function(dsn = NULL,
@@ -3084,12 +3661,14 @@ gather_gap <- function(dsn = NULL,
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     gap <- gather_gap_terradat(dsn = dsn,
                                tblGapDetail = tblGapDetail,
-                               tblGapHeader = tblGapHeader)
+                               tblGapHeader = tblGapHeader,
+                               verbose = verbose)
   } else if(toupper(source) %in% c("LMF", "NRI")){
     gap <- gather_gap_lmf(dsn = dsn,
                           file_type = file_type,
                           POINT = POINT,
-                          GINTERCEPT = GINTERCEPT)
+                          GINTERCEPT = GINTERCEPT,
+                          verbose = verbose)
     # } else if(toupper(source) %in% c("SURVEY123")){
     # gap <- gather_gap_survey123(Gap_0 = Gap_0, GapDetail_1 = GapDetail_1)
   } else {
@@ -3138,17 +3717,14 @@ gather_gap <- function(dsn = NULL,
 #### SOIL STABILITY ############################################################
 
 #' Convert AIM-format soil stability data into a long/tall format
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblSoiStabHeader and
-#'   tblSoilStabDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblSoilStabHeader} and \code{tblSoilStabDetail} are required. Defaults to
-#'   \code{NULL}.
-#' @param tblSoilStabDetail Optional data frame. If provided, this must contain the
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param tblSoilStabDetail Optional data frame or character string. If provided, this must contain the
+#'   expected soil stability data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSoilStabDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblSoilStabHeader Optional data frame or character string. If provided, this must contain the
 #'   expected metadata for the soil stability data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblSoilStabHeader Optional data frame. If provided, this must contain the
-#'   expected soil stability data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSoilStabHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param auto_qc_warnings  Logical. If \code{TRUE} the function will test the
 #'   data and metadata for duplicated records (records which are identical to
 #'   each other across all critical variables) and orphaned records (records
@@ -3197,28 +3773,32 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                          "DataEntry",
                          "DateModified",
                          "FormType")
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblSoilStabHeader,
+                               default_name = "tblSoilStabHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
-  if(!is.null(tblSoilStabDetail) & !is.null(tblSoilStabHeader)){
-    detail <- tblSoilStabDetail
-    header <- tblSoilStabHeader
-  } else if (!is.null(dsn)){
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing tblSoilStabDetail and tblSoilStabHeader")
-    }
-    # The suppressWarnings() here are so that it doesn't complain about pulling
-    # tables without geometry. We know that's what should be happening.
-    detail <- suppressWarnings(sf::st_read(dsn = dsn,
-                                           layer = "tblSoilStabDetail",
-                                           stringsAsFactors = FALSE,
-                                           quiet = TRUE))
-
-    header <-suppressWarnings(sf::st_read(dsn = dsn,
-                                          layer = "tblSoilStabHeader",
-                                          stringsAsFactors = FALSE,
-                                          quiet = TRUE))
-  } else {
-    stop("Supply either both tblSoilStabDetail and tblSoilStabHeader or a path to a GDB containing those tables.")
-  }
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblSoilStabDetail,
+                               default_name = "tblSoilStabDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
   # Clean these up!
   detail <- dplyr::select(.data = detail,
@@ -3246,6 +3826,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                  !all(is.na(as.vector(X)))
                                })), ]
 
+  #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
       message("Running automatic QC checks for duplicated or orphaned records.")
@@ -3260,17 +3841,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                           "RecKey"))
   }
 
+  #### Munging #################################################################
   # Convert to tall format
-  gathered <- tidyr::gather(detail,
-                            key = variable,
-                            value = value,
-                            -tidyselect::any_of(c("PrimaryKey",
-                                                  "BoxNum",
-                                                  "RecKey")),
-                            na.rm = TRUE) |>
-    dplyr::filter(.data = _,
-                  value != "")
-
   detail_tall <- tidyr::pivot_longer(data = detail,
                                      cols = -tidyselect::all_of(c("PrimaryKey",
                                                                   "RecKey")),
@@ -3331,7 +3903,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                   by = c("RecKey",
                          "PrimaryKey",
                          "Position")) |>
-    #However, there are likely going to be records in the source data where
+    # However, there are likely going to be records in the source data where
     # there were no ratings but somehow there were other kinds of values, so
     # those get dropped.
     dplyr::filter(.data = _,
@@ -3368,14 +3940,12 @@ gather_soil_stability_terradat <- function(dsn = NULL,
 }
 
 #' Convert LMF-format soil stability data into a long/tall format
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classe SOILDISAG, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the argument \code{SOILDISAG} is required. Defaults to
-#'   \code{NULL}.
-#' @param file_type Character string. The file extension for the path in \code{dsn}.
-#' @param SOILDISAG Optional data frame. If provided, this must contain the
-#'   expected soil stability data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param SOILDISAG Optional data frame or character string. If provided, this must contain the
+#'   expected soil stability intercept data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called SOILDISAG (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -3392,56 +3962,6 @@ gather_soil_stability_lmf <- function(dsn = NULL,
                                       file_type = "gdb",
                                       SOILDISAG = NULL,
                                       verbose = FALSE) {
-  #### Reading and cleanup #####################################################
-  # Make sure we can read in the data.
-  valid_file_types <- c("gdb", "txt")
-
-  # We'll extract the extension if file_type isn't provided
-  if (is.null(file_type)){
-    file_type <- tools::file_ext(dsn)
-  }
-  # Sanitize it.
-  file_type <- tolower(file_type)
-
-
-  if (!is.null(SOILDISAG)) {
-    soildisag <- SOILDISAG
-  } else if (!is.null(dsn)) {
-    if (!file.exists(dsn)) {
-      stop(paste0("The provided dsn (", dsn, ") does not exist."))
-    }
-    if (!(file_type %in% valid_file_types)) {
-      stop(paste0("The current file_type value (", file_type, ") is invalid. ",
-                  "Valid file types are: ", paste(valid_file_types,
-                                                  collapse = ", ")))
-    }
-    # Read in GINTERCEPT
-    soildisag <- switch(file_type,
-                        "gdb" = {
-                          sf::st_read(dsn = dsn,
-                                      layer = "SOILDISAG",
-                                      stringsAsFactors = FALSE,
-                                      quiet = TRUE)
-                        },
-                        "txt" = {
-                          read.table(file = file.path(dsn,
-                                                      "soildisag.txt"),
-                                     stringsAsFactors = FALSE,
-                                     strip.white = TRUE,
-                                     header = FALSE,
-                                     sep = "|")
-                        })
-
-    # Update variable names
-    if (file_type == "txt") {
-      # Add meaningful column names
-      soildisag <- name_variables_nri(data = soildisag,
-                                      table_name = "SOILDISAG")
-    }
-  } else {
-    stop("Supply either a data frames for the argument SOILDISAG or the path to a GDB containing a table called SOILDISAG as the argument dsn.")
-  }
-
   # These are used for data management within a geodatabase and we're going to
   # drop them. This helps us to weed out duplicate records created by quirks of
   # the ingest processes.
@@ -3459,9 +3979,87 @@ gather_soil_stability_lmf <- function(dsn = NULL,
                          "FormType",
                          "DBKey")
 
-  soildisag <- dplyr::select(.data = soildisag,
-                             -tidyselect::any_of(internal_gdb_vars)) |>
+  #### Reading and cleanup #####################################################
+  soildisag <- read_with_fallback(dsn = dsn,
+                                  tbl = SOILDISAG,
+                                  default_name = "SOILDISAG",
+                                  regex = TRUE,
+                                  best_guess = TRUE,
+                                  accept_failure = FALSE,
+                                  verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
+
+  #   # Make sure we can read in the data.
+  # valid_file_types <- c("gdb", "txt")
+  #
+  # # We'll extract the extension if file_type isn't provided
+  # if (is.null(file_type)){
+  #   file_type <- tools::file_ext(dsn)
+  # }
+  # # Sanitize it.
+  # file_type <- tolower(file_type)
+  #
+  #
+  # if (!is.null(SOILDISAG)) {
+  #   soildisag <- SOILDISAG
+  # } else if (!is.null(dsn)) {
+  #   if (!file.exists(dsn)) {
+  #     stop(paste0("The provided dsn (", dsn, ") does not exist."))
+  #   }
+  #   if (!(file_type %in% valid_file_types)) {
+  #     stop(paste0("The current file_type value (", file_type, ") is invalid. ",
+  #                 "Valid file types are: ", paste(valid_file_types,
+  #                                                 collapse = ", ")))
+  #   }
+  #   # Read in GINTERCEPT
+  #   soildisag <- switch(file_type,
+  #                       "gdb" = {
+  #                         sf::st_read(dsn = dsn,
+  #                                     layer = "SOILDISAG",
+  #                                     stringsAsFactors = FALSE,
+  #                                     quiet = TRUE)
+  #                       },
+  #                       "txt" = {
+  #                         read.table(file = file.path(dsn,
+  #                                                     "soildisag.txt"),
+  #                                    stringsAsFactors = FALSE,
+  #                                    strip.white = TRUE,
+  #                                    header = FALSE,
+  #                                    sep = "|")
+  #                       })
+  #
+  #   # Update variable names
+  #   if (file_type == "txt") {
+  #     # Add meaningful column names
+  #     soildisag <- name_variables_nri(data = soildisag,
+  #                                     table_name = "SOILDISAG")
+  #   }
+  # } else {
+  #   stop("Supply either a data frames for the argument SOILDISAG or the path to a GDB containing a table called SOILDISAG as the argument dsn.")
+  # }
+  #
+  # # These are used for data management within a geodatabase and we're going to
+  # # drop them. This helps us to weed out duplicate records created by quirks of
+  # # the ingest processes.
+  # internal_gdb_vars <- c("GlobalID",
+  #                        "created_user",
+  #                        "created_date",
+  #                        "last_edited_user",
+  #                        "last_edited_date",
+  #                        "DateLoadedInDb",
+  #                        "DateLoadedinDB",
+  #                        "rid",
+  #                        "DataErrorChecking",
+  #                        "DataEntry",
+  #                        "DateModified",
+  #                        "FormType",
+  #                        "DBKey")
+  #
+  # soildisag <- dplyr::select(.data = soildisag,
+  #                            -tidyselect::any_of(internal_gdb_vars)) |>
+  #   dplyr::distinct()
 
   #### Pivoting longer and harmonizing #########################################
   # This pares down the variables to only what we need and pivots to a long
@@ -3625,30 +4223,21 @@ gather_soil_stability_lmf <- function(dsn = NULL,
 #' Convert soil stability data into tall, tidy data frame
 #'
 #' @description Given soil stability create a tall format data frame usable by
-#' other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase containing the table of interest. This field
-#' is unnecessary if you supply either both of tblSoilStabDetail and
-#' tblSoilStabHeader (AIM/DIMA/TerrADat) or SOILHORIZON (LMF/NRI).
+#' other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_soil_stability_terradat]{gather_soil_stability_terradat()}} and \code{\link[terradactyl:gather_soil_stability_lmf]{gather_soil_stability_lmf()}}.
+#' @inheritParams gather_soil_stability_terradat
+#' @inheritParams gather_soil_stability_lmf
 #' @param source Character string. The data source format, can be \code{"AIM"},
 #' \code{"TerrADat"}, \code{"DIMA"}, \code{"LMF"}, or \code{"NRI"} (case independent).
-#' @param tblSoilStabDetail Dataframe of the data structure tblSoilStabDetail
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use when data source is AIM, DIMA, or TerrADat; alternately provide \code{dsn}.
-#' @param tblSoilStabHeader Dataframe of the data structure tblSoilStabHeader
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use when data source is AIM, DIMA, or TerrADat; alternately provide \code{dsn}.
-#' @param SOILHORIZON Dataframe of the data structure SOILHORIZON from LMF/NRI
-#' database with the addition of PrimaryKey and DBKey fields. Use when data
-#' source is LMF or NRI; alternately provide \code{dsn}.
-#' @param auto_qc Logical. Temporarily disabled. If \code{TRUE} then AIM/DIMA/TerrADat data will be
-#' checked for non-unique and orphaned records before doing processing. If any
-#' are found, a warning will be triggered but the gather will still be carried
-#' out. It is strongly recommended that any identified issues be addressed to
-#' avoid incorrect records in the output. Defaults to \code{TRUE}.
-#' @param verbose Logical. If \code{TRUE} then the function will report back
-#' diagnostic information as console messages while it works. Defaults to
-#' \code{FALSE}.
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblSoilStabHeader} and \code{tblSoilStabDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{SOILDISAG} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 #' @return A tall data frame containing soil horizon data.
 #' @examples
 #' gather_soil_stability(dsn = "Path/To/AIM_Geodatabase.gdb",
@@ -3679,11 +4268,13 @@ gather_soil_stability <- function(dsn = NULL,
   if (toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
     soil_stability <- gather_soil_stability_terradat(dsn = dsn,
                                                      tblSoilStabDetail = tblSoilStabDetail,
-                                                     tblSoilStabHeader = tblSoilStabHeader)
+                                                     tblSoilStabHeader = tblSoilStabHeader,
+                                                     verbose = verbose)
   } else if (toupper(source) %in% c("LMF", "NRI")){
     soil_stability <- gather_soil_stability_lmf(dsn = dsn,
                                                 file_type = file_type,
-                                                SOILDISAG = SOILDISAG)
+                                                SOILDISAG = SOILDISAG,
+                                                verbose = verbose)
 
   } else {
     stop("source must be one of 'AIM', 'TerrADat', 'DIMA', 'LMF', or 'NRI' (all case independent).")
@@ -3691,7 +4282,9 @@ gather_soil_stability <- function(dsn = NULL,
 
   soil_stability$source <- source
 
-  if("sf" %in% class(soil_stability)) soil_stability <- sf::st_drop_geometry(soil_stability)
+  if("sf" %in% class(soil_stability)) {
+    soil_stability <- sf::st_drop_geometry(x = soil_stability)
+  }
 
   if (any(class(soil_stability) %in% c("POSIXct", "POSIXt"))) {
     change_vars <- names(soil_stability)[do.call(rbind, vapply(soil_stability,
@@ -3722,17 +4315,14 @@ gather_soil_stability <- function(dsn = NULL,
 
 #### INTERPRETING INDICATORS OF RANGELAND HEALTH ###############################
 #' Convert AIM-format Interpreting Indicators of RangelandHealth data into a long/tall format.
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature classes tblQualHeader and
-#'   tblQualDetail, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the arguments \code{tblQualHeader} and \code{tblQualDetail} are required. Defaults to
-#'   \code{NULL}.
-#' @param tblQualDetail Optional data frame. If provided, this must contain the
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes.
+#' @param tblQualDetail Optional data frame or character string. If provided, this must contain the
 #'   expected IIRH data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
-#' @param tblQualHeader Optional data frame. If provided, this must contain the
-#'   expected metadata for the IIRH data. If \code{NULL} then the argument \code{dsn} must be
-#'   provided. Defaults to \code{NULL}.
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblQualDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblQualHeader Optional data frame or character string. If provided, this must contain the
+#'   expected metadata for the IIRH data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblQualHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -3743,7 +4333,7 @@ gather_soil_stability <- function(dsn = NULL,
 #' # Using data frames for tblQualHeader and tblQualDetail
 #' aim_iirhheader <- read.csv("data_folder/iirh_headers.csv")
 #' aim_iirhdetail <- read.csv("data_folder/iirh_detail_records.csv")
-#' gather_gap_terradat(tblQualHeader = aim_iirhheader,
+#' gather_rangeland_health_terradat(tblQualHeader = aim_iirhheader,
 #'                     tblQualDetail = aim_iirhdetail)
 #'
 #'
@@ -3753,31 +4343,78 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
                                              tblQualHeader = NULL,
                                              tblQualDetail = NULL,
                                              verbose = FALSE) {
+  # These are used for data management within a geodatabase and we're going to
+  # drop them.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "DBKey",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType")
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblQualHeader,
+                               default_name = "tblQualHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
-  if(!is.null(tblQualHeader) & !is.null(tblQualDetail)){
-    IIRH_header <- tblQualHeader
-    IIRH_detail <- tblQualDetail
-  } else if(!is.null(dsn)) {
-    # check file
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath to a geodatabase containing tblQualDetail and tblQualHeader")
-    }
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblQualDetail,
+                               default_name = "tblQualDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    # Just making sure these are for real numeric.
+    dplyr::mutate(.data = _,
+                  dplyr::across(.cols = tidyselect::all_of(x = c("Seq",
+                                                                 "Rating")),
+                                .fns = as.numeric)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
-    # Read in tblQualHeader
-    rh_header <- sf::st_read(dsn = dsn,
-                             layer = "tblQualHeader",
-                             stringsAsFactors = FALSE,
-                             quiet = TRUE)
 
-    # Read in tblQualDetail
-    rh_detail <- sf::st_read(dsn = dsn,
-                             layer = "tblQualDetail",
-                             stringsAsFactors = FALSE,
-                             quiet = TRUE)
-
-  } else {
-    stop("Provide either tblQualHeader and tblQualDetail or a path to a geodatabase containing those tables")
-  }
+  # if(!is.null(tblQualHeader) & !is.null(tblQualDetail)){
+  #   IIRH_header <- tblQualHeader
+  #   IIRH_detail <- tblQualDetail
+  # } else if(!is.null(dsn)) {
+  #   # check file
+  #   if (!file.exists(dsn)) {
+  #     stop("dsn must be a valid filepath to a geodatabase containing tblQualDetail and tblQualHeader")
+  #   }
+  #
+  #   # Read in tblQualHeader
+  #   rh_header <- sf::st_read(dsn = dsn,
+  #                            layer = "tblQualHeader",
+  #                            stringsAsFactors = FALSE,
+  #                            quiet = TRUE)
+  #
+  #   # Read in tblQualDetail
+  #   rh_detail <- sf::st_read(dsn = dsn,
+  #                            layer = "tblQualDetail",
+  #                            stringsAsFactors = FALSE,
+  #                            quiet = TRUE)
+  #
+  # } else {
+  #   stop("Provide either tblQualHeader and tblQualDetail or a path to a geodatabase containing those tables")
+  # }
 
   # The data are coming in with numeric variables identifying the indicators and
   # values, but we need to convert those into human-legible character strings
@@ -3811,93 +4448,117 @@ gather_rangeland_health_terradat <- function(dsn = NULL,
                      "M",
                      "ME",
                      "ET")
-  value_strings_lookup <- data.frame(Rating = seq_len(length(value_strings) - 1),
+  value_strings_lookup <- data.frame(Rating = seq_len(length(value_strings)) - 1,
                                      rating_string = value_strings)
 
-  rh_detail <- dplyr::left_join(x = rh_detail,
-                                y = indicator_names_lookup,
-                                .by = "Seq",
-                                relationship = "many-to-one") |>
+  detail_wide <- dplyr::left_join(x = detail,
+                                  y = indicator_names_lookup,
+                                  by = "Seq",
+                                  relationship = "many-to-one") |>
     dplyr::left_join(x = _,
                      y = value_strings_lookup,
-                     .by = "Rating",
+                     by = "Rating",
                      relationship = "many-to-one") |>
     dplyr::mutate(.data = _,
-                  Rating = rating_string)
+                  Rating = rating_string) |>
+    dplyr::filter(.data = _,
+                  !is.na(Rating)) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(x = c("RecKey",
+                                           "indicator",
+                                           "Rating"))) |>
+    dplyr::distinct() |>
+    tidyr::pivot_wider(data = _,
+                       names_from = tidyselect::all_of(x = c("indicator")),
+                       values_from = tidyselect::all_of(x = c("Rating")))
 
-  # Clean up the Indicators Table
-  rangeland_health_indicators <- IIRH_detail %>%
-    dplyr::mutate(
-      indicator = Seq %>%
-        as.character() %>%
-        # Rename Seq from a number to an Indicator name
-        stringr::str_replace_all(c(
-          "\\b1\\b" = "RH_Rills",
-          "\\b2\\b" = "RH_WaterFlowPatterns",
-          "\\b3\\b" = "RH_PedestalsTerracettes",
-          "\\b4\\b" = "RH_BareGround",
-          "\\b5\\b" = "RH_Gullies",
-          "\\b6\\b" = "RH_WindScouredAreas", #
-          "\\b7\\b" = "RH_LitterMovement", #
-          "\\b8\\b" = "RH_SoilSurfResisErosion", #
-          "\\b9\\b" = "RH_SoilSurfLossDeg", #
-          "\\b10\\b" = "RH_PlantCommunityComp", #
-          "\\b11\\b" = "RH_Compaction", #
-          "\\b12\\b" = "RH_FuncSructGroup", #
-          "\\b13\\b" = "RH_DeadDyingPlantParts", #
-          "\\b14\\b" = "RH_LitterAmount", #
-          "\\b15\\b" = "RH_AnnualProd", #
-          "\\b16\\b" = "RH_InvasivePlants", #
-          "\\b17\\b" = "RH_ReprodCapabilityPeren"
-        )),
-      Rating = Rating %>%
-        as.character() %>%
-        stringr::str_replace_all(c(
-          "1" = "NS",
-          "2" = "SM",
-          "3" = "M",
-          "4" = "ME",
-          "5" = "ET",
-          "0" = NA
-        ))
-    ) %>%
-    subset(!is.na(Rating)) %>%
-    dplyr::select(RecKey, indicator, Rating) %>%
-    dplyr::distinct() %>%
-    tidyr::spread(key = indicator, value = Rating)
+  output <- dplyr::select(.data = header,
+                          # Renaming the various header variables that need it
+                          tidyselect::all_of(x = c("PrimaryKey",
+                                                   "RecKey",
+                                                   "RH_HydrologicFunction" = "HFVxWRatingFinal",
+                                                   "RH_BioticIntegrity" = "BIVxWRatingFinal",
+                                                   "RH_SoilSiteStability" = "SSSVxWRatingFinal",
+                                                   "RH_CommentsBI" = "CommentBI",
+                                                   "RH_CommentsHF" = "CommentHF",
+                                                   "RH_CommentsSS" = "CommentSSS"))) |>
+    dplyr::left_join(x = _,
+                     y = detail_wide,
+                     by = "RecKey",
+                     relationship = "one-to-many")
 
-  # Attributes and then joined to Indicators
-  IIRH <- dplyr::select(IIRH_header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
-                        RH_HydrologicFunction = HFVxWRatingFinal,
-                        RH_BioticIntegrity = BIVxWRatingFinal,
-                        RH_SoilSiteStability = SSSVxWRatingFinal,
-                        RH_CommentsBI = CommentBI,
-                        RH_CommentsHF = CommentHF,
-                        RH_CommentsSS = CommentSSS#,
-                        # Observer,
-                        # Recorder
-  ) %>%
-
-    # Add the indicators
-    dplyr::left_join(rangeland_health_indicators, by = "RecKey")
-
-  ## last drop
-  IIRH <- IIRH %>% dplyr::select(
-    -c(DateLoadedInDb)
-  )
-
-  return(IIRH)
+  output
+  # # Clean up the Indicators Table
+  # rangeland_health_indicators <- IIRH_detail %>%
+  #   dplyr::mutate(
+  #     indicator = Seq %>%
+  #       as.character() %>%
+  #       # Rename Seq from a number to an Indicator name
+  #       stringr::str_replace_all(c(
+  #         "\\b1\\b" = "RH_Rills",
+  #         "\\b2\\b" = "RH_WaterFlowPatterns",
+  #         "\\b3\\b" = "RH_PedestalsTerracettes",
+  #         "\\b4\\b" = "RH_BareGround",
+  #         "\\b5\\b" = "RH_Gullies",
+  #         "\\b6\\b" = "RH_WindScouredAreas", #
+  #         "\\b7\\b" = "RH_LitterMovement", #
+  #         "\\b8\\b" = "RH_SoilSurfResisErosion", #
+  #         "\\b9\\b" = "RH_SoilSurfLossDeg", #
+  #         "\\b10\\b" = "RH_PlantCommunityComp", #
+  #         "\\b11\\b" = "RH_Compaction", #
+  #         "\\b12\\b" = "RH_FuncSructGroup", #
+  #         "\\b13\\b" = "RH_DeadDyingPlantParts", #
+  #         "\\b14\\b" = "RH_LitterAmount", #
+  #         "\\b15\\b" = "RH_AnnualProd", #
+  #         "\\b16\\b" = "RH_InvasivePlants", #
+  #         "\\b17\\b" = "RH_ReprodCapabilityPeren"
+  #       )),
+  #     Rating = Rating %>%
+  #       as.character() %>%
+  #       stringr::str_replace_all(c(
+  #         "1" = "NS",
+  #         "2" = "SM",
+  #         "3" = "M",
+  #         "4" = "ME",
+  #         "5" = "ET",
+  #         "0" = NA
+  #       ))
+  #   ) %>%
+  #   subset(!is.na(Rating)) %>%
+  #   dplyr::select(RecKey, indicator, Rating) %>%
+  #   dplyr::distinct() %>%
+  #   tidyr::spread(key = indicator, value = Rating)
+  #
+  # # Attributes and then joined to Indicators
+  # IIRH <- dplyr::select(IIRH_header, DBKey, PrimaryKey, RecKey, DateLoadedInDb,
+  #                       RH_HydrologicFunction = HFVxWRatingFinal,
+  #                       RH_BioticIntegrity = BIVxWRatingFinal,
+  #                       RH_SoilSiteStability = SSSVxWRatingFinal,
+  #                       RH_CommentsBI = CommentBI,
+  #                       RH_CommentsHF = CommentHF,
+  #                       RH_CommentsSS = CommentSSS#,
+  #                       # Observer,
+  #                       # Recorder
+  # ) %>%
+  #
+  #   # Add the indicators
+  #   dplyr::left_join(rangeland_health_indicators, by = "RecKey")
+  #
+  # ## last drop
+  # IIRH <- IIRH %>% dplyr::select(
+  #   -c(DateLoadedInDb)
+  # )
+  #
+  # return(IIRH)
 }
 
 #' Convert LMF-format Interpreting Indicators of RangelandHealth data into a long/tall format.
-#' @param dsn  Optional (contingent) character string. If provided, this must be the filepath
-#'   to a geodatabase which contains the feature class RANGEHEALTH, e.g. \code{"C:/DATA/AIM.GDB"}. If this is \code{NULL}, then
-#'   the argument \code{RANGEHEALTH} is required. Defaults to
-#'   \code{NULL}.
-#' @param file_type Character string. The file extension for the path in \code{dsn}.
-#' @param RANGEHEALTH Optional data frame. If provided, this must contain the
-#'   expected IIRH data. If \code{NULL} then the argument
-#'   \code{dsn} must be provided. Defaults to \code{NULL}.
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param RANGEHEALTH Optional data frame or character string. If provided, this must contain the
+#'   expected rangeland health intercept data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called RANGEHEALTH (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
 #' @param verbose  Logical. If \code{TRUE} then the function will report back
 #'   diagnostic information as console messages while it works. Defaults to
 #'   \code{FALSE}.
@@ -3914,78 +4575,106 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
                                         file_type = NULL,
                                         RANGEHEALTH = NULL,
                                         verbose = FALSE) {
-  if ("character" %in% class(RANGEHEALTH)) {
-    if (tools::file_ext(RANGEHEALTH) == "Rdata") {
-      IIRH <- readRDS(file = RANGEHEALTH)
-    } else {
-      stop("When RANGEHEALTH is a character string it must be the path to a .Rdata file containing RANGEHEALTH data.")
-    }
-  } else if ("data.frame" %in% class(RANGEHEALTH)) {
-    IIRH <- RANGEHEALTH
-  } else {
-    if (!is.null(dsn)) {
-      if (!file.exists(dsn)) {
-        stop("dsn must be a valid filepath to a geodatabase containing a table called RANGEHEALTH or the filepath to a text file containing those values.")
-      }
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
 
-      file_type <- tools::file_ext(x = dsn) |>
-        toupper()
+  #### Reading #################################################################
+  rangehealth <- read_with_fallback(dsn = dsn,
+                                    tbl = RANGEHEALTH,
+                                    default_name = "RANGEHEALTH",
+                                    regex = TRUE,
+                                    best_guess = TRUE,
+                                    accept_failure = FALSE,
+                                    verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
+  # if ("character" %in% class(RANGEHEALTH)) {
+  #   if (tools::file_ext(RANGEHEALTH) == "Rdata") {
+  #     IIRH <- readRDS(file = RANGEHEALTH)
+  #   } else {
+  #     stop("When RANGEHEALTH is a character string it must be the path to a .Rdata file containing RANGEHEALTH data.")
+  #   }
+  # } else if ("data.frame" %in% class(RANGEHEALTH)) {
+  #   IIRH <- RANGEHEALTH
+  # } else {
+  #   if (!is.null(dsn)) {
+  #     if (!file.exists(dsn)) {
+  #       stop("dsn must be a valid filepath to a geodatabase containing a table called RANGEHEALTH or the filepath to a text file containing those values.")
+  #     }
+  #
+  #     file_type <- tools::file_ext(x = dsn) |>
+  #       toupper()
+  #
+  #     IIRH <- switch(file_type,
+  #                    "gdb" = {
+  #                      sf::st_read(dsn = dsn,
+  #                                  layer = "RANGEHEALTH",
+  #                                  stringsAsFactors = FALSE, quiet = TRUE)
+  #                    },
+  #                    "txt" = {
+  #                      read.table(paste(dsn, "rangehealth.txt", sep = ""),
+  #                                 stringsAsFactors = FALSE,
+  #                                 header = FALSE,
+  #                                 sep = "|",
+  #                                 strip.white = TRUE
+  #                      )
+  #                    },
+  #                    "csv" = {
+  #                      read.csv(dsn)
+  #                    }
+  #     )
+  #     # if it is in a text file, there are no field names assigned.
+  #     if (file_type == "txt") {
+  #       IIRH <- name_variables_nri(
+  #         data = IIRH,
+  #         table_name = "RHSUMMARY"
+  #       )
+  #     }
+  #   }else {
+  #     stop("Provide either dsn or RANGEHEALTH.")
+  #   }
 
-      IIRH <- switch(file_type,
-                     "gdb" = {
-                       sf::st_read(dsn = dsn,
-                                   layer = "RANGEHEALTH",
-                                   stringsAsFactors = FALSE, quiet = TRUE)
-                     },
-                     "txt" = {
-                       read.table(paste(dsn, "rangehealth.txt", sep = ""),
-                                  stringsAsFactors = FALSE,
-                                  header = FALSE,
-                                  sep = "|",
-                                  strip.white = TRUE
-                       )
-                     },
-                     "csv" = {
-                       read.csv(dsn)
-                     }
-      )
-      # if it is in a text file, there are no field names assigned.
-      if (file_type == "txt") {
-        IIRH <- name_variables_nri(
-          data = IIRH,
-          table_name = "RHSUMMARY"
-        )
-      }
-    }else {
-      stop("Provide either dsn or RANGEHEALTH.")
-    }
+  # Clean up the field names so they are human readable and match TerrAdat names
+  output <- dplyr::select(.data = rangehealth,
+                          tidyselect::all_of(x = c("PrimaryKey",
+                                                   RH_Rills = "RILLS",
+                                                   RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
+                                                   RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
+                                                   RH_BareGround = "BARE_GROUND",
+                                                   RH_Gullies = "GULLIES",
+                                                   RH_WindScouredAreas = "WIND_SCOURED_AREAS",
+                                                   RH_LitterMovement = "LITTER_MOVEMENT",
+                                                   RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
+                                                   RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
+                                                   RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
+                                                   RH_Compaction = "COMPACTION_LAYER",
+                                                   RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
+                                                   RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
+                                                   RH_LitterAmount = "LITTER_AMOUNT",
+                                                   RH_AnnualProd = "ANNUAL_PRODUCTION",
+                                                   RH_InvasivePlants = "INVASIVE_PLANTS",
+                                                   RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
+                                                   RH_SoilSiteStability = "SOILSITE_STABILITY",
+                                                   RH_BioticIntegrity = "BIOTIC_INTEGRITY",
+                                                   RH_HydrologicFunction = "HYDROLOGIC_FUNCTION")))
 
-    # Clean up the field names so they are human readable and match TerrAdat names
-    output <- dplyr::select(.data = IIRH,
-                            tidyselect::all_of(x = c("PrimaryKey",
-                                                     RH_Rills = "RILLS",
-                                                     RH_WaterFlowPatterns = "WATER_FLOW_PATTERNS",
-                                                     RH_PedestalsTerracettes = "PEDESTALS_TERRACETTES",
-                                                     RH_BareGround = "BARE_GROUND",
-                                                     RH_Gullies = "GULLIES",
-                                                     RH_WindScouredAreas = "WIND_SCOURED_AREAS",
-                                                     RH_LitterMovement = "LITTER_MOVEMENT",
-                                                     RH_SoilSurfResisErosion = "SOIL_SURF_RESIS_EROSION",
-                                                     RH_SoilSurfLossDeg = "SOIL_SURFACE_LOSS_DEG",
-                                                     RH_PlantCommunityComp = "INFILTRATION_RUNOFF",
-                                                     RH_Compaction = "COMPACTION_LAYER",
-                                                     RH_FuncSructGroup = "FUNC_STRUCT_GROUPS",
-                                                     RH_DeadDyingPlantParts = "PLANT_MORTALITY_DEC",
-                                                     RH_LitterAmount = "LITTER_AMOUNT",
-                                                     RH_AnnualProd = "ANNUAL_PRODUCTION",
-                                                     RH_InvasivePlants = "INVASIVE_PLANTS",
-                                                     RH_ReprodCapabilityPeren = "REPROD_CAPABILITY_PEREN",
-                                                     RH_SoilSiteStability = "SOILSITE_STABILITY",
-                                                     RH_BioticIntegrity = "BIOTIC_INTEGRITY",
-                                                     RH_HydrologicFunction = "HYDROLOGIC_FUNCTION")))
-
-    output
-  }
+  output
+  # }
 }
 
 #' export gather_rangeland_health_survey123
@@ -4068,28 +4757,24 @@ gather_rangeland_health_lmf <- function(dsn = NULL,
 #' Convert Interpreting Indicators of Rangeland Health (IIRH) data into a tall,
 #' tidy data frame
 #'
-#' @description Given wide format IIRH data, create a tall format data frame
-#' usable by other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase or text file containing the table of interest.
-#' This field is unnecessary if you provide either both of tblQualHeader and
-#' tblQualDetail (AIM/DIMA/TerrADat) or RANGEHEALTH (LMF/NRI).
-#' @param source Character string. The data source format,
-#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case insensitive).
-#' @param tblQualHeader Dataframe of the data structure tblQualHeader from the
-#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-#' tblQualDetail when data source is AIM, DIMA, or TerrADat; alternately provide
-#' \code{dsn}.
-#' @param tblQualDetail Dataframe of the data structure tblQualDetail from the
-#' DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-#' tblQualHeader when data source is AIM, DIMA, or TerrADat; alternately provide
-#' \code{dsn}.
-#' @param RANGEHEALTH Dataframe of the data structure RANGEHEALTH from the
-#' LMF/NRI database. Use when data source if LMF or NRI; alternately provide
-#' \code{dsn}.
-#' @param file_type Character string that denotes the source file type of the
-#' LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-#' AIM/DIMA/TerrADat, or if RANGEHEALT is provided.
+#' @description
+#' Given wide format species richness data, create a tall
+#' format data frame usable by other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_rangeland_health_terradat]{gather_rangeland_health_terradat()}} and \code{\link[terradactyl:gather_rangeland_health_lmf]{gather_rangeland_health_lmf()}}.
+#'
+#' @inheritParams gather_rangeland_health_terradat
+#' @inheritParams gather_rangeland_health_lmf
+#' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblQualHeader} and \code{tblQualDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{RANGEHEALTH} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
+#'
 #' @returns A tall data frame containing the data from the rangeland health
 #' measurements.
 #' @examples
@@ -4159,77 +4844,23 @@ gather_rangeland_health <- function(dsn = NULL,
 
 
 #### SPECIES INVENTORY #########################################################
-#' Convert species inventory data into tall, tidy data frame
-#'
-#' @description Given species inventory data create a tall format data frame
-#' usable by other terradactyl functions.
-#' @param dsn Character string. The full filepath and filename (including file
-#' extension) of the geodatabase containing the table of interest. This field
-#' is unnecessary if you supply either both of tblSpecRichDetail and
-#' tblSpecRichHeader (AIM/DIMA/TerrADat) or PLANTCENSUS (LMF/NRI).
-#' @param source Character string. The data source format,
-#' \code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).
-#' @param tblSpecRichDetail Dataframe of the data structure tblSpecRichDetail
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use with tblSpecRichHeader when data source is AIM, DIMA, or TerrADat;
-#' alternately provide dsn.
-#' @param tblSpecRichHeader Dataframe of the data structure tblSpecRichHeader
-#' from the DIMA database with the addition of PrimaryKey and DBKey fields.
-#' Use with tblSpecRichDetail when data source is AIM, DIMA, or TerrADat;
-#' alternately provide dsn.
-#' @param PLANTCENSUS Dataframe of the data structure PLANTCENSUS from LMF/NRI
-#' database with the addition of PrimaryKey and DBKey fields. Use when data
-#' source is LMF or NRI; alternately provide dsn.
-#' @importFrom magrittr %>%
-#' @name gather_species_inventory
-#' @family <gather>
-#' @return A tall data frame containing species inventory data.
-#' @examples
-#' gather_species_inventory(dsn = "Path/To/AIM_Geodatabase.gdb",
-#'                          source = "AIM")
-#' gather_species_inventory(dsn = "Path/To/LMF_Geodatabase.gdb",
-#'                          source = "LMF")
-#'
-#' aim_specrichdetail <- read.csv("Path/To/tblSpecRichDetail.csv")
-#' aim_specrichheader <- read.csv("Path/To/tblSpecRichHeader.csv")
-#' gather_species_inventory(source = "AIM",
-#'                          tblSpecRichDetail = aim_specrichdetail,
-#'                          tblSpecRichHeader = aim_specrichheader)
-#'
-#' lmf_census <- read.csv("Path/To/PLANTCENSUS.csv")
-#' gather_species_inventory(source = "LMF",
-#'                          PLANTCENSUS = lmf_census)
-
-#' @export gather_species_inventory_terradat
-#' @rdname gather_species_inventory
+#' Convert AIM-format species inventory data into a long/tall format
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param tblSpecRichDetail Optional data frame or character string. If provided, this must contain the
+#'   expected species inventory data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSpecRichDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param tblSpecRichHeader Optional data frame or character string. If provided, this must contain the
+#'   expected metadata for the species inventory data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblSpecRichHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param verbose  Logical. If \code{TRUE} then the function will report back
+#'   diagnostic information as console messages while it works. Defaults to
+#'   \code{FALSE}.
+#' @export
 gather_species_inventory_terradat <- function(dsn = NULL,
                                               tblSpecRichDetail = NULL,
                                               tblSpecRichHeader = NULL,
                                               verbose = FALSE) {
-
-  detail <- tblSpecRichDetail
-  header <- tblSpecRichHeader
-
-  if (is.null(header) | is.null(detail)) {
-    if (!is.null(dsn)){
-      if(!file.exists(dsn)){
-        stop("dsn must be a valid filepath to a geodatabase containing tblSpecRichDetail and tblSpecRichHeader")
-      }
-
-      if (is.null(header)) {
-        header <- sf::st_read(dsn = dsn,
-                              layer = "tblSpecRichHeader",
-                              quiet = TRUE)
-      }
-      if (is.null(detail)) {
-        detail <- sf::st_read(dsn = dsn,
-                              layer = "tblSpecRichDetail",
-                              quiet = TRUE)
-      }
-    } else {
-      stop("Please provide tblSpecRichHeader, tblSpecRichDetail, or a filepath to a geodatabase containing those tables.")
-    }
-  }
 
   # These are used for data management within a geodatabase and we're going to
   # drop them.
@@ -4246,6 +4877,32 @@ gather_species_inventory_terradat <- function(dsn = NULL,
                          "DataEntry",
                          "DateModified",
                          "FormType")
+  #### Reading #################################################################
+  header <- read_with_fallback(dsn = dsn,
+                               tbl = tblSpecRichHeader,
+                               default_name = "tblSpecRichHeader",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
+
+  detail <- read_with_fallback(dsn = dsn,
+                               tbl = tblSpecRichDetail,
+                               default_name = "tblSpecRichDetail",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct() |>
+    dplyr::filter(.data = _,
+                  !is.na(PrimaryKey))
 
   # Clean these up!
   detail <- dplyr::select(.data = detail,
@@ -4260,6 +4917,7 @@ gather_species_inventory_terradat <- function(dsn = NULL,
                   !is.na(PrimaryKey)) |>
     dplyr::distinct()
 
+  #### Munging #################################################################
   # This shouldn't be necessary as of 2025, but working with older data requires
   # that the species be separated because they're stored as a single character
   # string with each species code separated by semicolons.
@@ -4276,8 +4934,14 @@ gather_species_inventory_terradat <- function(dsn = NULL,
 }
 
 
-#' @export tall_species
-#' @rdname gather_species_inventory
+#' Create distinct species inventory records from semicolon-separated values
+#' @description
+#' Some species inventory data stored all species codes in a single character string as semicolon-separated values. This will create distinct records for each code.
+#' This will only work with a data frame that has the variables PrimaryKey, RecKey, and SpeciesList.
+#'
+#' @param species_inventory_detail Data frame. The detail species inventory data to split into multiple records. Must contain the variables PrimaryKey, RecKey, and SpeciesList. SpeciesList must contain character strings composed of the species codes separated by semicolons, e.g., "ARTRW8;PRGL2;ARTR4".
+#' @returns A data frame with the variables PrimaryKey, RecKey, and Species where each record represents one species code and its associated PrimaryKey and RecKey values.
+#' @export
 tall_species <- function(species_inventory_detail) {
   tall_list <- apply(X = species_inventory_detail,
                      MARGIN = 1,
@@ -4302,50 +4966,96 @@ tall_species <- function(species_inventory_detail) {
 }
 
 # Gather LMF data
-#' @export gather_species_inventory_lmf
-#' @rdname gather_species_inventory
+#' Convert LMF-format soil stability data into a long/tall format
+#'
+#' @param dsn Optional character string. If provided, this must be the filepath
+#'   to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.
+#' @param file_type Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.
+#' @param PLANTCENSUS Optional data frame or character string. If provided, this must contain the
+#'   expected species data. If \code{NULL} then the argument
+#'   \code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PLANTCENSUS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.
+#' @param verbose  Logical. If \code{TRUE} then the function will report back
+#'   diagnostic information as console messages while it works. Defaults to
+#'   \code{FALSE}.
+#' @examples
+#' # Using a geodatabase that contains the table SOILDISAG.
+#' gather_species_inventory_lmf(dsn = "data_folder/lmf_data.gdb")
+#'
+#' # Using a data frame for SOILDISAG.
+#' lmf_plantcensus <- read.csv("data_folder/PLANTCENSUS_detail_records.csv")
+#' gather_species_inventory_lmf(PLANTCENSUS = lmf_plantcensus)
+#'
+#' @export
 gather_species_inventory_lmf <- function(dsn = NULL,
                                          file_type = "gdb",
                                          PLANTCENSUS = NULL,
                                          verbose = FALSE) {
-  if(!is.null(PLANTCENSUS)){
-    plantcensus <- PLANTCENSUS
-  } else if(!is.null(dsn)){
+  # These are used for data management within a geodatabase and we're going to
+  # drop them. This helps us to weed out duplicate records created by quirks of
+  # the ingest processes.
+  internal_gdb_vars <- c("GlobalID",
+                         "created_user",
+                         "created_date",
+                         "last_edited_user",
+                         "last_edited_date",
+                         "DateLoadedInDb",
+                         "DateLoadedinDB",
+                         "rid",
+                         "DataErrorChecking",
+                         "DataEntry",
+                         "DateModified",
+                         "FormType",
+                         "DBKey")
 
-    plantcensus <- switch(file_type,
-                          "gdb" = {
-                            suppressWarnings(sf::st_read(dsn,
-                                                         layer = "PLANTCENSUS",
-                                                         stringsAsFactors = FALSE, quiet = T
-                            ))
-                          },
-                          "txt" = {
-                            read.table(paste(dsn, "plantcensus.txt", sep = ""),
-                                       stringsAsFactors = FALSE,
-                                       header = FALSE, sep = "|",
-                                       strip.white = TRUE
-                            )
-                          },
-                          "csv" = {
-                            read.csv(dsn,
-                                     stringsAsFactors = FALSE
-                            )
-                          }
-    )
+  #### Reading #################################################################
+  plantcensus <- read_with_fallback(dsn = dsn,
+                                    tbl = PLANTCENSUS,
+                                    default_name = "PLANTCENSUS",
+                                    regex = TRUE,
+                                    best_guess = TRUE,
+                                    accept_failure = FALSE,
+                                    verbose = verbose) |>
+    dplyr::select(.data = _,
+                  -tidyselect::any_of(x = internal_gdb_vars)) |>
+    dplyr::distinct()
+  # if(!is.null(PLANTCENSUS)){
+  #   plantcensus <- PLANTCENSUS
+  # } else if(!is.null(dsn)){
+  #
+  #   plantcensus <- switch(file_type,
+  #                         "gdb" = {
+  #                           suppressWarnings(sf::st_read(dsn,
+  #                                                        layer = "PLANTCENSUS",
+  #                                                        stringsAsFactors = FALSE, quiet = T
+  #                           ))
+  #                         },
+  #                         "txt" = {
+  #                           read.table(paste(dsn, "plantcensus.txt", sep = ""),
+  #                                      stringsAsFactors = FALSE,
+  #                                      header = FALSE, sep = "|",
+  #                                      strip.white = TRUE
+  #                           )
+  #                         },
+  #                         "csv" = {
+  #                           read.csv(dsn,
+  #                                    stringsAsFactors = FALSE
+  #                           )
+  #                         }
+  #   )
+  #
+  #   # if it is in a text file, there are no field names assigned.
+  #   if (file_type == "txt") {
+  #     plantcensus <- name_variables_nri(
+  #       data = plantcensus,
+  #       table_name = "PLANTCENSUS"
+  #     )
+  #   }
+  #
+  # } else {
+  #   stop("Supply either PLANTCENSUS or the path to a GDB containing that table")
+  # }
 
-    # if it is in a text file, there are no field names assigned.
-    if (file_type == "txt") {
-      plantcensus <- name_variables_nri(
-        data = plantcensus,
-        table_name = "PLANTCENSUS"
-      )
-    }
-
-  } else {
-    stop("Supply either PLANTCENSUS or the path to a GDB containing that table")
-  }
-
-  # Get species count
+  #### Munging #################################################################
   species_inventory <- dplyr::summarize(.data = plantcensus,
                                         .by = "PrimaryKey",
                                         SpeciesCount = dplyr::n()) |>
@@ -4358,24 +5068,10 @@ gather_species_inventory_lmf <- function(dsn = NULL,
   species_inventory <- dplyr::rename(.data = species_inventory,
                                      Species = CPLANT)
 
-  # Clean up unwanted variables
-  internal_gdb_vars <- c("GlobalID",
-                         "created_user",
-                         "created_date",
-                         "last_edited_user",
-                         "last_edited_date",
-                         # For once these variables need to carry through!
-                         # "DateLoadedInDb",
-                         # "DateLoadedinDB",
-                         "rid",
-                         "DataErrorChecking",
-                         "DataEntry",
-                         "DateModified",
-                         "FormType")
 
   dplyr::select(.data = species_inventory,
                 -c(SURVEY:SEQNUM),
-                tidyselect::any_of(internal_gdb_vars))
+                -tidyselect::any_of(internal_gdb_vars))
 
   species_inventory
 }
@@ -4425,30 +5121,44 @@ gather_species_inventory_lmf <- function(dsn = NULL,
 
 
 #' Species Inventory Gather wrapper
-#' @export gather_species_inventory
-#' @rdname gather_species_inventory
+#' @description
+#' Given wide format species richness data, create a tall
+#' format data frame usable by other terradactyl functions. For additional information about
+#' arguments, see the documentation for the functions \code{\link[terradactyl:gather_species_inventory_terradat]{gather_species_inventory_terradat()}} and \code{\link[terradactyl:gather_species_inventory_lmf]{gather_species_inventory_lmf()}}.
+#'
+#' @inheritParams gather_species_inventory_terradat
+#' @inheritParams gather_species_inventory_lmf
+#' @param source Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).
+#' @details
+#' The \code{source} argument determines which other arguments are used or ignored.
+#'
+#' When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+#' then the arguments \code{tblSpecRichHeader} and \code{tblSpecRichDetail} are both considered.
+#'
+#' When \code{source} is \code{"LMF"} then the argument \code{PLANTCENSUS} is considered.
+#'
+#' Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
+#' @returns A tall data frame containing the data from the species inventory inputs.
+#' @export
 gather_species_inventory <- function(dsn = NULL,
                                      source,
                                      tblSpecRichDetail = NULL,
                                      tblSpecRichHeader = NULL,
                                      PLANTCENSUS = NULL,
-                                     # SpeciesRichness_0 = NULL,
-                                     # SpecRichDetail_1 = NULL,
                                      file_type = "gdb",
                                      autoQC = TRUE,
                                      verbose = FALSE) {
 
   if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    species_inventory <- gather_species_inventory_terradat(
-      dsn = dsn,
-      tblSpecRichDetail = tblSpecRichDetail,
-      tblSpecRichHeader = tblSpecRichHeader
-    )
+    species_inventory <- gather_species_inventory_terradat(dsn = dsn,
+                                                           tblSpecRichDetail = tblSpecRichDetail,
+                                                           tblSpecRichHeader = tblSpecRichHeader,
+                                                           verbose = verbose)
   } else if(toupper(source) %in% c("LMF", "NRI")){
-    species_inventory <- gather_species_inventory_lmf(
-      dsn = dsn, file_type = file_type,
-      PLANTCENSUS = PLANTCENSUS
-    )
+    species_inventory <- gather_species_inventory_lmf(dsn = dsn,
+                                                      file_type = file_type,
+                                                      PLANTCENSUS = PLANTCENSUS,
+                                                      verbose = verbose)
     # } else if (toupper(source) == "SURVEY123"){
     #   species_inventory <- gather_species_inventory_survey123(
     #     SpeciesRichness_0 = SpeciesRichness_0,
@@ -4601,7 +5311,7 @@ gather_species_inventory <- function(dsn = NULL,
 # #'                                                ESFSG = NULL,
 # #'                                                file_type = NULL
 # #' ) {
-# #'   ### input ####
+# #'
 # #'   if (!is.null(POINT) & !is.null(POINTCOORDINATES) & !is.null(GPS) & !is.null(ESFSG)){
 # #'     point_lmf_raw <- POINT
 # #'     coord_lmf_raw <- POINTCOORDINATES
@@ -5258,469 +5968,5 @@ gather_species_inventory <- function(dsn = NULL,
 # #'   return(soil)
 # #' }
 # #'
-# #' #### GATHER ALL ################################################################
-# #' #' Gather tall tables for gap, vegetation height, LPI, plot characterization,
-# #' #' IIRH, soil horizon, soil pit summary, soil stability, and species inventory.
-# #' #'
-# #' #' @description Given wide format AIM/LMF data, gather gap,
-# #' #' vegetation height, LPI, header, IIRH, soil horizon,
-# #' #' soil pit summary, soil stability, and species inventory data. Missing
-# #' #' tables will be skipped. AIM-type and LMF-type data will both be processed.
-# #' #' @param dsn Character string. The full filepath and filename (including file
-# #' #' extension) of the geodatabase or text file containing thes table of interest.
-# #' #' This field is unnecessary if you provide dflist.
-# #' #' @param dflist Named list of data frames containing monitoring data. Tables
-# #' #' must be named as expected by the individual gather_functions.
-# #' #' @param outfolder Character string. Name of a folder to save all output to.
-# #' #' If the specified folder does not exist, the function will create it.
-# #' #' @param outtype Vector specifying output format, accepting "csv" and "rdata".
-# #' #' Defaults to writing both.
-# #' #' @param verbose True/False. When true, displays progress information, and
-# #' #' reports missing input data.
-# #' #' @param doLPI True/False. When false, LPI data will not be gathered. LPI data
-# #' #' is large and the gather process is RAM-intensive. This function will function
-# #' #' with fewer resources if LPI is run in batches, external to this wrapper.
-# #' #' @importFrom magrittr %>%
-# #' #' @name gather_all
-# #' #' @family <gather>
-# #' #' @return A list of tall data frames containing reformatted input data.
-# #' #' @examples
-# #' #' gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb", outfolder = "output")
-# #' #'
-# #' #' names <- sf::st_layers(dsn = "Path/To/AIM-LMF_Geodatabase.gdb")$name
-# #' #' all_data <- sapply(names, function(n){## Gather Height Data
-# #' #'   sf::st_read(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
-# #' #'   layer = n, quiet = T)
-# #' #' })
-# #' #' gather_all(dflist = all_data, outfolder = "output")
-# #'
-# #'
-# #' ## Gather All Data
-# #' #' @export gather_all
-# #' #' @rdname gather_all
-# #'
-# #' gather_all <- function(dsn = NULL,
-# #'                        dflist = NULL,
-# #'                        outfolder,
-# #'                        outtype = c("csv", "rdata"),
-# #'                        verbose = TRUE,
-# #'                        doLPI = TRUE) {
-# #'   # prep ####
-# #'   outtype <- tolower(outtype)
-# #'
-# #'   if(substr(outfolder, nchar(outfolder), nchar(outfolder)) != "/") {
-# #'     outfolder <- paste0(outfolder, "/")
-# #'   }
-# #'
-# #'   if(!dir.exists(outfolder)) dir.create(outfolder)
-# #'
-# #'   # if neither dsn or dflist are provided, stop
-# #'   if(is.null(dflist) & is.null(dsn)) stop("Provide either dsn or dflist")
-# #'
-# #'   # if both dsn and dflist are provided, drop dsn
-# #'   if(!is.null(dflist) & !is.null(dsn)){
-# #'     dsn <- NULL
-# #'     if(verbose) print("Both dsn and dflist were provided. Dsn will be ignored")
-# #'   }
-# #'
-# #'   # extract names, check against these before trying to load data
-# #'   if(is.null(dflist)){
-# #'     names_rda <- NULL
-# #'   } else {
-# #'     names_rda <- names(dflist)
-# #'   }
-# #'   if(is.null(dsn)){
-# #'     names_gdb <-NULL
-# #'   } else {
-# #'     names_gdb <- sf::st_layers(dsn) %>% unlist()
-# #'   }
-# #'
-# #'   # pull tables out of dflist if supplied, so the lack of NULL inputs dont mess up the functions
-# #'   # if dflist is NULL, all of these should be NULL
-# #'   tblGapDetail <- dflist[["tblGapDetail"]]
-# #'   tblGapHeader <- dflist[["tblGapHeader"]]
-# #'   tblLPIDetail <- dflist[["tblLPIDetail"]]
-# #'   tblLPIHeader <- dflist[["tblLPIHeader"]]
-# #'   tblSoilStabDetail <- dflist[["tblSoilStabDetail"]]
-# #'   tblSoilStabHeader <- dflist[["tblSoilStabHeader"]]
-# #'   tblQualDetail <- dflist[["tblQualDetail"]]
-# #'   tblQualHeader <- dflist[["tblQualHeader"]]
-# #'   tblSoilPitHorizons <- dflist[["tblSoilPitHorizons"]]
-# #'   tblSoilPits <- dflist[["tblSoilPits"]]
-# #'   tblSpecRichDetail <- dflist[["tblSpecRichDetail"]]
-# #'   tblSpecRichHeader <- dflist[["tblSpecRichHeader"]]
-# #'   tblPlots <- dflist[["tblPlots"]]
-# #'
-# #'   GINTERCEPT <- dflist[["GINTERCEPT"]]
-# #'   POINT <- dflist[["POINT"]]
-# #'   PASTUREHEIGHTS <- dflist[["PASTUREHEIGHTS"]]
-# #'   RANGEHEALTH <- dflist[["RANGEHEALTH"]]
-# #'   PINTERCEPT <- dflist[["PINTERCEPT"]]
-# #'   SOILDISAG <- dflist[["SOILDISAG"]]
-# #'   PLANTCENSUS <- dflist[["PLANTCENSUS"]]
-# #'   SOILHORIZON <- dflist[["SOILHORIZON"]]
-# #'   POINTCOORDINATES <- dflist[["POINTCOORDINATES"]]
-# #'   GPS <- dflist[["GPS"]]
-# #'
-# #'   rm(dflist)
-# #'
-# #'   # Gap ####
-# #'   if(("tblGapDetail" %in% names_rda & "tblGapHeader" %in% names_rda) |
-# #'      ("tblGapDetail" %in% names_gdb & "tblGapHeader" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM gap")
-# #'     gap_aim <- gather_gap(dsn = dsn, source = "AIM",
-# #'                           tblGapDetail = tblGapDetail,
-# #'                           tblGapHeader = tblGapHeader)
-# #'   } else {
-# #'     gap_aim <- NULL
-# #'     if(verbose) print("tblGapDetail and/or tblGapHeader not found. Skipping AIM Gap.")
-# #'   }
-# #'
-# #'   if(("GINTERCEPT" %in% names_rda & "POINT" %in% names_rda) |
-# #'      ("GINTERCEPT" %in% names_gdb & "POINT" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF gap")
-# #'     gap_lmf <- gather_gap(dsn = dsn, source = "LMF",
-# #'                           GINTERCEPT = GINTERCEPT,
-# #'                           POINT = POINT)
-# #'   } else {
-# #'     gap_lmf <- NULL
-# #'     if(verbose) print("GINTERCEPT and/or POINT not found. Skipping LMF Gap.")
-# #'   }
-# #'
-# #'   gap_tall <- dplyr::bind_rows(gap_aim, gap_lmf)
-# #'   if(1 <= nrow(gap_tall)){
-# #'     if("csv" %in% outtype){
-# #'       write.csv(gap_tall,
-# #'                 file = paste(outfolder, "gap_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(gap_tall,
-# #'               file = paste0(outfolder, "gap_tall.rdata"))
-# #'     }
-# #'
-# #'   }
-# #'   rm(gap_aim, gap_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # Soil stability ####
-# #'   if(("tblSoilStabDetail" %in% names_rda & "tblSoilStabHeader" %in% names_rda) |
-# #'      ("tblSoilStabDetail" %in% names_gdb & "tblSoilStabHeader" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM soil stability")
-# #'     soilstab_aim <- gather_soil_stability(dsn = dsn, source = "AIM",
-# #'                                           tblSoilStabDetail = tblSoilStabDetail,
-# #'                                           tblSoilStabHeader = tblSoilStabHeader)
-# #'   } else {
-# #'     soilstab_aim <- NULL
-# #'     if(verbose) print("tblSoilStabDetail and/or tblSoilStabHeader not found. Skipping AIM Soil Stability.")
-# #'   }
-# #'
-# #'   if(("SOILDISAG" %in% names_rda) |
-# #'      ("SOILDISAG" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF soil stability")
-# #'     soilstab_lmf <- gather_soil_stability(dsn = dsn, source = "LMF",
-# #'                                           SOILDISAG = SOILDISAG)
-# #'   } else {
-# #'     soilstab_lmf <- NULL
-# #'     if(verbose) print("SOILDISAG not found. Skipping LMF Soil Stability.")
-# #'   }
-# #'
-# #'   soilstab_tall <- dplyr::bind_rows(soilstab_aim, soilstab_lmf)
-# #'   if(1 <= nrow(soilstab_tall)){
-# #'
-# #'     if("csv" %in% outtype){
-# #'       write.csv(soilstab_tall,
-# #'                 file = paste(outfolder, "soil_stability_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(soilstab_tall,
-# #'               file = paste0(outfolder, "soil_stability_tall.rdata"))
-# #'     }
-# #'   }
-# #'   rm(soilstab_aim, soilstab_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # LPI ####
-# #'   if(doLPI == T){
-# #'     if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-# #'        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
-# #'       if(verbose) print("Gathering AIM LPI")
-# #'       lpi_aim <- gather_lpi(dsn = dsn, file_type = "gdb", source = "AIM",
-# #'                             tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)} else {
-# #'                               lpi_aim <- NULL
-# #'                               if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM LPI.")
-# #'                             }
-# #'
-# #'     if(("PINTERCEPT" %in% names_rda) |
-# #'        ("PINTERCEPT" %in% names_gdb)){
-# #'       if(verbose) print("Gathering LMF LPI")
-# #'       lpi_lmf <- gather_lpi(dsn = dsn, file_type = "gdb", source = "LMF",
-# #'                             PINTERCEPT = PINTERCEPT)
-# #'     } else {
-# #'       lpi_lmf <- NULL
-# #'       if(verbose) print("PINTERCEPT not found. Skipping LMF LPI.")
-# #'     }
-# #'
-# #'     lpi_tall <- dplyr::bind_rows(lpi_aim, lpi_lmf)
-# #'     if(1 <= nrow(lpi_tall)){
-# #'       if("csv" %in% outtype){
-# #'         write.csv(lpi_tall,
-# #'                   file = paste(outfolder, "lpi_tall.csv", sep = ""), row.names = F)
-# #'       }
-# #'       if("rdata" %in% outtype){
-# #'         saveRDS(lpi_tall,
-# #'                 file = paste0(outfolder, "lpi_tall.rdata"))
-# #'       }
-# #'     }
-# #'     rm(lpi_aim, lpi_lmf)
-# #'     invisible(gc())
-# #'
-# #'     # Height ####
-# #'     if(("tblLPIDetail" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-# #'        ("tblLPIDetail" %in% names_gdb & "tblLPIHeader" %in% names_gdb)){
-# #'       if(verbose) print("Gathering AIM Height")
-# #'       height_aim <- gather_height(dsn = dsn, file_type = "gdb", source = "AIM",
-# #'                                   tblLPIDetail = tblLPIDetail, tblLPIHeader = tblLPIHeader)
-# #'     } else {
-# #'       height_aim <- NULL
-# #'       if(verbose) print("tblLPIDetail and/or tblLPIHeader not found. Skipping AIM Height.")
-# #'     }
-# #'
-# #'     if(("PASTUREHEIGHTS" %in% names_rda) |
-# #'        ("PASTUREHEIGHTS" %in% names_gdb)){
-# #'       if(verbose) print("Gathering LMF Height")
-# #'       height_lmf <- gather_height(dsn = dsn, file_type = "gdb", source = "LMF",
-# #'                                   PASTUREHEIGHTS = PASTUREHEIGHTS)
-# #'     } else {
-# #'       height_lmf <- NULL
-# #'       if(verbose) print("PASTUREHEIGHTS not found. Skipping LMF Height.")
-# #'     }
-# #'
-# #'     height_tall <- dplyr::bind_rows(height_aim, height_lmf)
-# #'     if(1 <= nrow(height_tall)){
-# #'       if("csv" %in% outtype){
-# #'         write.csv(height_tall,
-# #'                   file = paste(outfolder, "height_tall.csv", sep = ""), row.names = F)
-# #'       }
-# #'       if("rdata" %in% outtype){
-# #'         saveRDS(height_tall,
-# #'                 file = paste0(outfolder, "height_tall.rdata"))
-# #'       }
-# #'     }
-# #'     rm(height_lmf, height_aim)
-# #'     invisible(gc())
-# #'
-# #'
-# #'
-# #'
-# #'   } else {
-# #'     print("doLPI is false, skipping all lpi")
-# #'   }
-# #'
-# #'   ##### Species inventory ####
-# #'   if(("tblSpecRichDetail" %in% names_rda & "tblSpecRichHeader" %in% names_rda) |
-# #'      ("tblSpecRichDetail" %in% names_gdb & "tblSpecRichHeader" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM species inventory")
-# #'     spp_inventory_aim <- gather_species_inventory(dsn = dsn, source = "AIM",
-# #'                                                   tblSpecRichDetail = tblSpecRichDetail,
-# #'                                                   tblSpecRichHeader = tblSpecRichHeader)
-# #'
-# #'   } else {
-# #'     spp_inventory_aim <- NULL
-# #'     if(verbose) print("tblSpecRichDetail and/or tblSpecRichHeader not found. Skipping AIM Species Inventory.")
-# #'   }
-# #'   if(("PLANTCENSUS" %in% names_rda) |
-# #'      ("PLANTCENSUS" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF species inventory")
-# #'     spp_inventory_lmf <- gather_species_inventory(dsn = dsn, source = "LMF",
-# #'                                                   PLANTCENSUS = PLANTCENSUS,
-# #'                                                   file_type = "gdb")
-# #'   } else {
-# #'     spp_inventory_lmf <- NULL
-# #'     if(verbose) print("PLANTCENSUS not found. Skipping LMF Species Inventory.")
-# #'   }
-# #'
-# #'   spp_inventory_tall <- dplyr::bind_rows(spp_inventory_aim, spp_inventory_lmf)
-# #'   if(1 <= nrow(spp_inventory_tall)){
-# #'
-# #'     if("csv" %in% outtype){
-# #'       write.csv(spp_inventory_tall,
-# #'                 file = paste(outfolder, "species_inventory_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(spp_inventory_tall,
-# #'               file = paste0(outfolder, "spp_inventory_tall.rdata"))
-# #'     }
-# #'   }
-# #'   rm(spp_inventory_aim, spp_inventory_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # soil horizons ####
-# #'   if(("tblSoilPitHorizons" %in% names_rda) |
-# #'      ("tblSoilPitHorizons" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM soil horizon data")
-# #'     hz_aim <- gather_soil_horizon(dsn = dsn, source = "AIM",
-# #'                                   tblSoilPitHorizons = tblSoilPitHorizons)
-# #'   } else {
-# #'     hz_aim <- NULL
-# #'     if(verbose) print("tblSoilPitHorizons not found. Skipping AIM Horizons.")
-# #'   }
-# #'   if(("SOILHORIZON" %in% names_rda) |
-# #'      ("SOILHORIZON" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF soil horizon data")
-# #'     hz_lmf <- gather_soil_horizon(dsn = dsn, source = "LMF", SOILHORIZON = SOILHORIZON)
-# #'   } else {
-# #'     hz_lmf <- NULL
-# #'     if(verbose) print("SOILHORIZON not found. Skipping LMF Horizons.")
-# #'   }
-# #'   hz_tall <- dplyr::bind_rows(hz_aim, hz_lmf)
-# #'   if(1 <= nrow(hz_tall)){
-# #'
-# #'     if("csv" %in% outtype){
-# #'       write.csv(hz_tall,
-# #'                 file = paste(outfolder, "soil_horizons_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(hz_tall,
-# #'               file = paste0(outfolder, "soil_horizons_tall.rdata"))
-# #'     }
-# #'
-# #'   }
-# #'   rm(hz_aim, hz_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # soil summary ####
-# #'   if(("tblSoilPitHorizons" %in% names_rda & "tblSoilPits" %in% names_rda) |
-# #'      ("tblSoilPitHorizons" %in% names_gdb & "tblSoilPits" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM soil summary")
-# #'     pit_aim <- gather_soil_summary(dsn = dsn, source = "AIM",
-# #'                                    tblSoilPitHorizons = tblSoilPitHorizons,
-# #'                                    tblSoilPits = tblSoilPits)
-# #'   } else {
-# #'     pit_aim <- NULL
-# #'     if(verbose) print("tblSoilPitHorizons and/or tblSoilPits not found. Skipping AIM Soil Summary.")
-# #'   }
-# #'   if(("SOILHORIZON" %in% names_rda) |
-# #'      ("SOILHORIZON" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF soil summary")
-# #'     pit_lmf <- gather_soil_summary(dsn = dsn, source = "LMF", SOILHORIZON = SOILHORIZON)
-# #'   } else {
-# #'     pit_lmf <- NULL
-# #'     if(verbose) print("SOILHORIZON not found. Skipping LMF soil Summary.")
-# #'   }
-# #'   pit_tall <- dplyr::bind_rows(pit_aim, pit_lmf)
-# #'   if(1 <= nrow(pit_tall)){
-# #'     if("csv" %in% outtype){
-# #'       write.csv(pit_tall,
-# #'                 file = paste(outfolder, "pit_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(pit_tall,
-# #'               file = paste0(outfolder, "pit_tall.rdata"))
-# #'     }
-# #'   }
-# #'
-# #'   rm(pit_aim, pit_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # iirh ####
-# #'   if(("tblQualDetail" %in% names_rda & "tblQualHeader" %in% names_rda) |
-# #'      ("tblQualDetail" %in% names_gdb & "tblQualHeader" %in% names_gdb)){
-# #'     if(verbose) print("Gathering AIM IIRH data")
-# #'     iirh_aim <- gather_rangeland_health(dsn = dsn, source = "AIM",
-# #'                                         tblQualDetail = tblQualDetail,
-# #'                                         tblQualHeader = tblQualHeader)
-# #'   } else {
-# #'     iirh_aim <- NULL
-# #'     if(verbose) print("tblQualDetail and/or tblQualHeader not found. Skipping AIM Rangeland Health.")
-# #'   }
-# #'   if(("RANGEHEALTH" %in% names_rda) |
-# #'      ("RANGEHEALTH" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF IIRH data")
-# #'     iirh_lmf <- gather_rangeland_health(dsn = dsn, source = "LMF",
-# #'                                         RANGEHEALTH = RANGEHEALTH)
-# #'
-# #'   } else {
-# #'     iirh_lmf <- NULL
-# #'     if(verbose) print("RANGEHEALTH not found. Skipping LMF Rangeland Health.")
-# #'   }
-# #'   iirh_tall <- dplyr::bind_rows(iirh_aim, iirh_lmf)
-# #'   if(1 <= nrow(iirh_tall)){
-# #'     if("csv" %in% outtype){
-# #'       write.csv(iirh_tall,
-# #'                 file = paste(outfolder, "rangeland_health_tall.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(iirh_tall,
-# #'               file = paste0(outfolder, "rangeland_health_tall.rdata"))
-# #'     }  }
-# #'   rm(iirh_aim, iirh_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # header ####
-# #'   if(("tblPlots" %in% names_rda & "tblLPIHeader" %in% names_rda) |
-# #'      ("tblPlots" %in% names_gdb & "tblLPIHeader" %in% names_rda)){
-# #'     if(verbose) print("Gathering AIM Header")
-# #'     header_aim <- gather_header(dsn = dsn, source = "AIM",
-# #'                                 tblPlots = tblPlots,
-# #'                                 tblLPIHeader = tblLPIHeader)
-# #'
-# #'     #
-# #'     #     if(verbose) print("Gathering AIM plot characterization")
-# #'     #     plotchar_aim <- gather_plot_characterization(dsn = dsn,
-# #'     #                                                  source = "AIM",
-# #'     #                                                  tblPlots = tblPlots)
-# #'
-# #'   } else {
-# #'     header_aim <- NULL
-# #'
-# #'     if(verbose) print("tblPlots not found. Skipping AIM header.")
-# #'   }
-# #'   if(("POINT" %in% names_rda) |
-# #'      ("POINT" %in% names_gdb)){
-# #'     if(verbose) print("Gathering LMF header")
-# #'     header_lmf <- gather_header(dsn = dsn,
-# #'                                 source = "LMF")
-# #'   } else {
-# #'     header_lmf <- NULL
-# #'     if(verbose) print("POINT not found. Skipping LMF header.")
-# #'   }
-# #'
-# #'   header_tall <- dplyr::bind_rows(header_aim, header_lmf)
-# #'   if(1 <= nrow(header_tall)){
-# #'     if("csv" %in% outtype){
-# #'       write.csv(header_tall,
-# #'                 file = paste(outfolder, "header.csv", sep = ""), row.names = F)
-# #'     }
-# #'     if("rdata" %in% outtype){
-# #'       saveRDS(header_tall,
-# #'               file = paste0(outfolder, "header.rdata"))
-# #'     }  }
-# #'   rm(header_aim, header_lmf)
-# #'   invisible(gc())
-# #'
-# #'   # # output ####
-# #'   # if(doLPI == T){
-# #'   #
-# #'   # list_out <- list(
-# #'   #   gap_tall, height_tall, hz_tall, lpi_tall, pit_tall, header_tall,
-# #'   #   soilstab_tall, spp_inventory_tall
-# #'   # )
-# #'   #
-# #'   # names(list_out) <- c("Gap", "VegHeight", "SoilHorizons", "LPI", "SoilPitSummary",
-# #'   #                      "Header",
-# #'   #                      "SoilStability", "SpeciesInventory")
-# #'   #
-# #'   # } else {
-# #'   #   list_out <- list(
-# #'   #     gap_tall, hz_tall, #pit_tall,
-# #'   #     header_tall,
-# #'   #     soilstab_tall, spp_inventory_tall
-# #'   #   )
-# #'   #
-# #'   #   names(list_out) <- c("Gap", "SoilHorizons", "SoilPitSummary",
-# #'   #                        "Header", "SoilStability", "SpeciesInventory")
-# #'   # }
-# #'
-# #'   # return(list_out)
-# #' }
-#
+
+

@@ -14,13 +14,9 @@ gather_header_terradat(
 }
 \arguments{
 \item{dsn}{Optional character string. If provided, this must be the filepath
-to a geodatabase which contains the feature class tblPlots, e.g.
-\code{"C:/DATA/AIM.GDB"}. If this is NULL, then the argument
-\code{tblPlots} must be provided. Defaults to \code{NULL}.}
+to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.}
 
-\item{tblPlots}{Optional data frame. If provided, this must contain the
-expected plot metadata. If \code{NULL} then the argument \code{dsn} must be
-provided. Defaults to \code{NULL}.}
+\item{tblPlots}{Data frame or character string. If a data frame, must contain the variables PrimaryKey, SpeciesState, PlotID, PlotKey, EcolSite, Latitude, Longitude, State, Elevation, CountyName, EstablishDate, DateLoadedInDb, and SamplingApproach. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called tblPlots (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{date_tables}{Optional (contingent on other arguments) character vector
 or list of data frames. This specifies the tables to extract date
@@ -33,11 +29,9 @@ character strings specifying the names of the relevant feature classes. If
 \code{tblPlots} is being used, then this must be a list of data frames
 containing the relevant data. Defaults to \code{NULL}.}
 
-\item{...}{Additional optional filtering expressions to be used with
-\code{dplyr::filter()} to restrict the processing and output to only a
-subset of input data. If providing data via the argument \code{tblPlots} it
-is recommended to filter the data before calling this function instead of
-using additional arguments here.}
+\item{...}{Additional optional filtering expressions passed to
+\code{\link[dplyr:filter]{dplyr::filter()}} to restrict the processing and output to only a
+subset of input data.}
 
 \item{verbose}{Logical. If \code{TRUE} the function will produce diagnostic
 messages. Defaults to \code{FALSE}.}

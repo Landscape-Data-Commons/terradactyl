@@ -2,14 +2,16 @@
 % Please edit documentation in R/gathering.R
 \name{gather_header}
 \alias{gather_header}
-\title{export gather_header_survey123
-rdname aim_gdb
-Gather plot-level header data}
+\title{Gather plot-level header data}
 \usage{
 gather_header(
   dsn = NULL,
   source,
   tblPlots = NULL,
+  POINT = NULL,
+  POINTCOORDINATES = NULL,
+  GPS = NULL,
+  ESFSG = NULL,
   date_tables = NULL,
   speciesstate = NULL,
   ...,
@@ -18,29 +20,29 @@ gather_header(
 )
 }
 \arguments{
-\item{dsn}{Optional (contingent) character string. This must be the filepath
-to a geodatabase which contains the relevant feature classes, e.g.
-\code{"C:/DATA/AIM.GDB"}. This is optional only when \code{source} is
-\code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If \code{source} is
-\code{"LMF"} or \code{"NRI"} this is required. Defaults to \code{NULL}
-which results in it being ignored by the function.}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes. Defaults to \code{NULL}.}
 
 \item{source}{Character string. This specifies the expected data format(s)
 and determines which specialized gather function will be used. It must be
 one of \code{"AIM"}, \code{"TERRADAT"}, \code{"LMF"}, \code{"DIMA"} or
 \code{"NRI"}. This is case-insensitive.}
 
-\item{tblPlots}{Optional data frame only used if \code{source} is
-\code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}. If provided, this must
-contain the expected plot metadata. If \code{NULL} then the argument
-\code{dsn} must be provided. Defaults to \code{NULL}.}
+\item{tblPlots}{Data frame or character string. If a data frame, must contain the variables PrimaryKey, SpeciesState, PlotID, PlotKey, EcolSite, Latitude, Longitude, State, Elevation, CountyName, EstablishDate, DateLoadedInDb, and SamplingApproach. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called tblPlots (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{POINT}{Data frame or character string. If a data frame, must contain the variables PrimaryKey, SpeciesState, COUNTY, and STATE. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called POINT (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{POINTCOORDINATES}{Data frame or character string. If a data frame, must contain the variables PrimaryKey, LocationType, REPORT_LATITUDE, and REPORT_LONGITUDE. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called POINTCOORDINATES (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{GPS}{Data frame or character string. If a data frame, must contain the variables PrimaryKey, CAPDATE, and ELEVATION. If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called GPS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{ESFSG}{Data frame or character string. If a data frame, must contain the variables COVERAGE, END_MARK, START_MARK, ESFSG_MLRA, ESFSG_SITE, and ESFSG_STATE (the variable ESFSG_PREFIX is optional). If a character string, must either correspond to the filepath to a CSV or RDATA file containing a table with those variables or the name of the feature class in the geodatabase provided as \code{dsn} with those variables. If \code{NULL}, the function will attempt to find a feature class called ESFSG (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{date_tables}{Optional (contingent on other arguments) character vector
-or list of data frames. Only used if \code{source} is \code{"AIM"},
-\code{"TERRADAT"}, or \code{"DIMA"}. This specifies the tables to extract
-date information from. If \code{dsn} is not \code{NULL} AND the geodatabase
+or list of data frames. This specifies the tables to extract date
+information from. If \code{dsn} is not \code{NULL} AND the geodatabase
 contains at least one feature class from the set tblLPIHeader,
-tblGapHeader, "tblSpecRichHeader", this argument is optional and can be
+tblGapHeader, and tblSpecRichHeader, this argument is optional and can be
 left as \code{NULL}. Otherwise, if \code{dsn} is not \code{NULL} and the
 desired tables to use are named anything else, this must be a vector of
 character strings specifying the names of the relevant feature classes. If
@@ -49,13 +51,9 @@ containing the relevant data. Defaults to \code{NULL}.}
 
 \item{speciesstate}{Optional. Used by NRI.}
 
-\item{...}{Additional optional filtering expressions to be used with
-\code{dplyr::filter()} to restrict the processing and output to only a
+\item{...}{Additional optional filtering expressions passed to
+\code{\link[dplyr:filter]{dplyr::filter()}} to restrict the processing and output to only a
 subset of input data.}
-
-\item{autoQC}{Logical (currently disabled). If \code{TRUE} then automatic
-quality control functions will be applied to the data before returning the
-output. Defaults to \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE} the function will produce diagnostic
 messages. Defaults to \code{FALSE}.}
@@ -71,17 +69,26 @@ with the package \code{terradactyl}. Supported formats include those used in
 AIM (Assessment, Inventory, and Monitoring) and TerrADat (Terrestrial AIM
 Database), LMF (Landscape Monitoring Framework), and DIMA (the Database for
 Inventory, Monitoring, and Assessment). For additional information about
-arguments, see the documentation for the functions
-\code{gather_header_terradat()}, \code{gather_header_lmf()}, and
-\code{gather_header_nri()}.
+arguments, see the documentation for the functions \code{\link[terradactyl:gather_header_terradat]{gather_header_terradat()}}, \code{\link[terradactyl:gather_header_lmf]{gather_header_lmf()}}, and
+\code{\link[terradactyl:gather_header_nri]{gather_header_nri()}}.
+}
+\details{
+The \code{source} argument determines which other arguments are used or ignored.
+
+When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+then the arguments \code{tblPlots} and \code{date_tables} are both considered.
+
+When \code{source} is \code{"LMF"} then the arguments \code{POINT}, \code{POINTCOORDINATES}, \code{GPS}, and \code{ESFSG} are all considered.
+
+Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 }
 \examples{
 # Headers from a geodatabase in the format of the Terrestrial AIM Database
-gather_header(dsn = "data_path/aim_data.gdb,
+gather_header(dsn = "data_path/aim_data.gdb",
               source = "terradat")
 
 # Headers from a geodatabase in the format of the Landscape Monitoring Framework
-gather_header(dsn = "data_path/lmf_data.gdb,
+gather_header(dsn = "data_path/lmf_data.gdb",
               source = "lmf")
 
 }
