@@ -334,6 +334,7 @@ pct_cover_indicators <- function(lpi_tall,
 #' @param tall Logical. If \code{TRUE} then output will be in tall format
 #' @param hit String. If \code{"first"} then only top LPI hits are included. If \code{"any"} then any hit values are included.Only used for \code{pct_cover_live} and \code{pct_cover_species}.
 #' @param ... Optional bare variable names. Only used for \code{pct_cover_live}. Names of variables to include as part of grouping e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
 #' @name cover_indicators
 #' @return A \code{tbl} of either wide or tall format.
 #' @examples
@@ -714,6 +715,7 @@ pct_cover_species <- function(lpi_tall,
   # # return
   # return(summary)
 }
+
 
 
 
