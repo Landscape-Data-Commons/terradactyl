@@ -1233,7 +1233,8 @@ lpi_calc <- function(header = NULL,
   }
   total_foliar <- pct_cover_total_foliar(lpi_tall = lpi_species,
                                          tall = TRUE,
-                                         by_line = FALSE)
+                                         by_line = FALSE,
+                                        digits = digits)
 
   ##### All other cover ########################################################
   variable_groups <- list("first" = fh_variable_groupings,
