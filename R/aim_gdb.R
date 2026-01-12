@@ -1450,7 +1450,7 @@ lpi_calc <- function(header = NULL,
                                           tidyr::replace_na(data = _,
                                                             replace = 0) |>
                                           round(x = _,
-                                                digits = 1)))
+                                                digits = digits)))
 
   # Add in variables for indicators we want but which had no qualifying data and
   # therefore should have a value of 0 for all plots.
