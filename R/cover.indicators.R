@@ -25,7 +25,8 @@ pct_cover_indicators <- function(lpi_tall,
                                                             live = c("chckbox",
                                                                      "code"),
                                                             species = "code"),
-                                 verbose = FALSE) {
+                                 verbose = FALSE,
+                                digits = 1) {
   #### Santization and setup ###################################################
   # TODO: ALL THE COMPLIANCE CHECKS
 
@@ -128,7 +129,8 @@ pct_cover_indicators <- function(lpi_tall,
                                                                 tall = TRUE,
                                                                 hit = current_hit_type,
                                                                 by_line = by_line,
-                                                                indicator_variables = X)
+                                                                indicator_variables = X,
+                                                               digits = digits)
                                                     })
                         })
   names(values_list) <- iteration_vector
@@ -710,4 +712,5 @@ pct_cover_species <- function(lpi_tall,
   # # return
   # return(summary)
 }
+
 
