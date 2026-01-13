@@ -1150,6 +1150,7 @@ accumulated_species <- function(header,
                                   by_line = FALSE,
                                   omit_zero = TRUE,
                                   tall = TRUE,
+                                  digits = digits,
                                   indicator_variables = c("code"))
 
     # add n of samples for each calculation
@@ -1186,6 +1187,7 @@ accumulated_species <- function(header,
                                               by_line = FALSE,
                                               omit_zero = TRUE,
                                               tall = TRUE,
+                                              digits = digits,
                                               Chkbox, Species)
       species_height_live_dead_split <- species_cover_live_dead  |>
         # Identify 0 as Live and 1 as dead
