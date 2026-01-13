@@ -455,7 +455,7 @@ pct_cover_total_foliar <- function(lpi_tall,
                        indicator_families = c("total foliar"),
                        tall_output = c("total foliar" = tall),
                        by_line = by_line,
-                       digits = 1,
+                       digits = digits,
                        verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # summarization_vars <- "PrimaryKey"
@@ -715,6 +715,7 @@ pct_cover_species <- function(lpi_tall,
   # # return
   # return(summary)
 }
+
 
 
 
