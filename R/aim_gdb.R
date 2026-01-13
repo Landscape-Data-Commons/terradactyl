@@ -548,6 +548,7 @@ lpi_calc <- function(header = NULL,
                                 "AH_TallPerenGrassCover",
                                 "AH_ShortPerenGrassCover",
                                 "AH_PerenForbGraminoidCover",
+                                "AH_AnnForbGraminoidCover",
                                 "AH_ShrubCover",
                                 "AH_ShrubSucculentCover",
                                 "AH_SagebrushCover",
@@ -1232,7 +1233,8 @@ lpi_calc <- function(header = NULL,
   }
   total_foliar <- pct_cover_total_foliar(lpi_tall = lpi_species,
                                          tall = TRUE,
-                                         by_line = FALSE)
+                                         by_line = FALSE,
+                                        digits = digits)
 
   ##### All other cover ########################################################
   variable_groups <- list("first" = fh_variable_groupings,
@@ -1300,7 +1302,8 @@ lpi_calc <- function(header = NULL,
                                                                                                       by_line = FALSE,
                                                                                                       hit = hit,
                                                                                                       indicator_variables = current_grouping_vars,
-                                                                                                      verbose = verbose)
+                                                                                                      verbose = verbose,
+                                                                                                     digits = digits)
 
                                                                      # Sometimes there are no data that had non-NA
                                                                      # values in the variables of interest, so
@@ -1449,7 +1452,7 @@ lpi_calc <- function(header = NULL,
                                           tidyr::replace_na(data = _,
                                                             replace = 0) |>
                                           round(x = _,
-                                                digits = 1)))
+                                                digits = digits)))
 
   # Add in variables for indicators we want but which had no qualifying data and
   # therefore should have a value of 0 for all plots.

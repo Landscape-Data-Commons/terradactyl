@@ -279,7 +279,7 @@ pct_cover <- function(lpi_tall,
                      by = internal_grouping_vars) |>
     dplyr::mutate(.data = _,
                   percent = round(x = record_count / point_count * 100,
-                                  digits = 2))
+                                  digits = digits))
 
   ##### Remove non-qualifying indicators ---------------------------------------
   # This is the point where keeping_indicators is used to remove indicators
@@ -391,3 +391,4 @@ pct_bareground <- function(lpi_tall,
                                                         by_line)]),
                   tidyselect::all_of(x = c("BareSoil")))
 }
+
