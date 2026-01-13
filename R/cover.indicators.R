@@ -672,12 +672,14 @@ pct_cover_species <- function(lpi_tall,
                               tall = TRUE,
                               by_line = FALSE,
                               hit = "any",
+                              digits = 1,
                               verbose = FALSE) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("species"),
                        tall_output = c("species" = tall),
                        hit_type = c(species = hit),
                        by_line = by_line,
+                       digits = digits,
                        verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # summary <- pct_cover(lpi_tall,
@@ -717,6 +719,7 @@ pct_cover_species <- function(lpi_tall,
   # # return
   # return(summary)
 }
+
 
 
 
