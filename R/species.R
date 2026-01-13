@@ -1248,12 +1248,14 @@ accumulated_species <- function(header,
                                         dplyr::matches(match = "^Hgt_"))
                         })
 
-  # Combine only the cover and heights via a left_join!
+  # Combine only the cover and heights via a full_join!
+  # Originally this was a left_join() but that resulted in records being dropped
+  # when only one kind of data was available.
   # The purrr::reduce() over a list is so that if we have more tables in the
   # future this will be easy, but we could get away without it.
   output <- purrr::reduce(.x = output_list[c("cover",
                                              "heights")],
-                          .f = dplyr::left_join,
+                          .f = dplyr::full_join,
                           by = c("PrimaryKey", "Species")) |>
     # And if we have species inventory stuff, we'll bind that to the end row-wise
     # then make sure we keep only the first instance of each species for each
