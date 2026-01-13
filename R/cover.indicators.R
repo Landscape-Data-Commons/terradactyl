@@ -578,7 +578,8 @@ pct_cover_live <- function(lpi_tall,
                            by_line = FALSE,
                            hit = "any",
                            ...,
-                           verbose = FALSE) {
+                           verbose = FALSE,
+                          digits = 1) {
   grouping_variables <- rlang::quos(...)
   # This here because we're trying to support the legacy decision to originally
   # allow for bare variables as the indicator-defining variables.
@@ -606,6 +607,7 @@ pct_cover_live <- function(lpi_tall,
                        hit_type = c(live = hit),
                        indicator_variables = list(live = indicator_variables),
                        by_line = by_line,
+                       digits = digits,
                        verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # # summarize by checkbox and pre-assigned grouping variables
@@ -715,6 +717,7 @@ pct_cover_species <- function(lpi_tall,
   # # return
   # return(summary)
 }
+
 
 
 
