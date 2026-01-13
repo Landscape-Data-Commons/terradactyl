@@ -1302,7 +1302,8 @@ lpi_calc <- function(header = NULL,
                                                                                                       by_line = FALSE,
                                                                                                       hit = hit,
                                                                                                       indicator_variables = current_grouping_vars,
-                                                                                                      verbose = verbose)
+                                                                                                      verbose = verbose,
+                                                                                                     digits = digits)
 
                                                                      # Sometimes there are no data that had non-NA
                                                                      # values in the variables of interest, so
