@@ -812,6 +812,7 @@ accumulated_species <- function(header,
                                 ...,
                                 # indicator_variables = NULL,
                                 generic_species_file = NULL,
+                                digits = 1,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
   # # Get a list of the variables the user wants to group data by for calculations.
@@ -1047,7 +1048,8 @@ accumulated_species <- function(header,
     }
 
     # calculate cover by species
-    species_cover <- pct_cover_species(lpi_tall = inputs_list[["cover"]]) |>
+    species_cover <- pct_cover_species(lpi_tall = inputs_list[["cover"]],
+                                      digits = digits) |>
       dplyr::filter(.data = _,
                     percent > 0) |>
       dplyr::rename(.data = _,
@@ -1063,7 +1065,8 @@ accumulated_species <- function(header,
                                                 hit = "any",
                                                 tall = TRUE,
                                                 by_line = FALSE,
-                                                code) |>
+                                                code,
+                                               digits = digits) |>
         dplyr::filter(.data = _,
                       percent > 0) |>
         # Separate the indicators based on the live vs dead.
