@@ -15,6 +15,7 @@ accumulated_species(
   source = c("TerrADat", "AIM", "LMF", "NRI"),
   ...,
   generic_species_file = NULL,
+  digits = 6,
   verbose = FALSE
 )
 }
@@ -38,9 +39,9 @@ Accumulated species presence, cover, and height across Line-point intercept, Veg
 # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
 accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.rdata",
-                                           spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.rdata",
-                                           height_tall = "~/AIM/Data/height_tall.rdata",
-                                           header = "~/AIM/Data/header.rdata",
-                                           species_file = "species_file.csv",
-                                           SpeciesState \%in\% "NM")
+                                                      spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.rdata",
+                                                       height_tall = "~/AIM/Data/height_tall.rdata",
+                                                       header = "~/AIM/Data/header.rdata",
+                                                       species_file = "species_file.csv",
+                                                       SpeciesState \%in\% "NM")
 }

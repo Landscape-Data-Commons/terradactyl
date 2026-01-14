@@ -4,7 +4,7 @@
 \alias{gap_calc}
 \title{Calculate the standard Terrestrial AIM Database (TerrADat) Canopy Gap indicators}
 \usage{
-gap_calc(header = NULL, gap_tall, digits = 1, verbose = FALSE)
+gap_calc(header = NULL, gap_tall, digits = 6, verbose = FALSE)
 }
 \arguments{
 \item{header}{Optional data frame or character string. The metadata for the plots involved in the calculations, this is used to filter or subset the data being used for the calculations and must contain this must contain the variable PrimaryKey. If a character string, this must point to a CSV file containing the data. If \code{NULL} then no filtering will occur. Defaults to \code{NULL}.}

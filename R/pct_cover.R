@@ -18,7 +18,7 @@ pct_cover <- function(lpi_tall,
                       by_line = FALSE,
                       ...,
                       indicator_variables = NULL,
-                      digits = 1,
+                      digits = 6,
                       verbose = FALSE) {
   #### SETUP ###################################################################
   ##### Indicator variables -----------------------------------------------------
@@ -362,7 +362,7 @@ pct_bareground <- function(lpi_tall,
                            by_line = FALSE,
                            indicator_variable = "code",
                            soil_values = c("S"),
-                           digits = 1,
+                           digits = 6,
                            verbose = FALSE) {
   # Strip the data down to the bare minimum, renaming the indicator variable
   select(.data = lpi_tall,

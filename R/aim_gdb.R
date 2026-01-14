@@ -485,7 +485,7 @@ lpi_calc <- function(header = NULL,
                      species_file,
                      species_code_var = "SpeciesCode",
                      generic_species_file = NULL,
-                     digits = 1,
+                     digits = 6,
                      verbose = FALSE) {
 
   if (!is.character(species_code_var)) {
@@ -1502,7 +1502,7 @@ lpi_calc <- function(header = NULL,
 #' @export
 gap_calc <- function(header = NULL,
                      gap_tall,
-                     digits = 1,
+                     digits = 6,
                      verbose = FALSE) {
   if ("character" %in% class(header)) {
     if (toupper(tools::file_ext(header)) == "RDATA") {
@@ -1593,7 +1593,7 @@ height_calc <- function(header,
                         species_code_var = "SpeciesCode",
                         source = NULL,
                         generic_species_file = NULL,
-                        digits = 1,
+                        digits = 6,
                         verbose = FALSE) {
   if (verbose) {
     message("Beginning height calculations")
@@ -2091,7 +2091,7 @@ spp_inventory_calc <- function(header,
 #' @returns A data frame matching the format of height indicators in TerrADat.
 #' @export
 soil_stability_calc <- function(soil_stability_tall,
-                                digits = 1,
+                                digits = 6,
                                 verbose = FALSE) {
   if ("character" %in% class(soil_stability_tall)) {
     if (toupper(tools::file_ext(soil_stability_tall)) == "RDATA") {

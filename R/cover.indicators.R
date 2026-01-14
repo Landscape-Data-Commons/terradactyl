@@ -26,7 +26,7 @@ pct_cover_indicators <- function(lpi_tall,
                                                                      "code"),
                                                             species = "code"),
                                  verbose = FALSE,
-                                digits = 1) {
+                                digits = 6) {
   #### Santization and setup ###################################################
   # TODO: ALL THE COMPLIANCE CHECKS
 
@@ -450,7 +450,7 @@ pct_cover_total_foliar <- function(lpi_tall,
                                    tall = FALSE,
                                    by_line = FALSE,
                                    verbose = FALSE,
-                                  digits = 1) {
+                                  digits = 6) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("total foliar"),
                        tall_output = c("total foliar" = tall),
@@ -579,7 +579,7 @@ pct_cover_live <- function(lpi_tall,
                            hit = "any",
                            ...,
                            verbose = FALSE,
-                          digits = 1) {
+                          digits = 6) {
   grouping_variables <- rlang::quos(...)
   # This here because we're trying to support the legacy decision to originally
   # allow for bare variables as the indicator-defining variables.

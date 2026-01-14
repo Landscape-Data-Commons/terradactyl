@@ -10,7 +10,7 @@ gather_all(
   data_list = NULL,
   data_types = c("header", "lpi", "height", "gap", "soilstability", "species",
     "rangelandhealth"),
-  output_path = NULL,
+  output_filepath = NULL,
   output_filetype = c("csv", "rds"),
   verbose = FALSE
 )
@@ -38,7 +38,7 @@ Defaults to \code{NULL}.}
 gather into long/tall-format. Valid values are \code{"header"}, \code{"lpi"}, \code{"height"}, \code{"gap"}, \code{"soilstability"}, \code{"species"}, and \code{"rangelandhealth"}.
 This is case-insensitive. Defaults to \code{c("header", "lpi", "height", "gap", "soilstability", "species", "rangelandhealth")}.}
 
-\item{output_path}{Optional character string. The filepath to a folder to
+\item{output_filepath}{Optional character string. The filepath to a folder to
 save all outputs to as RDS or CSV files. This folder must already exist. If
 this is not \code{NULL} then the function will write the output and will NOT
 return any outputs in the R environment. If this is \code{NULL} then no
@@ -46,15 +46,15 @@ data will be written to file and the function will return a list of data frames,
 one for each data type. Defaults to \code{NULL}.}
 
 \item{output_filetype}{Optional vector of character strings. This determines
-what file(s) type to write the outputs as in \code{output_path}. Valid file
+what file(s) type to write the outputs as in \code{output_filepath}. Valid file
 values are \code{"CSV"} and \code{"RDS"}, case-insensitive. Only considered if
-output_path is not \code{NULL}. Defaults to \code{c("csv", "rds")}.}
+\code{output_filepath} is not \code{NULL}. Defaults to \code{c("csv", "rds")}.}
 
 \item{verbose}{Logical. If \code{TRUE} the function will produce diagnostic
 messages. Defaults to \code{FALSE}.}
 }
 \value{
-If \code{output_path} is \code{NULL}, a list of tall data frames containing reformatted input data. Otherwise, no outputs in the R environment but files written into \code{output_path}.
+If \code{output_filepath} is \code{NULL}, a list of tall data frames containing reformatted input data. Otherwise, no outputs in the R environment but files written into \code{output_filepath}.
 }
 \description{
 Given wide format AIM/LMF data, produce long/tall-format versions.
@@ -70,7 +70,7 @@ documentation regarding those, please see \code{\link[terradactyl:gather_header]
 # To process all AIM and LMF data in a geodatabase and save them in the
 # folder called "output" in the working directory as both CSV and RDS files.
 gather_all(dsn = "Path/To/AIM-LMF_Geodatabase.gdb",
-           output_path = "output")
+           output_filepath = "output")
 
 # To process line-point intercept and gap data from AIM in a geodatabase and
 # store them in the environment as a list of data frames with diagnostic

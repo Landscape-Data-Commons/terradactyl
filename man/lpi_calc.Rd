@@ -10,7 +10,7 @@ lpi_calc(
   species_file,
   species_code_var = "SpeciesCode",
   generic_species_file = NULL,
-  digits = 1,
+  digits = 6,
   verbose = FALSE
 )
 }

@@ -4,7 +4,7 @@
 \alias{soil_stability_calc}
 \title{Calculate the standard Terrestrial AIM Database (TerrADat) soil stability indicators}
 \usage{
-soil_stability_calc(soil_stability_tall, digits = 1, verbose = FALSE)
+soil_stability_calc(soil_stability_tall, digits = 6, verbose = FALSE)
 }
 \arguments{
 \item{soil_stability_tall}{Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_soil_stability()}. If a character string, this must point to a CSV file containing the data.}

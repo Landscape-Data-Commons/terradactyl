@@ -12,7 +12,7 @@ soil_stability(
   all_cover_types = FALSE,
   exclude_na_cover = TRUE,
   tall = FALSE,
-  digits = 1,
+  digits = 6,
   verbose = FALSE
 )
 }

@@ -25,7 +25,7 @@ soil_stability <- function(soil_stability_tall,
                            all_cover_types = FALSE,
                            exclude_na_cover = TRUE,
                            tall = FALSE,
-                           digits = 1,
+                           digits = 6,
                            verbose = FALSE) {
   #### Sanitization of inputs ##################################################
   current_indicator_type_vector <- c(all, cover, uncovered, all_cover_types)

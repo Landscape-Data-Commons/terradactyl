@@ -812,7 +812,7 @@ accumulated_species <- function(header,
                                 ...,
                                 # indicator_variables = NULL,
                                 generic_species_file = NULL,
-                                digits = 1,
+                                digits = 6,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
   # # Get a list of the variables the user wants to group data by for calculations.

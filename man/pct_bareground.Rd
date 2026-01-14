@@ -10,7 +10,7 @@ pct_bareground(
   by_line = FALSE,
   indicator_variable = "code",
   soil_values = c("S"),
-  digits = 1,
+  digits = 6,
   verbose = FALSE
 )
 }

@@ -11,7 +11,7 @@ pct_cover(
   by_line = FALSE,
   ...,
   indicator_variables = NULL,
-  digits = 1,
+  digits = 6,
   verbose = FALSE
 )
 }
