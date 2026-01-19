@@ -273,6 +273,7 @@ generic_growth_habits <- function(data,
 
   # Remove records where we didn't actually add any information. So, we'll keep
   # only records where at least one of the regexed variables wasn't NA.
+  if (nrow(missing_codes_df) > 0) {
   missing_codes_df <- dplyr::filter(.data = missing_codes_df,
                                     dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
                                                   .fns = ~ !is.na(x = .x))) |>
@@ -286,6 +287,9 @@ generic_growth_habits <- function(data,
                                    dplyr::across(.cols = dplyr::where(fn = is.logical),
                                                  .fns = as.character))) |>
     dplyr::distinct()
+    } else {
+      species_list
+    }
 }
 
 #' Join species characteristics to field data
