@@ -1889,6 +1889,7 @@ spp_inventory_calc <- function(header,
                                spp_inventory_tall,
                                species_file,
                                source,
+                               species_code_var = "SpeciesCode",
                                generic_species_file = NULL,
                                verbose = FALSE) {
   if ("character" %in% class(header)) {
