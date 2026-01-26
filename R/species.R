@@ -104,7 +104,7 @@ species_read_aim <- function(dsn,
                                     SG_Group,
                                     sep = ":")) |>
     dplyr::summarize(.data = _,
-                     .by = Species,
+                     .by = CurrentPLANTSCode,
                      SG_Group = paste(sg_string,
                                       collapse = "|"))
 
@@ -113,7 +113,7 @@ species_read_aim <- function(dsn,
   }
 
   output <- dplyr::left_join(x = tblNationalPlants,
-                             y = tblStateSpecies,
+                             y = sg_group_lookup,
                              relationship = "many-to-one",
                              by = "CurrentPLANTSCode") |>
     # This is so that we have a variable that can be easily used internally
