@@ -861,6 +861,15 @@ accumulated_species <- function(header,
       stop("When header is a character string it must be the path to a .Rdata file containing header data.")
     }
   }
+  header <- read_whatever(input = header,
+                          verbose = verbose)
+
+  if (!is.data.frame(header)) {
+    stop("Something is wrong with the current header information provided.")
+  } else if (nrow(header) < 1) {
+    stop("The header information contains no records.")
+  }
+
 
   header <- dplyr::filter(.data = header,
                           !!!filter_exprs) |>
@@ -872,6 +881,9 @@ accumulated_species <- function(header,
                                            "Latitude_NAD83",
                                            "Longitude_NAD83",
                                            "source")))
+  if (nrow(header) < 1) {
+    stop("The header information contains no records after applying the filtering expressions.")
+  }
 
   ##### Data -------------------------------------------------------------------
   inputs_list <- lapply(X = c("lpi_tall",
@@ -883,24 +895,26 @@ accumulated_species <- function(header,
                         header = header,
                         verbose = verbose,
                         FUN = function(X, inputs, header, verbose){
-                          if ("character" %in% class(inputs[[X]])) {
-                            if (tools::file_ext(inputs[[X]]) == "Rdata") {
-                              output <- readRDS(file = inputs[[X]])
-                            } else {
-                              stop(paste("When", X, "is a character string it must be the path to a .Rdata file containing tall data."))
-                            }
-                          } else if (!("data.frame" %in% class(inputs[[X]]))) {
+
+                          output <- read_whatever(input = inputs[[X]],
+                                                  verbose = verbose)
+
+                          if (!is.data.frame(output)) {
                             if (verbose) {
-                              message(paste(X, "either doesn't contain data or was NULL."))
+                              message(paste0("No usable data provided for", X))
                             }
                             return(NULL)
-                          } else {
-                            output <- inputs[[X]]
+                          } else if (nrow(output) < 1) {
+                            message(paste0("No records found in the input provided for ", X))
+                            return(NULL)
                           }
 
                           output <- dplyr::select(.data = output,
                                                   -tidyselect::any_of(x = c("FormDate")))
 
+                          if (verbose) {
+                            message("Combining the data with the header information.")
+                          }
                           dplyr::left_join(x = dplyr::select(.data = header,
                                                              tidyselect::all_of(x = c("PrimaryKey",
                                                                                       "SpeciesState"))),
