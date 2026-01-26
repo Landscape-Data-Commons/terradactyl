@@ -136,7 +136,7 @@ build_terradat_indicators <- function(header,
     if (verbose) {
       message("Working on species inventory")
     }
-    spp_tall <- read_whatever(input = spp_tall,
+    spp_inventory_tall <- read_whatever(input = spp_inventory_tall,
                               verbose = verbose)
     # if ("character" %in% class(spp_inventory_tall)) {
     #   if (tools::file_ext(spp_inventory_tall) %in% c("Rdata", "rdata")) {
