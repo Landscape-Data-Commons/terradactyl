@@ -27,6 +27,7 @@ build_terradat_indicators <- function(header,
                                       height_tall = NULL,
                                       spp_inventory_tall = NULL,
                                       soil_stability_tall = NULL,
+                                      digits = 6,
                                       ...,
                                       verbose = FALSE) {
   #### Setup ###################################################################
@@ -136,6 +137,7 @@ build_terradat_indicators <- function(header,
                                          header = header,
                                          species_file = species_file,
                                          species_code_var = species_code_var,
+                                         digits = digits,
                                          verbose = verbose)
   } else {
     if (verbose) {
@@ -147,6 +149,7 @@ build_terradat_indicators <- function(header,
   if (!is.null(gap_tall)) {
     indicators_list[["gap"]] <- gap_calc(gap_tall = gap_tall,
                                          header = header,
+                                         digits = digits,
                                          verbose = verbose)
   } else {
     if (verbose) {
@@ -160,6 +163,7 @@ build_terradat_indicators <- function(header,
                                                header = header,
                                                source = "AIM",
                                                species_file = species_file,
+                                               digits = digits,
                                                verbose = verbose)
   } else {
     if (verbose) {
@@ -173,6 +177,7 @@ build_terradat_indicators <- function(header,
                                                        header = header,
                                                        species_file = species_file,
                                                        source = "AIM",
+                                                       digits = digits,
                                                        verbose = verbose)
   } else {
     if (verbose) {
@@ -183,6 +188,7 @@ build_terradat_indicators <- function(header,
   ##### Soil Stability ---------------------------------------------------------
   if (!is.null(soil_stability_tall)) {
     indicators_list[["soil_stability"]] <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
+                                                               digits = digits,
                                                                verbose = verbose)
   } else {
     if (verbose) {
@@ -226,6 +232,7 @@ build_lmf_indicators <- function(header, source, dsn,
                                  height_tall,
                                  spp_inventory_tall,
                                  soil_stability_tall,
+                                 digits = 6,
                                  ...,
                                  generic_species_file = NULL,
                                  verbose = FALSE) {
@@ -258,24 +265,29 @@ build_lmf_indicators <- function(header, source, dsn,
                      lpi_calc(lpi_tall = lpi_tall,
                               header = header,
                               species_file = species_file,
-                              generic_species_file = generic_species_file),
+                              generic_species_file = generic_species_file,
+                              digits = digits),
                      # Gap
                      gap_calc(gap_tall = gap_tall,
-                              header = header),
+                              header = header,
+                              digits = digits),
                      #  # Height
                      height_calc(height_tall = height_tall,
                                  header = header,
                                  source = source,
                                  species_file = species_file,
-                                 generic_species_file = generic_species_file),
+                                 generic_species_file = generic_species_file,
+                                 digits = digits),
                      # Species Inventory
                      spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
                                         header = header,
                                         species_file = species_file,
                                         source = source,
-                                        generic_species_file = generic_species_file),
+                                        generic_species_file = generic_species_file,
+                                        digits = digits),
                      # Soil Stability
-                     soil_stability_calc(soil_stability_tall = soil_stability_tall))
+                     soil_stability_calc(soil_stability_tall = soil_stability_tall),
+                     digits = digits)
 
   purrr::reduce(.f = dplyr::left_join,
                 .x = indicators)
@@ -310,12 +322,14 @@ build_indicators <- function(header, source,
                              spp_inventory_tall,
                              soil_stability_tall, ...,
                              generic_species_file = NULL,
+                             digits = 6,
                              verbose = FALSE) {
   all_indicators <- switch(toupper(source),
                            "TERRADAT" = {
                              build_terradat_indicators(
                                dsn = dsn,
                                species_file = species_file,
+                               digits = digits,
                                generic_species_file = generic_species_file)
                            },
                            "AIM" = build_terradat_indicators(
@@ -328,6 +342,7 @@ build_indicators <- function(header, source,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
+                             digits = digits,
                              ...,
                              generic_species_file = generic_species_file
                            ),
@@ -341,6 +356,7 @@ build_indicators <- function(header, source,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
+                             digits = digits,
                              ...,
                              generic_species_file = generic_species_file
                            ),
@@ -354,6 +370,7 @@ build_indicators <- function(header, source,
                              spp_inventory_tall = spp_inventory_tall,
                              soil_stability_tall = soil_stability_tall,
                              species_file = species_file,
+                             digits = digits,
                              ...,
                              generic_species_file = generic_species_file
                            )
@@ -1030,6 +1047,30 @@ lpi_calc <- function(header = NULL,
                                                                  # For first-hit calculations
                                                                  is.na(GrowthHabit) ~ "growthhabitsub_irrelevant",
                                                                  .default = GrowthHabitSub),
+                               ###### Plant ------------------------------------
+                               # This is for calculating basal cover by plants,
+                               # total foliar cover, and making sure plant
+                               # properties aren't assigned to non-plant records
+                               # in variables that are made/modified below in
+                               # this mutate() call.
+                               #
+                               # The value of this variable will be "Plant" only
+                               # if ALL of the following criteria are true:
+                               #   1) The growth habit was NOT set to
+                               #     "growthhabit_irrelevant".
+                               #   2) The growth habit is NOT NA because only
+                               #     codes with assigned growth habits should
+                               #     count.
+                               #   3) The number of characters in code is >=3
+                               #     which as of January 2026 is still a
+                               #     difference between valid species codes and
+                               #     all other types of code values.
+                               #
+                               # If a record fails any of those criteria, the
+                               # value in this variable will be NA.
+                               Plant = dplyr::case_when(!(GrowthHabit %in% c("growthhabit_irrelevant",
+                                                                             NA)) &nchar(code) >= 3 ~ "Plant",
+                                                        .default = NA),
 
                                ###### chckbox ----------------------------------
                                # The chckbox variable is a numeric representation
@@ -1144,11 +1185,6 @@ lpi_calc <- function(header = NULL,
                                                        # "Nonmoss" but we do need that info for first hits to work
                                                        .default = "moss_irrelevant"),
 
-                               ###### Plant ------------------------------------
-                               # This is for basal cover by plants
-                               Plant = dplyr::case_when(GrowthHabit != "growthhabit_irrelevant" ~ "Plant",
-                                                        .default = NA),
-
                                ###### Invasive ---------------------------------
                                # This is just to make the Invasive values match
                                # the desired indicator names
@@ -1159,8 +1195,9 @@ lpi_calc <- function(header = NULL,
                                # It assumes that everything flagged as EXOTIC or
                                # ABSENT should be considered NonNative and that
                                # everything else is Native
-                               Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) ~ "Native",
-                                                         .default = "NonNative"),
+                               Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) & !is.na(Plant) ~ "Native",
+                                                         !(Nonnative %in% c("NATIVE", NA)) & !is.na(Plant) ~ "NonNative",
+                                                         .default = NA),
 
                                ###### Noxious ----------------------------------
                                # For noxious cover. This previously assumed that
