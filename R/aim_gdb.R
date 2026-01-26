@@ -151,7 +151,7 @@ build_terradat_indicators <- function(header,
                                                        header = inputs_list[["header"]],
                                                        species_file = species_file,
                                                        source = "AIM",
-                                                       digits = digits,
+                                                       # digits = digits,
                                                        verbose = verbose)
   } else {
     if (verbose) {
