@@ -69,13 +69,16 @@ build_terradat_indicators <- function(header,
     if (verbose) {
       message("Working on LPI")
     }
-    if ("character" %in% class(lpi_tall)) {
-      if (toupper(tools::file_ext(lpi_tall)) %in% c("Rdata", "rdata")) {
-        lpi_tall <- readRDS(lpi_tall)
-      }
-    } else if (!("data.frame" %in% class(lpi_tall))) {
-      stop("lpi_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
-    }
+
+    lpi_tall <- read_whatever(input = lpi_tall,
+                              verbose = verbose)
+    # if ("character" %in% class(lpi_tall)) {
+    #   if (toupper(tools::file_ext(lpi_tall)) %in% c("RDATA")) {
+    #     lpi_tall <- load(lpi_tall)
+    #   }
+    # } else if (!("data.frame" %in% class(lpi_tall))) {
+    #   stop("lpi_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    # }
 
     # Filter using the headers
     lpi_tall <- dplyr::filter(.data = lpi_tall,
@@ -89,13 +92,15 @@ build_terradat_indicators <- function(header,
     if (verbose) {
       message("Working on gap")
     }
-    if ("character" %in% class(gap_tall)) {
-      if (tools::file_ext(gap_tall) %in% c("Rdata", "rdata")) {
-        gap_tall <- readRDS(gap_tall)
-      }
-    } else if (!("data.frame" %in% class(gap_tall))) {
-      stop("gap_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
-    }
+    gap_tall <- read_whatever(input = gap_tall,
+                              verbose = verbose)
+    # if ("character" %in% class(gap_tall)) {
+    #   if (tools::file_ext(gap_tall) %in% c("RDATA")) {
+    #     gap_tall <- load(gap_tall)
+    #   }
+    # } else if (!("data.frame" %in% class(gap_tall))) {
+    #   stop("gap_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    # }
 
     # Filter using the headers
     gap_tall <- dplyr::filter(.data = gap_tall,
@@ -109,13 +114,15 @@ build_terradat_indicators <- function(header,
     if (verbose) {
       message("Working on heights")
     }
-    if ("character" %in% class(height_tall)) {
-      if (tools::file_ext(height_tall) %in% c("Rdata", "rdata")) {
-        height_tall <- readRDS(height_tall)
-      }
-    } else if (!("data.frame" %in% class(height_tall))) {
-      stop("height_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
-    }
+    height_tall <- read_whatever(input = height_tall,
+                                 verbose = verbose)
+    # if ("character" %in% class(height_tall)) {
+    #   if (tools::file_ext(height_tall) %in% c("RDATA")) {
+    #     height_tall <- readRDS(height_tall)
+    #   }
+    # } else if (!("data.frame" %in% class(height_tall))) {
+    #   stop("height_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    # }
 
     # Filter using the headers
     height_tall <- dplyr::filter(.data = height_tall,
@@ -129,13 +136,15 @@ build_terradat_indicators <- function(header,
     if (verbose) {
       message("Working on species inventory")
     }
-    if ("character" %in% class(spp_inventory_tall)) {
-      if (tools::file_ext(spp_inventory_tall) %in% c("Rdata", "rdata")) {
-        spp_inventory_tall <- readRDS(spp_inventory_tall)
-      }
-    } else if (!("data.frame" %in% class(spp_inventory_tall))) {
-      stop("spp_inventory_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
-    }
+    spp_tall <- read_whatever(input = spp_tall,
+                              verbose = verbose)
+    # if ("character" %in% class(spp_inventory_tall)) {
+    #   if (tools::file_ext(spp_inventory_tall) %in% c("Rdata", "rdata")) {
+    #     spp_inventory_tall <- readRDS(spp_inventory_tall)
+    #   }
+    # } else if (!("data.frame" %in% class(spp_inventory_tall))) {
+    #   stop("spp_inventory_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    # }
 
     # Filter using the headers
     spp_inventory_tall <- dplyr::filter(.data = spp_inventory_tall,
@@ -149,13 +158,15 @@ build_terradat_indicators <- function(header,
     if (verbose) {
       message("Working on soil stability")
     }
-    if ("character" %in% class(soil_stability_tall)) {
-      if (tools::file_ext(soil_stability_tall) %in% c("Rdata", "rdata")) {
-        soil_stability_tall <- readRDS(soil_stability_tall)
-      }
-    } else if (!("data.frame" %in% class(soil_stability_tall))) {
-      stop("soil_stability_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
-    }
+    soil_stability_tall <- read_whatever(input = soil_stability_tall,
+                                         verbose = verbose)
+    # if ("character" %in% class(soil_stability_tall)) {
+    #   if (tools::file_ext(soil_stability_tall) %in% c("Rdata", "rdata")) {
+    #     soil_stability_tall <- readRDS(soil_stability_tall)
+    #   }
+    # } else if (!("data.frame" %in% class(soil_stability_tall))) {
+    #   stop("soil_stability_tall must either be a data frame or the filepath to an Rdata file containing a data frame.")
+    # }
 
     # Filter using the headers
     soil_stability_tall <- dplyr::filter(.data = soil_stability_tall,
@@ -1321,7 +1332,7 @@ lpi_calc <- function(header = NULL,
   total_foliar <- pct_cover_total_foliar(lpi_tall = lpi_species,
                                          tall = TRUE,
                                          by_line = FALSE,
-                                        digits = digits)
+                                         digits = digits)
 
   ##### All other cover ########################################################
   variable_groups <- list("first" = fh_variable_groupings,
@@ -1390,7 +1401,7 @@ lpi_calc <- function(header = NULL,
                                                                                                       hit = hit,
                                                                                                       indicator_variables = current_grouping_vars,
                                                                                                       verbose = verbose,
-                                                                                                     digits = digits)
+                                                                                                      digits = digits)
 
                                                                      # Sometimes there are no data that had non-NA
                                                                      # values in the variables of interest, so
