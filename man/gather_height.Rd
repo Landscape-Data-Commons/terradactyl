@@ -2,25 +2,8 @@
 % Please edit documentation in R/gathering.R
 \name{gather_height}
 \alias{gather_height}
-\alias{gather_height_terradat}
-\alias{gather_height_lmf}
 \title{Convert height data into a tall, tidy data frame}
 \usage{
-gather_height_terradat(
-  dsn = NULL,
-  tblLPIDetail = NULL,
-  tblLPIHeader = NULL,
-  auto_qc_warnings = TRUE,
-  verbose = FALSE
-)
-
-gather_height_lmf(
-  dsn = NULL,
-  file_type = "gdb",
-  PASTUREHEIGHTS = NULL,
-  verbose = FALSE
-)
-
 gather_height(
   dsn = NULL,
   file_type = "gdb",
@@ -33,47 +16,47 @@ gather_height(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file
-extension) of the geodatabase or text file containing the table of interest.
-This field is unnecessary if you provide either both of tblLPIDetail and
-tblLPIHeader (AIM/DIMA/TerrADat) or PASTUREHEIGHTS (LMF/NRI).}
+\item{dsn}{Optional character string. If provided, this must be the filepath
+to a geodatabase which contains the relevant feature classes.}
 
-\item{tblLPIDetail}{Dataframe of the data structure tblLPIDetail from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblLPIHeader when data source is AIM, DIMA, or TerrADat; alternately provide
-dsn.}
+\item{file_type}{Deprecated. This argument is no longer functional or necessary and is kept for backwards compatibility with legacy code.}
 
-\item{tblLPIHeader}{Dataframe of the data structure tblLPIHeader from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblLPIDetail when data source is AIM, DIMA, or TerrADat; alternately provide
-dsn.}
+\item{source}{Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).}
+
+\item{tblLPIDetail}{Optional data frame or character string. If provided, this must contain the
+expected LPI data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIDetail (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{tblLPIHeader}{Optional data frame or character string. If provided, this must contain the
+expected metadata for the LPI data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called tblLPIHeader (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
+
+\item{PASTUREHEIGHTS}{Optional data frame or character string. If provided, this must contain the
+expected height data. If \code{NULL} then the argument
+\code{dsn} must be provided. If a character string, this must either correspond to the filepath to a CSV or RDATA file containing a table with the data or the name of the feature class in the geodatabase provided as \code{dsn}. If \code{NULL}, the function will attempt to find a feature class called PASTUREHEIGHTS (making a best guess if there's a partial match) in the \code{dsn} geodatabase. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} then the function will report back
 diagnostic information as console messages while it works. Defaults to
 \code{FALSE}.}
-
-\item{file_type}{Character string that denotes the source file type of the
-LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-AIM/DIMA/TerrADat, or if \code{PASTUREHEIGHTS} is provided.}
-
-\item{PASTUREHEIGHTS}{Dataframe of the data structure PASTUREHEIGHTS from the
-LMF/NRI database; alternately provide \code{dsn}.}
-
-\item{source}{Character string. The data source format,
-\code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
-
-\item{auto_qc}{Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
-checked for non-unique and orphaned records before doing processing. If any
-are found, a warning will be triggered but the gather will still be carried
-out. It is strongly recommended that any identified issues be addressed to
-avoid incorrect records in the output. Defaults to \code{TRUE}.}
 }
 \value{
 A tall data frame containing the data from the height measurements.
 }
 \description{
-Given wide format line-point intercept data, create a tall
-format data frame usable by other terradactyl functions.
+Given wide format line-point intercept or height data, create a tall
+format data frame usable by other terradactyl functions. For additional information about
+arguments, see the documentation for the functions \code{\link[terradactyl:gather_height_terradat]{gather_height_terradat()}}, \code{\link[terradactyl:gather_height_lmf]{gather_height_lmf()}}, and
+\code{\link[terradactyl:gather_height_nri]{gather_height_nri()}}.
+}
+\details{
+The \code{source} argument determines which other arguments are used or ignored.
+
+When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+then the arguments \code{tblLPIHeader} and \code{tblLPIDetail} are both considered.
+
+When \code{source} is \code{"LMF"} then the argument \code{PASTUREHEIGHTS} is considered.
+
+Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 }
 \examples{
 gather_height(dsn = "Path/To/AIM_Geodatabase.gdb",
@@ -91,12 +74,3 @@ lmf_heights <- read.csv("Path/To/PASTUREHEIGHTS.csv")
 gather_height(source = "LMF",
               PASTUREHEIGHTS = lmf_heights)
 }
-\seealso{
-Other <gather>: 
-\code{\link{gather_gap}()},
-\code{\link{gather_lpi}()},
-\code{\link{gather_rangeland_health}()},
-\code{\link{gather_soil_stability}()},
-\code{\link{gather_species_inventory}()}
-}
-\concept{<gather>}

@@ -1,3 +1,36 @@
+
+#' Read in and combine tblNationalPlants and tblStateSpecies
+#' @description The BLM Terrestrial AIM program uses two separate tables to
+#' store plant species characteristics used to calculate standard indicators for
+#' the Terrestrial AIM Database (TerrADat). Both tables are available through
+#' the AIM data portal and are included with geodatabase exports of TerrADat.
+#' The main table, tblNationalPlants contains information including taxonomic
+#' categories, growth habits, durations, and native and noxious statuses. The
+#' other table, tblStateSpecies, contains per-species assignments to categories
+#' relevant to sage-grouse habitat management. This function reads in both
+#' tables from a geodatabase and combines them, reformatting the contents of
+#' tblStateSpecies to do so. The output format is suitable for use with
+#' indicator calculation functions.
+#'
+#' This function is used by functions which calculate the standard set of
+#' TerrADat indicators and can also be used in other workflows in order to use
+#' the specific species characteristics assigned for Terrestrial AIM. These
+#' tables represent an effort to standardize and harmonize species data and
+#' reflect certain decisions, including treating any species known to live
+#' longer than one year as perennial. For additional information about
+#' tblNationalPlants, see the documentation available through the BLM AIM
+#' program.
+#'
+#' @param dsn Character string. The filepath (including the file extension) to
+#'   the geodatabase containing both tblNationalPlants and tblStateSpecies,
+#'   e.g., \code{"C:/data/terradat.gdb"}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns A data frame with one record per plant code and all expected
+#'   variables formatted appropriately for use with functions like
+#'   \code{lpi_calc()}.
+#' @export
 species_read_aim <- function(dsn,
                              verbose = FALSE) {
   #### Validity checks #########################################################
@@ -71,7 +104,7 @@ species_read_aim <- function(dsn,
                                     SG_Group,
                                     sep = ":")) |>
     dplyr::summarize(.data = _,
-                     .by = Species,
+                     .by = CurrentPLANTSCode,
                      SG_Group = paste(sg_string,
                                       collapse = "|"))
 
@@ -80,7 +113,7 @@ species_read_aim <- function(dsn,
   }
 
   output <- dplyr::left_join(x = tblNationalPlants,
-                             y = tblStateSpecies,
+                             y = sg_group_lookup,
                              relationship = "many-to-one",
                              by = "CurrentPLANTSCode") |>
     # This is so that we have a variable that can be easily used internally
@@ -94,13 +127,36 @@ species_read_aim <- function(dsn,
 #' @export generic_growth_habits
 #' @rdname species
 
-# Attribute generic species growth habits, for now this assumes field names.
+#' Attribute growth habits and durations to generic species codes
+#' @description
+#' Given a data set with species codes and a species list containing growth habit and duration assignments,
+#' this function will identify species codes present in the data which do not occur in the species list
+#' and assign growth habits and durations to those that can be identified as standardized unknown species codes.
+#'
+#' Unknown species code formats supported include Terrestrial AIM and LMF. The identification is done using regular expressions and so will only find generic species codes which follow the exact patterns used by AIM and LMF.
+#'
+#' The output is the original species list data frame with any successfully identified and attributed
+#' generic species codes appended.
+#'
+#' @param data Data frame. The source data which contains species codes in the variable specified by \code{species_code}. The only required variable is the one containing the species codes; all others will be ignored.
+#' @param data_code Character string. The name of the variable in \code{data} which contains the species codes. Defaults to \code{"code"}.
+#' @param species_list Data frame. The existing species characteristics information containing the variables specified with \code{species_code}, \code{species_growthhabit}, \code{species_growthhabitsub}, and \code{species_duration}. For Terrestrial AIM, this is the output from \code{species_read_aim)()}.
+#' @param species_code Character string. The name of the variable in \code{species_list} which contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param species_growthhabit Character string. The name of the variable in \code{species_list} which contains the general growth habits, e.g. \code{"woody"}. Defaults to \code{"GrowthHabit"}.
+#' @param species_growthhabitsub Character string. The name of the variable in \code{species_list} which contains the specific growth habits, e.g. \code{"graminoid"}. Defaults to \code{"GrowthHabitSub"}.
+#' @param species_duration Character string. The name of the variable in \code{species_list} which contains the species duration, e.g. \code{"annual"} or \code{"perennial"}. Defaults to \code{"Duration"}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns The original data frame provided as \code{species_list} with records added for identified generic codes found in \code{data}.
+#' @export
+#'
 generic_growth_habits <- function(data,
                                   data_code = "code",
                                   species_list,
                                   species_code = "SpeciesCode",
-                                  species_growthhabit_code = "GrowthHabit",
-                                  species_growthhabitsub_code = "GrowthHabitSub",
+                                  species_growthhabit = "GrowthHabit",
+                                  species_growthhabitsub = "GrowthHabitSub",
                                   species_duration = "Duration",
                                   verbose = FALSE) {
   #### Setup ###################################################################
@@ -110,8 +166,6 @@ generic_growth_habits <- function(data,
   # formats differ between the two.
 
   # Growth habit
-  # The commented-out versions capture litter, which seems wrong but was the
-  # evident previous behavior.
   lmf_growthhabit_regexes <- c("Woody" = "^2(S(?!LIME)|T|[GV]W)",
                                "NonWoody" = "^2((F(?!SMUT|[FJRU]))|(G(?!W)|(VH)))",
                                "Nonvascular" = "^2(A|BRY|HORN|L(?!TR)|LTRL|MOSS|PROT|SLIME)",
@@ -158,8 +212,8 @@ generic_growth_habits <- function(data,
     stop("data must be a data frame.")
   }
   required_species_variables <- c(species_code = species_code,
-                                  species_growthhabit_code = species_growthhabit_code,
-                                  species_growthhabitsub_code = species_growthhabitsub_code)
+                                  species_growthhabit = species_growthhabit,
+                                  species_growthhabitsub = species_growthhabitsub)
   missing_species_list_variables <- setdiff(x = required_species_variables,
                                             y = names(species_list))
   if (length(missing_species_list_variables) > 0) {
@@ -219,6 +273,7 @@ generic_growth_habits <- function(data,
 
   # Remove records where we didn't actually add any information. So, we'll keep
   # only records where at least one of the regexed variables wasn't NA.
+  if (nrow(missing_codes_df) > 0) {
   missing_codes_df <- dplyr::filter(.data = missing_codes_df,
                                     dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
                                                   .fns = ~ !is.na(x = .x))) |>
@@ -232,13 +287,42 @@ generic_growth_habits <- function(data,
                                    dplyr::across(.cols = dplyr::where(fn = is.logical),
                                                  .fns = as.character))) |>
     dplyr::distinct()
+    } else {
+      species_list
+    }
 }
 
-#' @export species_join
-#' @rdname species
-
-
-# Join species with field data
+#' Join species characteristics to field data
+#'
+#' @description
+#' Joining species characteristics to data can be as simple as a join based on a single variable, but that isn't always the case.
+#' This function handles joining species information to data across a range of possible scenarios and formats.
+#'
+#' Some functionality is effectively deprecated due to changes in Terrestrial AIM data formats, but has been maintained for backwards compatibility and handling data collected using earlier schemas.
+#'
+#' @param data Data frame. The source data which contains species codes in the variable specified by \code{species_code}. The only required variable is the one containing the species codes.
+#' @param data_code Character string. The name of the variable in \code{data} which contains the species codes. Defaults to \code{"code"}.
+#' @param species_file Data frame or character string. If a character string, it must be the full path (including file extension) to either a CSV containing the species characteristics or a geodatabase containing a table specified with \code{species_layer}. If joining data for Terrestrial AIM indicator calculations using tblNationalPlants and tblStateSpecies, please use \code{species_read_aim()} and provide the output data frame as this argument.
+#' @param species_layer Character string. If \code{species_file} points to a geodatabase, this must correspond to the name of the feature class or table containing the species characteristics. Defaults to \code{"tblNationalPlants"}.
+#' @param species_code Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"NameCode"}.
+#' @param species_growth_habit_code Character string. The name of the variable in the species characteristics that contains the growth habit assignment values, e.g., \code{"graminoid"}. Defaults to \code{"NameCode"}.
+#' @param species_duration Character string. The name of the variable in the species characteristics that contains the duration assignment values, e.g., \code{"graminoid"}. Defaults to \code{"NameCode"}.
+#' @param species_property_vars Vector of character strings. These are the names of variables to carry forward from \code{species_file} and coerce into character strings. If variables in the vector are not found in the species characteristics, the function will skip them silently. Defaults to \code{c("GrowthHabit", "GrowthHabitSub", "Duration", "Family", "HigherTaxon", "Nonnative", "Invasive", "Noxious", "SpecialStatus", "Photosynthesis", "PJ", "CurrentPLANTSCode")}.
+# #' @param growth_habit_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{""} or \code{overwrite_generic_species} is \code{FALSE} then no action will be taken. Defaults to \code{""}.
+# #' @param growth_habit_code Optional character string. The name of the variable in the table pointed to by \code{growth_habit_file} that contains values corresponding to those in \code{data} in the variable specified with \code{data_code}. Defaults to \code{"Code"}.
+#' @param growth_habit_file Deprecated. Defaults to \code{""}.
+#' @param growth_habit_code Deprecated. Defaults to \code{"Code"}.
+#' @param overwrite_generic_species Logical. If \code{TRUE} then \code{generic_species_file} will be read in and applied. Defaults to \code{FALSE}.
+#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{""} or \code{overwrite_generic_species} is \code{FALSE} then no action will be taken. Defaults to \code{""}.
+#' @param update_species_codes Logical. If \code{TRUE} then the final output will replace the values in the variable specified with \code{data_code} using values from the variable UpdatedSpeciesCode. This is here for legacy support and is not recommended for ongoing use. Defaults to \code{FALSE}.
+#' @param by_species_key Logical. If \code{TRUE} then the species information will be joined to the data using the variable SpeciesState. This is here for legacy support and is not compatible with the current structure of Terrestrial AIM Database species information in the. Defaults to \code{FALSE}.
+#' @param check_species Deprecated. This has no effect on the function because checks for duplicate species are always carried out. Default to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#'
+#' @returns The original data frame provided as \code{data} with variables joined from \code{species_file} according to the species codes.
+#' @export
+#'
 species_join <- function(data, # field data,
                          data_code = "code", # Species field in the data
                          species_file, # path to .csv or .gdb holding  the species table
@@ -250,6 +334,7 @@ species_join <- function(data, # field data,
                                                    "GrowthHabitSub",
                                                    "Duration",
                                                    "Family",
+                                                   "Sg_Group",
                                                    "HigherTaxon",
                                                    "Nonnative",
                                                    "Invasive",
@@ -474,7 +559,7 @@ species_join <- function(data, # field data,
                                            data_code = data_code,
                                            species_list = species_list,
                                            species_code = species_code,
-                                           species_growthhabit_code = species_growth_habit_code, # field name in species file of the species code to link to GrowthHabit
+                                           species_growthhabit = species_growth_habit_code, # field name in species file of the species code to link to GrowthHabit
                                            species_duration = species_duration,
                                            verbose = verbose)
 
@@ -624,8 +709,13 @@ species_join <- function(data, # field data,
   data_species
 }
 
-#' @export species_count
-#' @rdname gather_species_inventory
+#' Get a count of species
+#' @description Count the number of unique species found.
+#' @param species_inventory_tall Data frame. The long format species inventory data from \code{gather_spp_inventory()}.
+#' @param indicator_variables Optional character string or vector of character strings. The names of variables to group by for counts.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 species_count <- function(species_inventory_tall,
                           ...,
                           indicator_variables = NULL,
@@ -707,17 +797,13 @@ species_count <- function(species_inventory_tall,
 #' @examples
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 #' # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
-
 #'accumulated_species <- accumulated_species(lpi_tall = "~/AIM/Data/lpi_tall.rdata",
 #'                                                       spp_inventory_tall = "~/AIM/Data/spp_inventory_tall.rdata",
 #'                                                        height_tall = "~/AIM/Data/height_tall.rdata",
 #'                                                        header = "~/AIM/Data/header.rdata",
 #'                                                        species_file = "species_file.csv",
 #'                                                        SpeciesState %in% "NM")
-
-
-#'@rdname accumulated_species
-#'@export accumulated_species
+#'@export
 
 accumulated_species <- function(header,
                                 lpi_tall = NULL,
@@ -730,6 +816,7 @@ accumulated_species <- function(header,
                                 ...,
                                 # indicator_variables = NULL,
                                 generic_species_file = NULL,
+                                digits = 6,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
   # # Get a list of the variables the user wants to group data by for calculations.
@@ -863,6 +950,7 @@ accumulated_species <- function(header,
                                                                                  "GrowthHabitSub",
                                                                                  "Duration",
                                                                                  "Family",
+                                                                                 "SG_Group",
                                                                                  "HigherTaxon",
                                                                                  "Nonnative",
                                                                                  "Invasive",
@@ -871,6 +959,7 @@ accumulated_species <- function(header,
                                                                                  "Photosynthesis",
                                                                                  "PJ",
                                                                                  "CurrentPLANTSCode",
+                                                                                 "ScientificName",
                                                                                  "SG_Group",
                                                                                  "GrowthHabit_measured"),
                                                        update_species_codes = FALSE,
@@ -906,7 +995,7 @@ accumulated_species <- function(header,
                                           SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
                                                                       .default = SG_Group),
                                           SpecialStatus = stringr::str_extract(string = SpecialStatus,
-                                                                          pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                                                                               pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
                                           # This is just to make the Invasive values match
                                           # the desired indicator names
                                           Invasive = stringr::str_to_title(string = Invasive),
@@ -963,7 +1052,8 @@ accumulated_species <- function(header,
     }
 
     # calculate cover by species
-    species_cover <- pct_cover_species(lpi_tall = inputs_list[["cover"]]) |>
+    species_cover <- pct_cover_species(lpi_tall = inputs_list[["cover"]],
+                                      digits = digits) |>
       dplyr::filter(.data = _,
                     percent > 0) |>
       dplyr::rename(.data = _,
@@ -979,7 +1069,8 @@ accumulated_species <- function(header,
                                                 hit = "any",
                                                 tall = TRUE,
                                                 by_line = FALSE,
-                                                code) |>
+                                                code,
+                                               digits = digits) |>
         dplyr::filter(.data = _,
                       percent > 0) |>
         # Separate the indicators based on the live vs dead.
@@ -1063,6 +1154,7 @@ accumulated_species <- function(header,
                                   by_line = FALSE,
                                   omit_zero = TRUE,
                                   tall = TRUE,
+                                  digits = digits,
                                   indicator_variables = c("code"))
 
     # add n of samples for each calculation
@@ -1099,6 +1191,7 @@ accumulated_species <- function(header,
                                               by_line = FALSE,
                                               omit_zero = TRUE,
                                               tall = TRUE,
+                                              digits = digits,
                                               Chkbox, Species)
       species_height_live_dead_split <- species_cover_live_dead  |>
         # Identify 0 as Live and 1 as dead
@@ -1164,12 +1257,14 @@ accumulated_species <- function(header,
                                         dplyr::matches(match = "^Hgt_"))
                         })
 
-  # Combine only the cover and heights via a left_join!
+  # Combine only the cover and heights via a full_join!
+  # Originally this was a left_join() but that resulted in records being dropped
+  # when only one kind of data was available.
   # The purrr::reduce() over a list is so that if we have more tables in the
   # future this will be easy, but we could get away without it.
   output <- purrr::reduce(.x = output_list[c("cover",
                                              "heights")],
-                          .f = dplyr::left_join,
+                          .f = dplyr::full_join,
                           by = c("PrimaryKey", "Species")) |>
     # And if we have species inventory stuff, we'll bind that to the end row-wise
     # then make sure we keep only the first instance of each species for each
@@ -1193,7 +1288,8 @@ accumulated_species <- function(header,
 
   # If we added species info, we'll use it here.
   # It'd be slow to use species_join() again, so we'll use the inputs_list
-  if (species_file != "") {
+  if (!identical(species_file,
+                 "")) {
     if (verbose) {
       message("Joining species data to the output")
     }
@@ -1206,36 +1302,40 @@ accumulated_species <- function(header,
                                      }) |>
       which()
 
-    final_species_info <- dplyr::bind_rows(inputs_list[suitable_input_sources]) |>
-      dplyr::select(.data = _,
-                    tidyselect::all_of(x = c("PrimaryKey")),
-                    # Should only need the last one in this vector, but the
-                    # others don't hurt and were there from previous iterations
-                    # of the function. Consider removing them.
-                    tidyselect::any_of(x = c("Species",
-                                             "Species" = "NameCode",
-                                             "Species" = "code")),
-                    # We're going to put the PLANTS code in its own variable so
-                    # we don't collapse species codes that are distinct but
-                    # unrecognized by PLANTS.
-                    tidyselect::all_of(x = c("CurrentPLANTSCode")),
-                    tidyselect::any_of(c("GrowthHabit",
-                                         "GrowthHabitSub",
-                                         "Duration",
-                                         "Nonnative",
-                                         "Noxious",
-                                         "Invasive",
-                                         "SpecialStatus",
-                                         "SG_Group",
-                                         "CommonName"))) |>
+    final_species_info <- lapply(X = inputs_list[suitable_input_sources],
+                                 FUN = function(X){
+                                   dplyr::select(.data = X,
+                                                 tidyselect::all_of(x = c("PrimaryKey")),
+                                                 # Should only need the last one in this vector, but the
+                                                 # others don't hurt and were there from previous iterations
+                                                 # of the function. Consider removing them.
+                                                 tidyselect::any_of(x = c("Species",
+                                                                          "Species" = "NameCode",
+                                                                          "Species" = "code")),
+                                                 # We're going to put the PLANTS code in its own variable so
+                                                 # we don't collapse species codes that are distinct but
+                                                 # unrecognized by PLANTS.
+                                                 tidyselect::any_of(x = c("CurrentPLANTSCode")),
+                                                 tidyselect::any_of(c("GrowthHabit",
+                                                                      "GrowthHabitSub",
+                                                                      "Duration",
+                                                                      "Nonnative",
+                                                                      "Noxious",
+                                                                      "Invasive",
+                                                                      "SpecialStatus",
+                                                                      "SG_Group",
+                                                                      "CommonName",
+                                                                      "ScientificName"))) |>
+                                     dplyr::distinct()
+                                 }) |>
+      dplyr::bind_rows() |>
       dplyr::distinct()
 
-
     output <- dplyr::left_join(x = output,
-                       y = final_species_info,
-                       relationship = "many-to-one",
-                       by = c("PrimaryKey",
-                              "Species"))
+                               y = final_species_info,
+                               relationship = "many-to-one",
+                               by = c("PrimaryKey",
+                                      "Species"))
   }
 
   missing_indicators <- setdiff(x = c("AH_SpeciesCover",
@@ -1250,4 +1350,3 @@ accumulated_species <- function(header,
 
   output
 }
-

@@ -1,8 +1,16 @@
-#' Basic percent cover function
+#' Calculate percent cover from Line-Point Intercept data
 #' @description
-#' Calculate the percent cover
-#' @param lpi_tall The tall LPI data
-#'
+#' Calculate the percent of a transect under cover based on one or more variables in a data frame in the long format produced by \code{gather_lpi()}. Records are grouped by and cover calculated for unique values in the PrimaryKey variable.
+#' @param lpi_tall Data frame. The long/tall-format line-point intercept data. This must be in the format produced by \code{gather_lpi()}.
+#' @param tall Logical. If \code{TRUE} then the output will be in a long/tall format. If \code{FALSE} then the output will be wide. Defaults to \code{FALSE}.
+#' @param hit Character string. This dictates how many and which layers at a pin drop will be used to calculate the percent cover. If \code{"any"} then every record for each pin drop may be considered, which will produce results which sum to more than 100 percent in the case that any pin drop recorded hits in multiple layers. If \code{"first"} then only the first (i.e., farthest from the ground) record at each pin drop will be considered. If \code{"basal"} then only records for which the layer variable contains the value \code{"SoilSurface"} will be considered, which should be one record per pin drop. Defaults to \code{"any"}.
+#' @param by_line Logical. If \code{TRUE} then the cover will be calculated for each unique combination of values in the PrimaryKey and LineKey variables instead of simply by PrimaryKey. Defaults to \code{FALSE}.
+#' @param ... Optional bare variable names. These must be variable names in \code{lpi_tall} and are used to determine the unique cover types. This is here for legacy support and the use of \code{indicator_variables} is recommended instead.
+#' @param indicator_variables Optional vector of character strings. These must be variable names in \code{lpi_tall} and are used to determine the unique cover types. For example, using \code{"code"} will result in calculating cover for each unique value in the code variable and using \code{c("Duration", "GrowthHabitSub")} will result in calculating cover for each unique combination of values in the Duration and GrowthHabitSub variables, e.g., PerennialGraminoid and AnnualGraminoid. If \code{NULL} and no variable names have been provided then cover will be calculated per-PrimaryKey and should be 100 percent for each. Defaults to \code{NULL}.
+#' @param digits Integer. The number of decimal places that the output cover percentages will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose  Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns A data frame containing PrimaryKeys and a variable for each cover type containing the percent cover.
 #' @export
 pct_cover <- function(lpi_tall,
                       tall = FALSE,
@@ -10,7 +18,7 @@ pct_cover <- function(lpi_tall,
                       by_line = FALSE,
                       ...,
                       indicator_variables = NULL,
-                      digits = 1,
+                      digits = 6,
                       verbose = FALSE) {
   #### SETUP ###################################################################
   ##### Indicator variables -----------------------------------------------------
@@ -271,7 +279,7 @@ pct_cover <- function(lpi_tall,
                      by = internal_grouping_vars) |>
     dplyr::mutate(.data = _,
                   percent = round(x = record_count / point_count * 100,
-                                  digits = 2))
+                                  digits = digits))
 
   ##### Remove non-qualifying indicators ---------------------------------------
   # This is the point where keeping_indicators is used to remove indicators
@@ -335,283 +343,52 @@ pct_cover <- function(lpi_tall,
   output
 }
 
+#' Calculate percent bare ground from Line-Point Intercept data
+#' @description
+#' Calculate the percent of a transect with bare soil at the surface and no cover from vegetation or rocks.
+#' This is a simple wrapper for \code{pct_cover()} and is equivalent to calculating first hit cover for the value \code{"S"}.
+#' @param lpi_tall Data frame. The long/tall-format line-point intercept data. This must be in the format produced by \code{gather_lpi()}.
+#' @param tall Logical. If \code{TRUE} then the output will be in a long/tall format. If \code{FALSE} then the output will be wide. Defaults to \code{FALSE}.
+#' @param by_line Logical. If \code{TRUE} then the cover will be calculated for each unique combination of values in the PrimaryKey and LineKey variables instead of simply by PrimaryKey. Defaults to \code{FALSE}.
+#' @param indicator_variable Optional character string. This must be the variable name in \code{lpi_tall} containing the value \code{"S"} for records where the pin came to rest on soil. Defaults to \code{"code"}.
+#' @param soil_values Character string or vector of character strings. The values in the variable specified with \code{indicator_variable} that correspond to uncovered ground. Defaults to \code{c("S")}.
+#' @param digits Integer. The number of decimal places that the output cover percentages will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param verbose  Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns A data frame containing PrimaryKeys and a variable called BareSoil containing the percent of bare soil.
+#' @export
+pct_bareground <- function(lpi_tall,
+                           tall = FALSE,
+                           by_line = FALSE,
+                           indicator_variable = "code",
+                           soil_values = c("S"),
+                           digits = 6,
+                           verbose = FALSE) {
+  # Strip the data down to the bare minimum, renaming the indicator variable
+  select(.data = lpi_tall,
+         tidyselect::all_of(x = c("PrimaryKey",
+                                  "LineKey")[c(TRUE,
+                                               by_line)]),
+         tidyselect::all_of(x = setNames(object = indicator_variable,
+                                         nm = "BareSoil"))) |>
+    # Replace all qualifying values in BareSoil with "BareSoil" and the rest
+    # with NA. This'll produce a variable called BareSoil in the pct_cover()
+    # output.
+    dplyr::mutate(.data = _,
+                  BareSoil = dplyr::case_when(BareSoil %in% soil_values ~ "BareSoil",
+                                              .defatul = NA)) |>
+    # Calculate!
+    pct_cover(lpi_tall = _,
+              tall = tall,
+              hit = "first",
+              by_line = by_line,
+              indicator_variables = "BareSoil",
+              digits = digits,
+              verbose = verbose) |>
+    dplyr::select(.data = _,
+                  tidyselect::all_of(x = c("PrimaryKey",
+                                           "LineKey")[c(TRUE,
+                                                        by_line)]),
+                  tidyselect::all_of(x = c("BareSoil")))
+}
 
-
-
-
-
-#' #' Percent cover
-#' #' @description Calculate the percent cover by plot for variables or combinations of variables. Percent cover will be calculated for every combination of the variables requested, so if the variables are \code{GrowthHabitSub} and \code{Duration} then the output will contain fields like \code{Graminoid.Perennial}, \code{Graminoid.Annual}, \code{Shrub.Perennial}, etc. whereas using just the variable \code{code} will produce one column per species code. Any number of indicator variables can be used. These are calculated as cover from anywhere in the canopy column or as only the first hit in the canopy column. Any groupings where all the variable values were \code{NA} will be dropped.
-#' #' @param lpi_tall A tall/long-format data frame. Use the data frame \code{"layers"} from the \code{gather.lpi()} output.
-#' #' @param tall Logical. If \code{TRUE} then the returned data frame will be tall rather than wide and will not have observations for non-existent values e.g., if no data fell into a group on a plot, there will be no row for that group on that plot. Defaults to \code{FALSE}.
-#' #' @param hit Character string. If \code{"any"} then percent cover will be calculated using any hit in the canopy column (so a single pin drop record may be counted more than once if it had hits that corresponded to different groups). If \code{"first"} then only the first canopy hit at a pin drop will be used to calculate cover.  If \code{"basal"}, then only the soil surfacy hit will be used to calculate cover. Defaults to \code{"any"}.
-#' #' @param by_line Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.
-#' #' @param ... Optional character strings. One or more variable name from \code{lpi_tall} to calculate percent cover for, e.g. \code{"GrowthHabitSub"} to calculate percent cover by growth habits or \code{"GrowthHabitSub", "Duration"} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
-#' #' @examples
-#' #' # Gather header and LPI files
-#' #' dsn = "Path/To/LMF_Geodatabase.gdb" # also contains species list
-#' #' header <- gather_header(dsn = dsn,
-#' #'                     source = "LMF")
-#' #'
-#' #' lpi_tall <- gather_lpi(dsn = "Path/To/LMF_Geodatabase.gdb",
-#' #'                     source = "LMF")
-#' #'
-#' #' # Join lpi_tall and header to get the SpeciesState value associated with LPI data
-#' #' lpi_tall <- dplyr::left_join(lpi_tall, header)
-#' #'
-#' #' # Join species list attributes
-#' #' species_join(data = lpi_tall,species_file = dsn)
-#' #'
-#' #' # Calculate percent cover of individual species and cover values (S, R, etc) in lpi_tall
-#' #'  pct_cover(lpi_tall = lpi_tall,
-#' #'     tall = FALSE,
-#' #'     hit = "any",
-#' #'     by_line = FALSE,
-#' #'     code)
-#' #'
-#' #'  Calculate percent cover of Duration and Growth Habit Sub (e.g., to produce Annual Forb cover)
-#' #'  pct_cover(lpi_tall = lpi_tall,
-#' #'     tall = FALSE,
-#' #'     hit = "any",
-#' #'     by_line = FALSE,
-#' #'     Duration, GrowthHabitSub)
-#' #'@export
-#'
-#' pct_cover <- function(lpi_tall,
-#'                       tall = FALSE,
-#'                       hit = "any",
-#'                       by_line = FALSE,
-#'                       ...) {
-#'   ## Get a list of the variables the user wants to group by.
-#'   grouping_variables <- rlang::quos(...)
-#'
-#'   # Are there grouping variables? We can use this to decide whether to try to
-#'   # use them later one
-#'   use_grouping_variables <- length(grouping_variables) > 0
-#'
-#'   if (!is.data.frame(lpi_tall)) {
-#'     stop("lpi_tall must be a data frame.")
-#'   }
-#'
-#'   if (!(hit %in% c("any", "first", "basal"))) {
-#'     stop("hit must be either 'any','first' or 'basal'.")
-#'   }
-#'
-#'   # For how deep to group. Always by plot, sometimes by line
-#'   if (by_line) {
-#'     level <- rlang::quos(PrimaryKey, LineKey)
-#'   } else {
-#'     level <- rlang::quos(PrimaryKey)
-#'   }
-#'
-#'   # Drop data where there is no code value
-#'   # (i.e. layers where there was no recorded hit)
-#'   lpi_tall <- dplyr::filter(.data = lpi_tall,
-#'                             !(code %in% c(NA,
-#'                                           "",
-#'                                           "None",
-#'                                           "N",
-#'                                           "<NA>")),
-#'                             !is.na(PrimaryKey),
-#'                             !is.na(LineKey)) |>
-#'     dplyr::mutate(.data = _,
-#'                   code = toupper(code))
-#'   if (use_grouping_variables) {
-#'     lpi_tall <- dplyr::mutate(.data = lpi_tall,
-#'                               dplyr::across(.cols = dplyr::vars(!!!grouping_variables),
-#'                                             .fns = toupper))
-#'   }
-#'
-#'
-#'   # Convert all codes to upper case
-#'   lpi_tall$code <- toupper(lpi_tall$code)
-#'
-#'   lpi_tall <- dplyr::mutate_at(.data = lpi_tall,
-#'                                dplyr::across(.cols = dplyr::vars(!!!grouping_variables),
-#'                                              .fns = toupper))
-#'
-#'   # Within a plot, we need the number of pin drops, which we'll calculate
-#'   # taking the unique combination of PrimaryKey, LineKey and Point number
-#'   # for each group level
-#'   point_totals <- dplyr::distinct(
-#'     .data = lpi_tall,
-#'     PrimaryKey, LineKey, PointNbr
-#'   ) %>%
-#'     dplyr::group_by(!!!level) %>%
-#'     dplyr::summarize(point_count = dplyr::n())
-#'
-#'   # Add the point_counts field
-#'   # (it'll be the same for every record associated with a plot)
-#'   lpi_tall <- dplyr::left_join(
-#'     x = lpi_tall,
-#'     y = point_totals,
-#'     # It should automatically find the variables in common, but specifying them
-#'     # prevents a "Joining with 'by = join_by()'" message.
-#'     by = names(lpi_tall)[names(lpi_tall) %in% names(point_totals)]
-#'   )
-#'
-#'   # make sure layer is a character field
-#'   lpi_tall$layer <- as.character(lpi_tall$layer)
-#'
-#'   # Get the layers into the correct order
-#'   lpi_tall <- dplyr::mutate(
-#'     .data = lpi_tall,
-#'     layer = factor(layer,
-#'                    levels = c(
-#'                      "TopCanopy",
-#'                      "Lower1",
-#'                      "Lower2",
-#'                      "Lower3",
-#'                      "Lower4",
-#'                      "Lower5",
-#'                      "Lower6",
-#'                      "Lower7",
-#'                      "SoilSurface"
-#'                    )
-#'     )
-#'   ) %>% dplyr::arrange(layer)
-#'
-#'   if (hit == "basal") {
-#'     hit <- "any"
-#'     lpi_tall <- dplyr::filter(
-#'       .data = lpi_tall,
-#'       layer == "SoilSurface"
-#'     )
-#'   }
-#'
-#'
-#'   summary <- switch(hit,
-#'                     "any" = {
-#'                       # Okay! Fork here if using additional grouping variables
-#'                       if (use_grouping_variables) {
-#'                         summary <- lpi_tall %>%
-#'                           # Remove records where there are NAs for the grouping variables
-#'                           dplyr::filter(complete.cases(!!!grouping_variables)) %>%
-#'                           dplyr::group_by(
-#'                             PrimaryKey, LineKey, PointNbr, point_count,
-#'                             !!!grouping_variables
-#'                           ) %>%
-#'                           ## Here's the breakdown of the gnarly parts:
-#'                           # Because this is a tall format, we want just
-#'                           # presence/absence for the indicator at a given point
-#'                           # so we'll write in 1 if any of the layers within that indicator
-#'                           # has a non-NA and non-"" value
-#'                           dplyr::summarize(present = dplyr::if_else(any(!is.na(code) &
-#'                                                                           code != ""), 1, 0)) %>%
-#'                           tidyr::unite(indicator, !!!grouping_variables, sep = ".") %>%
-#'                           dplyr::ungroup() %>%
-#'                           dplyr::group_by(!!!level, indicator) %>%
-#'                           # Within a plot, find the sum of all the "presents"
-#'                           # then divide by the number of possible hits, which
-#'                           # we added in point_count
-#'                           dplyr::summarize(percent = 100 * sum(present, na.rm = TRUE) / dplyr::first(point_count))
-#'                       } else {
-#'                         summary <- lpi_tall %>%
-#'                           dplyr::group_by(PrimaryKey, LineKey, PointNbr, point_count) %>%
-#'                           dplyr::summarize(present = dplyr::if_else(any(!is.na(code) &
-#'                                                                           code != ""), 1, 0)) %>%
-#'                           dplyr::ungroup() %>%
-#'                           # Have to manually add in an indicator because there are no grouping
-#'                           # variables to use
-#'                           dplyr::mutate(indicator = "pct_cover_any") %>%
-#'                           dplyr::group_by(!!!level, indicator) %>%
-#'                           dplyr::summarize(percent = 100 * sum(present, na.rm = TRUE) / dplyr::first(point_count))
-#'                       }
-#'
-#'                     },
-#'                     "first" = {
-#'                       if (use_grouping_variables) {
-#'                         summary <- lpi_tall %>%
-#'                           # Strip out all the non-hit codes
-#'                           dplyr::filter(!(code %in% c("", NA, "None", "N"))) %>%
-#'                           dplyr::group_by(PrimaryKey, LineKey, PointNbr, point_count) %>%
-#'                           # Get the first hit at a point
-#'                           dplyr::summarize(code = dplyr::first(code)) %>%
-#'                           # Get all the other fields back
-#'                           merge(
-#'                             x = dplyr::distinct(dplyr::select(
-#'                               lpi_tall,
-#'                               "PrimaryKey",
-#'                               "LineKey",
-#'                               "PointNbr",
-#'                               "code",
-#'                               !!!grouping_variables
-#'                             )),
-#'                             y = .,
-#'                             all.y = TRUE
-#'                           ) %>%
-#'                           tidyr::unite(indicator,
-#'                                        !!!grouping_variables,
-#'                                        sep = "."
-#'                           ) %>%
-#'                           dplyr::ungroup() %>%
-#'                           dplyr::group_by(!!!level, indicator) %>%
-#'                           dplyr::summarize(percent = 100 * dplyr::n() / dplyr::first(point_count)) %>%
-#'                           dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
-#'                       } else {
-#'                         summary <- lpi_tall %>%
-#'                           # Strip out all the non-hit codes
-#'                           dplyr::filter(!(code %in% c("", NA, "None", "N"))) %>%
-#'                           dplyr::group_by(PrimaryKey, LineKey, PointNbr, point_count) %>%
-#'                           # Get the first hit at a point
-#'                           dplyr::summarize(code = dplyr::first(code)) %>%
-#'                           # Get all the other fields back
-#'                           merge(
-#'                             x = dplyr::distinct(dplyr::select(
-#'                               lpi_tall,
-#'                               "PrimaryKey",
-#'                               "LineKey",
-#'                               "PointNbr",
-#'                               "code"
-#'                             )),
-#'                             y = .,
-#'                             all.y = TRUE
-#'                           ) %>%
-#'                           dplyr::mutate(indicator = "pct_cover_first") %>%
-#'                           dplyr::ungroup() %>%
-#'                           dplyr::group_by(!!!level, indicator) %>%
-#'                           dplyr::summarize(percent = 100 * dplyr::n() / dplyr::first(point_count)) %>%
-#'                           dplyr::filter(!grepl(indicator, pattern = "^NA$|\\.NA|NA\\.|\\.NA\\."))
-#'                       }
-#'                     }
-#'   )
-#'
-#'   # remove rows with no grouping applied
-#'   summary <- subset(summary, indicator != ".")
-#'
-#'   # add zeros where no cover occurred
-#'   summary <- suppressWarnings(
-#'     expand.grid(
-#'       PrimaryKey = unique(lpi_tall$PrimaryKey),
-#'       indicator = unique(summary$indicator)
-#'     ) %>%
-#'       dplyr::left_join(., summary, by = intersect(x = names(.), y = names(summary))) %>%
-#'       dplyr::mutate_all(dplyr::funs(replace(., is.na(.), 0)))
-#'   )
-#'
-#'   # Remove indicators that have incomplete grouping variable combinations
-#'   summary <- summary %>% subset(!grepl(
-#'     x = indicator,
-#'     pattern = "^[.]|[.]$|\\.\\.|\\.NA$|^NA\\.|\\.NA\\."
-#'   ))
-#'
-#'   if (!tall) {
-#'     summary <- tidyr::spread(summary, key = indicator, value = percent) %>%
-#'       # Replace the NA values with 0s because they represent 0% cover for that indicator
-#'       tidyr::replace_na(replace = setNames(
-#'         as.list(rep.int(0,
-#'                         # Make a list of 0s named with the newly-created field names for replace_na()
-#'                         times = length(unique(names(.)[!(names(.) %in% c(
-#'                           "PrimaryKey",
-#'                           "PlotKey",
-#'                           "PlotID",
-#'                           "LineKey",
-#'                           "LineID"
-#'                         ))]))
-#'         )),
-#'         unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
-#'       ))
-#'   }
-#'
-#'   return(summary)
-#' }

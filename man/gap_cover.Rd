@@ -11,6 +11,7 @@ gap_cover(
   type = "canopy",
   no_max_cutoff = TRUE,
   by_line = FALSE,
+  digits = 6,
   verbose = FALSE
 )
 }

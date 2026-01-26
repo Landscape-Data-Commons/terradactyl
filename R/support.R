@@ -25,9 +25,13 @@ unquoted_to_character <- function(...) {
 # Just for ease of use in those legacy code situations, if input is a data
 # frame then we'll just pass that through as the output.
 # The goal here is to handle all of those as seamlessly as possible.
+# If regex is TRUE and best_guess is also TRUE, then matching multiple feature
+# classes will be resolved by simply reading in the one with the shortest name.
 read_whatever <- function(input,
                           layer = NULL,
                           regex = FALSE,
+                          best_guess = TRUE,
+                          accept_failure = FALSE,
                           verbose = FALSE) {
   # Get the class of input
   input_class <- class(input)
@@ -95,22 +99,45 @@ read_whatever <- function(input,
                        if (regex) {
                          matched_layers <- available_layers[stringr::str_detect(string = available_layers,
                                                                                 pattern = layer)]
-                         if (length(matched_layers) > 1) {
-                           stop(paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase but must only match one. The following layers were found: ",
+                         # Order them according to string length in case we make
+                         # a best guess.
+                         matched_layers <- matched_layers[order(sapply(X = matched_layers,
+                                                                       FUN = nchar))][1]
+                         if (length(matched_layers) > 1 & !best_guess) {
+                           stop(paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase but must only match one if best_guess is FALSE. The following layers were found: ",
                                        paste(matched_layers,
                                              collapse = ", ")))
-                         } else {
-                           layer <- matched_layers
+                         } else if (length(matched_layers) > 1 & !best_guess) {
+                           # When making a best guess, this'll use the shortest
+                           # layer name
+                           if (verbose) {
+                             paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase. Because best_guess is TRUE, the following will be used: ",
+                                    matched_layer)
+                           }
+                           layer <- matched_layers[1]
+                         } else if (length(matched_layers) > 0){
+                           layer <- matched_layers[1]
                          }
                        } else if (!(layer %in% available_layers)) {
                          stop(paste0("The geodatabase does not contain a layer/feature class called '", layer, "'. Did you intend to use it as a regular expression with the argument 'regex = TRUE'?"))
                        }
 
-                       sf::st_read(dsn = input,
-                                   layer = layer,
-                                   # Making sure it doesn't complain about tables that
-                                   # don't have associated geometry
-                                   quiet = !verbose)
+                       if (length(layer) < 1) {
+                         if (accept_failure) {
+                           if (verbose) {
+                             message("Unable to identify a feature class to read in. Accepting failure and returning NULL.")
+                           }
+                           NULL
+                         } else {
+                           stop("Unable to identify a feature class to read in. If this is acceptable, set the argument accept_failure to TRUE.")
+                         }
+                       } else {
+                         sf::st_read(dsn = input,
+                                     layer = layer,
+                                     # Making sure it doesn't complain about tables that
+                                     # don't have associated geometry
+                                     quiet = !verbose)
+                       }
                      },
                      "rdata" = {
                        # RData files are easy peasy.
@@ -185,4 +212,67 @@ select_source <- function(possible_inputs,
   }
 
   input
+}
+
+# Here's the order of operations:
+# 1) If tbl is not NULL, try to figure out how to use it
+#   A) Check to see if tbl is a data frame. If so, assign it as header and move on. Otherwise try B.
+#   B) Check to see if tbl is a character string ending in a file extension. If so, use read_whatever() to assign it to header and move on. Otherwise try C.
+#   C) Check to see if tbl is a character string without a file extension. If so AND dsn is a filepath to a GDB, try to use it as a feature class name. Otherwise, throw an error.
+# 2) if tbl is NULL, try to use dsn with read_whatever() looking for layer = default_name with regex and best_guess.
+
+read_with_fallback <- function(dsn = NULL,
+                              tbl = NULL,
+                              default_name = NULL,
+                              regex = FALSE,
+                              best_guess = FALSE,
+                              accept_failure = FALSE,
+                              verbose = FALSE){
+  #### Reading #################################################################
+  # Here's the order of operations:
+  # 1) If tbl is not NULL, try to figure out how to use it
+  #   A) Check to see if tbl is a data frame. If so, assign it as header and move on. Otherwise try B.
+  #   B) Check to see if tbl is a character string ending in a file extension. If so, use read_whatever() to assign it to header and move on. Otherwise try C.
+  #   C) Check to see if tbl is a character string without a file extension. If so AND dsn is a filepath to a GDB, try to use it as a feature class name. Otherwise, throw an error.
+  # 2) if tbl is NULL, try to use dsn with read_whatever() looking for layer = default_name with regex and best_guess.
+  # 3) If no headers can be read in, throw an error.
+  # Note that accept_failure doesn't apply to the whole thing, just read_whatever() calls.
+  if (!is.null(tbl)) {
+    if (is.data.frame(tbl)) {
+      output <- tbl
+    } else if (is.character(tbl)) {
+      tbl_file_extension <- tools::file_ext(x = tbl) |>
+        tolower()
+      if (nchar(tbl_file_extension) > 0 & !is.null(dsn)) {
+        output <- read_whatever(input = tbl,
+                                regex = regex,
+                                best_guess = best_guess,
+                                accept_failure = accept_failure,
+                                verbose = verbose)
+      } else if (nchar(tbl_file_extension) < 1 & !is.null(dsn)) {
+        output <- read_whatever(input = dsn,
+                                layer = tbl,
+                                regex = regex,
+                                best_guess = best_guess,
+                                accept_failure = accept_failure,
+                                verbose = verbose)
+      }
+    } else {
+      stop("When providing tbl it must be either a data frame or a character string.")
+    }
+  } else if (!is.null(dsn)) {
+    if (!is.null(default_name)) {
+      output <- read_whatever(input = dsn,
+                              layer = default_name,
+                              regex = regex,
+                              best_guess = best_guess,
+                              accept_failure = accept_failure,
+                              verbose = verbose)
+    } else {
+      stop("When providing dsn but not tbl, default_name is required.")
+    }
+  } else {
+    stop("Provide either tbl or a path to a GDB containing it")
+  }
+  output
 }

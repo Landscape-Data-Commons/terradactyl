@@ -24,7 +24,8 @@ pct_cover_total_foliar(
   lpi_tall,
   tall = FALSE,
   by_line = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  digits = 6
 )
 
 pct_cover_bare_soil(lpi_tall, tall = FALSE, by_line = FALSE, verbose = FALSE)
@@ -37,7 +38,8 @@ pct_cover_live(
   by_line = FALSE,
   hit = "any",
   ...,
-  verbose = FALSE
+  verbose = FALSE,
+  digits = 6
 )
 
 pct_cover_species(
@@ -45,6 +47,7 @@ pct_cover_species(
   tall = TRUE,
   by_line = FALSE,
   hit = "any",
+  digits = 1,
   verbose = FALSE
 )
 }
@@ -54,6 +57,8 @@ pct_cover_species(
 \item{tall}{Logical. If \code{TRUE} then output will be in tall format}
 
 \item{by_line}{Logical. If \code{TRUE} then results will be reported further grouped by line using the \code{LineID} and \code{LineKey} fields from the data forms. Defaults to \code{FALSE}.}
+
+\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.}
 
 \item{hit}{String. If \code{"first"} then only top LPI hits are included. If \code{"any"} then any hit values are included.Only used for \code{pct_cover_live} and \code{pct_cover_species}.}
 
