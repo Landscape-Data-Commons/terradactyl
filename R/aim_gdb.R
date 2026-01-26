@@ -71,7 +71,9 @@ build_terradat_indicators <- function(header,
       }
 
     } else {
-      if (nrow(current_data) < 1) {
+      if (is.null(current_data)) {
+        current_data <- NULL
+      } else if (nrow(current_data) < 1) {
         message(paste("No records found in the data provided for", current_input_type, "so indicators derived from those will not be calculated."))
         current_data <- NULL
       } else {
