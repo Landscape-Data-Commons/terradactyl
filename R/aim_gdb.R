@@ -1953,7 +1953,7 @@ spp_inventory_calc <- function(header,
   }
 
   data <- species_join(data = sf::st_drop_geometry(data),
-                       data_code = "code",
+                       data_code = "Species",
                        species_file = species_list,
                        # This isn't hardcoded to accommodate other, non-
                        # AIM species lists.
