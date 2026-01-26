@@ -854,13 +854,13 @@ accumulated_species <- function(header,
     message("Reading in headers and filtering them using any provided filtering expressions.")
   }
 
-  if ("character" %in% class(header)) {
-    if (tools::file_ext(header) == "Rdata") {
-      header <- readRDS(file = header)
-    } else {
-      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
-    }
-  }
+  # if ("character" %in% class(header)) {
+  #   if (tools::file_ext(header) == "Rdata") {
+  #     header <- readRDS(file = header)
+  #   } else {
+  #     stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+  #   }
+  # }
   header <- read_whatever(input = header,
                           verbose = verbose)
 
