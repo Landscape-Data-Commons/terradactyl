@@ -25,7 +25,8 @@ pct_cover_indicators <- function(lpi_tall,
                                                             live = c("chckbox",
                                                                      "code"),
                                                             species = "code"),
-                                 verbose = FALSE) {
+                                 verbose = FALSE,
+                                digits = 6) {
   #### Santization and setup ###################################################
   # TODO: ALL THE COMPLIANCE CHECKS
 
@@ -128,7 +129,8 @@ pct_cover_indicators <- function(lpi_tall,
                                                                 tall = TRUE,
                                                                 hit = current_hit_type,
                                                                 by_line = by_line,
-                                                                indicator_variables = X)
+                                                                indicator_variables = X,
+                                                               digits = digits)
                                                     })
                         })
   names(values_list) <- iteration_vector
@@ -332,6 +334,7 @@ pct_cover_indicators <- function(lpi_tall,
 #' @param tall Logical. If \code{TRUE} then output will be in tall format
 #' @param hit String. If \code{"first"} then only top LPI hits are included. If \code{"any"} then any hit values are included.Only used for \code{pct_cover_live} and \code{pct_cover_species}.
 #' @param ... Optional bare variable names. Only used for \code{pct_cover_live}. Names of variables to include as part of grouping e.g. \code{GrowthHabitSub} to calculate percent cover by growth habits or \code{GrowthHabitSub, Duration} to calculate percent cover for categories like perennial forbs, annual graminoids, etc.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
 #' @name cover_indicators
 #' @return A \code{tbl} of either wide or tall format.
 #' @examples
@@ -446,11 +449,13 @@ pct_cover_all_ground <- function(lpi_tall,
 pct_cover_total_foliar <- function(lpi_tall,
                                    tall = FALSE,
                                    by_line = FALSE,
-                                   verbose = FALSE) {
+                                   verbose = FALSE,
+                                  digits = 6) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("total foliar"),
                        tall_output = c("total foliar" = tall),
                        by_line = by_line,
+                       digits = digits,
                        verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # summarization_vars <- "PrimaryKey"
@@ -573,7 +578,8 @@ pct_cover_live <- function(lpi_tall,
                            by_line = FALSE,
                            hit = "any",
                            ...,
-                           verbose = FALSE) {
+                           verbose = FALSE,
+                          digits = 6) {
   grouping_variables <- rlang::quos(...)
   # This here because we're trying to support the legacy decision to originally
   # allow for bare variables as the indicator-defining variables.
@@ -601,6 +607,7 @@ pct_cover_live <- function(lpi_tall,
                        hit_type = c(live = hit),
                        indicator_variables = list(live = indicator_variables),
                        by_line = by_line,
+                       digits = digits,
                        verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # # summarize by checkbox and pre-assigned grouping variables
@@ -665,12 +672,14 @@ pct_cover_species <- function(lpi_tall,
                               tall = TRUE,
                               by_line = FALSE,
                               hit = "any",
+                              digits = 1,
                               verbose = FALSE) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("species"),
                        tall_output = c("species" = tall),
                        hit_type = c(species = hit),
                        by_line = by_line,
+                       digits = digits,
                        verbose = verbose)[[1]]
   #### OLD APPROACH BELOW ######################################################
   # summary <- pct_cover(lpi_tall,
@@ -710,4 +719,10 @@ pct_cover_species <- function(lpi_tall,
   # # return
   # return(summary)
 }
+
+
+
+
+
+
 

@@ -13,7 +13,7 @@ mean_height(
   ...,
   indicator_variables = NULL,
   missing_fill = 0,
-  digits = 1,
+  digits = 6,
   verbose = FALSE
 )
 }

@@ -2,27 +2,10 @@
 % Please edit documentation in R/gathering.R
 \name{gather_gap}
 \alias{gather_gap}
-\alias{gather_gap_terradat}
-\alias{gather_gap_lmf}
-\title{Convert gap data into a tall, tidy data frame}
+\title{export gather_gap_survey123
+rdname gather_gap
+Convert wide gap data into a long/tall format.}
 \usage{
-gather_gap_terradat(
-  dsn = NULL,
-  tblGapDetail = NULL,
-  tblGapHeader = NULL,
-  auto_qc_warnings = TRUE,
-  drop_na = TRUE,
-  verbose = FALSE
-)
-
-gather_gap_lmf(
-  dsn = NULL,
-  file_type = NULL,
-  GINTERCEPT = NULL,
-  POINT = NULL,
-  verbose = FALSE
-)
-
 gather_gap(
   dsn = NULL,
   file_type = "gdb",
@@ -36,76 +19,20 @@ gather_gap(
 )
 }
 \arguments{
-\item{dsn}{Character string. The full filepath and filename (including file
-extension) of the geodatabase or text file containing the table of interest.
-This field is unnecessary if you provide either both of tblGapDetail and
-tblGapHeader (AIM/DIMA/TerrADat) or both of GINTERCEPT and POINT (LMF/NRI).}
-
-\item{tblGapDetail}{Dataframe of the data structure tblGapDetail from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblGapHeader when data source is AIM, DIMA, or TerrADat; alternately provide
-dsn.}
-
-\item{tblGapHeader}{Dataframe of the data structure tblGapHeader from the
-DIMA database with the addition of PrimaryKey and DBKey fields. Use with
-tblGapDetail when data source is AIM, DIMA, or TerrADat; alternately provide
-dsn.}
-
-\item{verbose}{Logical. If \code{TRUE} then the function will report back
-diagnostic information as console messages while it works. Defaults to
-\code{FALSE}.}
-
-\item{file_type}{Character string that denotes the source file type of the
-LMF/NRI data, \code{"gdb"} or \code{"txt"}. Not necessary for
-AIM/DIMA/TerrADat, or if GINTERCEPT and POINT are provided.}
-
-\item{GINTERCEPT}{Dataframe of the data structure GINTERCEPT from the LMF/NRI
-database. Use with POINT when data source is LMF or NRI; alternately provide
-dsn.}
-
-\item{POINT}{Dataframe of the data structure POINT from the LMF database.
-Use with GINTERCEPT when data source if LMF or NRI; alternately provide dsn.}
-
-\item{source}{Character string. The data source format,
-\code{"AIM", "TerrADat", "DIMA", "LMF", "NRI"} (case independent).}
-
-\item{auto_qc}{Logical. If \code{TRUE} then AIM/DIMA/TerrADat data will be
-checked for non-unique and orphaned records before doing processing. If any
-are found, a warning will be triggered but the gather will still be carried
-out. It is strongly recommended that any identified issues be addressed to
-avoid incorrect records in the output. Defaults to \code{TRUE}.}
-}
-\value{
-A tall data frame containing the data from the gap measurements.
+\item{source}{Character string. The data source format. Must be one of \code{"AIM"}, \code{"TerrADat"}, \code{"DIMA"}, or \code{"LMF"} (case independent).}
 }
 \description{
-Given wide format gap data, create a tall format data frame
-usable by other terradactyl functions.
+Given wide format line-point intercept or height data, create a tall
+format data frame usable by other terradactyl functions. For additional information about
+arguments, see the documentation for the functions \code{\link[terradactyl:gather_gap_terradat]{gather_gap_terradat()}} and \code{\link[terradactyl:gather_gap_lmf]{gather_gap_lmf()}}.
 }
-\examples{
-gather_gap(dsn = "Path/To/AIM_Geodatabase.gdb",
-           source = "AIM")
-gather_gap(dsn = "Path/To/LMF_Geodatabase.gdb",
-           source = "LMF")
+\details{
+The \code{source} argument determines which other arguments are used or ignored.
 
-aim_gapdetail <- read.csv("Path/To/tblGapDetail.csv")
-aim_gapheader <- read.csv("Path/To/tblGapHeader.csv")
-gather_gap(source = "AIM",
-           tblGapDetail = aim_gapdetail,
-           tblGapHeader = aim_gapheader)
+When \code{source} is one of \code{"AIM"}, \code{"TERRADAT"}, or \code{"DIMA"}
+then the arguments \code{tblGapHeader} and \code{tblGapDetail} are both considered.
 
-lmf_gintercept <- read.csv("Path/To/GINTERCEPT.csv")
-lmf_point <- read.csv("Path/To/POINT.csv")
-gather_gap(source = "LMF",
-           GINTERCEPT = lmf_gintercept,
-           POINT = lmf_point)
+When \code{source} is \code{"LMF"} then the arguments \code{GINTERCEPT} and \code{POINT} are considered.
+
+Regardless of the value of \code{source}, the data sources represented by those other arguments are required. The simplest way to provide them is to provide the filepath to a geodatabase as \code{dsn} with each of those feature classes appearing by the same name as the corresponding argument in that geodatabase.
 }
-\seealso{
-Other <gather>: 
-\code{\link{gather_height}()},
-\code{\link{gather_lpi}()},
-\code{\link{gather_rangeland_health}()},
-\code{\link{gather_soil_stability}()},
-\code{\link{gather_species_inventory}()}
-}
-\concept{<gather>}

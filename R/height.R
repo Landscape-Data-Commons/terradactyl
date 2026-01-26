@@ -28,7 +28,7 @@ mean_height <- function(height_tall,
                         ...,
                         indicator_variables = NULL,
                         missing_fill = 0,
-                        digits = 1,
+                        digits = 6,
                         verbose = FALSE) {
   ##### Indicator variables -----------------------------------------------------
   # Get a list of the variables the user wants to group data by for calculations.
