@@ -262,8 +262,7 @@ build_lmf_indicators <- function(header, source, dsn,
                                         header = header,
                                         species_file = species_file,
                                         source = source,
-                                        generic_species_file = generic_species_file,
-                                        digits = digits),
+                                        generic_species_file = generic_species_file),
                      # Soil Stability
                      soil_stability_calc(soil_stability_tall = soil_stability_tall),
                      digits = digits)
