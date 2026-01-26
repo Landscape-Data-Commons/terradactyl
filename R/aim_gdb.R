@@ -18,18 +18,28 @@ build_terradat_indicators <- function(header,
 
   #### Reading #################################################################
   ##### Headers ----------------------------------------------------------------
-  if ("character" %in% class(header)) {
-    if (toupper(tools::file_ext(header)) %in% c("RDATA")) {
-      header <- readRDS(header)
-    }
-  } else if (!("data.frame" %in% class(header))) {
-    stop("header must either be a data frame or the filepath to an Rdata file containing a data frame.")
+  if (verbose) {
+    message("Working on headers")
   }
+  header <- read_whatever(input = header,
+                          layer = "tblPlots",
+                          regex = TRUE,
+                          best_guess = TRUE,
+                          accept_failure = FALSE,
+                          verbose = verbose)
 
-  # Filter using the filtering expression specified by user
-  header <- dplyr::filter(.data = header,
-                          source %in% c("AIM", "TerrADat"),
-                          !!!filter_exprs)
+  # if ("character" %in% class(header)) {
+  #   if (toupper(tools::file_ext(header)) %in% c("RDATA")) {
+  #     header <- readRDS(header)
+  #   }
+  # } else if (!("data.frame" %in% class(header))) {
+  #   stop("header must either be a data frame or the filepath to an Rdata file containing a data frame.")
+  # }
+  #
+  # # Filter using the filtering expression specified by user
+  # header <- dplyr::filter(.data = header,
+  #                         source %in% c("AIM", "TerrADat"),
+  #                         !!!filter_exprs)
 
   # Check header for data
   if(nrow(header) < 1){
@@ -38,6 +48,9 @@ build_terradat_indicators <- function(header,
 
   ##### LPI --------------------------------------------------------------------
   if (!is.null(lpi_tall)) {
+    if (verbose) {
+      message("Working on LPI")
+    }
     if ("character" %in% class(lpi_tall)) {
       if (toupper(tools::file_ext(lpi_tall)) %in% c("Rdata", "rdata")) {
         lpi_tall <- readRDS(lpi_tall)
@@ -49,10 +62,15 @@ build_terradat_indicators <- function(header,
     # Filter using the headers
     lpi_tall <- dplyr::filter(.data = lpi_tall,
                               PrimaryKey %in% header$PrimaryKey)
+  } else if (verbose) {
+    message("No LPI to work with.")
   }
 
   ##### Gap --------------------------------------------------------------------
   if (!is.null(gap_tall)) {
+    if (verbose) {
+      message("Working on gap")
+    }
     if ("character" %in% class(gap_tall)) {
       if (tools::file_ext(gap_tall) %in% c("Rdata", "rdata")) {
         gap_tall <- readRDS(gap_tall)
@@ -64,10 +82,15 @@ build_terradat_indicators <- function(header,
     # Filter using the headers
     gap_tall <- dplyr::filter(.data = gap_tall,
                               PrimaryKey %in% header$PrimaryKey)
+  } else if (verbose) {
+    message("No gap to work with.")
   }
 
   ##### Height -----------------------------------------------------------------
   if (!is.null(height_tall)) {
+    if (verbose) {
+      message("Working on heights")
+    }
     if ("character" %in% class(height_tall)) {
       if (tools::file_ext(height_tall) %in% c("Rdata", "rdata")) {
         height_tall <- readRDS(height_tall)
@@ -79,10 +102,15 @@ build_terradat_indicators <- function(header,
     # Filter using the headers
     height_tall <- dplyr::filter(.data = height_tall,
                                  PrimaryKey %in% header$PrimaryKey)
+  } else if (verbose) {
+    message("No heights to work with.")
   }
 
   ##### Species inventory ------------------------------------------------------
   if (!is.null(spp_inventory_tall)) {
+    if (verbose) {
+      message("Working on species inventory")
+    }
     if ("character" %in% class(spp_inventory_tall)) {
       if (tools::file_ext(spp_inventory_tall) %in% c("Rdata", "rdata")) {
         spp_inventory_tall <- readRDS(spp_inventory_tall)
@@ -94,10 +122,15 @@ build_terradat_indicators <- function(header,
     # Filter using the headers
     spp_inventory_tall <- dplyr::filter(.data = spp_inventory_tall,
                                         PrimaryKey %in% header$PrimaryKey)
+  } else if (verbose) {
+    message("No species inventory to work with.")
   }
 
   ##### Soil stability ---------------------------------------------------------
   if (!is.null(soil_stability_tall)) {
+    if (verbose) {
+      message("Working on soil stability")
+    }
     if ("character" %in% class(soil_stability_tall)) {
       if (tools::file_ext(soil_stability_tall) %in% c("Rdata", "rdata")) {
         soil_stability_tall <- readRDS(soil_stability_tall)
@@ -109,12 +142,17 @@ build_terradat_indicators <- function(header,
     # Filter using the headers
     soil_stability_tall <- dplyr::filter(.data = soil_stability_tall,
                                          PrimaryKey %in% header$PrimaryKey)
+  } else if (verbose) {
+    message("No soil stability to work with.")
   }
 
   #### Calculating indicators ##################################################
   indicators_list <- list()
   ##### LPI --------------------------------------------------------------------
   if (!is.null(lpi_tall)) {
+    if (verbose) {
+      message("Calculating LPI indicators")
+    }
     indicators_list[["lpi"]] <- lpi_calc(lpi_tall = lpi_tall,
                                          header = header,
                                          source = "AIM",
@@ -130,6 +168,9 @@ build_terradat_indicators <- function(header,
 
   ##### Gap --------------------------------------------------------------------
   if (!is.null(gap_tall)) {
+    if (verbose) {
+      message("Calculating gap indicators")
+    }
     indicators_list[["gap"]] <- gap_calc(gap_tall = gap_tall,
                                          header = header,
                                          verbose = verbose)
@@ -141,6 +182,9 @@ build_terradat_indicators <- function(header,
 
   ##### Height -----------------------------------------------------------------
   if (!is.null(height_tall)) {
+    if (verbose) {
+      message("Calculating height indicators")
+    }
     indicators_list[["height"]] <- height_calc(height_tall = height_tall,
                                                header = header,
                                                source = "AIM",
@@ -154,6 +198,9 @@ build_terradat_indicators <- function(header,
 
   ##### Species Inventory ------------------------------------------------------
   if (!is.null(spp_inventory_tall)) {
+    if (verbose) {
+      message("Calculating species inventory indicators")
+    }
     indicators_list[["species"]] <- spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
                                                        header = header,
                                                        species_file = species_file,
@@ -167,6 +214,9 @@ build_terradat_indicators <- function(header,
 
   ##### Soil Stability ---------------------------------------------------------
   if (!is.null(soil_stability_tall)) {
+    if (verbose) {
+      message("Calculating soil stability indicators")
+    }
     indicators_list[["soil_stability"]] <- soil_stability_calc(soil_stability_tall = soil_stability_tall,
                                                                verbose = verbose)
   } else {
