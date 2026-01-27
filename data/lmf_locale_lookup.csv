@@ -1,128 +1,534 @@
-"STATE","COUNTY","County","State","STATENM"
-30,5,"Blaine","MT","Montana"
-30,7,"Broadwater","MT","Montana"
-30,17,"Custer","MT","Montana"
-30,33,"Garfield","MT","Montana"
-30,57,"Madison","MT","Montana"
-30,75,"Powder River","MT","Montana"
-35,13,"Dona Ana","NM","New Mexico"
-35,27,"Lincoln","NM","New Mexico"
-35,45,"San Juan","NM","New Mexico"
-35,51,"Sierra","NM","New Mexico"
-49,1,"Beaver","UT","Utah"
-49,17,"Garfield","UT","Utah"
-49,25,"Kane","UT","Utah"
-49,27,"Millard","UT","Utah"
-49,33,"Rich","UT","Utah"
-49,45,"Tooele","UT","Utah"
-53,25,"Grant","WA","Washington"
-56,23,"Lincoln","WY","Wyoming"
-56,29,"Park","WY","Wyoming"
-56,41,"Uinta","WY","Wyoming"
-16,23,"Butte","ID","Idaho"
-16,33,"Clark","ID","Idaho"
-16,59,"Lemhi","ID","Idaho"
-16,67,"Minidoka","ID","Idaho"
-16,73,"Owyhee","ID","Idaho"
-16,77,"Power","ID","Idaho"
-16,83,"Twin Falls","ID","Idaho"
-4,5,"Coconino","AZ","Arizona"
-4,12,"La Paz","AZ","Arizona"
-4,13,"Maricopa","AZ","Arizona"
-6,19,"Fresno","CA","California"
-6,29,"Kern","CA","California"
-6,49,"Modoc","CA","California"
-6,65,"Riverside","CA","California"
-6,71,"San Bernardino","CA","California"
-8,15,"Chaffee","CO","Colorado"
-8,21,"Conejos","CO","Colorado"
-8,43,"Fremont","CO","Colorado"
-8,51,"Gunnison","CO","Colorado"
-8,57,"Jackson","CO","Colorado"
-16,11,"Bingham","ID","Idaho"
-16,13,"Blaine","ID","Idaho"
-16,25,"Camas","ID","Idaho"
-16,31,"Cassia","ID","Idaho"
-16,37,"Custer","ID","Idaho"
-16,39,"Elmore","ID","Idaho"
-16,43,"Fremont","ID","Idaho"
-16,51,"Jefferson","ID","Idaho"
-16,53,"Jerome","ID","Idaho"
-16,63,"Lincoln","ID","Idaho"
-16,75,"Payette","ID","Idaho"
-4,3,"Cochise","AZ","Arizona"
-4,9,"Graham","AZ","Arizona"
-4,19,"Pima","AZ","Arizona"
-6,25,"Imperial","CA","California"
-41,17,"Deschutes","OR","Oregon"
-56,3,"Big Horn","WY","Wyoming"
-56,7,"Carbon","WY","Wyoming"
-56,13,"Fremont","WY","Wyoming"
-56,17,"Hot Springs","WY","Wyoming"
-56,19,"Johnson","WY","Wyoming"
-56,25,"Natrona","WY","Wyoming"
-56,35,"Sublette","WY","Wyoming"
-56,37,"Sweetwater","WY","Wyoming"
-56,43,"Washakie","WY","Wyoming"
-49,15,"Emery","UT","Utah"
-49,23,"Juab","UT","Utah"
-49,47,"Uintah","UT","Utah"
-30,9,"Carbon","MT","Montana"
-30,15,"Chouteau","MT","Montana"
-30,55,"McCone","MT","Montana"
-30,65,"Musselshell","MT","Montana"
-30,105,"Valley","MT","Montana"
-32,1,"Churchill","NV","Nevada"
-32,5,"Douglas","NV","Nevada"
-32,7,"Elko","NV","Nevada"
-32,11,"Eureka","NV","Nevada"
-32,13,"Humboldt","NV","Nevada"
-32,17,"Lincoln","NV","Nevada"
-32,21,"Mineral","NV","Nevada"
-32,23,"Nye","NV","Nevada"
-32,27,"Pershing","NV","Nevada"
-32,31,"Washoe","NV","Nevada"
-32,510,"Carson City","NV","Nevada"
-35,3,"Catron","NM","New Mexico"
-35,25,"Lea","NM","New Mexico"
-35,35,"Otero","NM","New Mexico"
-8,77,"Mesa","CO","Colorado"
-8,103,"Rio Blanco","CO","Colorado"
-8,109,"Saguache","CO","Colorado"
-4,15,"Mohave","AZ","Arizona"
-4,27,"Yuma","AZ","Arizona"
-6,27,"Inyo","CA","California"
-6,35,"Lassen","CA","California"
-6,51,"Mono","CA","California"
-49,3,"Box Elder","UT","Utah"
-49,19,"Grand","UT","Utah"
-49,37,"San Juan","UT","Utah"
-49,39,"Sanpete","UT","Utah"
-49,53,"Washington","UT","Utah"
-49,55,"Wayne","UT","Utah"
-41,13,"Crook","OR","Oregon"
-41,25,"Harney","OR","Oregon"
-41,37,"Lake","OR","Oregon"
-41,45,"Malheur","OR","Oregon"
-38,11,"Bowman","ND","North Dakota"
-32,3,"Clark","NV","Nevada"
-32,9,"Esmeralda","NV","Nevada"
-32,15,"Lander","NV","Nevada"
-32,33,"White Pine","NV","Nevada"
-35,15,"Eddy","NM","New Mexico"
-35,17,"Grant","NM","New Mexico"
-35,29,"Luna","NM","New Mexico"
-35,39,"Rio Arriba","NM","New Mexico"
-35,55,"Taos","NM","New Mexico"
-30,111,"Yellowstone","MT","Montana"
-30,1,"Beaverhead","MT","Montana"
-30,3,"Big Horn","MT","Montana"
-30,11,"Carter","MT","Montana"
-30,27,"Fergus","MT","Montana"
-30,69,"Petroleum","MT","Montana"
-30,71,"Phillips","MT","Montana"
-30,79,"Prairie","MT","Montana"
-30,87,"Rosebud","MT","Montana"
-8,81,"Moffat","CO","Colorado"
-8,85,"Montrose","CO","Colorado"
-8,113,"San Miguel","CO","Colorado"
+﻿STATE,COUNTY,County,State,STATENM
+56,23,Lincoln,WY,Wyoming
+56,29,Park,WY,Wyoming
+56,41,Uinta,WY,Wyoming
+56,3,Big Horn,WY,Wyoming
+56,7,Carbon,WY,Wyoming
+56,13,Fremont,WY,Wyoming
+56,17,Hot Springs,WY,Wyoming
+56,19,Johnson,WY,Wyoming
+56,25,Natrona,WY,Wyoming
+56,35,Sublette,WY,Wyoming
+56,37,Sweetwater,WY,Wyoming
+56,43,Washakie,WY,Wyoming
+56,1,Albany,WY,Wyoming
+56,5,Campbell,WY,Wyoming
+56,9,Converse,WY,Wyoming
+56,11,Crook,WY,Wyoming
+56,15,Goshen,WY,Wyoming
+56,21,Laramie,WY,Wyoming
+56,27,Niobrara,WY,Wyoming
+56,31,Platte,WY,Wyoming
+56,33,Sheridan,WY,Wyoming
+56,39,Teton,WY,Wyoming
+56,45,Weston,WY,Wyoming
+53,25,Grant,WA,Washington
+53,1,Adams,WA,Washington
+53,3,Asotin,WA,Washington
+53,5,Benton,WA,Washington
+53,7,Chelan,WA,Washington
+53,9,Clallam,WA,Washington
+53,11,Clark,WA,Washington
+53,13,Columbia,WA,Washington
+53,15,Cowlitz,WA,Washington
+53,17,Douglas,WA,Washington
+53,19,Ferry,WA,Washington
+53,21,Franklin,WA,Washington
+53,23,Garfield,WA,Washington
+53,27,Grays Harbor,WA,Washington
+53,29,Island,WA,Washington
+53,31,Jefferson,WA,Washington
+53,33,King,WA,Washington
+53,35,Kitsap,WA,Washington
+53,37,Kittitas,WA,Washington
+53,39,Klickitat,WA,Washington
+53,41,Lewis,WA,Washington
+53,43,Lincoln,WA,Washington
+53,45,Mason,WA,Washington
+53,47,Okanogan,WA,Washington
+53,49,Pacific,WA,Washington
+53,51,Pend Oreille,WA,Washington
+53,53,Pierce,WA,Washington
+53,55,San Juan,WA,Washington
+53,57,Skagit,WA,Washington
+53,59,Skamania,WA,Washington
+53,61,Snohomish,WA,Washington
+53,63,Spokane,WA,Washington
+53,65,Stevens,WA,Washington
+53,67,Thurston,WA,Washington
+53,69,Wahkiakum,WA,Washington
+53,71,Walla Walla,WA,Washington
+53,73,Whatcom,WA,Washington
+53,75,Whitman,WA,Washington
+53,77,Yakima,WA,Washington
+49,1,Beaver,UT,Utah
+49,17,Garfield,UT,Utah
+49,25,Kane,UT,Utah
+49,27,Millard,UT,Utah
+49,33,Rich,UT,Utah
+49,45,Tooele,UT,Utah
+49,15,Emery,UT,Utah
+49,23,Juab,UT,Utah
+49,47,Uintah,UT,Utah
+49,3,Box Elder,UT,Utah
+49,19,Grand,UT,Utah
+49,37,San Juan,UT,Utah
+49,39,Sanpete,UT,Utah
+49,53,Washington,UT,Utah
+49,55,Wayne,UT,Utah
+49,5,Cache,UT,Utah
+49,7,Carbon,UT,Utah
+49,9,Daggett,UT,Utah
+49,11,Davis,UT,Utah
+49,13,Duchesne,UT,Utah
+49,21,Iron,UT,Utah
+49,29,Morgan,UT,Utah
+49,31,Piute,UT,Utah
+49,35,Salt Lake,UT,Utah
+49,41,Sevier,UT,Utah
+49,43,Summit,UT,Utah
+49,49,Utah,UT,Utah
+49,51,Wasatch,UT,Utah
+49,57,Weber,UT,Utah
+46,3,Aurora,SD,South Dakota
+46,5,Beadle,SD,South Dakota
+46,7,Bennett,SD,South Dakota
+46,9,Bon Homme,SD,South Dakota
+46,11,Brookings,SD,South Dakota
+46,13,Brown,SD,South Dakota
+46,15,Brule,SD,South Dakota
+46,17,Buffalo,SD,South Dakota
+46,19,Butte,SD,South Dakota
+46,21,Campbell,SD,South Dakota
+46,23,Charles Mix,SD,South Dakota
+46,25,Clark,SD,South Dakota
+46,27,Clay,SD,South Dakota
+46,29,Codington,SD,South Dakota
+46,31,Corson,SD,South Dakota
+46,33,Custer,SD,South Dakota
+46,35,Davison,SD,South Dakota
+46,37,Day,SD,South Dakota
+46,39,Deuel,SD,South Dakota
+46,41,Dewey,SD,South Dakota
+46,43,Douglas,SD,South Dakota
+46,45,Edmunds,SD,South Dakota
+46,47,Fall River,SD,South Dakota
+46,49,Faulk,SD,South Dakota
+46,51,Grant,SD,South Dakota
+46,53,Gregory,SD,South Dakota
+46,55,Haakon,SD,South Dakota
+46,57,Hamlin,SD,South Dakota
+46,59,Hand,SD,South Dakota
+46,61,Hanson,SD,South Dakota
+46,63,Harding,SD,South Dakota
+46,65,Hughes,SD,South Dakota
+46,67,Hutchinson,SD,South Dakota
+46,69,Hyde,SD,South Dakota
+46,71,Jackson,SD,South Dakota
+46,73,Jerauld,SD,South Dakota
+46,75,Jones,SD,South Dakota
+46,77,Kingsbury,SD,South Dakota
+46,79,Lake,SD,South Dakota
+46,81,Lawrence,SD,South Dakota
+46,83,Lincoln,SD,South Dakota
+46,85,Lyman,SD,South Dakota
+46,87,McCook,SD,South Dakota
+46,89,McPherson,SD,South Dakota
+46,91,Marshall,SD,South Dakota
+46,93,Meade,SD,South Dakota
+46,95,Mellette,SD,South Dakota
+46,97,Miner,SD,South Dakota
+46,99,Minnehaha,SD,South Dakota
+46,101,Moody,SD,South Dakota
+46,102,Oglala Lakota,SD,South Dakota
+46,103,Pennington,SD,South Dakota
+46,105,Perkins,SD,South Dakota
+46,107,Potter,SD,South Dakota
+46,109,Roberts,SD,South Dakota
+46,111,Sanborn,SD,South Dakota
+46,115,Spink,SD,South Dakota
+46,117,Stanley,SD,South Dakota
+46,119,Sully,SD,South Dakota
+46,121,Todd,SD,South Dakota
+46,123,Tripp,SD,South Dakota
+46,125,Turner,SD,South Dakota
+46,127,Union,SD,South Dakota
+46,129,Walworth,SD,South Dakota
+46,135,Yankton,SD,South Dakota
+46,137,Ziebach,SD,South Dakota
+41,17,Deschutes,OR,Oregon
+41,13,Crook,OR,Oregon
+41,25,Harney,OR,Oregon
+41,37,Lake,OR,Oregon
+41,45,Malheur,OR,Oregon
+41,1,Baker,OR,Oregon
+41,3,Benton,OR,Oregon
+41,5,Clackamas,OR,Oregon
+41,7,Clatsop,OR,Oregon
+41,9,Columbia,OR,Oregon
+41,11,Coos,OR,Oregon
+41,15,Curry,OR,Oregon
+41,19,Douglas,OR,Oregon
+41,21,Gilliam,OR,Oregon
+41,23,Grant,OR,Oregon
+41,27,Hood River,OR,Oregon
+41,29,Jackson,OR,Oregon
+41,31,Jefferson,OR,Oregon
+41,33,Josephine,OR,Oregon
+41,35,Klamath,OR,Oregon
+41,39,Lane,OR,Oregon
+41,41,Lincoln,OR,Oregon
+41,43,Linn,OR,Oregon
+41,47,Marion,OR,Oregon
+41,49,Morrow,OR,Oregon
+41,51,Multnomah,OR,Oregon
+41,53,Polk,OR,Oregon
+41,55,Sherman,OR,Oregon
+41,57,Tillamook,OR,Oregon
+41,59,Umatilla,OR,Oregon
+41,61,Union,OR,Oregon
+41,63,Wallowa,OR,Oregon
+41,65,Wasco,OR,Oregon
+41,67,Washington,OR,Oregon
+41,69,Wheeler,OR,Oregon
+41,71,Yamhill,OR,Oregon
+38,11,Bowman,ND,North Dakota
+38,1,Adams,ND,North Dakota
+38,3,Barnes,ND,North Dakota
+38,5,Benson,ND,North Dakota
+38,7,Billings,ND,North Dakota
+38,9,Bottineau,ND,North Dakota
+38,13,Burke,ND,North Dakota
+38,15,Burleigh,ND,North Dakota
+38,17,Cass,ND,North Dakota
+38,19,Cavalier,ND,North Dakota
+38,21,Dickey,ND,North Dakota
+38,23,Divide,ND,North Dakota
+38,25,Dunn,ND,North Dakota
+38,27,Eddy,ND,North Dakota
+38,29,Emmons,ND,North Dakota
+38,31,Foster,ND,North Dakota
+38,33,Golden Valley,ND,North Dakota
+38,35,Grand Forks,ND,North Dakota
+38,37,Grant,ND,North Dakota
+38,39,Griggs,ND,North Dakota
+38,41,Hettinger,ND,North Dakota
+38,43,Kidder,ND,North Dakota
+38,45,LaMoure,ND,North Dakota
+38,47,Logan,ND,North Dakota
+38,49,McHenry,ND,North Dakota
+38,51,McIntosh,ND,North Dakota
+38,53,McKenzie,ND,North Dakota
+38,55,McLean,ND,North Dakota
+38,57,Mercer,ND,North Dakota
+38,59,Morton,ND,North Dakota
+38,61,Mountrail,ND,North Dakota
+38,63,Nelson,ND,North Dakota
+38,65,Oliver,ND,North Dakota
+38,67,Pembina,ND,North Dakota
+38,69,Pierce,ND,North Dakota
+38,71,Ramsey,ND,North Dakota
+38,73,Ransom,ND,North Dakota
+38,75,Renville,ND,North Dakota
+38,77,Richland,ND,North Dakota
+38,79,Rolette,ND,North Dakota
+38,81,Sargent,ND,North Dakota
+38,83,Sheridan,ND,North Dakota
+38,85,Sioux,ND,North Dakota
+38,87,Slope,ND,North Dakota
+38,89,Stark,ND,North Dakota
+38,91,Steele,ND,North Dakota
+38,93,Stutsman,ND,North Dakota
+38,95,Towner,ND,North Dakota
+38,97,Traill,ND,North Dakota
+38,99,Walsh,ND,North Dakota
+38,101,Ward,ND,North Dakota
+38,103,Wells,ND,North Dakota
+38,105,Williams,ND,North Dakota
+35,13,Dona Ana,NM,New Mexico
+35,27,Lincoln,NM,New Mexico
+35,45,San Juan,NM,New Mexico
+35,51,Sierra,NM,New Mexico
+35,3,Catron,NM,New Mexico
+35,25,Lea,NM,New Mexico
+35,35,Otero,NM,New Mexico
+35,15,Eddy,NM,New Mexico
+35,17,Grant,NM,New Mexico
+35,29,Luna,NM,New Mexico
+35,39,Rio Arriba,NM,New Mexico
+35,55,Taos,NM,New Mexico
+35,1,Bernalillo,NM,New Mexico
+35,5,Chaves,NM,New Mexico
+35,6,Cibola,NM,New Mexico
+35,7,Colfax,NM,New Mexico
+35,9,Curry,NM,New Mexico
+35,11,De Baca,NM,New Mexico
+35,19,Guadalupe,NM,New Mexico
+35,21,Harding,NM,New Mexico
+35,23,Hidalgo,NM,New Mexico
+35,28,Los Alamos,NM,New Mexico
+35,31,McKinley,NM,New Mexico
+35,33,Mora,NM,New Mexico
+35,37,Quay,NM,New Mexico
+35,41,Roosevelt,NM,New Mexico
+35,43,Sandoval,NM,New Mexico
+35,47,San Miguel,NM,New Mexico
+35,49,Santa Fe,NM,New Mexico
+35,53,Socorro,NM,New Mexico
+35,57,Torrance,NM,New Mexico
+35,59,Union,NM,New Mexico
+35,61,Valencia,NM,New Mexico
+32,1,Churchill,NV,Nevada
+32,5,Douglas,NV,Nevada
+32,7,Elko,NV,Nevada
+32,11,Eureka,NV,Nevada
+32,13,Humboldt,NV,Nevada
+32,17,Lincoln,NV,Nevada
+32,21,Mineral,NV,Nevada
+32,23,Nye,NV,Nevada
+32,27,Pershing,NV,Nevada
+32,31,Washoe,NV,Nevada
+32,510,Carson City,NV,Nevada
+32,3,Clark,NV,Nevada
+32,9,Esmeralda,NV,Nevada
+32,15,Lander,NV,Nevada
+32,33,White Pine,NV,Nevada
+32,19,Lyon,NV,Nevada
+32,29,Storey,NV,Nevada
+30,5,Blaine,MT,Montana
+30,7,Broadwater,MT,Montana
+30,17,Custer,MT,Montana
+30,33,Garfield,MT,Montana
+30,57,Madison,MT,Montana
+30,75,Powder River,MT,Montana
+30,9,Carbon,MT,Montana
+30,15,Chouteau,MT,Montana
+30,55,McCone,MT,Montana
+30,65,Musselshell,MT,Montana
+30,105,Valley,MT,Montana
+30,111,Yellowstone,MT,Montana
+30,1,Beaverhead,MT,Montana
+30,3,Big Horn,MT,Montana
+30,11,Carter,MT,Montana
+30,27,Fergus,MT,Montana
+30,69,Petroleum,MT,Montana
+30,71,Phillips,MT,Montana
+30,79,Prairie,MT,Montana
+30,87,Rosebud,MT,Montana
+30,13,Cascade,MT,Montana
+30,19,Daniels,MT,Montana
+30,21,Dawson,MT,Montana
+30,23,Deer Lodge,MT,Montana
+30,25,Fallon,MT,Montana
+30,29,Flathead,MT,Montana
+30,31,Gallatin,MT,Montana
+30,35,Glacier,MT,Montana
+30,37,Golden Valley,MT,Montana
+30,39,Granite,MT,Montana
+30,41,Hill,MT,Montana
+30,43,Jefferson,MT,Montana
+30,45,Judith Basin,MT,Montana
+30,47,Lake,MT,Montana
+30,49,Lewis and Clark,MT,Montana
+30,51,Liberty,MT,Montana
+30,53,Lincoln,MT,Montana
+30,59,Meagher,MT,Montana
+30,61,Mineral,MT,Montana
+30,63,Missoula,MT,Montana
+30,67,Park,MT,Montana
+30,73,Pondera,MT,Montana
+30,77,Powell,MT,Montana
+30,81,Ravalli,MT,Montana
+30,83,Richland,MT,Montana
+30,85,Roosevelt,MT,Montana
+30,89,Sanders,MT,Montana
+30,91,Sheridan,MT,Montana
+30,93,Silver Bow,MT,Montana
+30,95,Stillwater,MT,Montana
+30,97,Sweet Grass,MT,Montana
+30,99,Teton,MT,Montana
+30,101,Toole,MT,Montana
+30,103,Treasure,MT,Montana
+30,107,Wheatland,MT,Montana
+30,109,Wibaux,MT,Montana
+16,23,Butte,ID,Idaho
+16,33,Clark,ID,Idaho
+16,59,Lemhi,ID,Idaho
+16,67,Minidoka,ID,Idaho
+16,73,Owyhee,ID,Idaho
+16,77,Power,ID,Idaho
+16,83,Twin Falls,ID,Idaho
+16,11,Bingham,ID,Idaho
+16,13,Blaine,ID,Idaho
+16,25,Camas,ID,Idaho
+16,31,Cassia,ID,Idaho
+16,37,Custer,ID,Idaho
+16,39,Elmore,ID,Idaho
+16,43,Fremont,ID,Idaho
+16,51,Jefferson,ID,Idaho
+16,53,Jerome,ID,Idaho
+16,63,Lincoln,ID,Idaho
+16,75,Payette,ID,Idaho
+16,1,Ada,ID,Idaho
+16,3,Adams,ID,Idaho
+16,5,Bannock,ID,Idaho
+16,7,Bear Lake,ID,Idaho
+16,9,Benewah,ID,Idaho
+16,15,Boise,ID,Idaho
+16,17,Bonner,ID,Idaho
+16,19,Bonneville,ID,Idaho
+16,21,Boundary,ID,Idaho
+16,27,Canyon,ID,Idaho
+16,29,Caribou,ID,Idaho
+16,35,Clearwater,ID,Idaho
+16,41,Franklin,ID,Idaho
+16,45,Gem,ID,Idaho
+16,47,Gooding,ID,Idaho
+16,49,Idaho,ID,Idaho
+16,55,Kootenai,ID,Idaho
+16,57,Latah,ID,Idaho
+16,61,Lewis,ID,Idaho
+16,65,Madison,ID,Idaho
+16,69,Nez Perce,ID,Idaho
+16,71,Oneida,ID,Idaho
+16,79,Shoshone,ID,Idaho
+16,81,Teton,ID,Idaho
+16,85,Valley,ID,Idaho
+16,87,Washington,ID,Idaho
+8,15,Chaffee,CO,Colorado
+8,21,Conejos,CO,Colorado
+8,43,Fremont,CO,Colorado
+8,51,Gunnison,CO,Colorado
+8,57,Jackson,CO,Colorado
+8,77,Mesa,CO,Colorado
+8,103,Rio Blanco,CO,Colorado
+8,109,Saguache,CO,Colorado
+8,81,Moffat,CO,Colorado
+8,85,Montrose,CO,Colorado
+8,113,San Miguel,CO,Colorado
+8,1,Adams,CO,Colorado
+8,3,Alamosa,CO,Colorado
+8,5,Arapahoe,CO,Colorado
+8,7,Archuleta,CO,Colorado
+8,9,Baca,CO,Colorado
+8,11,Bent,CO,Colorado
+8,13,Boulder,CO,Colorado
+8,14,Broomfield,CO,Colorado
+8,17,Cheyenne,CO,Colorado
+8,19,Clear Creek,CO,Colorado
+8,23,Costilla,CO,Colorado
+8,25,Crowley,CO,Colorado
+8,27,Custer,CO,Colorado
+8,29,Delta,CO,Colorado
+8,31,Denver,CO,Colorado
+8,33,Dolores,CO,Colorado
+8,35,Douglas,CO,Colorado
+8,37,Eagle,CO,Colorado
+8,39,Elbert,CO,Colorado
+8,41,El Paso,CO,Colorado
+8,45,Garfield,CO,Colorado
+8,47,Gilpin,CO,Colorado
+8,49,Grand,CO,Colorado
+8,53,Hinsdale,CO,Colorado
+8,55,Huerfano,CO,Colorado
+8,59,Jefferson,CO,Colorado
+8,61,Kiowa,CO,Colorado
+8,63,Kit Carson,CO,Colorado
+8,65,Lake,CO,Colorado
+8,67,La Plata,CO,Colorado
+8,69,Larimer,CO,Colorado
+8,71,Las Animas,CO,Colorado
+8,73,Lincoln,CO,Colorado
+8,75,Logan,CO,Colorado
+8,79,Mineral,CO,Colorado
+8,83,Montezuma,CO,Colorado
+8,87,Morgan,CO,Colorado
+8,89,Otero,CO,Colorado
+8,91,Ouray,CO,Colorado
+8,93,Park,CO,Colorado
+8,95,Phillips,CO,Colorado
+8,97,Pitkin,CO,Colorado
+8,99,Prowers,CO,Colorado
+8,101,Pueblo,CO,Colorado
+8,105,Rio Grande,CO,Colorado
+8,107,Routt,CO,Colorado
+8,111,San Juan,CO,Colorado
+8,115,Sedgwick,CO,Colorado
+8,117,Summit,CO,Colorado
+8,119,Teller,CO,Colorado
+8,121,Washington,CO,Colorado
+8,123,Weld,CO,Colorado
+8,125,Yuma,CO,Colorado
+6,19,Fresno,CA,California
+6,29,Kern,CA,California
+6,49,Modoc,CA,California
+6,65,Riverside,CA,California
+6,71,San Bernardino,CA,California
+6,25,Imperial,CA,California
+6,27,Inyo,CA,California
+6,35,Lassen,CA,California
+6,51,Mono,CA,California
+6,1,Alameda,CA,California
+6,3,Alpine,CA,California
+6,5,Amador,CA,California
+6,7,Butte,CA,California
+6,9,Calaveras,CA,California
+6,11,Colusa,CA,California
+6,13,Contra Costa,CA,California
+6,15,Del Norte,CA,California
+6,17,El Dorado,CA,California
+6,21,Glenn,CA,California
+6,23,Humboldt,CA,California
+6,31,Kings,CA,California
+6,33,Lake,CA,California
+6,37,Los Angeles,CA,California
+6,39,Madera,CA,California
+6,41,Marin,CA,California
+6,43,Mariposa,CA,California
+6,45,Mendocino,CA,California
+6,47,Merced,CA,California
+6,53,Monterey,CA,California
+6,55,Napa,CA,California
+6,57,Nevada,CA,California
+6,59,Orange,CA,California
+6,61,Placer,CA,California
+6,63,Plumas,CA,California
+6,67,Sacramento,CA,California
+6,69,San Benito,CA,California
+6,73,San Diego,CA,California
+6,75,San Francisco,CA,California
+6,77,San Joaquin,CA,California
+6,79,San Luis Obispo,CA,California
+6,81,San Mateo,CA,California
+6,83,Santa Barbara,CA,California
+6,85,Santa Clara,CA,California
+6,87,Santa Cruz,CA,California
+6,89,Shasta,CA,California
+6,91,Sierra,CA,California
+6,93,Siskiyou,CA,California
+6,95,Solano,CA,California
+6,97,Sonoma,CA,California
+6,99,Stanislaus,CA,California
+6,101,Sutter,CA,California
+6,103,Tehama,CA,California
+6,105,Trinity,CA,California
+6,107,Tulare,CA,California
+6,109,Tuolumne,CA,California
+6,111,Ventura,CA,California
+6,113,Yolo,CA,California
+6,115,Yuba,CA,California
+4,5,Coconino,AZ,Arizona
+4,12,La Paz,AZ,Arizona
+4,13,Maricopa,AZ,Arizona
+4,3,Cochise,AZ,Arizona
+4,9,Graham,AZ,Arizona
+4,19,Pima,AZ,Arizona
+4,15,Mohave,AZ,Arizona
+4,27,Yuma,AZ,Arizona
+4,1,Apache,AZ,Arizona
+4,7,Gila,AZ,Arizona
+4,11,Greenlee,AZ,Arizona
+4,17,Navajo,AZ,Arizona
+4,21,Pinal,AZ,Arizona
+4,23,Santa Cruz,AZ,Arizona
+4,25,Yavapai,AZ,Arizona
