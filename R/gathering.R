@@ -112,7 +112,7 @@ gather_all <- function(dsn = NULL,
                 '"'))
   }
 
-    ##### Check data_types -------------------------------------------------------
+  ##### Check data_types -------------------------------------------------------
   valid_data_types <- c("header" = "header",
                         "LPI" = "lpi",
                         "height" = "height",
@@ -648,9 +648,16 @@ gather_header_lmf <- function(dsn = NULL,
 
   #### Reading #################################################################
   # This is the lookup table of state and county names with LMF numeric codes
-  lmf_locale_lookup <- read.csv(file = file.path("data", "lmf_locale_lookup.csv"),
-                                stringsAsFactors = FALSE)
+  # TODO: POINT WITHIN PACKAGE NOT ON LOCAL MACHINE!!!!!!!!
+  # lmf_locale_lookup <- read.csv(file = file.path("data", "lmf_locale_lookup.csv"),
+  #                               stringsAsFactors = FALSE)
+  data("lmf_locale_lookup",
+       envir = environment())
 
+
+  if (verbose) {
+    message("Working on POINT")
+  }
   # The basic info about sampling locations
   point <- read_with_fallback(dsn = dsn,
                               tbl = POINT,
@@ -667,7 +674,9 @@ gather_header_lmf <- function(dsn = NULL,
                                        "SpeciesState",
                                        "COUNTY",
                                        "STATE")))
-
+  if (verbose) {
+    message("Working on POINTCOORDINATES")
+  }
   # The coordinates for the sampling locations
   pointcoordinates <- read_with_fallback(dsn = dsn,
                                          tbl = POINTCOORDINATES,
@@ -683,6 +692,9 @@ gather_header_lmf <- function(dsn = NULL,
                   Longitude_NAD83 = REPORT_LONGITUDE,
                   LocationType)
 
+  if (verbose) {
+    message("Working on GPS")
+  }
   # The best source for elevation and sampling dates
   gps <- read_with_fallback(dsn = dsn,
                             tbl = GPS,
@@ -701,6 +713,9 @@ gather_header_lmf <- function(dsn = NULL,
     dplyr::mutate(.data = _,
                   Elevation = Elevation * 0.3048)
 
+  if (verbose) {
+    message("Working on ESFSG")
+  }
   # Ecological site assignments
   esfsg <- read_with_fallback(dsn = dsn,
                               tbl = ESFSG,
@@ -721,6 +736,9 @@ gather_header_lmf <- function(dsn = NULL,
   #### Combining ###############################################################
   # This creates then iterates on output.
 
+  if (verbose) {
+    message("Combining inputs")
+  }
   # County and State are referred to by number codes, let's use the names
   output <- dplyr::left_join(x = point,
                              y = lmf_locale_lookup,
@@ -747,6 +765,9 @@ gather_header_lmf <- function(dsn = NULL,
                      relationship = "one-to-one",
                      by = "PrimaryKey")
 
+  if (verbose) {
+    message("Finishing ecological site information")
+  }
   # This isn't part of the pipe chain above just because it's complicated and
   # maintenance will be easier if it's separate
   output <- dplyr::left_join(x = output,
@@ -1198,7 +1219,7 @@ gather_header <- function(dsn = NULL,
                                 GPS = GPS,
                                 ESFSG = ESFSG,
                                 ...,
-                                verbose == verbose)
+                                verbose = verbose)
   } else if (toupper(source) == "NRI") {
     output <- gather_header_nri(dsn = dsn,
                                 speciesstate = speciesstate,
@@ -1562,6 +1583,9 @@ gather_lpi_lmf <- function(dsn = NULL,
                          "DBKey")
 
   #### Reading and cleanup #####################################################
+  if (verbose) {
+    message("Working on PINTERCEPT")
+  }
   pintercept <- read_with_fallback(dsn = dsn,
                                    tbl = PINTERCEPT,
                                    default_name = "PINTERCEPT",
@@ -1573,51 +1597,51 @@ gather_lpi_lmf <- function(dsn = NULL,
                   -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
   # INPUT DATA, prefer tables if provided. If one or more are missing, load from dsn
-  if (!is.null(PINTERCEPT)) {
-    pintercept <- PINTERCEPT
-  } else if (!is.null(dsn)) {
-    if (!file.exists(dsn)) {
-      stop("dsn must be a valid filepath.")
-    }
-    file_type <- tools::file_ext(x = dsn) |>
-      tolower()
-    if (!(file_type %in% c("gdb", "csv", "txt"))) {
-      stop("dsn must end in one of the following file extensions: gdb, csv, txt.")
-    }
-    # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
-    pintercept <- switch(file_type,
-                         "gdb" = {
-                           sf::st_read(dsn = dsn,
-                                       layer = "PINTERCEPT",
-                                       stringsAsFactors = FALSE,
-                                       quiet = TRUE)
-                         },
-                         "txt" = {
-                           utils::read.table(file = file.path(dsn,
-                                                              "pintercept.txt"),
-                                             stringsAsFactors = FALSE,
-                                             strip.white = TRUE,
-                                             header = FALSE,
-                                             sep = "|")
-                         },
-                         "csv" = {
-                           read.csv(file = dsn,
-                                    header = TRUE,
-                                    stringsAsFactors = FALSE)
-                         })
-
-    # if it is in a text file, there are no field names assigned.
-    if (file_type == "txt") {
-      colnames <- terradactyl::nri.data.column.explanations$FIELD.NAME[
-        terradactyl::nri.data.column.explanations$TABLE.NAME == "PINTERCEPT"
-      ]
-
-      colnames <- colnames[1:ncol(pintercept)] |> subset(!is.na(.))
-      names(pintercept) <- colnames
-    }
-  } else {
-    stop("Supply one of the following: a data frame as the argument PINTERCEPT, the path to a GDB (containing a table called PINTERCEPT) as the argument dsn, or the path to a folder containing a file called 'pintercept.txt' as the argument dsn.")
-  }
+  # if (!is.null(PINTERCEPT)) {
+  #   pintercept <- PINTERCEPT
+  # } else if (!is.null(dsn)) {
+  #   if (!file.exists(dsn)) {
+  #     stop("dsn must be a valid filepath.")
+  #   }
+  #   file_type <- tools::file_ext(x = dsn) |>
+  #     tolower()
+  #   if (!(file_type %in% c("gdb", "csv", "txt"))) {
+  #     stop("dsn must end in one of the following file extensions: gdb, csv, txt.")
+  #   }
+  #   # Read  PINTERCEPT table in .txt or .gdb or from a preformatted csv
+  #   pintercept <- switch(file_type,
+  #                        "gdb" = {
+  #                          sf::st_read(dsn = dsn,
+  #                                      layer = "PINTERCEPT",
+  #                                      stringsAsFactors = FALSE,
+  #                                      quiet = TRUE)
+  #                        },
+  #                        "txt" = {
+  #                          utils::read.table(file = file.path(dsn,
+  #                                                             "pintercept.txt"),
+  #                                            stringsAsFactors = FALSE,
+  #                                            strip.white = TRUE,
+  #                                            header = FALSE,
+  #                                            sep = "|")
+  #                        },
+  #                        "csv" = {
+  #                          read.csv(file = dsn,
+  #                                   header = TRUE,
+  #                                   stringsAsFactors = FALSE)
+  #                        })
+  #
+  #   # if it is in a text file, there are no field names assigned.
+  #   if (file_type == "txt") {
+  #     colnames <- terradactyl::nri.data.column.explanations$FIELD.NAME[
+  #       terradactyl::nri.data.column.explanations$TABLE.NAME == "PINTERCEPT"
+  #     ]
+  #
+  #     colnames <- colnames[1:ncol(pintercept)] |> subset(!is.na(.))
+  #     names(pintercept) <- colnames
+  #   }
+  # } else {
+  #   stop("Supply one of the following: a data frame as the argument PINTERCEPT, the path to a GDB (containing a table called PINTERCEPT) as the argument dsn, or the path to a folder containing a file called 'pintercept.txt' as the argument dsn.")
+  # }
 
   # Sometimes NAs might be introduced as variable names, but we can make sure to
   # drop those.
@@ -1629,6 +1653,9 @@ gather_lpi_lmf <- function(dsn = NULL,
   # per transect. We'll drop the 75th record on the northeast-southwest transect
   # but we also want to warn the user that it's happening to any situations
   # where the assumption that they're identical is violated.
+  if (verbose) {
+    message("Checking for duplicated records due to plot layout")
+  }
   duplicated_75mark_indices <- dplyr::filter(.data = pintercept,
                                              MARK == 75) |>
     dplyr::select(.data = _,
@@ -1652,6 +1679,9 @@ gather_lpi_lmf <- function(dsn = NULL,
   ##### Harmonizing with expected values and variable names --------------------
   # We don't need all the extra LMF-internal variables after this point, so
   # we'll pare down and rename here.
+  if (verbose) {
+    message("Cleaning up data formatting")
+  }
   pintercept <- dplyr::select(.data = pintercept,
                               PrimaryKey,
                               LineKey = TRANSECT,
@@ -1726,6 +1756,9 @@ gather_lpi_lmf <- function(dsn = NULL,
                                             .fns = as.character))
 
   #### Pivoting to long ########################################################
+  if (verbose) {
+    message("Pivoting and returning data")
+  }
   data_tall <- tidyr::pivot_longer(data = pintercept,
                                    cols = tidyselect::all_of(c(names(hit_layer_rename_vector),
                                                                "SoilSurface")),
@@ -2389,6 +2422,9 @@ gather_height_lmf <- function(dsn = NULL,
                          "DBKey")
 
   #### Reading and cleanup #####################################################
+  if (verbose) {
+    message("Working on PASTUREHEIGHTS")
+  }
   pastureheights <- read_with_fallback(dsn = dsn,
                                        tbl = PASTUREHEIGHTS,
                                        default_name = "PASTUREHEIGHTS",
@@ -2464,6 +2500,9 @@ gather_height_lmf <- function(dsn = NULL,
   # per transect. We'll drop the 75th record on the northeast-southwest transect
   # but we also want to warn the user that it's happening to any situations
   # where the assumption that they're identical is violated.
+  if (verbose) {
+    message("Checking for duplicated records due to plot layout")
+  }
   duplicated_75mark_indices <- dplyr::filter(.data = pastureheights,
                                              DISTANCE == 75) |>
     dplyr::select(.data = _,
@@ -2489,6 +2528,9 @@ gather_height_lmf <- function(dsn = NULL,
   # This will get us to the point where there's a separate record for each type
   # of measurement (woody and nonwoody) but there's a little more to adjust
   # after that.
+  if (verbose) {
+    message("Cleaning up data formatting")
+  }
   data_long <- dplyr::select(.data = pastureheights,
                              PrimaryKey,
                              LineKey = TRANSECT,
@@ -3105,6 +3147,9 @@ gather_gap_lmf <- function(dsn = NULL,
                          "DBKey")
 
   #### Reading and cleanup #####################################################
+  if (verbose) {
+    message("Working on GINTERCEPT")
+  }
   gintercept <- read_with_fallback(dsn = dsn,
                                    tbl = GINTERCEPT,
                                    default_name = "GINTERCEPT",
@@ -3115,6 +3160,9 @@ gather_gap_lmf <- function(dsn = NULL,
     dplyr::select(.data = _,
                   -tidyselect::any_of(x = internal_gdb_vars)) |>
     dplyr::distinct()
+  if (verbose) {
+    message("Working on POINT")
+  }
   point <- read_with_fallback(dsn = dsn,
                               tbl = POINT,
                               default_name = "POINT",
@@ -3242,6 +3290,9 @@ gather_gap_lmf <- function(dsn = NULL,
 
   # Grab only the relevant variables, the PrimaryKey and the ones indicating if
   # the gaps were different.
+  if (verbose) {
+    message("Checking data intergrity")
+  }
   potential_canopy_transects <- dplyr::select(.data = point,
                                               PrimaryKey,
                                               tidyselect::starts_with(match = "GAPS_DIFFERENT_")) |>
@@ -3368,6 +3419,9 @@ gather_gap_lmf <- function(dsn = NULL,
   # appropriate and warning the user when there are unexpected non-zero records.
 
   # Identify the places where the point table indicates that there aren't gaps.
+  if (verbose) {
+    message("Checking for transects without gap recorded")
+  }
   potential_zero_gap_transects <- dplyr::select(.data = point,
                                                 PrimaryKey,
                                                 tidyselect::matches(match = "_GAPS_[NSEW]{4}$")) |>
@@ -3449,7 +3503,9 @@ gather_gap_lmf <- function(dsn = NULL,
 
   #### Cleanup and conversion ##################################################
   # We need to reformat this so that it's in the standard format.
-
+  if (verbose) {
+    message("Reformatting data")
+  }
   output <- dplyr::rename(.data = gintercept,
                           LineKey = TRANSECT,
                           RecType = GAP_TYPE,
@@ -3980,6 +4036,9 @@ gather_soil_stability_lmf <- function(dsn = NULL,
                          "DBKey")
 
   #### Reading and cleanup #####################################################
+  if (verbose) {
+    message("Working on SOILDISAG")
+  }
   soildisag <- read_with_fallback(dsn = dsn,
                                   tbl = SOILDISAG,
                                   default_name = "SOILDISAG",
@@ -4064,6 +4123,9 @@ gather_soil_stability_lmf <- function(dsn = NULL,
   #### Pivoting longer and harmonizing #########################################
   # This pares down the variables to only what we need and pivots to a long
   # format. It also splits variables into type and position.
+  if (verbose) {
+    message("Reformatting data")
+  }
   data_long <- dplyr::select(.data = soildisag,
                              PrimaryKey,
                              tidyselect::matches(match = "^VEG\\d+$"),
@@ -5008,6 +5070,9 @@ gather_species_inventory_lmf <- function(dsn = NULL,
                          "DBKey")
 
   #### Reading #################################################################
+  if (verbose) {
+    message("Working on PLANTCENSUS")
+  }
   plantcensus <- read_with_fallback(dsn = dsn,
                                     tbl = PLANTCENSUS,
                                     default_name = "PLANTCENSUS",
@@ -5056,6 +5121,9 @@ gather_species_inventory_lmf <- function(dsn = NULL,
   # }
 
   #### Munging #################################################################
+  if (verbose) {
+    message("Reformatting data")
+  }
   species_inventory <- dplyr::summarize(.data = plantcensus,
                                         .by = "PrimaryKey",
                                         SpeciesCount = dplyr::n()) |>

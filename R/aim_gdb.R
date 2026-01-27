@@ -204,7 +204,8 @@ build_terradat_indicators <- function(header,
 #' @returns A data frame with all standard TerrADat indicators in a format matching TerrADat.
 #'
 
-build_lmf_indicators <- function(header, source, dsn,
+build_lmf_indicators <- function(header,
+                                 dsn,
                                  species_file,
                                  lpi_tall,
                                  gap_tall,
@@ -216,15 +217,70 @@ build_lmf_indicators <- function(header, source, dsn,
                                  generic_species_file = NULL,
                                  verbose = FALSE) {
 
-  # Test that source is  "LMF"
-  if (!(source %in% c("LMF", "NRI"))) {
-    stop(paste0("source is currently '", source, "' which is not a valid value. source must be either 'LMF' or 'NRI'."))
-  }
+
 
 
   # Assign filter expressions
-  # filter_exprs <- rlang::quos(...)
+  filter_exprs <- rlang::quos(...)
 
+  #### Reading #################################################################
+  inputs_list <- list(header = header,
+                      lpi_tall = lpi_tall,
+                      gap_tall = gap_tall,
+                      height_tall = height_tall,
+                      spp_inventory_tall = spp_inventory_tall,
+                      soil_stability_tall = soil_stability_tall)
+
+  for (current_input_type in names(inputs_list)) {
+    if (verbose) {
+      message(paste0("Currently working with ",
+                     current_input_type,
+                     "."))
+    }
+
+    if (is.null(inputs_list[[current_input_type]])) {
+      message(paste("No data provided for", current_input_type, "so indicators derived from those will not be calculated."))
+    } else {
+      current_data <- read_whatever(input = inputs_list[[current_input_type]],
+                                    accept_failure = FALSE,
+                                    verbose = verbose)
+    }
+
+    if (current_input_type == "header") {
+      if (!is.data.frame(current_data)) {
+        stop("Something is wrong with the current header information provided.")
+      } else if (nrow(current_data) < 1) {
+        stop("The header information contains no records.")
+      }
+
+      current_data <- dplyr::filter(.data = current_data,
+                                    !!!filter_exprs)
+      if (nrow(current_data) < 1) {
+        stop("The header information contains no records after applying the filtering expressions.")
+      }
+
+    } else {
+      if (is.null(current_data)) {
+        current_data <- NULL
+      } else if (nrow(current_data) < 1) {
+        message(paste("No records found in the data provided for", current_input_type, "so indicators derived from those will not be calculated."))
+        current_data <- NULL
+      } else {
+        if (verbose) {
+          message("Restricting data to records with PrimaryKey values found in the provided headers")
+        }
+        current_data <- dplyr::filter(.data = current_data,
+                                      PrimaryKey %in% inputs_list[["header"]]$PrimaryKey)
+      }
+      if (nrow(current_data) < 1) {
+        message(paste("No records found in the data provided for", current_input_type, "after restricting by PrimaryKey so indicators derived from those will not be calculated."))
+        current_data <- NULL
+      }
+
+    }
+
+    inputs_list[[current_input_type]] <- current_data
+  }
   # Read header in
   header <- readRDS(header) |>
     # Filter using the filtering expression specified by user
