@@ -240,6 +240,7 @@ build_lmf_indicators <- function(header,
 
     if (is.null(inputs_list[[current_input_type]])) {
       message(paste("No data provided for", current_input_type, "so indicators derived from those will not be calculated."))
+      current_data <- NULL
     } else {
       current_data <- read_whatever(input = inputs_list[[current_input_type]],
                                     accept_failure = FALSE,
@@ -272,59 +273,106 @@ build_lmf_indicators <- function(header,
         current_data <- dplyr::filter(.data = current_data,
                                       PrimaryKey %in% inputs_list[["header"]]$PrimaryKey)
       }
-      if (nrow(current_data) < 1) {
-        message(paste("No records found in the data provided for", current_input_type, "after restricting by PrimaryKey so indicators derived from those will not be calculated."))
-        current_data <- NULL
-      }
-
     }
 
     inputs_list[[current_input_type]] <- current_data
   }
-  # Read header in
-  header <- readRDS(header) |>
-    # Filter using the filtering expression specified by user
-    # dplyr::filter(.data = _,
-    #               !!!filter_exprs) |>
-    dplyr::filter(.data = _,
-                  source %in% c("LMF", "NRI"))
+  # # Read header in
+  # header <- readRDS(header) |>
+  #   # Filter using the filtering expression specified by user
+  #   # dplyr::filter(.data = _,
+  #   #               !!!filter_exprs) |>
+  #   dplyr::filter(.data = _,
+  #                 source %in% c("LMF", "NRI"))
+  #
+  # # Check header for data
+  # if(nrow(header) == 0){
+  #   stop("No records present in provided header.")
+  # }
 
-  # Check header for data
-  if(nrow(header) == 0){
-    stop("No records present in provided header.")
+  #### Calculating #############################################################
+  # Join all indicator calculations together
+  outputs_list <- list()
+
+  if (!is.null(inputs_list[["lpi_tall"]])) {
+    if (verbose) {
+      message("Calculating cover indicators.")
+    }
+
+    outputs_list[["lpi"]] <- lpi_calc(lpi_tall = inputs_list[["lpi_tall"]],
+                                      header = inputs_list[["header"]],
+                                      species_file = species_file,
+                                      generic_species_file = generic_species_file,
+                                      digits = digits,
+                                      verbose = verbose)
+  } else {
+    if (verbose) {
+      message("No data for cover indicators. Skipping cover calculations.")
+    }
   }
 
-  # Join all indicator calculations together
-  indicators <- list(header,
-                     # LPI
-                     lpi_calc(lpi_tall = lpi_tall,
-                              header = header,
-                              species_file = species_file,
-                              generic_species_file = generic_species_file,
-                              digits = digits),
-                     # Gap
-                     gap_calc(gap_tall = gap_tall,
-                              header = header,
-                              digits = digits),
-                     #  # Height
-                     height_calc(height_tall = height_tall,
-                                 header = header,
-                                 source = source,
-                                 species_file = species_file,
-                                 generic_species_file = generic_species_file,
-                                 digits = digits),
-                     # Species Inventory
-                     spp_inventory_calc(spp_inventory_tall = spp_inventory_tall,
-                                        header = header,
-                                        species_file = species_file,
-                                        source = source,
-                                        generic_species_file = generic_species_file),
-                     # Soil Stability
-                     soil_stability_calc(soil_stability_tall = soil_stability_tall),
-                     digits = digits)
+  if (!is.null(inputs_list[["gap_tall"]])) {
+    if (verbose) {
+      message("Calculating gap indicators.")
+    }
+    outputs_list[["gap"]] <- gap_calc(gap_tall = inputs_list[["gap_tall"]],
+                                      header = inputs_list[["header"]],
+                                      digits = digits,
+                                      verbose = verbose)
+  } else {
+    if (verbose) {
+      message("No data for gap indicators. Skipping gap calculations.")
+    }
+  }
+
+  if (!is.null(inputs_list[["height_tall"]])) {
+    if (verbose) {
+      message("Calculating height indicators.")
+    }
+    outputs_list[["height"]] <- height_calc(height_tall = inputs_list[["height_tall"]],
+                                            header = inputs_list[["header"]],
+                                            source = "lmf",
+                                            species_file = species_file,
+                                            generic_species_file = generic_species_file,
+                                            digits = digits,
+                                            verbose = verbose)
+  } else {
+    if (verbose) {
+      message("No data for height indicators. Skipping height calculations.")
+    }
+  }
+
+  if (!is.null(inputs_list[["spp_inventory_tall"]])) {
+    if (verbose) {
+      message("Calculating species inventory indicators.")
+    }
+    outputs_list[["species"]] <- spp_inventory_calc(spp_inventory_tall = inputs_list[["spp_inventory_tall"]],
+                                                    header = inputs_list[["header"]],
+                                                    species_file = species_file,
+                                                    source = "lmf",
+                                                    generic_species_file = generic_species_file,
+                                                    verbose = verbose)
+  } else {
+    if (verbose) {
+      message("No data for species inventory indicators. Skipping species inventory calculations.")
+    }
+  }
+
+  if (!is.null(inputs_list[["soil_stability_tall"]])) {
+    if (verbose) {
+      message("Calculating soil stability indicators.")
+    }
+    outputs_list[["soil_stability"]] <- soil_stability_calc(soil_stability_tall = inputs_list[["soil_stability_tall"]],
+                                                            digits = digits,
+                                                            verbose = verbose)
+  } else {
+    if (verbose) {
+      message("No data for soil stability indicators. Skipping soil stability calculations.")
+    }
+  }
 
   purrr::reduce(.f = dplyr::left_join,
-                .x = indicators)
+                .x = outputs_list)
 }
 
 # Build Indicators
