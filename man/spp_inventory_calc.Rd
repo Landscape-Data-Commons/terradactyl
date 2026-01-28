@@ -9,6 +9,7 @@ spp_inventory_calc(
   spp_inventory_tall,
   species_file,
   source,
+  species_code_var = "SpeciesCode",
   generic_species_file = NULL,
   verbose = FALSE
 )
@@ -22,12 +23,12 @@ spp_inventory_calc(
 
 \item{source}{Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.}
 
+\item{species_code_var}{Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.}
+
 \item{generic_species_file}{Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.}
 
 \item{verbose}{Logical. If \code{TRUE} the function will produce diagnostic
 messages. Defaults to \code{FALSE}.}
-
-\item{species_code_var}{Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.}
 
 \item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.}
 }

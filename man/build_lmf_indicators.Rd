@@ -6,7 +6,6 @@
 \usage{
 build_lmf_indicators(
   header,
-  source,
   dsn,
   species_file,
   lpi_tall,
@@ -14,6 +13,7 @@ build_lmf_indicators(
   height_tall,
   spp_inventory_tall,
   soil_stability_tall,
+  digits = 6,
   ...,
   generic_species_file = NULL,
   verbose = FALSE

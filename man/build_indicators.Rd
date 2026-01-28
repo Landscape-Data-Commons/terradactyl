@@ -16,6 +16,7 @@ build_indicators(
   soil_stability_tall,
   ...,
   generic_species_file = NULL,
+  digits = 6,
   verbose = FALSE
 )
 }

@@ -6,6 +6,8 @@
 #' @param header Table. Contains PrimaryKey, Latitude, and Longitude
 #' @param texture_file Raster or csv. Soil texture raster(as rdata file) with sand and clay percentages or CSV which provides soil texture classes from 12 USDA classes.
 #' @param folder_location Character. Location for function to save AERO input files
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
 #' @return AERO input files and an input_summary table which summarizes all input values in a single place.
 #'
 #' @export aero

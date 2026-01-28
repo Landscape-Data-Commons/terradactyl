@@ -124,8 +124,6 @@ species_read_aim <- function(dsn,
 
   output
 }
-#' @export generic_growth_habits
-#' @rdname species
 
 #' Attribute growth habits and durations to generic species codes
 #' @description
