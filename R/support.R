@@ -66,6 +66,7 @@ read_whatever <- function(input,
     # These are the supported filetypes (for now)
     valid_filetypes <- c("gdb",
                          "rdata",
+                         "rds",
                          "csv")
     current_input_filetype <- tools::file_ext(x = input) |>
       tolower(x = _)
@@ -148,6 +149,9 @@ read_whatever <- function(input,
                        # CSVs are also easy to handle.
                        read.csv(file = input,
                                 stringsAsFactors = FALSE)
+                     },
+                     "rds" = {
+                       readRDS(file = input)
                      })
   }
 

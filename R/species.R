@@ -70,16 +70,28 @@ species_read_aim <- function(dsn,
     message("Reading in tblNationalPlants.")
   }
 
-  tblNationalPlants <- sf::st_read(dsn = dsn,
-                                   layer = "tblNationalPlants",
-                                   quiet = TRUE)
+  tblNationalPlants <- read_whatever(input = dsn,
+                                     layer = "tblNationalPlants",
+                                     regex = TRUE,
+                                     best_guess = TRUE,
+                                     accept_failure = FALSE,
+                                     verbose = verbose)
+  # tblNationalPlants <- sf::st_read(dsn = dsn,
+  #                                  layer = "tblNationalPlants",
+  #                                  quiet = TRUE)
   if (verbose) {
     message("Reading in tblStateSpecies and creating state sage-grouse lookup table.")
   }
 
-  tblStateSpecies <- sf::st_read(dsn = dsn,
-                                 layer = "tblStateSpecies",
-                                 quiet = TRUE) |>
+  # tblStateSpecies <- sf::st_read(dsn = dsn,
+  #                                layer = "tblStateSpecies",
+  #                                quiet = TRUE) |>
+  tblStateSpecies <- read_whatever(input = dsn,
+                                   layer = "tblStateSpecies",
+                                   regex = TRUE,
+                                   best_guess = TRUE,
+                                   accept_failure = FALSE,
+                                   verbose = verbose) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(c(code = "SpeciesCode",
                                        "SG_Group",
@@ -124,8 +136,6 @@ species_read_aim <- function(dsn,
 
   output
 }
-#' @export generic_growth_habits
-#' @rdname species
 
 #' Attribute growth habits and durations to generic species codes
 #' @description
@@ -274,22 +284,22 @@ generic_growth_habits <- function(data,
   # Remove records where we didn't actually add any information. So, we'll keep
   # only records where at least one of the regexed variables wasn't NA.
   if (nrow(missing_codes_df) > 0) {
-  missing_codes_df <- dplyr::filter(.data = missing_codes_df,
-                                    dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
-                                                  .fns = ~ !is.na(x = .x))) |>
-    dplyr::distinct()
+    missing_codes_df <- dplyr::filter(.data = missing_codes_df,
+                                      dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
+                                                    .fns = ~ !is.na(x = .x))) |>
+      dplyr::distinct()
 
 
-  # Append the generic codes to the species list!
-  dplyr::bind_rows(species_list,
-                   missing_codes_df |>
-                     dplyr::mutate(.data = _,
-                                   dplyr::across(.cols = dplyr::where(fn = is.logical),
-                                                 .fns = as.character))) |>
-    dplyr::distinct()
-    } else {
-      species_list
-    }
+    # Append the generic codes to the species list!
+    dplyr::bind_rows(species_list,
+                     missing_codes_df |>
+                       dplyr::mutate(.data = _,
+                                     dplyr::across(.cols = dplyr::where(fn = is.logical),
+                                                   .fns = as.character))) |>
+      dplyr::distinct()
+  } else {
+    species_list
+  }
 }
 
 #' Join species characteristics to field data
@@ -629,7 +639,7 @@ species_join <- function(data, # field data,
     dplyr::distinct()
 
   # Overwrite generic species assignments with provided table
-  if (overwrite_generic_species & generic_species_file != "") {
+  if (overwrite_generic_species & identical(generic_species_file, "")) {
     if (!file.exists(generic_species_file)) {
       stop(paste0("The generic_species_file path points to ", generic_species_file, " which does not exist."))
     }
@@ -854,13 +864,22 @@ accumulated_species <- function(header,
     message("Reading in headers and filtering them using any provided filtering expressions.")
   }
 
-  if ("character" %in% class(header)) {
-    if (tools::file_ext(header) == "Rdata") {
-      header <- readRDS(file = header)
-    } else {
-      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
-    }
+  # if ("character" %in% class(header)) {
+  #   if (tools::file_ext(header) == "Rdata") {
+  #     header <- readRDS(file = header)
+  #   } else {
+  #     stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+  #   }
+  # }
+  header <- read_whatever(input = header,
+                          verbose = verbose)
+
+  if (!is.data.frame(header)) {
+    stop("Something is wrong with the current header information provided.")
+  } else if (nrow(header) < 1) {
+    stop("The header information contains no records.")
   }
+
 
   header <- dplyr::filter(.data = header,
                           !!!filter_exprs) |>
@@ -872,6 +891,9 @@ accumulated_species <- function(header,
                                            "Latitude_NAD83",
                                            "Longitude_NAD83",
                                            "source")))
+  if (nrow(header) < 1) {
+    stop("The header information contains no records after applying the filtering expressions.")
+  }
 
   ##### Data -------------------------------------------------------------------
   inputs_list <- lapply(X = c("lpi_tall",
@@ -883,24 +905,26 @@ accumulated_species <- function(header,
                         header = header,
                         verbose = verbose,
                         FUN = function(X, inputs, header, verbose){
-                          if ("character" %in% class(inputs[[X]])) {
-                            if (tools::file_ext(inputs[[X]]) == "Rdata") {
-                              output <- readRDS(file = inputs[[X]])
-                            } else {
-                              stop(paste("When", X, "is a character string it must be the path to a .Rdata file containing tall data."))
-                            }
-                          } else if (!("data.frame" %in% class(inputs[[X]]))) {
+
+                          output <- read_whatever(input = inputs[[X]],
+                                                  verbose = verbose)
+
+                          if (!is.data.frame(output)) {
                             if (verbose) {
-                              message(paste(X, "either doesn't contain data or was NULL."))
+                              message(paste0("No usable data provided for", X))
                             }
                             return(NULL)
-                          } else {
-                            output <- inputs[[X]]
+                          } else if (nrow(output) < 1) {
+                            message(paste0("No records found in the input provided for ", X))
+                            return(NULL)
                           }
 
                           output <- dplyr::select(.data = output,
                                                   -tidyselect::any_of(x = c("FormDate")))
 
+                          if (verbose) {
+                            message("Combining the data with the header information.")
+                          }
                           dplyr::left_join(x = dplyr::select(.data = header,
                                                              tidyselect::all_of(x = c("PrimaryKey",
                                                                                       "SpeciesState"))),
@@ -1053,7 +1077,7 @@ accumulated_species <- function(header,
 
     # calculate cover by species
     species_cover <- pct_cover_species(lpi_tall = inputs_list[["cover"]],
-                                      digits = digits) |>
+                                       digits = digits) |>
       dplyr::filter(.data = _,
                     percent > 0) |>
       dplyr::rename(.data = _,
@@ -1070,7 +1094,7 @@ accumulated_species <- function(header,
                                                 tall = TRUE,
                                                 by_line = FALSE,
                                                 code,
-                                               digits = digits) |>
+                                                digits = digits) |>
         dplyr::filter(.data = _,
                       percent > 0) |>
         # Separate the indicators based on the live vs dead.

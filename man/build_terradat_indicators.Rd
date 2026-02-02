@@ -14,6 +14,7 @@ build_terradat_indicators(
   height_tall = NULL,
   spp_inventory_tall = NULL,
   soil_stability_tall = NULL,
+  digits = 6,
   ...,
   verbose = FALSE
 )

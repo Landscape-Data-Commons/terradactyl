@@ -1,10 +1,10 @@
-# Species Checks--Check that the species list covers all observed species
+#' Check that the species list covers all observed species
 #' @description Quality control species attribute lists prior to running indicator calculations.
 #' @param dsn_tall The observed data data source
 #' @param species_list_file The file path to the species list. If the dsn contains the species list, then specify the layer within the dsn.
-
-#' @export species_list_check
-#' @rdname species
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 species_list_check <- function(dsn_tall, species_list_file, ...,
                                verbose = FALSE) {
 
@@ -274,10 +274,14 @@ species_list_check <- function(dsn_tall, species_list_file, ...,
 }
 
 ####
-
-#' @export species_list_compare
-#' @rdname species
-
+#' Find mismatches in species attributions
+#' @description
+#' This finds attributes in species lists which disagree
+#' @param species_file Inputs species
+#' @param folder A folder to write to
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 species_list_compare <- function(species_file,
                                  folder,
                                  verbose = FALSE) {
