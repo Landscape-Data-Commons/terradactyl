@@ -2141,7 +2141,28 @@ spp_inventory_calc <- function(header,
                         # this regex will work regardless.
                         Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
                                                                        pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
-                                                   .default = "noxious_irrelevant"),)
+                                                   .default = "noxious_irrelevant"),
+                        ###### SG_Group (sage-grouse) -------------------
+                        # This is to turn the SG_Group codes into values
+                        # that match the expected indicator names for
+                        # our convenience.
+                        SG_Group = stringr::str_replace_all(string = SG_Group,
+                                                            pattern = "StaturePerennialGrass",
+                                                            replacement = "PerenGrass"),
+                        # This makes sure that the value in SG_Group is
+                        # only the string associated with the group for
+                        # the species code in the relevant state.
+                        # Records where there's not a group value for the
+                        # associated state (or "US") will get NA instead.
+                        SG_Group = stringr::str_extract(string = SG_Group,
+                                                        pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                        # This makes sure that we've assigned any shrubs
+                        # that didn't get a sage-grouse group are
+                        # assigned to "NonSagebrushShrub"
+                        SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
+                                                    # So that first-hit calcs work as intended.
+                                                    is.na(SG_Group) & GrowthHabitSub != "Shrub" ~ "Irrelevant",
+                                                    .default = SG_Group),)
 
   #### Calculating #############################################################
   # These are the output variables we anticipate getting back (and want)
