@@ -86,12 +86,12 @@ species_read_aim <- function(dsn,
   # tblStateSpecies <- sf::st_read(dsn = dsn,
   #                                layer = "tblStateSpecies",
   #                                quiet = TRUE) |>
-  tblStateSpecies <-   tblNationalPlants <- read_whatever(input = dsn,
-                                                          layer = "tblStateSpecies",
-                                                          regex = TRUE,
-                                                          best_guess = TRUE,
-                                                          accept_failure = FALSE,
-                                                          verbose = verbose) |>
+  tblStateSpecies <- read_whatever(input = dsn,
+                                   layer = "tblStateSpecies",
+                                   regex = TRUE,
+                                   best_guess = TRUE,
+                                   accept_failure = FALSE,
+                                   verbose = verbose) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(c(code = "SpeciesCode",
                                        "SG_Group",
@@ -284,22 +284,22 @@ generic_growth_habits <- function(data,
   # Remove records where we didn't actually add any information. So, we'll keep
   # only records where at least one of the regexed variables wasn't NA.
   if (nrow(missing_codes_df) > 0) {
-  missing_codes_df <- dplyr::filter(.data = missing_codes_df,
-                                    dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
-                                                  .fns = ~ !is.na(x = .x))) |>
-    dplyr::distinct()
+    missing_codes_df <- dplyr::filter(.data = missing_codes_df,
+                                      dplyr::if_any(.cols = tidyselect::all_of(x = names(regexes_list)),
+                                                    .fns = ~ !is.na(x = .x))) |>
+      dplyr::distinct()
 
 
-  # Append the generic codes to the species list!
-  dplyr::bind_rows(species_list,
-                   missing_codes_df |>
-                     dplyr::mutate(.data = _,
-                                   dplyr::across(.cols = dplyr::where(fn = is.logical),
-                                                 .fns = as.character))) |>
-    dplyr::distinct()
-    } else {
-      species_list
-    }
+    # Append the generic codes to the species list!
+    dplyr::bind_rows(species_list,
+                     missing_codes_df |>
+                       dplyr::mutate(.data = _,
+                                     dplyr::across(.cols = dplyr::where(fn = is.logical),
+                                                   .fns = as.character))) |>
+      dplyr::distinct()
+  } else {
+    species_list
+  }
 }
 
 #' Join species characteristics to field data
@@ -1077,7 +1077,7 @@ accumulated_species <- function(header,
 
     # calculate cover by species
     species_cover <- pct_cover_species(lpi_tall = inputs_list[["cover"]],
-                                      digits = digits) |>
+                                       digits = digits) |>
       dplyr::filter(.data = _,
                     percent > 0) |>
       dplyr::rename(.data = _,
@@ -1094,7 +1094,7 @@ accumulated_species <- function(header,
                                                 tall = TRUE,
                                                 by_line = FALSE,
                                                 code,
-                                               digits = digits) |>
+                                                digits = digits) |>
         dplyr::filter(.data = _,
                       percent > 0) |>
         # Separate the indicators based on the live vs dead.
