@@ -639,7 +639,7 @@ species_join <- function(data, # field data,
     dplyr::distinct()
 
   # Overwrite generic species assignments with provided table
-  if (overwrite_generic_species & generic_species_file != "") {
+  if (overwrite_generic_species & identical(generic_species_file, "")) {
     if (!file.exists(generic_species_file)) {
       stop(paste0("The generic_species_file path points to ", generic_species_file, " which does not exist."))
     }
