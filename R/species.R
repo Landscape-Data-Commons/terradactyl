@@ -70,16 +70,28 @@ species_read_aim <- function(dsn,
     message("Reading in tblNationalPlants.")
   }
 
-  tblNationalPlants <- sf::st_read(dsn = dsn,
-                                   layer = "tblNationalPlants",
-                                   quiet = TRUE)
+  tblNationalPlants <- read_whatever(input = dsn,
+                                     layer = "tblNationalPlants",
+                                     regex = TRUE,
+                                     best_guess = TRUE,
+                                     accept_failure = FALSE,
+                                     verbose = verbose)
+  # tblNationalPlants <- sf::st_read(dsn = dsn,
+  #                                  layer = "tblNationalPlants",
+  #                                  quiet = TRUE)
   if (verbose) {
     message("Reading in tblStateSpecies and creating state sage-grouse lookup table.")
   }
 
-  tblStateSpecies <- sf::st_read(dsn = dsn,
-                                 layer = "tblStateSpecies",
-                                 quiet = TRUE) |>
+  # tblStateSpecies <- sf::st_read(dsn = dsn,
+  #                                layer = "tblStateSpecies",
+  #                                quiet = TRUE) |>
+  tblStateSpecies <-   tblNationalPlants <- read_whatever(input = dsn,
+                                                          layer = "tblStateSpecies",
+                                                          regex = TRUE,
+                                                          best_guess = TRUE,
+                                                          accept_failure = FALSE,
+                                                          verbose = verbose) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(c(code = "SpeciesCode",
                                        "SG_Group",
