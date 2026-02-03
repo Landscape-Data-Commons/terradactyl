@@ -51,6 +51,7 @@ build_terradat_indicators <- function(header,
 
     if (is.null(inputs_list[[current_input_type]])) {
       message(paste("No data provided for", current_input_type, "so indicators derived from those will not be calculated."))
+      current_data <- NULL
     } else {
       current_data <- read_whatever(input = inputs_list[[current_input_type]],
                                     accept_failure = FALSE,
@@ -82,12 +83,11 @@ build_terradat_indicators <- function(header,
         }
         current_data <- dplyr::filter(.data = current_data,
                                       PrimaryKey %in% inputs_list[["header"]]$PrimaryKey)
+        if (nrow(current_data) < 1) {
+          message(paste("No records found in the data provided for", current_input_type, "after restricting by PrimaryKey so indicators derived from those will not be calculated."))
+          current_data <- NULL
+        }
       }
-      if (nrow(current_data) < 1) {
-        message(paste("No records found in the data provided for", current_input_type, "after restricting by PrimaryKey so indicators derived from those will not be calculated."))
-        current_data <- NULL
-      }
-
     }
 
     inputs_list[[current_input_type]] <- current_data
