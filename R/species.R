@@ -906,33 +906,40 @@ accumulated_species <- function(header,
                         verbose = verbose,
                         FUN = function(X, inputs, header, verbose){
 
-                          output <- read_whatever(input = inputs[[X]],
-                                                  verbose = verbose)
+                          if (!is.null(inputs[[X]])) {
+                            output <- read_whatever(input = inputs[[X]],
+                                                    verbose = verbose)
 
-                          if (!is.data.frame(output)) {
-                            if (verbose) {
-                              message(paste0("No usable data provided for", X))
+                            if (!is.data.frame(output)) {
+                              if (verbose) {
+                                message(paste0("No usable data provided for", X))
+                              }
+                              return(NULL)
+                            } else if (nrow(output) < 1) {
+                              message(paste0("No records found in the input provided for ", X))
+                              return(NULL)
                             }
-                            return(NULL)
-                          } else if (nrow(output) < 1) {
-                            message(paste0("No records found in the input provided for ", X))
-                            return(NULL)
-                          }
 
-                          output <- dplyr::select(.data = output,
-                                                  -tidyselect::any_of(x = c("FormDate")))
+                            output <- dplyr::select(.data = output,
+                                                    -tidyselect::any_of(x = c("FormDate")))
 
-                          if (verbose) {
-                            message("Combining the data with the header information.")
+                            if (verbose) {
+                              message("Combining the data with the header information.")
+                            }
+                            dplyr::left_join(x = dplyr::select(.data = header,
+                                                               tidyselect::all_of(x = c("PrimaryKey",
+                                                                                        "SpeciesState"))),
+                                             y = output,
+                                             relationship = "one-to-many",
+                                             by = c("PrimaryKey")) |>
+                              dplyr::rename(.data = _,
+                                            tidyselect::any_of(x = c("code" = "Species")))
+                          } else {
+                            if (verbose) {
+                              message(paste0(X, " is NULL and indicators depending on it will not be calculated."))
+                            }
+                            NULL
                           }
-                          dplyr::left_join(x = dplyr::select(.data = header,
-                                                             tidyselect::all_of(x = c("PrimaryKey",
-                                                                                      "SpeciesState"))),
-                                           y = output,
-                                           relationship = "one-to-many",
-                                           by = c("PrimaryKey")) |>
-                            dplyr::rename(.data = _,
-                                          tidyselect::any_of(x = c("code" = "Species")))
                         })
 
   ##### Species -----------------------------------------------------------------
@@ -1085,7 +1092,7 @@ accumulated_species <- function(header,
 
     ###### Live vs dead --------------------------------------------------------
     # If dead == TRUE then calculate live and dead hits as well
-    if(dead) {
+    if (dead) {
       if (verbose) {
         message("Calculating cover for live and dead hits.")
       }
@@ -1098,10 +1105,10 @@ accumulated_species <- function(header,
         dplyr::filter(.data = _,
                       percent > 0) |>
         # Separate the indicators based on the live vs dead.
-        tidyr::separate(data = species_cover_live_dead,
-                        col = indicator,
-                        intto = c( "status", "Species"),
-                        sep = "\\.") |>
+        tidyr::separate_wider_delim(data = _,
+                        cols = indicator,
+                        names = c( "status", "Species"),
+                        delim = "\\.") |>
         # Add AH as prefix and Cover as a suffix
         dplyr::mutate(.data = _,
                       status = paste0("AH_Species", status, "Cover")) |>
@@ -1217,7 +1224,7 @@ accumulated_species <- function(header,
                                               tall = TRUE,
                                               digits = digits,
                                               Chkbox, Species)
-      species_height_live_dead_split <- species_cover_live_dead  |>
+      species_height_live_dead_split <- species_height_live_dead  |>
         # Identify 0 as Live and 1 as dead
         dplyr::mutate(indicator = stringr::str_replace_all(indicator,
                                                            c("1\\." = "Dead\\.",
