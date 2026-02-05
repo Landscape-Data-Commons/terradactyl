@@ -797,11 +797,17 @@ species_count <- function(species_inventory_tall,
   output
 }
 
-#' Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.
-#' @param lpi_tall File path to LPI rdata file
-#' @param height_tall File path to height rdata file
-#' @param spp_inventory_tall File path to species inventory rdata file
-#' @param species_file File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.
+#' Accumulated species presence and related cover and height indicators.
+#' @description This function will take one or more input data types (line-point intercept, heights, and species inventory) and produce a data frame of indicators for each species for each PrimaryKey value.
+#' If LPI data are provided, the function will calculate per-species the indicators AH_SpeciesCover which is the cover provided by the species and AH_SpeciesCover_n which is the number of pin drops at which the species was recorded.
+#' If height data are provided, the function will calculate per-species the indicators Hgt_Species_Avg which is the mean of the heights recorded for the species and Hgt_Species_Avg_n which is the number of height records included in that mean.
+#' If species inventory data are provided, then species which were recorded as present but did not occur in LPI or height data will also be in the output, however they will not have associated values in any indicator variables derived from data types where they were not represented, e.g. a plant which was recorded but was not encountered on an LPI transect will not have AH_SpeciesCover or AH_SpeciesCover_n values.
+#' At least one data type must be provided. Any indicators which cannot be calculated from the data provided will simply not be calculated although those variables will still be included in the output.
+#' @param lpi_tall Data frame or character string. The line-point intercept data in the format produced by \code{gather_lpi()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param height_tall Data frame or character string. The height data in the format produced by \code{gather_height()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param spp_inventory_tall Data frame or character string. The species inventory data in the format produced by \code{gather_spp_inventory()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param species_file Data frame or character string. The species characteristic data (e.g., growth habit) to join to the returned indicators. If this is a character string, it must point to the file (of filetype RDS, CSV, Rdata, or GDB) containing the data. If this points to a geodatabase, it will assume that the standard AIM species data are present to use and will read in tblNationalPlants and tblStateSpecies. Defaults to \code{""} which is equivalent to \code{NULL}.
+#' @param species_code Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
 #' @param header File path to header rdata file
 #' @param ... Optional filtering expression to subset the number of plots
 #' @examples
@@ -827,6 +833,7 @@ accumulated_species <- function(header,
                                 # indicator_variables = NULL,
                                 generic_species_file = NULL,
                                 digits = 6,
+                                discard_nulls = TRUE,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
   # # Get a list of the variables the user wants to group data by for calculations.
@@ -850,6 +857,12 @@ accumulated_species <- function(header,
   #                          unquoted_to_character(...)) |>
   #   unique()
   # indicator_variables <- indicator_variables[!(indicator_variables %in% c(""))]
+
+  # The default value of "" is a legacy decision. Internally we'll treat it as a
+  # NULL for consistency and ease.
+  if (identical(species_file, "")) {
+    species_file <- NULL
+  }
 
   # If generic_species_file is not provided, assume it is the same as species_file
   if (is.null(generic_species_file)){
@@ -875,7 +888,7 @@ accumulated_species <- function(header,
                           verbose = verbose)
 
   if (!is.data.frame(header)) {
-    stop("Something is wrong with the current header information provided.")
+    stop("Something is wrong with the current header information provided that prevented it from being parsed into a data frame.")
   } else if (nrow(header) < 1) {
     stop("The header information contains no records.")
   }
@@ -946,20 +959,17 @@ accumulated_species <- function(header,
   if (is.character(species_file)) {
     current_species_file_extension <- tools::file_ext(species_file)
 
-    if (nchar(current_species_file_extension) == 0) {
-      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
-    } else if (current_species_file_extension %in% c("CSV", "csv")) {
-      if (!file.exists(species_file)) {
-        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
-      }
-      species_info <- read.csv(file = species_file,
-                               stringsAsFactors = FALSE)
-    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+    if (toupper(current_species_file_extension) %in% c("GDB")) {
       if (verbose) {
         message("species_file points to a geodatabase. Assuming that both tblNationalPlants and tblStateSpecies are present in the GDB.")
       }
       species_info <- species_read_aim(dsn = species_file,
                                        verbose = verbose)
+    } else if (nchar(current_species_file_extension) != 0) {
+      species_info <- read_whatever(input = species_file,
+                                    verbose = verbose)
+    } else {
+      stop("When species_file is a character string, it must be a filepath to an accepted filetype: GDB, RDS, Rdata, or CSV.")
     }
   } else if (is.data.frame(species_file)) {
     species_info <- species_file
@@ -1003,7 +1013,7 @@ accumulated_species <- function(header,
                             # dplyr::mutate(.data = _,
                             #               code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
                             #                                       .default = code)) |>
-                            # Not necessary, but I'm paranoid
+                            # Not necessary, but I'm paranoid.
                             dplyr::distinct() |>
                             dplyr::mutate(.data = _,
                                           # Correct the Non-Woody to NonWoody
@@ -1106,9 +1116,9 @@ accumulated_species <- function(header,
                       percent > 0) |>
         # Separate the indicators based on the live vs dead.
         tidyr::separate_wider_delim(data = _,
-                        cols = indicator,
-                        names = c( "status", "Species"),
-                        delim = "\\.") |>
+                                    cols = indicator,
+                                    names = c( "status", "Species"),
+                                    delim = "\\.") |>
         # Add AH as prefix and Cover as a suffix
         dplyr::mutate(.data = _,
                       status = paste0("AH_Species", status, "Cover")) |>
@@ -1273,7 +1283,6 @@ accumulated_species <- function(header,
 
 
 
-  #### OUTPUT ##################################################################
   # Remove all the unnecessary variables.
   # FormDate was causing problems because it was sometimes character strings and
   # sometimes POSITx dates, so we'll do some sanitization here because we're
