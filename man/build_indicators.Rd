@@ -21,23 +21,23 @@ build_indicators(
 )
 }
 \arguments{
-\item{header}{Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{header}{Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
 \item{source}{Character string. The expected input data format. Must be one of \code{"terradat"}, \code{"aim"}, \code{"lmf"}, or \code{"nri"}. Case insensitive.}
 
 \item{dsn}{Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.}
 
-\item{lpi_tall}{Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{lpi_tall}{Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
 \item{species_file}{Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.}
 
-\item{gap_tall}{Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{gap_tall}{Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
-\item{height_tall}{Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{height_tall}{Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
-\item{spp_inventory_tall}{Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{spp_inventory_tall}{Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
-\item{soil_stability_tall}{Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{soil_stability_tall}{Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
 \item{...}{Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.}
 

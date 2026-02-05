@@ -5,8 +5,8 @@
 \title{Calculate the standard Terrestrial AIM Database (TerrADat) Line-Point Intercept indicators}
 \usage{
 lpi_calc(
-  header = NULL,
-  lpi_tall = NULL,
+  header,
+  lpi_tall,
   species_file,
   species_code_var = "SpeciesCode",
   generic_species_file = NULL,

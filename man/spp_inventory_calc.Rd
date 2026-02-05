@@ -8,9 +8,9 @@ spp_inventory_calc(
   header,
   spp_inventory_tall,
   species_file,
-  source,
   species_code_var = "SpeciesCode",
   generic_species_file = NULL,
+  source = NULL,
   verbose = FALSE
 )
 }
@@ -21,16 +21,14 @@ spp_inventory_calc(
 
 \item{species_file}{Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.}
 
-\item{source}{Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.}
-
 \item{species_code_var}{Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.}
 
-\item{generic_species_file}{Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.}
+\item{generic_species_file}{Optional character string or data frame. Must be either a data frame or specify the filepath to generic species information (accepted filetypes are RDS, Rdata, and CSV). If this is \code{NULL}, it will inherit the value of \code{species_file}. Defaults to \code{NULL}.}
+
+\item{source}{Character string (DEPRECATED). This argument is ignored but left here as a way to prevent legacy code from producing errors.}
 
 \item{verbose}{Logical. If \code{TRUE} the function will produce diagnostic
 messages. Defaults to \code{FALSE}.}
-
-\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.}
 }
 \value{
 A data frame matching the format of height indicators in TerrADat.
@@ -39,4 +37,8 @@ A data frame matching the format of height indicators in TerrADat.
 This function calculates the full set of species-specific indicators that are standard for TerrADat.
 
 This depends on the species characteristics used being those found in tblNationalPlants.
+
+If there are indicators that cannot be calculated from the current data, those will be returned with a value of 0. For example, if the variable called Invasive does nto appear in the data or species characteristics provided, the variable NumSpp_Invasive will still be part of the output but all records will have a value of 0.
+If the required variables for an indicator are present in the inputs, then every value for that indicator will be numeric, including using 0 where a PrimaryKey had no records with qualifying values for that indicator, e.g., if the variable Invasive is present at all but no records have a non-NA value in that variable, it will be assumed that all those species were determined to be non-invasive and therefore the returned value should be 0 rather than the NA associated with truly missing records.
+These assumptions are less likely to hold true when applying this function to data from multiple sources simultaneously. For example, NumSpp_PreferredForb depends on per-state assignments and if the input data includes a state which has populated the SG_Group variable and one which has not, the most appropriate output value would be NA for the state without SG_Group assignments but the fact that the variable is present at all will produce 0s instead.
 }

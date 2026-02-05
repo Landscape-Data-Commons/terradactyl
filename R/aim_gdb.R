@@ -7,11 +7,11 @@
 #' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
 #' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
 #' @param species_code_var Character string. The name of the variable in the species characteristics that contain the species codes. Defaults to \code{"SpeciesCode"}.
-#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
 #' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
@@ -152,7 +152,7 @@ build_terradat_indicators <- function(header,
     indicators_list[["species"]] <- spp_inventory_calc(spp_inventory_tall = inputs_list[["spp_inventory_tall"]],
                                                        header = inputs_list[["header"]],
                                                        species_file = species_file,
-                                                       source = "AIM",
+                                                       # source = "AIM",
                                                        # digits = digits,
                                                        verbose = verbose)
   } else {
@@ -188,14 +188,14 @@ build_terradat_indicators <- function(header,
 #' @description
 #' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
 #'
-#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
 #' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
-#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
@@ -380,15 +380,15 @@ build_lmf_indicators <- function(header,
 #' @description
 #' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
 #'
-#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param source Character string. The expected input data format. Must be one of \code{"terradat"}, \code{"aim"}, \code{"lmf"}, or \code{"nri"}. Case insensitive.
 #' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
 #' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
-#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
