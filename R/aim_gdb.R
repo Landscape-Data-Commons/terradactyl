@@ -579,8 +579,8 @@ build_indicators <- function(header, source,
 #'
 #' @returns A data frame matching the format of LPI indicators in TerrADat.
 #' @export
-lpi_calc <- function(header = NULL,
-                     lpi_tall = NULL,
+lpi_calc <- function(header,
+                     lpi_tall,
                      species_file,
                      species_code_var = "SpeciesCode",
                      generic_species_file = NULL,
@@ -594,24 +594,38 @@ lpi_calc <- function(header = NULL,
   }
 
   #### Handling header and raw data ############################################
-  if ("character" %in% class(header)) {
-    if (toupper(tools::file_ext(header)) == "RDATA") {
-      header <- readRDS(header)
-    } else {
-      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
-    }
-  } else if ("data.frame" %in% class(header)) {
-    header <- header
-  }
-  if ("character" %in% class(lpi_tall)) {
-    if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
-      lpi_tall <- readRDS(file = lpi_tall)
-    } else {
-      stop("When lpi_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
-    }
-  } else if ("data.frame" %in% class(lpi_tall)) {
-    lpi_tall <- lpi_tall
-  }
+  # if ("character" %in% class(header)) {
+  #   if (toupper(tools::file_ext(header)) == "RDATA") {
+  #     header <- readRDS(header)
+  #   } else {
+  #     stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+  #   }
+  # } else if ("data.frame" %in% class(header)) {
+  #   header <- header
+  # }
+
+  header <- read_whatever(input = header,
+                          layer = NULL,
+                          regex = FALSE,
+                          best_guess = FALSE,
+                          accept_failure = FALSE,
+                          verbose = verbose)
+
+  # if ("character" %in% class(lpi_tall)) {
+  #   if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
+  #     lpi_tall <- readRDS(file = lpi_tall)
+  #   } else {
+  #     stop("When lpi_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
+  #   }
+  # } else if ("data.frame" %in% class(lpi_tall)) {
+  #   lpi_tall <- lpi_tall
+  # }
+  lpi_tall <- read_whatever(input = lpi_tall,
+                            layer = NULL,
+                            regex = FALSE,
+                            best_guess = FALSE,
+                            accept_failure = FALSE,
+                            verbose = verbose)
 
   lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
                                                         tidyselect::any_of(c("PrimaryKey",
