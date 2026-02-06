@@ -3,7 +3,7 @@
 #' @description
 #' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
 #'
-#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.
 #' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
 #' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
 #' @param species_code_var Character string. The name of the variable in the species characteristics that contain the species codes. Defaults to \code{"SpeciesCode"}.
@@ -573,7 +573,7 @@ build_indicators <- function(header, source,
 #' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
 #' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #'

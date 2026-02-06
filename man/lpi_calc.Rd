@@ -25,7 +25,7 @@ lpi_calc(
 
 \item{generic_species_file}{Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.}
 
-\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.}
+\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.}
 
 \item{verbose}{Logical. If \code{TRUE} the function will produce diagnostic
 messages. Defaults to \code{FALSE}.}

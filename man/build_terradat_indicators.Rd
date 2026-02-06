@@ -20,7 +20,7 @@ build_terradat_indicators(
 )
 }
 \arguments{
-\item{header}{Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{header}{Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.}
 
 \item{dsn}{Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.}
 

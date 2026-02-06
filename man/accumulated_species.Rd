@@ -16,12 +16,11 @@ accumulated_species(
   ...,
   generic_species_file = NULL,
   digits = 6,
-  discard_nulls = TRUE,
   verbose = FALSE
 )
 }
 \arguments{
-\item{header}{File path to header rdata file}
+\item{header}{Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.}
 
 \item{lpi_tall}{Data frame or character string. The line-point intercept data in the format produced by \code{gather_lpi()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
@@ -31,7 +30,9 @@ accumulated_species(
 
 \item{species_file}{Data frame or character string. The species characteristic data (e.g., growth habit) to join to the returned indicators. If this is a character string, it must point to the file (of filetype RDS, CSV, Rdata, or GDB) containing the data. If this points to a geodatabase, it will assume that the standard AIM species data are present to use and will read in tblNationalPlants and tblStateSpecies. Defaults to \code{""} which is equivalent to \code{NULL}.}
 
-\item{...}{Optional filtering expression to subset the number of plots}
+\item{...}{Optional additional filtering expression to pass on to dplyr::filter() to restrict the output to.}
+
+\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.}
 
 \item{species_code}{Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.}
 }
