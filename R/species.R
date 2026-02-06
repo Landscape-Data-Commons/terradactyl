@@ -1405,8 +1405,12 @@ accumulated_species <- function(header,
                        inputs_list = inputs_list,
                        output = output,
                        FUN = function(X, inputs_list, output){
-                         intersect(x = unique(output$PrimaryKey),
-                                   y = unique(inputs_list[[X]]$PrimaryKey))
+                         if (is.null(inputs_list[[X]])) {
+                           NULL
+                         } else {
+                           intersect(x = unique(output$PrimaryKey),
+                                     y = unique(inputs_list[[X]]$PrimaryKey))
+                         }
                        })
 
   # This is also still brittle, but whatever. It replaces NAs for AH_ and Hgt_
@@ -1415,7 +1419,7 @@ accumulated_species <- function(header,
   # because the NA represents no information whereas not having qualifying
   # records in the COLLECTED data means that the lack of data is information in
   # and of itself.
-  outlook <- dplyr::mutate(.data = output,
+  output <- dplyr::mutate(.data = output,
                          AH_SpeciesCover = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover) ~ 0,
                                                             .default = AH_SpeciesCover),
                          AH_SpeciesCover_n = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover_n) ~ 0,
