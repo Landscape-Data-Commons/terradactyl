@@ -803,13 +803,14 @@ species_count <- function(species_inventory_tall,
 #' If height data are provided, the function will calculate per-species the indicators Hgt_Species_Avg which is the mean of the heights recorded for the species and Hgt_Species_Avg_n which is the number of height records included in that mean.
 #' If species inventory data are provided, then species which were recorded as present but did not occur in LPI or height data will also be in the output, however they will not have associated values in any indicator variables derived from data types where they were not represented, e.g. a plant which was recorded but was not encountered on an LPI transect will not have AH_SpeciesCover or AH_SpeciesCover_n values.
 #' At least one data type must be provided. Any indicators which cannot be calculated from the data provided will simply not be calculated although those variables will still be included in the output.
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.
 #' @param lpi_tall Data frame or character string. The line-point intercept data in the format produced by \code{gather_lpi()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param height_tall Data frame or character string. The height data in the format produced by \code{gather_height()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param spp_inventory_tall Data frame or character string. The species inventory data in the format produced by \code{gather_spp_inventory()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param species_file Data frame or character string. The species characteristic data (e.g., growth habit) to join to the returned indicators. If this is a character string, it must point to the file (of filetype RDS, CSV, Rdata, or GDB) containing the data. If this points to a geodatabase, it will assume that the standard AIM species data are present to use and will read in tblNationalPlants and tblStateSpecies. Defaults to \code{""} which is equivalent to \code{NULL}.
 #' @param species_code Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
-#' @param header File path to header rdata file
-#' @param ... Optional filtering expression to subset the number of plots
+#' @param ... Optional additional filtering expression to pass on to dplyr::filter() to restrict the output to.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.
 #' @examples
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 #' # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
@@ -833,7 +834,7 @@ accumulated_species <- function(header,
                                 # indicator_variables = NULL,
                                 generic_species_file = NULL,
                                 digits = 6,
-                                discard_nulls = TRUE,
+                                # discard_nulls = TRUE,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
   # # Get a list of the variables the user wants to group data by for calculations.
@@ -939,12 +940,12 @@ accumulated_species <- function(header,
                             if (verbose) {
                               message("Combining the data with the header information.")
                             }
-                            dplyr::left_join(x = dplyr::select(.data = header,
-                                                               tidyselect::all_of(x = c("PrimaryKey",
-                                                                                        "SpeciesState"))),
-                                             y = output,
-                                             relationship = "one-to-many",
-                                             by = c("PrimaryKey")) |>
+                            dplyr::inner_join(x = dplyr::select(.data = header,
+                                                                tidyselect::all_of(x = c("PrimaryKey",
+                                                                                         "SpeciesState"))),
+                                              y = output,
+                                              relationship = "one-to-many",
+                                              by = c("PrimaryKey")) |>
                               dplyr::rename(.data = _,
                                             tidyselect::any_of(x = c("code" = "Species")))
                           } else {
@@ -1378,14 +1379,67 @@ accumulated_species <- function(header,
                                       "Species"))
   }
 
-  missing_indicators <- setdiff(x = c("AH_SpeciesCover",
-                                      "AH_SpeciesCover_n",
-                                      "Hgt_Species_Avg",
-                                      "Hgt_Species_Avg_n"),
-                                y = names(output))
 
-  for (current_missing_indicator in missing_indicators) {
-    output[[current_missing_indicator]] <- NA
+  output_indicators <- list(cover = c("AH_SpeciesCover",
+                                      "AH_SpeciesCover_n"),
+                            heights = c("Hgt_Species_Avg",
+                                        "Hgt_Species_Avg_n"))
+
+  # For indicators that just flat-out can't be calculated for lack of input data
+  # we'll set the values to NA
+  uncalculatable_indicators <- output_indicators[names(inputs_list)[sapply(X = inputs_list,
+                                                                           FUN = is.null)]] |>
+    unlist()
+
+  output[, uncalculatable_indicators] <- NA
+
+
+  # This identifies the PrimaryKeys that occur in the output and which data
+  # types they appear in.
+  # For any indicator variables from data types those PrimaryKeys occur in, any
+  # NA values will be replaced with 0 to represent that the method simply didn't
+  # detect those species as opposed to the method was not carried out.
+  # Sorry this is brittle, but it's expedient!
+  method_pks <- lapply(X = c(cover = "cover",
+                             heights = "heights"),
+                       inputs_list = inputs_list,
+                       output = output,
+                       FUN = function(X, inputs_list, output){
+                         intersect(x = unique(output$PrimaryKey),
+                                   y = unique(inputs_list[[X]]$PrimaryKey))
+                       })
+
+  # This is also still brittle, but whatever. It replaces NAs for AH_ and Hgt_
+  # variables where the PrimaryKey for that record occurred in the corresponding
+  # method. It'll leave NAs for PrimaryKeys that don't occur in those data sets
+  # because the NA represents no information whereas not having qualifying
+  # records in the COLLECTED data means that the lack of data is information in
+  # and of itself.
+  outlook <- dplyr::mutate(.data = output,
+                         AH_SpeciesCover = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover) ~ 0,
+                                                            .default = AH_SpeciesCover),
+                         AH_SpeciesCover_n = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover_n) ~ 0,
+                                                              .default = AH_SpeciesCover_n),
+                         Hgt_Species_Avg = dplyr::case_when(PrimaryKey %in% method_pks[["heights"]] & is.na(Hgt_Species_Avg) ~ 0,
+                                                            .default = Hgt_Species_Avg),
+                         Hgt_Species_Avg_n = dplyr::case_when(PrimaryKey %in% method_pks[["heights"]] & is.na(Hgt_Species_Avg_n) ~ 0,
+                                                              .default = Hgt_Species_Avg_n))
+
+
+  # missing_indicators <- setdiff(x = c("AH_SpeciesCover",
+  #                                     "AH_SpeciesCover_n",
+  #                                     "Hgt_Species_Avg",
+  #                                     "Hgt_Species_Avg_n"),
+  #                               y = names(output))
+  #
+  # for (current_missing_indicator in missing_indicators) {
+  #   output[[current_missing_indicator]] <- NA
+  # }
+
+  # TODO: ADD A BIT THAT CHECKS FOR NULLS AND THROWS THEM OUT BUT ONLY IF THE
+  # USER HAS SET DISCARD_NULLS TO TRUE
+  if (discard_nulls) {
+
   }
 
   output
