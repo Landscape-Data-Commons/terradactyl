@@ -1283,7 +1283,7 @@ accumulated_species <- function(header,
   output_list[["species"]] <- species_inventory
 
 
-
+  #### OUTPUT ASSEMBLY AND CLEANUP #############################################
   # Remove all the unnecessary variables.
   # FormDate was causing problems because it was sometimes character strings and
   # sometimes POSITx dates, so we'll do some sanitization here because we're
@@ -1379,7 +1379,7 @@ accumulated_species <- function(header,
                                       "Species"))
   }
 
-
+  ##### Final cleanup ----------------------------------------------------------
   output_indicators <- list(cover = c("AH_SpeciesCover",
                                       "AH_SpeciesCover_n"),
                             heights = c("Hgt_Species_Avg",
@@ -1394,8 +1394,7 @@ accumulated_species <- function(header,
   output[, uncalculatable_indicators] <- NA
 
 
-  # This identifies the PrimaryKeys that occur in the output and which data
-  # types they appear in.
+  # This identifies the PrimaryKeys that occur in each data types.
   # For any indicator variables from data types those PrimaryKeys occur in, any
   # NA values will be replaced with 0 to represent that the method simply didn't
   # detect those species as opposed to the method was not carried out.
@@ -1403,13 +1402,13 @@ accumulated_species <- function(header,
   method_pks <- lapply(X = c(cover = "cover",
                              heights = "heights"),
                        inputs_list = inputs_list,
-                       output = output,
-                       FUN = function(X, inputs_list, output){
+                       FUN = function(X, inputs_list){
+                         # If the data weren't provided at all, there are no
+                         # PrimaryKeys.
                          if (is.null(inputs_list[[X]])) {
                            NULL
                          } else {
-                           intersect(x = unique(output$PrimaryKey),
-                                     y = unique(inputs_list[[X]]$PrimaryKey))
+                           unique(inputs_list[[X]]$PrimaryKey)
                          }
                        })
 
@@ -1420,28 +1419,19 @@ accumulated_species <- function(header,
   # records in the COLLECTED data means that the lack of data is information in
   # and of itself.
   output <- dplyr::mutate(.data = output,
-                         AH_SpeciesCover = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover) ~ 0,
-                                                            .default = AH_SpeciesCover),
-                         AH_SpeciesCover_n = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover_n) ~ 0,
-                                                              .default = AH_SpeciesCover_n),
-                         Hgt_Species_Avg = dplyr::case_when(PrimaryKey %in% method_pks[["heights"]] & is.na(Hgt_Species_Avg) ~ 0,
-                                                            .default = Hgt_Species_Avg),
-                         Hgt_Species_Avg_n = dplyr::case_when(PrimaryKey %in% method_pks[["heights"]] & is.na(Hgt_Species_Avg_n) ~ 0,
-                                                              .default = Hgt_Species_Avg_n))
+                          AH_SpeciesCover = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover) ~ 0,
+                                                             .default = AH_SpeciesCover),
+                          AH_SpeciesCover_n = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover_n) ~ 0,
+                                                               .default = AH_SpeciesCover_n),
+                          Hgt_Species_Avg = dplyr::case_when(PrimaryKey %in% method_pks[["heights"]] & is.na(Hgt_Species_Avg) ~ 0,
+                                                             .default = Hgt_Species_Avg),
+                          Hgt_Species_Avg_n = dplyr::case_when(PrimaryKey %in% method_pks[["heights"]] & is.na(Hgt_Species_Avg_n) ~ 0,
+                                                               .default = Hgt_Species_Avg_n))
 
-
-  # missing_indicators <- setdiff(x = c("AH_SpeciesCover",
-  #                                     "AH_SpeciesCover_n",
-  #                                     "Hgt_Species_Avg",
-  #                                     "Hgt_Species_Avg_n"),
-  #                               y = names(output))
-  #
-  # for (current_missing_indicator in missing_indicators) {
-  #   output[[current_missing_indicator]] <- NA
-  # }
 
   # TODO: ADD A BIT THAT CHECKS FOR NULLS AND THROWS THEM OUT BUT ONLY IF THE
   # USER HAS SET DISCARD_NULLS TO TRUE
+  discard_nulls <- TRUE
   if (discard_nulls) {
 
   }
