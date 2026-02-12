@@ -275,29 +275,38 @@ pct_cover_indicators <- function(lpi_tall,
     current_lut <- dplyr::filter(.data = calc_lut,
                                  cover_type == "live")
 
-    current_output <- values_list[[current_lut[["hit"]]]][[current_lut[["indicator_variables"]]]] |>
+    current_output <- values_list[[current_lut[["hit"]]]][[current_lut[["indicator_variables"]]]]
+
+    if (!is.null(current_output)) {
       # Keep only the records with "real" indicators (no NAs in the variables
       # used to define the indicators)
-      dplyr::filter(.data = _,
-                    !stringr::str_detect(string = indicator,
-                                         # pattern = "(((\\.)+)|((\\.NA)+)$)")) |>
-                                         pattern = "((\\.)+$)|((\\.NA)+$)")) |>
-      # Replace the 1s and 0s with "Dead" and "Live"
-      dplyr::mutate(.data = _,
-                    indicator = stringr::str_replace_all(string = indicator,
-                                                         pattern = c("^1(\\.)?" = "Dead",
-                                                                     "^0(\\.)?" = "Live")))
+      current_output <- dplyr::filter(.data = cuttent_output,
+                                      !stringr::str_detect(string = indicator,
+                                                           # pattern = "(((\\.)+)|((\\.NA)+)$)")) |>
+                                                           pattern = "((\\.)+$)|((\\.NA)+$)")) |>
+        # Replace the 1s and 0s with "Dead" and "Live"
+        dplyr::mutate(.data = _,
+                      indicator = stringr::str_replace_all(string = indicator,
+                                                           pattern = c("^1(\\.)?" = "Dead",
+                                                                       "^0(\\.)?" = "Live")))
 
-    # Widen the data frame if the user asked for that.
-    if (!tall_output["live"]) {
-      current_output <- tidyr::pivot_wider(data = current_output,
-                                           names_from = "indicator",
-                                           values_from = "percent",
-                                           values_fill = 0)
+      # Widen the data frame if the user asked for that.
+      if (!tall_output["live"]) {
+        current_output <- tidyr::pivot_wider(data = current_output,
+                                             names_from = "indicator",
+                                             values_from = "percent",
+                                             values_fill = 0)
+      }
+
+      current_output <- dplyr::distinct(current_output)
+    } else {
+      if (verbose) {
+        message(paste0("No qualifying live/dead data for the hit type ", current_lut[["hit"]], ". These calculations will be skipped."))
+      }
     }
 
     # Can't hurt to ask for only distinct records, right?
-    outputs_list[["live"]] <- dplyr::distinct(current_output)
+    outputs_list[["live"]] <- current_output
   }
 
   ##### Species cover ----------------------------------------------------------
@@ -323,7 +332,8 @@ pct_cover_indicators <- function(lpi_tall,
   }
 
   #### Combining and cleanup ###################################################
-  outputs_list
+  outputs_list[!sapply(X = outputs_list,
+                      FUN = is.null)]
 }
 
 
