@@ -1558,7 +1558,7 @@ lpi_calc <- function(header,
 
     if (is.null(sagebrush_shape_calc)) {
       if (verbose) {
-        message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.")
+        message("sagebrush_shape() returned NULL. Skipping sagebrush shape indicators.")
       }
     } else {
       sagebrush_shape_calc <- dplyr::rename_with(.data = sagebrush_shape_calc,
