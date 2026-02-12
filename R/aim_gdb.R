@@ -1554,16 +1554,24 @@ lpi_calc <- function(header,
     # protocol, so we're going to calculate with live = FALSE and rename it to
     # reflect the living status
     sagebrush_shape_calc <- sagebrush_shape(lpi_tall = lpi_species,
-                                            live = FALSE) |>
-      dplyr::rename_with(.data = _,
-                         .fn = ~ stringr::str_replace(string = .x,
-                                                      pattern = "_All_",
-                                                      replacement = "_Live_"),
-                         .cols = tidyselect::contains(match = "_All_"))
-    lpi_indicators <- dplyr::left_join(x = lpi_indicators,
-                                       y = sagebrush_shape_calc,
-                                       relationship = "one-to-one",
-                                       by = "PrimaryKey")
+                                            live = FALSE)
+
+    if (is.null(sagebrush_shape_calc)) {
+      if (verbose) {
+        message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.")
+      }
+    } else {
+      sagebrush_shape_calc <- dplyr::rename_with(.data = sagebrush_shape_calc,
+                                                 .fn = ~ stringr::str_replace(string = .x,
+                                                                              pattern = "_All_",
+                                                                              replacement = "_Live_"),
+                                                 .cols = tidyselect::contains(match = "_All_"))
+      lpi_indicators <- dplyr::left_join(x = lpi_indicators,
+                                         y = sagebrush_shape_calc,
+                                         relationship = "one-to-one",
+                                         by = "PrimaryKey")
+    }
+
   } else {
     if (verbose) {
       message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.")

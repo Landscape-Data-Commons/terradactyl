@@ -178,9 +178,15 @@ sagebrush_shape_base <- function(lpi_tall,
 sagebrush_shape <- function(lpi_tall,
                             live = TRUE,
                             verbose = FALSE) {
+  if (verbose) {
+    message("Calculating base sagebrush shape indicators.")
+  }
   shape_all <- sagebrush_shape_base(lpi_tall = lpi_tall)
 
   if (live) {
+    if (verbose) {
+      message("Attempting to calculate live/dead sagebrush shape indicators.")
+    }
     shape_live <- sagebrush_shape_base(lpi_tall = subset(
       lpi_tall,
       chckbox == 0
@@ -194,8 +200,10 @@ sagebrush_shape <- function(lpi_tall,
     )
 
     # Join with shape_all
-    shape_all <- dplyr::full_join(shape_all, shape_live, by = "PrimaryKey")
+    shape_all <- dplyr::full_join(x = shape_all,
+                                  y = shape_live,
+                                  by = "PrimaryKey")
   }
 
-  return(shape_all)
+  shape_all
 }
