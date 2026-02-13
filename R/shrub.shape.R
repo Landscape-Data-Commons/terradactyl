@@ -41,8 +41,12 @@ sagebrush_shape_base <- function(lpi_tall,
   expected_shrubshapes <- c("C", "S")
   missing_shrubshapes <- setdiff(x = expected_shrubshapes,
                                  y = names(shrub_shape))
-  if (length(missing_shrubshapes) > 0) {
-    shrub_shape[[missing_shrubshapes]] <- 0
+  # if (length(missing_shrubshapes) > 0) {
+  #   shrub_shape[[missing_shrubshapes]] <- 0
+  # }
+
+  for (current_missing_shrubshape in missing_shrubshapes) {
+    shrub_shape[[current_missing_shrubshape]] <- 0
   }
 
 
