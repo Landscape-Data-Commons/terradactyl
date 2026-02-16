@@ -280,7 +280,7 @@ pct_cover_indicators <- function(lpi_tall,
     if (!is.null(current_output)) {
       # Keep only the records with "real" indicators (no NAs in the variables
       # used to define the indicators)
-      current_output <- dplyr::filter(.data = cuttent_output,
+      current_output <- dplyr::filter(.data = current_output,
                                       !stringr::str_detect(string = indicator,
                                                            # pattern = "(((\\.)+)|((\\.NA)+)$)")) |>
                                                            pattern = "((\\.)+$)|((\\.NA)+$)")) |>
@@ -729,6 +729,7 @@ pct_cover_species <- function(lpi_tall,
   # # return
   # return(summary)
 }
+
 
 
 
