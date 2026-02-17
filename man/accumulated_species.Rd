@@ -2,7 +2,7 @@
 % Please edit documentation in R/species.R
 \name{accumulated_species}
 \alias{accumulated_species}
-\title{Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.}
+\title{Accumulated species presence and related cover and height indicators.}
 \usage{
 accumulated_species(
   header,
@@ -20,20 +20,28 @@ accumulated_species(
 )
 }
 \arguments{
-\item{header}{File path to header rdata file}
+\item{header}{Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.}
 
-\item{lpi_tall}{File path to LPI rdata file}
+\item{lpi_tall}{Data frame or character string. The line-point intercept data in the format produced by \code{gather_lpi()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
-\item{height_tall}{File path to height rdata file}
+\item{height_tall}{Data frame or character string. The height data in the format produced by \code{gather_height()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
-\item{spp_inventory_tall}{File path to species inventory rdata file}
+\item{spp_inventory_tall}{Data frame or character string. The species inventory data in the format produced by \code{gather_spp_inventory()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.}
 
-\item{species_file}{File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.}
+\item{species_file}{Data frame or character string. The species characteristic data (e.g., growth habit) to join to the returned indicators. If this is a character string, it must point to the file (of filetype RDS, CSV, Rdata, or GDB) containing the data. If this points to a geodatabase, it will assume that the standard AIM species data are present to use and will read in tblNationalPlants and tblStateSpecies. Defaults to \code{""} which is equivalent to \code{NULL}.}
 
-\item{...}{Optional filtering expression to subset the number of plots}
+\item{...}{Optional additional filtering expression to pass on to dplyr::filter() to restrict the output to.}
+
+\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.}
+
+\item{species_code}{Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.}
 }
 \description{
-Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.
+This function will take one or more input data types (line-point intercept, heights, and species inventory) and produce a data frame of indicators for each species for each PrimaryKey value.
+If LPI data are provided, the function will calculate per-species the indicators AH_SpeciesCover which is the cover provided by the species and AH_SpeciesCover_n which is the number of pin drops at which the species was recorded.
+If height data are provided, the function will calculate per-species the indicators Hgt_Species_Avg which is the mean of the heights recorded for the species and Hgt_Species_Avg_n which is the number of height records included in that mean.
+If species inventory data are provided, then species which were recorded as present but did not occur in LPI or height data will also be in the output, however they will not have associated values in any indicator variables derived from data types where they were not represented, e.g. a plant which was recorded but was not encountered on an LPI transect will not have AH_SpeciesCover or AH_SpeciesCover_n values.
+At least one data type must be provided. Any indicators which cannot be calculated from the data provided will simply not be calculated although those variables will still be included in the output.
 }
 \examples{
 # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)

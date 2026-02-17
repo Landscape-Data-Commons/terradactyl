@@ -5,8 +5,7 @@
 #' library(terradactyl)
 #' cover <- core_cover_indicators(lpi_species)
 
-#' @export core_cover_indicators
-#' @rdname core_cover_indicators
+#' @export
 core_cover_indicators <- function(lpi_species,
                                   verbose = FALSE) {
 

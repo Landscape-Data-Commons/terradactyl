@@ -20,7 +20,7 @@ build_terradat_indicators(
 )
 }
 \arguments{
-\item{header}{Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{header}{Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.}
 
 \item{dsn}{Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.}
 
@@ -28,15 +28,15 @@ build_terradat_indicators(
 
 \item{species_code_var}{Character string. The name of the variable in the species characteristics that contain the species codes. Defaults to \code{"SpeciesCode"}.}
 
-\item{lpi_tall}{Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{lpi_tall}{Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.}
 
-\item{gap_tall}{Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{gap_tall}{Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.}
 
-\item{height_tall}{Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{height_tall}{Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.}
 
-\item{spp_inventory_tall}{Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{spp_inventory_tall}{Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.}
 
-\item{soil_stability_tall}{Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.}
+\item{soil_stability_tall}{Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.}
 
 \item{...}{Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.}
 

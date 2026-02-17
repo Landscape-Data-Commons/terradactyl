@@ -797,13 +797,20 @@ species_count <- function(species_inventory_tall,
   output
 }
 
-#' Accumulated species presence, cover, and height across Line-point intercept, Vegetation height, and Species inventory methods.
-#' @param lpi_tall File path to LPI rdata file
-#' @param height_tall File path to height rdata file
-#' @param spp_inventory_tall File path to species inventory rdata file
-#' @param species_file File path to species file if you want species attributes or updated species. Geodatabase or csv allowed.
-#' @param header File path to header rdata file
-#' @param ... Optional filtering expression to subset the number of plots
+#' Accumulated species presence and related cover and height indicators.
+#' @description This function will take one or more input data types (line-point intercept, heights, and species inventory) and produce a data frame of indicators for each species for each PrimaryKey value.
+#' If LPI data are provided, the function will calculate per-species the indicators AH_SpeciesCover which is the cover provided by the species and AH_SpeciesCover_n which is the number of pin drops at which the species was recorded.
+#' If height data are provided, the function will calculate per-species the indicators Hgt_Species_Avg which is the mean of the heights recorded for the species and Hgt_Species_Avg_n which is the number of height records included in that mean.
+#' If species inventory data are provided, then species which were recorded as present but did not occur in LPI or height data will also be in the output, however they will not have associated values in any indicator variables derived from data types where they were not represented, e.g. a plant which was recorded but was not encountered on an LPI transect will not have AH_SpeciesCover or AH_SpeciesCover_n values.
+#' At least one data type must be provided. Any indicators which cannot be calculated from the data provided will simply not be calculated although those variables will still be included in the output.
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.
+#' @param lpi_tall Data frame or character string. The line-point intercept data in the format produced by \code{gather_lpi()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param height_tall Data frame or character string. The height data in the format produced by \code{gather_height()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param spp_inventory_tall Data frame or character string. The species inventory data in the format produced by \code{gather_spp_inventory()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param species_file Data frame or character string. The species characteristic data (e.g., growth habit) to join to the returned indicators. If this is a character string, it must point to the file (of filetype RDS, CSV, Rdata, or GDB) containing the data. If this points to a geodatabase, it will assume that the standard AIM species data are present to use and will read in tblNationalPlants and tblStateSpecies. Defaults to \code{""} which is equivalent to \code{NULL}.
+#' @param species_code Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param ... Optional additional filtering expression to pass on to dplyr::filter() to restrict the output to.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.
 #' @examples
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
 #' # This method also adds cover and height by species. Be aware that sample sizes may be insufficient to make an accurate estimate
@@ -827,6 +834,7 @@ accumulated_species <- function(header,
                                 # indicator_variables = NULL,
                                 generic_species_file = NULL,
                                 digits = 6,
+                                # discard_nulls = TRUE,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
   # # Get a list of the variables the user wants to group data by for calculations.
@@ -850,6 +858,12 @@ accumulated_species <- function(header,
   #                          unquoted_to_character(...)) |>
   #   unique()
   # indicator_variables <- indicator_variables[!(indicator_variables %in% c(""))]
+
+  # The default value of "" is a legacy decision. Internally we'll treat it as a
+  # NULL for consistency and ease.
+  if (identical(species_file, "")) {
+    species_file <- NULL
+  }
 
   # If generic_species_file is not provided, assume it is the same as species_file
   if (is.null(generic_species_file)){
@@ -875,7 +889,7 @@ accumulated_species <- function(header,
                           verbose = verbose)
 
   if (!is.data.frame(header)) {
-    stop("Something is wrong with the current header information provided.")
+    stop("Something is wrong with the current header information provided that prevented it from being parsed into a data frame.")
   } else if (nrow(header) < 1) {
     stop("The header information contains no records.")
   }
@@ -906,53 +920,57 @@ accumulated_species <- function(header,
                         verbose = verbose,
                         FUN = function(X, inputs, header, verbose){
 
-                          output <- read_whatever(input = inputs[[X]],
-                                                  verbose = verbose)
+                          if (!is.null(inputs[[X]])) {
+                            output <- read_whatever(input = inputs[[X]],
+                                                    verbose = verbose)
 
-                          if (!is.data.frame(output)) {
-                            if (verbose) {
-                              message(paste0("No usable data provided for", X))
+                            if (!is.data.frame(output)) {
+                              if (verbose) {
+                                message(paste0("No usable data provided for", X))
+                              }
+                              return(NULL)
+                            } else if (nrow(output) < 1) {
+                              message(paste0("No records found in the input provided for ", X))
+                              return(NULL)
                             }
-                            return(NULL)
-                          } else if (nrow(output) < 1) {
-                            message(paste0("No records found in the input provided for ", X))
-                            return(NULL)
-                          }
 
-                          output <- dplyr::select(.data = output,
-                                                  -tidyselect::any_of(x = c("FormDate")))
+                            output <- dplyr::select(.data = output,
+                                                    -tidyselect::any_of(x = c("FormDate")))
 
-                          if (verbose) {
-                            message("Combining the data with the header information.")
+                            if (verbose) {
+                              message("Combining the data with the header information.")
+                            }
+                            dplyr::inner_join(x = dplyr::select(.data = header,
+                                                                tidyselect::all_of(x = c("PrimaryKey",
+                                                                                         "SpeciesState"))),
+                                              y = output,
+                                              relationship = "one-to-many",
+                                              by = c("PrimaryKey")) |>
+                              dplyr::rename(.data = _,
+                                            tidyselect::any_of(x = c("code" = "Species")))
+                          } else {
+                            if (verbose) {
+                              message(paste0(X, " is NULL and indicators depending on it will not be calculated."))
+                            }
+                            NULL
                           }
-                          dplyr::left_join(x = dplyr::select(.data = header,
-                                                             tidyselect::all_of(x = c("PrimaryKey",
-                                                                                      "SpeciesState"))),
-                                           y = output,
-                                           relationship = "one-to-many",
-                                           by = c("PrimaryKey")) |>
-                            dplyr::rename(.data = _,
-                                          tidyselect::any_of(x = c("code" = "Species")))
                         })
 
   ##### Species -----------------------------------------------------------------
   if (is.character(species_file)) {
     current_species_file_extension <- tools::file_ext(species_file)
 
-    if (nchar(current_species_file_extension) == 0) {
-      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
-    } else if (current_species_file_extension %in% c("CSV", "csv")) {
-      if (!file.exists(species_file)) {
-        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
-      }
-      species_info <- read.csv(file = species_file,
-                               stringsAsFactors = FALSE)
-    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+    if (toupper(current_species_file_extension) %in% c("GDB")) {
       if (verbose) {
         message("species_file points to a geodatabase. Assuming that both tblNationalPlants and tblStateSpecies are present in the GDB.")
       }
       species_info <- species_read_aim(dsn = species_file,
                                        verbose = verbose)
+    } else if (nchar(current_species_file_extension) != 0) {
+      species_info <- read_whatever(input = species_file,
+                                    verbose = verbose)
+    } else {
+      stop("When species_file is a character string, it must be a filepath to an accepted filetype: GDB, RDS, Rdata, or CSV.")
     }
   } else if (is.data.frame(species_file)) {
     species_info <- species_file
@@ -996,7 +1014,7 @@ accumulated_species <- function(header,
                             # dplyr::mutate(.data = _,
                             #               code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
                             #                                       .default = code)) |>
-                            # Not necessary, but I'm paranoid
+                            # Not necessary, but I'm paranoid.
                             dplyr::distinct() |>
                             dplyr::mutate(.data = _,
                                           # Correct the Non-Woody to NonWoody
@@ -1085,7 +1103,7 @@ accumulated_species <- function(header,
 
     ###### Live vs dead --------------------------------------------------------
     # If dead == TRUE then calculate live and dead hits as well
-    if(dead) {
+    if (dead) {
       if (verbose) {
         message("Calculating cover for live and dead hits.")
       }
@@ -1098,10 +1116,10 @@ accumulated_species <- function(header,
         dplyr::filter(.data = _,
                       percent > 0) |>
         # Separate the indicators based on the live vs dead.
-        tidyr::separate(data = species_cover_live_dead,
-                        col = indicator,
-                        intto = c( "status", "Species"),
-                        sep = "\\.") |>
+        tidyr::separate_wider_delim(data = _,
+                                    cols = indicator,
+                                    names = c( "status", "Species"),
+                                    delim = "\\.") |>
         # Add AH as prefix and Cover as a suffix
         dplyr::mutate(.data = _,
                       status = paste0("AH_Species", status, "Cover")) |>
@@ -1217,7 +1235,7 @@ accumulated_species <- function(header,
                                               tall = TRUE,
                                               digits = digits,
                                               Chkbox, Species)
-      species_height_live_dead_split <- species_cover_live_dead  |>
+      species_height_live_dead_split <- species_height_live_dead  |>
         # Identify 0 as Live and 1 as dead
         dplyr::mutate(indicator = stringr::str_replace_all(indicator,
                                                            c("1\\." = "Dead\\.",
@@ -1265,8 +1283,7 @@ accumulated_species <- function(header,
   output_list[["species"]] <- species_inventory
 
 
-
-  #### OUTPUT ##################################################################
+  #### OUTPUT ASSEMBLY AND CLEANUP #############################################
   # Remove all the unnecessary variables.
   # FormDate was causing problems because it was sometimes character strings and
   # sometimes POSITx dates, so we'll do some sanitization here because we're
@@ -1286,10 +1303,12 @@ accumulated_species <- function(header,
   # when only one kind of data was available.
   # The purrr::reduce() over a list is so that if we have more tables in the
   # future this will be easy, but we could get away without it.
-  output <- purrr::reduce(.x = output_list[c("cover",
-                                             "heights")],
-                          .f = dplyr::full_join,
-                          by = c("PrimaryKey", "Species")) |>
+  output <- output_list[c("cover", "heights")] |>
+    # Strip out the NULLs in that list because trying to run joins on NULLs will
+    # cause errors.
+    purrr::compact(.x = _) |>
+    purrr::reduce(.f = dplyr::full_join,
+                  by = c("PrimaryKey", "Species")) |>
     # And if we have species inventory stuff, we'll bind that to the end row-wise
     # then make sure we keep only the first instance of each species for each
     # PrimaryKey because only species not encountered on LPI or measured for
@@ -1362,14 +1381,61 @@ accumulated_species <- function(header,
                                       "Species"))
   }
 
-  missing_indicators <- setdiff(x = c("AH_SpeciesCover",
-                                      "AH_SpeciesCover_n",
-                                      "Hgt_Species_Avg",
-                                      "Hgt_Species_Avg_n"),
-                                y = names(output))
+  ##### Final cleanup ----------------------------------------------------------
+  output_indicators <- list(cover = c("AH_SpeciesCover",
+                                      "AH_SpeciesCover_n"),
+                            heights = c("Hgt_Species_Avg",
+                                        "Hgt_Species_Avg_n"))
 
-  for (current_missing_indicator in missing_indicators) {
-    output[[current_missing_indicator]] <- NA
+  # For indicators that just flat-out can't be calculated for lack of input data
+  # we'll set the values to NA
+  uncalculatable_indicators <- output_indicators[names(inputs_list)[sapply(X = inputs_list,
+                                                                           FUN = is.null)]] |>
+    unlist()
+
+  output[, uncalculatable_indicators] <- NA
+
+
+  # This identifies the PrimaryKeys that occur in each data types.
+  # For any indicator variables from data types those PrimaryKeys occur in, any
+  # NA values will be replaced with 0 to represent that the method simply didn't
+  # detect those species as opposed to the method was not carried out.
+  # Sorry this is brittle, but it's expedient!
+  method_pks <- lapply(X = c(cover = "cover",
+                             heights = "heights"),
+                       inputs_list = inputs_list,
+                       FUN = function(X, inputs_list){
+                         # If the data weren't provided at all, there are no
+                         # PrimaryKeys.
+                         if (is.null(inputs_list[[X]])) {
+                           NULL
+                         } else {
+                           unique(inputs_list[[X]]$PrimaryKey)
+                         }
+                       })
+
+  # This is also still brittle, but whatever. It replaces NAs for AH_ and Hgt_
+  # variables where the PrimaryKey for that record occurred in the corresponding
+  # method. It'll leave NAs for PrimaryKeys that don't occur in those data sets
+  # because the NA represents no information whereas not having qualifying
+  # records in the COLLECTED data means that the lack of data is information in
+  # and of itself.
+  output <- dplyr::mutate(.data = output,
+                          AH_SpeciesCover = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover) ~ 0,
+                                                             .default = AH_SpeciesCover),
+                          AH_SpeciesCover_n = dplyr::case_when(PrimaryKey %in% method_pks[["cover"]] & is.na(AH_SpeciesCover_n) ~ 0,
+                                                               .default = AH_SpeciesCover_n),
+                          Hgt_Species_Avg = dplyr::case_when(PrimaryKey %in% method_pks[["heights"]] & is.na(Hgt_Species_Avg) ~ 0,
+                                                             .default = Hgt_Species_Avg),
+                          Hgt_Species_Avg_n = dplyr::case_when(PrimaryKey %in% method_pks[["heights"]] & is.na(Hgt_Species_Avg_n) ~ 0,
+                                                               .default = Hgt_Species_Avg_n))
+
+
+  # TODO: ADD A BIT THAT CHECKS FOR NULLS AND THROWS THEM OUT BUT ONLY IF THE
+  # USER HAS SET DISCARD_NULLS TO TRUE
+  discard_nulls <- TRUE
+  if (discard_nulls) {
+
   }
 
   output

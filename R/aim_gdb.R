@@ -3,15 +3,15 @@
 #' @description
 #' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
 #'
-#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.
 #' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
 #' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
 #' @param species_code_var Character string. The name of the variable in the species characteristics that contain the species codes. Defaults to \code{"SpeciesCode"}.
-#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data. If this is \code{NULL} then indicators depending on it will not be calculated. Defaults to \code{NULL}.
 #' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
@@ -51,6 +51,7 @@ build_terradat_indicators <- function(header,
 
     if (is.null(inputs_list[[current_input_type]])) {
       message(paste("No data provided for", current_input_type, "so indicators derived from those will not be calculated."))
+      current_data <- NULL
     } else {
       current_data <- read_whatever(input = inputs_list[[current_input_type]],
                                     accept_failure = FALSE,
@@ -82,12 +83,11 @@ build_terradat_indicators <- function(header,
         }
         current_data <- dplyr::filter(.data = current_data,
                                       PrimaryKey %in% inputs_list[["header"]]$PrimaryKey)
+        if (nrow(current_data) < 1) {
+          message(paste("No records found in the data provided for", current_input_type, "after restricting by PrimaryKey so indicators derived from those will not be calculated."))
+          current_data <- NULL
+        }
       }
-      if (nrow(current_data) < 1) {
-        message(paste("No records found in the data provided for", current_input_type, "after restricting by PrimaryKey so indicators derived from those will not be calculated."))
-        current_data <- NULL
-      }
-
     }
 
     inputs_list[[current_input_type]] <- current_data
@@ -152,7 +152,7 @@ build_terradat_indicators <- function(header,
     indicators_list[["species"]] <- spp_inventory_calc(spp_inventory_tall = inputs_list[["spp_inventory_tall"]],
                                                        header = inputs_list[["header"]],
                                                        species_file = species_file,
-                                                       source = "AIM",
+                                                       # source = "AIM",
                                                        # digits = digits,
                                                        verbose = verbose)
   } else {
@@ -188,14 +188,14 @@ build_terradat_indicators <- function(header,
 #' @description
 #' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
 #'
-#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
 #' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
-#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
@@ -380,15 +380,15 @@ build_lmf_indicators <- function(header,
 #' @description
 #' A wrapper function for the *_calc() family of functions that produce the default TerrADat indicators.
 #'
-#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param source Character string. The expected input data format. Must be one of \code{"terradat"}, \code{"aim"}, \code{"lmf"}, or \code{"nri"}. Case insensitive.
 #' @param dsn Character string. The filepath to the geodatabase containing data. Passed to indicator calculation functions that require the argument \code{dsn}.
 #' @param species_file Data frame or character string. The data to be provided as the argument \code{species_file} to any indicator calculation functions that require it. If this is a character string, it must point to the CSV or GDB file containing the data. This should almost always be to a geodatabase containing tblNationalPlants and tblStateSpecies.
-#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
-#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the .Rdata file containing the data.
+#' @param lpi_tall Data frame or character string. The data to be provided as the argument \code{lpi_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param gap_tall Data frame or character string. The data to be provided as the argument \code{gap_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param height_tall Data frame or character string. The data to be provided as the argument \code{height_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param spp_inventory_tall Data frame or character string. The data to be provided as the argument \code{spp_inventory_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
+#' @param soil_stability_tall Data frame or character string. The data to be provided as the argument \code{soil_stability_tall} to any indicator calculation functions that require it. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
 #' @param ... Optional are filtering statements. These will be passed to \code{dplyr::filter()} to applied to \code{header} to restrict the calculations.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
@@ -573,14 +573,14 @@ build_indicators <- function(header, source,
 #' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
 #' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #'
 #' @returns A data frame matching the format of LPI indicators in TerrADat.
 #' @export
-lpi_calc <- function(header = NULL,
-                     lpi_tall = NULL,
+lpi_calc <- function(header,
+                     lpi_tall,
                      species_file,
                      species_code_var = "SpeciesCode",
                      generic_species_file = NULL,
@@ -594,24 +594,38 @@ lpi_calc <- function(header = NULL,
   }
 
   #### Handling header and raw data ############################################
-  if ("character" %in% class(header)) {
-    if (toupper(tools::file_ext(header)) == "RDATA") {
-      header <- readRDS(header)
-    } else {
-      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
-    }
-  } else if ("data.frame" %in% class(header)) {
-    header <- header
-  }
-  if ("character" %in% class(lpi_tall)) {
-    if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
-      lpi_tall <- readRDS(file = lpi_tall)
-    } else {
-      stop("When lpi_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
-    }
-  } else if ("data.frame" %in% class(lpi_tall)) {
-    lpi_tall <- lpi_tall
-  }
+  # if ("character" %in% class(header)) {
+  #   if (toupper(tools::file_ext(header)) == "RDATA") {
+  #     header <- readRDS(header)
+  #   } else {
+  #     stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+  #   }
+  # } else if ("data.frame" %in% class(header)) {
+  #   header <- header
+  # }
+
+  header <- read_whatever(input = header,
+                          layer = NULL,
+                          regex = FALSE,
+                          best_guess = FALSE,
+                          accept_failure = FALSE,
+                          verbose = verbose)
+
+  # if ("character" %in% class(lpi_tall)) {
+  #   if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
+  #     lpi_tall <- readRDS(file = lpi_tall)
+  #   } else {
+  #     stop("When lpi_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
+  #   }
+  # } else if ("data.frame" %in% class(lpi_tall)) {
+  #   lpi_tall <- lpi_tall
+  # }
+  lpi_tall <- read_whatever(input = lpi_tall,
+                            layer = NULL,
+                            regex = FALSE,
+                            best_guess = FALSE,
+                            accept_failure = FALSE,
+                            verbose = verbose)
 
   lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
                                                         tidyselect::any_of(c("PrimaryKey",
@@ -650,6 +664,8 @@ lpi_calc <- function(header = NULL,
                                 "AH_AnnForbGraminoidCover",
                                 "AH_ShrubCover",
                                 "AH_ShrubSucculentCover",
+                                "AH_TreeCover",
+                                "AH_SubShrubCover",
                                 "AH_SagebrushCover",
                                 "AH_SagebrushCover_Live",
                                 "AH_NonSagebrushShrubCover",
@@ -1538,16 +1554,24 @@ lpi_calc <- function(header = NULL,
     # protocol, so we're going to calculate with live = FALSE and rename it to
     # reflect the living status
     sagebrush_shape_calc <- sagebrush_shape(lpi_tall = lpi_species,
-                                            live = FALSE) |>
-      dplyr::rename_with(.data = _,
-                         .fn = ~ stringr::str_replace(string = .x,
-                                                      pattern = "_All_",
-                                                      replacement = "_Live_"),
-                         .cols = tidyselect::contains(match = "_All_"))
-    lpi_indicators <- dplyr::left_join(x = lpi_indicators,
-                                       y = sagebrush_shape_calc,
-                                       relationship = "one-to-one",
-                                       by = "PrimaryKey")
+                                            live = FALSE)
+
+    if (is.null(sagebrush_shape_calc)) {
+      if (verbose) {
+        message("sagebrush_shape() returned NULL. Skipping sagebrush shape indicators.")
+      }
+    } else {
+      sagebrush_shape_calc <- dplyr::rename_with(.data = sagebrush_shape_calc,
+                                                 .fn = ~ stringr::str_replace(string = .x,
+                                                                              pattern = "_All_",
+                                                                              replacement = "_Live_"),
+                                                 .cols = tidyselect::contains(match = "_All_"))
+      lpi_indicators <- dplyr::left_join(x = lpi_indicators,
+                                         y = sagebrush_shape_calc,
+                                         relationship = "one-to-one",
+                                         by = "PrimaryKey")
+    }
+
   } else {
     if (verbose) {
       message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.")
@@ -1977,13 +2001,16 @@ height_calc <- function(header,
 #'
 #' This depends on the species characteristics used being those found in tblNationalPlants.
 #'
+#' If there are indicators that cannot be calculated from the current data, those will be returned with a value of 0. For example, if the variable called Invasive does nto appear in the data or species characteristics provided, the variable NumSpp_Invasive will still be part of the output but all records will have a value of 0.
+#' If the required variables for an indicator are present in the inputs, then every value for that indicator will be numeric, including using 0 where a PrimaryKey had no records with qualifying values for that indicator, e.g., if the variable Invasive is present at all but no records have a non-NA value in that variable, it will be assumed that all those species were determined to be non-invasive and therefore the returned value should be 0 rather than the NA associated with truly missing records.
+#' These assumptions are less likely to hold true when applying this function to data from multiple sources simultaneously. For example, NumSpp_PreferredForb depends on per-state assignments and if the input data includes a state which has populated the SG_Group variable and one which has not, the most appropriate output value would be NA for the state without SG_Group assignments but the fact that the variable is present at all will produce 0s instead.
+#'
 #' @param header Data frame or character string. The metadata for the plots involved in the calculations, this is used to add the SpeciesState variable by joining with the PrimaryKey variable. If a character string, this must point to a CSV file containing the data.
 #' @param spp_inventory_tall  Data frame or character string. The long/tall-format species inventory data for the plots involved in the calculations. The format must match the output from \code{gather_species_inventory()}. If a character string, this must point to a CSV file containing the data.
 #' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
 #' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
-#' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
-#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param generic_species_file Optional character string or data frame. Must be either a data frame or specify the filepath to generic species information (accepted filetypes are RDS, Rdata, and CSV). If this is \code{NULL}, it will inherit the value of \code{species_file}. Defaults to \code{NULL}.
+#' @param source Character string (DEPRECATED). This argument is ignored but left here as a way to prevent legacy code from producing errors.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #'
@@ -1991,28 +2018,70 @@ height_calc <- function(header,
 #' @export
 spp_inventory_calc <- function(header,
                                spp_inventory_tall,
+                               # lpi_tall = NULL,
+                               # height_tall = NULL,
                                species_file,
-                               source,
                                species_code_var = "SpeciesCode",
                                generic_species_file = NULL,
+                               source = NULL,
                                verbose = FALSE) {
-  if ("character" %in% class(header)) {
-    if (toupper(tools::file_ext(header)) == "RDATA") {
-      header <- readRDS(file = header)
-    } else {
-      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
-    }
-  }
-  if ("character" %in% class(spp_inventory_tall)) {
-    if (toupper(tools::file_ext(spp_inventory_tall)) == "RDATA") {
-      data <- readRDS(file = spp_inventory_tall)
-    } else {
-      stop("When spp_inventory_tall is a character string it must be the path to a .rds file containing tall LPI data.")
-    }
-  } else if ("data.frame" %in% class(spp_inventory_tall)) {
-    data <- spp_inventory_tall
+
+  header <- read_whatever(input = header,
+                          verbose = verbose)
+
+  # This bit handles the input data, whatever accepted format each came in.
+  # It creates a list of the data frames (or NULLs) pared down to only the
+  # critical variables.
+  # input_data <- list(species = spp_inventory_tall,
+  #                    lpi = lpi_tall,
+  #                    height = height_tall)
+  # For now, we're not including LPI or height data, but I'm leaving a stub.
+  input_data <- lapply(X = list(spp_inventory_tall),
+           verbose = verbose,
+           FUN = function(X, verbose){
+             if (!is.null(X)) {
+               read_whatever(input = X,
+                             verbose = verbose)
+             } else {
+               NULL
+             }
+           }) |>
+    lapply(X =  _,
+           FUN = function(X){
+             if (!is.null(X)) {
+               dplyr::select(.data = X,
+                             tidyselect::any_of(x = c("PrimaryKey",
+                                                      "Species",
+                                                      "Species" = "code"))) |>
+                 dplyr::filter(.data = _,
+                               nchar(x = Species) >= 3)
+             } else {
+               NULL
+             }
+           }) |>
+    setNames(object = _,
+             nm = "species")
+    # setNames(object = _,
+    #          nm = c("species",
+    #                 "lpi",
+    #                 "height"))
+
+  # Make sure any of the source data were usable and not just NULL.
+  if (all(sapply(X = input_data, FUN = is.null))) {
+    stop("All source data types are NULL. Please provide at least spp_inventory_tall.")
   }
 
+  # Bind the DATA FRAMES together and get only distinct records
+  data <- input_data[!sapply(X = input_data, FUN = is.null)] |>
+    dplyr::bind_rows() |>
+    dplyr::distinct()
+
+  # These will be used to determine which values in the outputs are NA versus 0
+  # near the end of this function
+  nonrepresented_pks <- setdiff(x = header$PrimaryKey,
+                                y = unique(data$PrimaryKey))
+
+  # SETTING THIS TO USE AN INNER_JOIN() WOULD PREVENT SOME NONSENSE HANDLED BELOW.
   data <- dplyr::left_join(x = dplyr::select(.data = header,
                                              PrimaryKey,
                                              SpeciesState),
@@ -2054,7 +2123,7 @@ spp_inventory_calc <- function(header,
   }
 
   if (verbose) {
-    message("Attempting to join the species list to the height data.")
+    message("Attempting to join the species characteristics to the data.")
   }
 
   data <- species_join(data = sf::st_drop_geometry(data),
@@ -2093,9 +2162,51 @@ spp_inventory_calc <- function(header,
                        check_species = FALSE,
                        verbose = verbose)
 
+  # What species variables do each of the output indicators come from?
+  # We'll use this to populate uncalculated indicators.
+  # In cases where all the required variables were present in the data,
+  # records where no data qualified and therefore the returned indicator value
+  # was NA will be replaced with 0. If any of the required variables are missing
+  # the indicator values will be left as NA to reflect that they were not actually
+  # calculated.
+  expected_indicator_variables <- list("NumSpp_Total" = c("Species"),
+                                       "NumSpp_Native" = c("Nonnative"),
+                                       "NumSpp_Nonnative" = c("Nonnative"),
+                                       "NumSpp_Invasive" = c("Invasive"),
+                                       "NumSpp_Noxious" = c("Noxious"),
+                                       "NumSpp_PreferredForb" = c("SG_Group",
+                                                                  "SpeciesState",
+                                                                  "GrowthHabitSub"))
+
+  # This is going to be the reference for later!
+  uncalculatable_indicators <- names(expected_indicator_variables)[sapply(X = expected_indicator_variables,
+                                                                          data_vars = names(data),
+                                                                          FUN = function(X, data_vars){
+                                                                            !all(X %in% data_vars)
+                                                                          })]
+
+  if (length(uncalculatable_indicators) > 0 & verbose) {
+    message(paste0("One or more indicators (", paste(uncalculatable_indicators,
+                                                     collapse = ", "), ") will not be calculated because the following variables do not appear in the data or species_file: ",
+                   paste(unlist(expected_indicator_variables[uncalculatable_indicators]),
+                         collapse = ", ")))
+  }
+
+  # Now we add in the missing variables just so that this next step doesn't
+  # fail.
+  missing_required_species_variables <- setdiff(x = unlist(expected_indicator_variables),
+                                                y = names(data))
+
+  for (current_variable in missing_required_species_variables) {
+    data[[current_variable]] <- NA
+  }
+
   # Cleanup to get things in order for the indicators
   data <- dplyr::mutate(.data = data,
-                        Total = "Total",
+                        # This isn't just assigning "Total" to everything in
+                        # case the data sources included non-plant codes.
+                        Total = dplyr::case_when(nchar(Species) >= 3 ~ "Total",
+                                                 .default = NA),
                         ###### Invasive ---------------------------------
                         # This is just to make the Invasive values match
                         # the desired indicator names
@@ -2106,8 +2217,9 @@ spp_inventory_calc <- function(header,
                         # It assumes that everything flagged as EXOTIC or
                         # ABSENT should be considered NonNative and that
                         # everything else is Native
-                        Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) ~ "Native",
-                                                  .default = "Nonnative"),
+                        Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) & Total == "Total" ~ "Native",
+                                                  !(Nonnative %in% c("NATIVE", NA)) & Total == "Total" ~ "Nonnative",
+                                                  .default = NA),
 
                         ###### Noxious ----------------------------------
                         # For noxious cover. This assumes that anything
@@ -2166,12 +2278,7 @@ spp_inventory_calc <- function(header,
 
   #### Calculating #############################################################
   # These are the output variables we anticipate getting back (and want)
-  expected_indicator_variables <- c("NumSpp_Total",
-                                    "NumSpp_Native",
-                                    "NumSpp_Nonnative",
-                                    "NumSpp_Invasive",
-                                    "NumSpp_Noxious",
-                                    "NumSpp_PreferredForb")
+  expected_indicator_variables <- names(expected_indicator_variables)
 
   indicator_variables_list <- list(c("Total"),
                                    c("Native"),
@@ -2193,6 +2300,11 @@ spp_inventory_calc <- function(header,
   output <- dplyr::bind_rows(output_list) |>
     dplyr::filter(.data = _,
                   indicator %in% expected_indicator_variables) |>
+    # We'll fill the empty records with 0 with the assumption that if that
+    # indicator was calculated for at least one included PrimaryKey then it
+    # should be good to go.
+    # THIS IS NOT NECESSARILY A SAFE ASSUMPTION WHEN PROCESSING DATA FROM
+    # MULTIPLE PROJECTS/SOURCES IN A SINGLE GO!
     tidyr::pivot_wider(data = _,
                        names_from = indicator,
                        values_from = n,
@@ -2201,11 +2313,25 @@ spp_inventory_calc <- function(header,
   missing_indicators <- setdiff(x = expected_indicator_variables,
                                 y = names(output))
   if (length(missing_indicators) > 0) {
-    warning(paste0("One or more expected indicators did not have qualifying data and will be returned with 0 values. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
+    warning(paste0("One or more expected indicators did not have qualifying data and will be returned with 0 or NA values as appropriate. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
                    paste(missing_indicators,
                          collapse = ", ")))
     output[, missing_indicators] <- 0
   }
+
+  # Fixing 0s added for the identified MISSING variables that should be NA
+  # because there they were determined to be uncalculatable above due to missing
+  # species variables rather than just having no qualifying records in which
+  # case the 0 was appropriate.
+  output <- dplyr::mutate(.data = output,
+                        dplyr::across(.cols = uncalculatable_indicators,
+                                      .fns = ~ NA))
+
+  # And make sure that any PrimaryKeys from the headers without associated
+  # species inventory data don't end up with 0s. I could do this above, but it's
+  # probably not that expensive to do it here and it's just so easy as a final
+  # check.
+  # output[output$PrimaryKey %in% nonrepresented_pks, expected_indicator_variables] <- NA
 
   output
 }
