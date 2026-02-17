@@ -1304,9 +1304,11 @@ accumulated_species <- function(header,
   # The purrr::reduce() over a list is so that if we have more tables in the
   # future this will be easy, but we could get away without it.
   output <- output_list[c("cover", "heights")] |>
-  purrr::compact() |> #remove null data frames
-  purrr::reduce(.f = dplyr::full_join,
-                by = c("PrimaryKey", "Species")) |>
+    # Strip out the NULLs in that list because trying to run joins on NULLs will
+    # cause errors.
+    purrr::compact(.x = _) |>
+    purrr::reduce(.f = dplyr::full_join,
+                  by = c("PrimaryKey", "Species")) |>
     # And if we have species inventory stuff, we'll bind that to the end row-wise
     # then make sure we keep only the first instance of each species for each
     # PrimaryKey because only species not encountered on LPI or measured for
