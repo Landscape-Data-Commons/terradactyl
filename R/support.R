@@ -27,6 +27,20 @@ unquoted_to_character <- function(...) {
 # The goal here is to handle all of those as seamlessly as possible.
 # If regex is TRUE and best_guess is also TRUE, then matching multiple feature
 # classes will be resolved by simply reading in the one with the shortest name.
+#' Read in various formats smoothly
+#' @description
+#' This function will flexibly read in a variety or formats including RDS, Rdata, CSV, and geodatabase feature classes.
+#' It will also accept data frames, although those will be returned unaltered.
+#' This exists to facilitate legacy code that was originally written using terradactyl v1.1.0 and earlier.
+#'
+#' @param input Data frame or character string. If a character string, this should point to an RDS, Rdata, CSV, or GDB file.
+#' @param layer Optional character string. If this is not \code{NULL} and \code{input} points to a geodatabase, this is the name of the table or feature class to try to read in. Defaults to \code{NULL}.
+#' @param regex Logical. If \code{TRUE} then \code{layer} will be treated as a regular expression. Defaults to \code{FALSE}.
+#' @param best_guess Logical. If \code{regex} is \code{TRUE} and this is \code{TRUE} then in the case that multiple layers in the geodatabase match the regular expression \code{layer} the one with the shortest name will be used. If \code{FALSE} and multiple layers match the regular expression the function will stop and return an error. Defaults to \code{TRUE}.
+#' @param accept_failure Logical. If \code{FALSE} and \code{regex} is \code{TRUE} then in the case that no layers match the regular expression the function will stop an return an error. If \code{TRUE} then the function will return \code{NULL}. Defaults to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 read_whatever <- function(input,
                           layer = NULL,
                           regex = FALSE,
