@@ -177,7 +177,7 @@ build_terradat_indicators <- function(header,
 
   #### Output ##################################################################
   # Reduce the list to a data frame
-  output <- purrr::reduce(.f = dplyr::left_join,
+  output <- purrr::reduce(.f = dplyr::full_join,
                           .x = indicators_list)
 
   output
