@@ -691,6 +691,16 @@ lpi_calc <- function(header,
                                 "AH_InvasiveSubShrubCover",
                                 "AH_InvasiveSucculentCover",
                                 "AH_InvasiveTreeCover",
+                                "AH_NonInvPerenForbCover",
+                                "AH_NonInvAnnForbCover",
+                                "AH_NonInvPerenGrassCover",
+                                "AH_NonInvAnnGrassCover",
+                                "AH_NonInvPerenForbGrassCover",
+                                "AH_NonInvAnnForbGrassCover",
+                                "AH_NonInvShrubCover",
+                                "AH_NonInvSubShrubCover",
+                                "AH_NonInvSucculentCover",
+                                "AH_NonInvTreeCover",
                                 "AH_NativeCover",
                                 "AH_NonNativeCover",
                                 "AH_NoxiousCover",
@@ -1285,8 +1295,10 @@ lpi_calc <- function(header,
 
                                ###### Invasive ---------------------------------
                                # This is just to make the Invasive values match
-                               # the desired indicator names
-                               Invasive = stringr::str_to_title(string = Invasive),
+                               # the desired indicator names.
+                               Invasive = stringr::str_to_title(string = Invasive) |>
+                                 tidyr::replace_na(data = _,
+                                                   replace = "NonInv"),
 
                                ###### Native -----------------------------------
                                # This is for the native and non-native cover
