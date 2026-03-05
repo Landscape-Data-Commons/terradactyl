@@ -1,11 +1,10 @@
-#' Retrieve NRI table names
+# Retrieve NRI table names
+#' Retrieve NRI table names from text
 #' @description Retrieves the table names using the specified file referring to the folder containing NRI txt files
 #' @param nri_path Folder path. The path where the nri txt files are stored.
-#' @return Character string of the nri table names.
+#' @returns Character string of the nri table names.
 #'
-
 #' @export table_name
-
 table_name <- function(nri_path){
   nri_files <- data.frame(file_path = list.files(path = nri_path,
                                                  pattern = ".txt",
@@ -17,11 +16,15 @@ table_name <- function(nri_path){
 
 
 
-
+# Read NRI tables
+#' Read NRI txt files using table_name
+#' @description Assign the column header to the NRI text files and save
+#' @param table_name Character string of the nri table names
+#' @param dsn File path where NRI text files stored
+#' @param schema Tables and names from NRI Grazing Land Guide
+#' @returns NRI files with column name assigned
+#'
 #' @export read_nri_text
-#' @rdname ingest_nri
-
-
 read_nri_text <- function(table_name, dsn, DBKey = "auto", schema) {
 
   # read text file to table
