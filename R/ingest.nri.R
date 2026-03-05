@@ -21,19 +21,27 @@ table_name <- function(nri_path){
 #' @description Assign the column header to the NRI text files and save
 #' @param table_name Character string of the nri table names
 #' @param dsn File path where NRI text files stored
-#' @param schema Tables and names from NRI Grazing Land Guide
+#' @param GL_schema_path Tables and names from NRI Grazing Land Guide
 #' @returns NRI files with column name assigned
 #'
 #' @export read_nri_text
-read_nri_text <- function(table_name, dsn, DBKey = "auto", schema) {
+read_nri_text <- function(table_name, dsn, DBKey = "auto", GL_schema_path) {
+  # set up table/column names
+  schema <- readxl::read_xlsx(GL_schema_path, sheet = 2) |>
+    # remove TABLE names
+    subset(`Field name` !="TABLE")
+  table_names <- schema$`Table name` %>%
+    unique() %>%
+    toupper()
 
+  for(table in table_name){
   # read text file to table
   data <- lapply(X = dsn, function(X) {
     # set the DBKey, if "auto" we'll populate from the folder. Otherwise, we'll use the text specified.
     file.DBKey <- basename(X)
 
     # specify file
-    file <- paste(X, tolower(table_name), ".txt", sep = "")
+    file <- paste(X, tolower(table), ".txt", sep = "")
 
     # Check that the file exists
     if (!file.exists(file)) {
@@ -151,6 +159,7 @@ read_nri_text <- function(table_name, dsn, DBKey = "auto", schema) {
       return(data)
     }
   })
+  }
 
   # Merge all data from different files into a single data frame
   df <- dplyr::bind_rows(data) %>% dplyr::distinct()
