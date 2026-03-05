@@ -10,7 +10,7 @@ table_name <- function(nri_path){
                                                  pattern = ".txt",
                                                  recursive = T,
                                                  include.dirs = T))
-  table_name <- str_replace(nri_files$file_path, ".txt","")
+  table_name <- gsub(".txt","",nri_files$file_path)
   return(table_name)
 }
 
