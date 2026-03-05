@@ -819,7 +819,7 @@ gather_header_lmf <- function(dsn = NULL,
 #' various methods and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.
 
-# #' @export
+#' @export
 gather_header_nri <- function(dsn = NULL,
                               speciesstate,
                               ...,
