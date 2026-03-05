@@ -4,14 +4,14 @@
 \alias{read_nri_text}
 \title{Read NRI txt files using table_name}
 \usage{
-read_nri_text(table_name, dsn, DBKey = "auto", schema)
+read_nri_text(table_name, dsn, DBKey = "auto", GL_schema_path)
 }
 \arguments{
 \item{table_name}{Character string of the nri table names}
 
 \item{dsn}{File path where NRI text files stored}
 
-\item{schema}{Tables and names from NRI Grazing Land Guide}
+\item{GL_schema_path}{Tables and names from NRI Grazing Land Guide}
 }
 \value{
 NRI files with column name assigned
