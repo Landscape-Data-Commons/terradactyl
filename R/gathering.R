@@ -2871,7 +2871,7 @@ gather_gap_lmf <- function(dsn = NULL,
                                                                          "END_GAP")),
                                             .fns = as.numeric))
 
-  if (any( gintercept$END_GAP - gintercept$START_GAP < 0)) { #before gintercept$START_GAP < gintercept$END_GAP
+  if (any(gintercept$START_GAP > gintercept$END_GAP) == T) {
     warning("There are some records with negative gap sizes. These will be dropped.")
     gintercept <- dplyr::filter(.data = gintercept,
                                 START_GAP <= END_GAP)
