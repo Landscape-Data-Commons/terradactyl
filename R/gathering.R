@@ -824,7 +824,7 @@ gather_header_lmf <- function(dsn = NULL,
 
 #' @export
 gather_header_nri <- function(dsn = NULL,
-                              point_path = "POINT.csv",
+                              point_path,
                               speciesstate,
                               ...,
                               verbose = FALSE) {
@@ -971,7 +971,7 @@ gather_header_nri <- function(dsn = NULL,
   )
 
   # Attach SpeciesState
-  point_ESD$SpeciesState <- speciesstate
+  #point_ESD$SpeciesState <- speciesstate
 
   # Create PlotID, which is needed in later functions
   point_ESD <- point_ESD %>% dplyr::mutate(PlotID = PrimaryKey)
