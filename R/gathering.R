@@ -919,9 +919,6 @@ gather_header_nri <- function(dsn = NULL,
     # Convert elevation to meters
     #dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
 
-  # get the date in the order expected by LDC
-  point_elevation <- point_elevation |> lubridate::parse_date_time(DateVisited,
-                             orders = c("ymd", "mdy", "dmy", "ymd HMS", "mdy HMS","ymd HM", "mdy HM"))
 
   # Add Ecological Site Id
   point_ESD <- read.csv(file.path(dsn, "ESFSG.csv"),
@@ -989,6 +986,9 @@ gather_header_nri <- function(dsn = NULL,
   point_ESD$SpeciesKey <- "NRI"
   point_ESD$wkb_geometry <- NA
   point_ESD$source <- "NRI"
+  # get the date in the order expected by LDC
+  point_ESD$DateVisited <- lubridate::parse_date_time(point_ESD$DateVisited,
+                                                                   orders = c("ymd", "mdy", "dmy", "ymd HMS", "mdy HMS","ymd HM", "mdy HM"))
 
   # Return the point_ESD as the header file
   return(point_ESD)
