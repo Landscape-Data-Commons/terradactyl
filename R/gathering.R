@@ -2872,7 +2872,7 @@ gather_gap_lmf <- function(dsn = NULL,
                                             .fns = as.numeric))
 
   ## checking for negatives or NAs
-  neg_gap <- gintercept |> mutate(Gap = END_GAP - START_GAP) |> filter(Gap < 0)
+  neg_gap <- gintercept |> dplyr::mutate(Gap = END_GAP - START_GAP) |> filter(Gap < 0)
   if(nrow(neg_gap) > 0){
     warning("There are some records with negative gap sizes. These will be dropped.")
     gintercept <- dplyr::filter(.data = gintercept,
