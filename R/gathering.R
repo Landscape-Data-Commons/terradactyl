@@ -914,10 +914,10 @@ gather_header_nri <- function(dsn = NULL,
     dplyr::left_join(point_coordinate, .,
                      # by = c("PrimaryKey", "DBKey")
                      by = "PrimaryKey"
-    ) # %>%
+    )  %>%
 
     # Convert elevation to meters
-    #dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
+    dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
 
 
   # Add Ecological Site Id
