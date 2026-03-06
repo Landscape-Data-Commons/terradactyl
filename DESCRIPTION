@@ -34,7 +34,8 @@ Imports:
     utils,
     stats,
     purrr,
-    tidyselect
+    tidyselect,
+    lubridate
 Suggests:
     knitr,
     rmarkdown,
