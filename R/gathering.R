@@ -818,9 +818,13 @@ gather_header_lmf <- function(dsn = NULL,
 #' @description This reads in metadata from NRI sampling used as headers for
 #' various methods and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.
+#' @param dsn File path to where the point csv is located
+#' @param point_path The name of the point csv including .csv
+
 
 #' @export
 gather_header_nri <- function(dsn = NULL,
+                              point_path = "POINT.csv",
                               speciesstate,
                               ...,
                               verbose = FALSE) {
@@ -830,7 +834,7 @@ gather_header_nri <- function(dsn = NULL,
   # if(!is.null(POINT)){
   #   point <- POINT
   # } else if(!is.null(dsn)){
-  point <- read.csv(file.path(dsn, "POINT.csv"), stringsAsFactors = FALSE)
+  point <- read.csv(file.path(dsn, point_path), stringsAsFactors = FALSE)
   # } else {
   #   stop("Provide either POINT or a path to a folder containing it")
   # }
