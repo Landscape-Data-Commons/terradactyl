@@ -985,7 +985,7 @@ gather_header_nri <- function(dsn = NULL,
   # we add it in
   point_ESD$County <- NULL
   point_ESD$State <- NULL
-  point_ESD$SpeciesKey <- "NRI"
+  #point_ESD$SpeciesKey <- "NRI"
   point_ESD$wkb_geometry <- NA
   point_ESD$source <- "NRI"
   # get the date in the order expected by LDC
