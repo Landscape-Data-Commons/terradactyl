@@ -825,6 +825,7 @@ gather_header_lmf <- function(dsn = NULL,
 #' @export
 gather_header_nri <- function(dsn = NULL,
                               point_path,
+                              speciesstate,
                               ...,
                               verbose = FALSE) {
   ### Set up filter expression (e.g., filter on DBKey, SpeciesState, etc)
