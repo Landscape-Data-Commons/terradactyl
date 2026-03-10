@@ -820,6 +820,7 @@ gather_header_lmf <- function(dsn = NULL,
 #' in indicator calculations with the package \code{terradactyl}.
 #' @param dsn File path to where the point csv is located
 #' @param point_path The name of the point csv including .csv
+#' @param speciesstate character string. State of interest for species, can also be "ALL"
 
 
 #' @export
