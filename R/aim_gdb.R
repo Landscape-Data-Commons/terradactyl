@@ -1386,7 +1386,7 @@ lpi_calc <- function(header,
   total_foliar <- pct_cover(lpi_tall = lpi_species,
                             tall = TRUE,
                             hit = "any",
-                            by_line = by_line,
+                            by_line = FALSE,
                             indicator_variables = "Plant",
                             digits = digits) |>
     dplyr::mutate(.data = _,
