@@ -736,9 +736,9 @@ lpi_calc <- function(header,
                                 "FH_NonSagebrushShrubCover",
                                 "FH_TreeCover",
 
-                                "SagebrushShape_Live_ColumnCount",
-                                "SagebrushShape_Live_SpreadCount",
-                                "SagebrushShape_Live_Predominant")
+                                "SagebrushShape_All_ColumnCount",
+                                "SagebrushShape_All_SpreadCount",
+                                "SagebrushShape_All_Predominant")
 
   ##### Indicator renaming lookup ----------------------------------------------
   # The indicators that have nonstandard names. This'll let us rename them with
@@ -1573,11 +1573,13 @@ lpi_calc <- function(header,
         message("sagebrush_shape() returned NULL. Skipping sagebrush shape indicators.")
       }
     } else {
-      sagebrush_shape_calc <- dplyr::rename_with(.data = sagebrush_shape_calc,
-                                                 .fn = ~ stringr::str_replace(string = .x,
-                                                                              pattern = "_All_",
-                                                                              replacement = "_Live_"),
-                                                 .cols = tidyselect::contains(match = "_All_"))
+      # Sagebrush shape is gathered regardless of live/dead status so we won't
+      # rename these indicators.
+      # sagebrush_shape_calc <- dplyr::rename_with(.data = sagebrush_shape_calc,
+      #                                            .fn = ~ stringr::str_replace(string = .x,
+      #                                                                         pattern = "_All_",
+      #                                                                         replacement = "_Live_"),
+      #                                            .cols = tidyselect::contains(match = "_All_"))
       lpi_indicators <- dplyr::left_join(x = lpi_indicators,
                                          y = sagebrush_shape_calc,
                                          relationship = "one-to-one",
