@@ -92,14 +92,14 @@ pct_cover_indicators <- function(lpi_tall,
 
   #### Calculating the input cover values ######################################
   # This is the minimum set of hit types to calculate for. The lapply() below
-  # will deal with the need for idfferent grouping variables.
+  # will deal with the need for different grouping variables.
   iteration_vector <- setNames(object = calc_lut$hit,
                                nm = calc_lut$hit) |>
     unique()
 
   # Get the data frames that we'll use to calculate the various indicators from.
   # This'll be a list with one index per hit type and at each index a list
-  # containing a data frame forr each set of needed grouping variables based on
+  # containing a data frame for each set of needed grouping variables based on
   # the indicator_variables list provided as an argument.
   values_list <- lapply(X = iteration_vector,
                         calc_lut = calc_lut,
