@@ -1378,7 +1378,7 @@ lpi_calc <- function(header,
   if (verbose) {
     message("Calculating total foliar cover.")
   }
-  # Rather than using pct_total_coliar_cover which currently calculates first
+  # Rather than using pct_total_foliar_cover() which currently calculates first
   # hit cover for each plant species and sums them (in context it can be more
   # efficient when calculating multiple cover types) for the sake of avoiding
   # possible rounding weirdness and also just efficiency we can use the Plant
@@ -1390,10 +1390,7 @@ lpi_calc <- function(header,
                             indicator_variables = "Plant",
                             digits = digits) |>
     dplyr::mutate(.data = _,
-                  indicator = "TotalFoliarCover") |>
-    tidyr::pivot_wider(data = _,
-                       names_from = indicator,
-                       values_from = percent)
+                  indicator = "TotalFoliarCover")
 
   ##### All other cover ########################################################
   variable_groups <- list("first" = fh_variable_groupings,
@@ -1616,7 +1613,7 @@ lpi_calc <- function(header,
   # places so we're rounding to a single decimal place.
   output <- dplyr::mutate(.data = output,
                           dplyr::across(.cols = -tidyselect::any_of(x = c("PrimaryKey",
-                                                                          "SagebrushShape_Live_Predominant")),
+                                                                          "SagebrushShape_All_Predominant")),
                                         .fns = ~ as.numeric(.x) |>
                                           tidyr::replace_na(data = _,
                                                             replace = 0) |>
