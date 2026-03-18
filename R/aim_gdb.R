@@ -571,7 +571,7 @@ build_indicators <- function(header, source,
 #' @param header Data frame or character string. The metadata for the plots involved in the calculations, this must contain the variable PrimaryKey and any of SpeciesState, State, and County. If a character string, this must point to a CSV file containing the data.
 #' @param lpi_tall  Data frame or character string. The long/tall-format LPI data for the plots involved in the calculations. The format must match the output from \code{gather_lpi()}. If a character string, this must point to a CSV file containing the data.
 #' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
-#' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param species_code_var Character string. The name of the variable in the species characteristics provided as \code{species_file} that contains the species codes. Defaults to \code{"SpeciesCode"}.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
 #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
@@ -2051,15 +2051,15 @@ spp_inventory_calc <- function(header,
   #                    height = height_tall)
   # For now, we're not including LPI or height data, but I'm leaving a stub.
   input_data <- lapply(X = list(spp_inventory_tall),
-           verbose = verbose,
-           FUN = function(X, verbose){
-             if (!is.null(X)) {
-               read_whatever(input = X,
-                             verbose = verbose)
-             } else {
-               NULL
-             }
-           }) |>
+                       verbose = verbose,
+                       FUN = function(X, verbose){
+                         if (!is.null(X)) {
+                           read_whatever(input = X,
+                                         verbose = verbose)
+                         } else {
+                           NULL
+                         }
+                       }) |>
     lapply(X =  _,
            FUN = function(X){
              if (!is.null(X)) {
@@ -2075,10 +2075,10 @@ spp_inventory_calc <- function(header,
            }) |>
     setNames(object = _,
              nm = "species")
-    # setNames(object = _,
-    #          nm = c("species",
-    #                 "lpi",
-    #                 "height"))
+  # setNames(object = _,
+  #          nm = c("species",
+  #                 "lpi",
+  #                 "height"))
 
   # Make sure any of the source data were usable and not just NULL.
   if (all(sapply(X = input_data, FUN = is.null))) {
@@ -2338,8 +2338,8 @@ spp_inventory_calc <- function(header,
   # species variables rather than just having no qualifying records in which
   # case the 0 was appropriate.
   output <- dplyr::mutate(.data = output,
-                        dplyr::across(.cols = uncalculatable_indicators,
-                                      .fns = ~ NA))
+                          dplyr::across(.cols = uncalculatable_indicators,
+                                        .fns = ~ NA))
 
   # And make sure that any PrimaryKeys from the headers without associated
   # species inventory data don't end up with 0s. I could do this above, but it's
