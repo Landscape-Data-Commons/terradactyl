@@ -1177,7 +1177,7 @@ lpi_calc <- function(header,
                                # If a record fails any of those criteria, the
                                # value in this variable will be NA.
                                Plant = dplyr::case_when(!(GrowthHabit %in% c("growthhabit_irrelevant",
-                                                                             NA)) &nchar(code) >= 3 ~ "Plant",
+                                                                             NA)) & nchar(code) >= 3 ~ "Plant",
                                                         .default = NA),
 
                                ###### chckbox ----------------------------------
@@ -1378,10 +1378,22 @@ lpi_calc <- function(header,
   if (verbose) {
     message("Calculating total foliar cover.")
   }
-  total_foliar <- pct_cover_total_foliar(lpi_tall = lpi_species,
-                                         tall = TRUE,
-                                         by_line = FALSE,
-                                         digits = digits)
+  # Rather than using pct_total_coliar_cover which currently calculates first
+  # hit cover for each plant species and sums them (in context it can be more
+  # efficient when calculating multiple cover types) for the sake of avoiding
+  # possible rounding weirdness and also just efficiency we can use the Plant
+  # variable added in the mutate() above.
+  total_foliar <- pct_cover(lpi_tall = lpi_species,
+                            tall = TRUE,
+                            hit = "any",
+                            by_line = by_line,
+                            indicator_variables = "Plant",
+                            digits = digits) |>
+    dplyr::mutate(.data = _,
+                  indicator = "TotalFoliarCover") |>
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = percent)
 
   ##### All other cover ########################################################
   variable_groups <- list("first" = fh_variable_groupings,
