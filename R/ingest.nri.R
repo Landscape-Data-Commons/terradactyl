@@ -135,24 +135,86 @@ read_nri_text <- function(table_name, dsn, DBKey = "auto", GL_schema_path) {
 
         # If this isn't a supporting table, build a PrimaryKey and
         # DBKey for each record, and add FIPSPSUPNT for use by CEAP-GL
-        if ("SURVEY" %in% colnames) {
-          data <- data %>% dplyr::mutate(
-            PrimaryKey = paste(SURVEY, STATE, COUNTY, PSU, POINT, sep = ""),
-            DBKey = file.DBKey,
-            FIPSPSUPNT = paste(STATE, COUNTY, PSU, POINT, sep = "")
-          )
-        }
-
         # if the table contains Longitude field, add - sign to indicate western
         # hemisphere
+        UID <- data.frame()
         if (all(c("FIELD_LONGITUDE", "TARGET_LONGITUDE") %in% colnames)) {
           data <- data %>%
             dplyr::mutate(
               FIELD_LONGITUDE = stringr::str_c("-", FIELD_LONGITUDE,
-                sep = ""
+                                               sep = ""
               ),
               TARGET_LONGITUDE = stringr::str_c("-", TARGET_LONGITUDE)
             )
+
+          data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
+
+
+          # pool of characters to generate the UID
+          pool <- c(0:9, letters, LETTERS)
+
+          # unqiue PSU_POINT combo shares a UID
+
+          UID_lookup <- data %>%
+            distinct(PSU_POINT) %>% #if same PSU_POINT then same UID, throw away all other cols
+            rowwise() %>%
+            mutate(UID_Value = paste(sample(pool, 28, replace = TRUE), collapse = "")) %>%
+            ungroup()
+
+          # join the lookup back to the original data to keep EVERY column including location
+          UID <- data %>%
+            left_join(UID_lookup, by = "PSU_POINT")
+
+          # drop the cols except the sensitive info
+          UID <- UID %>% dplyr::select(UID_Value, PSU_POINT, TARGET_LATITUDE, TARGET_LONGITUDE,
+                                       FIELD_LATITUDE, FIELD_LONGITUDE)
+          #keep our look up table
+
+          #instead have uid to diff path created in the funct
+          # create a dir to save nonsenesitive data to
+          sensitive_data <- file.path(path_parent, "sensitive_data")
+
+          # set up directories if not yet in parent folder
+          if(!dir.exists(sensitive_data)) dir.create(sensitive_data)
+
+          #also keep the senesitive lat lon here and remove lat lon from point
+          write.csv(UID, paste0(sensitive_data,"/UID.csv"))
+
+          # now remove the sensitive cols
+          # unique key any pattern
+          pattern <- "latitude|longitude"
+
+          # Subset the dataframe to keep only columns that DO NOT match the pattern
+          data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+        }
+
+        if ("SURVEY" %in% colnames) {
+          UID <- read.csv(paste0(path_parent,"/sensitive_data/UID.csv"))
+          data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
+
+          data <- data %>%
+            # Join ONLY the PSU_POINT and the UID_Value column
+            left_join(UID %>% select(PSU_POINT, UID_Value), by = "PSU_POINT") %>%
+            mutate(
+              PrimaryKey = paste(SURVEY, STATE, COUNTY, UID_Value, sep = ""),
+              DBKey = file.DBKey
+            ) %>%
+            select(-UID_Value)
+
+          #remove sensitive data
+          data$PSU <- NULL
+          data$POINT <- NULL
+          data$PSU_POINT <- NULL
+
+          # need to remove unique point key but has different upper or lower case and may not
+          # be in every table
+          # unique key any pattern
+          pattern <- "unique.*key" #even if has a word like point in between
+
+          # Subset the dataframe to keep only columns that DO NOT match the pattern
+          data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
         }
       }
 
