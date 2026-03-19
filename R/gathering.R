@@ -320,7 +320,11 @@ gather_all <- function(dsn = NULL,
                                                POINTCOORDINATES = data_list[["POINTCOORDINATES"]],
                                                GPS = data_list[["GPS"]],
                                                ESFSG = data_list[["ESFSG"]],
-                                               date_tables = if (is.null(date_tables)){ NULL} else {data_list[[date_tables]]},
+                                               date_tables = if (is.null(date_tables)) {
+                                                 NULL
+                                               } else {
+                                                 data_list[date_tables]
+                                               },
                                                verbose = verbose)
                                },
                                "lpi" = {
