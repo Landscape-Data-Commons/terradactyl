@@ -2119,8 +2119,8 @@ gather_height_terradat <- function(dsn = NULL,
                              }) |>
     dplyr::bind_rows()
 
-  lpi_height <- suppressWarnings(dplyr::left_join(x = lpi_heights_tall,
-                                                  y = header,
+  lpi_height <- suppressWarnings(dplyr::left_join(x = header,
+                                                  y = lpi_heights_tall,
                                                   # As per usual, not enforcing
                                                   # the relationship because
                                                   # we're letting the users move
