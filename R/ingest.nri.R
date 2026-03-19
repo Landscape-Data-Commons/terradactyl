@@ -19,6 +19,7 @@ table_name <- function(nri_path){
 # Read NRI tables
 #' Read NRI txt files using table_name
 #' @description Assign the column header to the NRI text files and save
+#' @param path_parent File path to where all output files (e.g., For Ingest) are stored
 #' @param table_name Character string of the nri table names
 #' @param dsn File path where NRI text files stored
 #' @param GL_schema_path Tables and names from NRI Grazing Land Guide
