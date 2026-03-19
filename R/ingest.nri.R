@@ -193,7 +193,7 @@ read_nri_text <- function(path_parent,table_name, dsn, DBKey = "auto", GL_schema
         }
 
         if ("SURVEY" %in% colnames) {
-          UID <- read.csv(paste0(path_parent,"/sensitive_data/UID.csv"))
+          UID <- read.csv(paste0(path_parent,"sensitive_data/UID.csv"))
           data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
 
           data <- data %>%
