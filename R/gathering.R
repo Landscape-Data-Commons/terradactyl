@@ -563,7 +563,7 @@ gather_header_terradat <- function(dsn = NULL,
   # We need to grab dates from the other tables.
   # If date_tables was provided, we'll work with that. Otherwise, we'll snag
   # them from the GDB pointed to by dsn.
-  if(!is.null(dsn) & is.null(date_tables)){
+  if (!is.null(dsn) & is.null(date_tables)) {
     available_layers <- sf::st_layers(dsn = dsn)$name
 
     desired_date_tables <- c("tblLPIHeader",
@@ -599,11 +599,11 @@ gather_header_terradat <- function(dsn = NULL,
                           })
   }
 
-  if(is.null(date_tables)){
+  if (is.null(date_tables)) {
     stop("date_tables must be provided if dsn is not. Provide a list of tables containing the variables FormDate or collectDate.")
   }
 
-  if(class(date_tables) != "list"){
+  if (class(date_tables) != "list") {
     stop("date_tables must be a list of minimum length 1. If you intend to provide a single data frame as date_tables, wrap it in list() like this: list(whatever_data_frame)")
   }
 
