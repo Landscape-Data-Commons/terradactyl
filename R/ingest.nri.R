@@ -19,7 +19,7 @@ table_name <- function(nri_path){
 # Read NRI tables
 #' Read NRI txt files using table_name
 #' @description Assign the column header to the NRI text files and save
-#' @param path_parent File path to where all output files (e.g., For Ingest) are stored
+#' @param sensitive_data File path to where all sensitive data will be stored
 #' @param table_name Character string of the nri table names
 #' @param dsn File path where NRI text files stored
 #' @param GL_schema_path Tables and names from NRI Grazing Land Guide
@@ -172,11 +172,6 @@ read_nri_text <- function(path_parent,table_name, dsn, DBKey = "auto", GL_schema
           #keep our look up table
 
           #instead have uid to diff path created in the funct
-          # create a dir to save nonsenesitive data to
-          sensitive_data <- file.path(path_parent, "sensitive_data")
-
-          # set up directories if not yet in parent folder
-          if(!dir.exists(sensitive_data)) dir.create(sensitive_data, recursive = TRUE)
 
           #also keep the senesitive lat lon here and remove lat lon from point
           uid_filepath <- file.path(sensitive_data,"UID.csv")
@@ -193,7 +188,7 @@ read_nri_text <- function(path_parent,table_name, dsn, DBKey = "auto", GL_schema
         }
 
         if ("SURVEY" %in% colnames) {
-          UID <- read.csv(file.path(path_parent,"sensitive_data/UID.csv"))
+          UID <- read.csv(file.path(sensitive_data,"UID.csv"))
           data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
 
           data <- data %>%
