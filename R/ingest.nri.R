@@ -26,7 +26,7 @@ table_name <- function(nri_path){
 #' @returns NRI files with column name assigned
 #'
 #' @export read_nri_text
-read_nri_text <- function(table_name, dsn, DBKey = "auto", GL_schema_path) {
+read_nri_text <- function(path_parent,table_name, dsn, DBKey = "auto", GL_schema_path) {
   # set up table/column names
   schema <- readxl::read_xlsx(GL_schema_path, sheet = 2) |>
     # remove TABLE names
