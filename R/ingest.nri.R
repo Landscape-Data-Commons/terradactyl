@@ -176,10 +176,10 @@ read_nri_text <- function(path_parent,table_name, dsn, DBKey = "auto", GL_schema
           sensitive_data <- file.path(path_parent, "sensitive_data")
 
           # set up directories if not yet in parent folder
-          if(!dir.exists(sensitive_data)) dir.create(sensitive_data)
+          if(!dir.exists(sensitive_data)) dir.create(sensitive_data, recursive = TRUE)
 
           #also keep the senesitive lat lon here and remove lat lon from point
-          uid_filepath <- file.path(sensitive_data,"/UID.csv")
+          uid_filepath <- file.path(sensitive_data,"UID.csv")
           UID <- as.data.frame(UID)
           write.csv(UID, uid_filepath)
 
@@ -193,7 +193,7 @@ read_nri_text <- function(path_parent,table_name, dsn, DBKey = "auto", GL_schema
         }
 
         if ("SURVEY" %in% colnames) {
-          UID <- read.csv(paste0(path_parent,"sensitive_data/UID.csv"))
+          UID <- read.csv(file.path(path_parent,"sensitive_data/UID.csv"))
           data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
 
           data <- data %>%
