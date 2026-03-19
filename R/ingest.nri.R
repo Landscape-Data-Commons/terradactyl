@@ -34,6 +34,8 @@ read_nri_text <- function(sensitive_data,table_name, dsn, DBKey = "auto", GL_sch
   table_names <- schema$`Table name` %>%
     unique() %>%
     toupper()
+# save it as a list to avoid lapply necessity anf allow uid creation
+  all_tables_list <- list()
 
   for(table in table_name){
   # read text file to table
@@ -140,51 +142,56 @@ read_nri_text <- function(sensitive_data,table_name, dsn, DBKey = "auto", GL_sch
         # hemisphere
         UID <- data.frame()
         if (all(c("FIELD_LONGITUDE", "TARGET_LONGITUDE") %in% colnames)) {
-          data <- data %>%
-            dplyr::mutate(
-              FIELD_LONGITUDE = stringr::str_c("-", FIELD_LONGITUDE,
-                                               sep = ""
-              ),
-              TARGET_LONGITUDE = stringr::str_c("-", TARGET_LONGITUDE)
-            )
-
-          data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
 
 
-          # pool of characters to generate the UID
-          pool <- c(0:9, letters, LETTERS)
-
-          # unqiue PSU_POINT combo shares a UID
-
-          UID_lookup <- data %>%
-            distinct(PSU_POINT) %>% #if same PSU_POINT then same UID, throw away all other cols
-            rowwise() %>%
-            mutate(UID_Value = paste(sample(pool, 28, replace = TRUE), collapse = "")) %>%
-            ungroup()
-
-          # join the lookup back to the original data to keep EVERY column including location
-          UID <- data %>%
-            left_join(UID_lookup, by = "PSU_POINT")
-
-          # drop the cols except the sensitive info
-          UID <- UID %>% dplyr::select(UID_Value, PSU_POINT, TARGET_LATITUDE, TARGET_LONGITUDE,
-                                       FIELD_LATITUDE, FIELD_LONGITUDE)
-          #keep our look up table
 
           #instead have uid to diff path created in the funct
 
           #also keep the senesitive lat lon here and remove lat lon from point
           uid_filepath <- file.path(sensitive_data,"UID.csv")
-          UID <- as.data.frame(UID)
-          write.csv(UID, uid_filepath)
+          if (!file.exists(uid_filepath)) {
+            data <- data %>%
+              dplyr::mutate(
+                FIELD_LONGITUDE = stringr::str_c("-", FIELD_LONGITUDE,
+                                                 sep = ""
+                ),
+                TARGET_LONGITUDE = stringr::str_c("-", TARGET_LONGITUDE)
+              )
 
-          # now remove the sensitive cols
-          # unique key any pattern
-          pattern <- "latitude|longitude"
+            data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
 
-          # Subset the dataframe to keep only columns that DO NOT match the pattern
-          data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
 
+            # pool of characters to generate the UID
+            pool <- c(0:9, letters, LETTERS)
+
+            # unqiue PSU_POINT combo shares a UID
+
+            UID_lookup <- data %>%
+              distinct(PSU_POINT) %>% #if same PSU_POINT then same UID, throw away all other cols
+              rowwise() %>%
+              mutate(UID_Value = paste(sample(pool, 28, replace = TRUE), collapse = "")) %>%
+              ungroup()
+
+            # join the lookup back to the original data to keep EVERY column including location
+            UID <- data %>%
+              left_join(UID_lookup, by = "PSU_POINT")
+
+            # drop the cols except the sensitive info
+            UID <- UID %>% dplyr::select(UID_Value, PSU_POINT, TARGET_LATITUDE, TARGET_LONGITUDE,
+                                         FIELD_LATITUDE, FIELD_LONGITUDE)
+
+            # now remove the sensitive cols
+            # unique key any pattern
+            pattern <- "latitude|longitude"
+
+            # Subset the dataframe to keep only columns that DO NOT match the pattern
+            data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+            #keep our look up table
+            # if UID DOES NOT exist, write the new lookup table
+            write.csv(UID, uid_filepath, row.names = FALSE)
+          } else {
+            message("UID file exists, no need to recreate")
+          }
         }
 
         if ("SURVEY" %in% colnames) {
@@ -219,11 +226,12 @@ read_nri_text <- function(sensitive_data,table_name, dsn, DBKey = "auto", GL_sch
       return(data)
     }
   })
+
+  all_tables_list[[table]] <- dplyr::bind_rows(table_data_list)
   }
 
-  # Merge all data from different files into a single data frame
-  df <- dplyr::bind_rows(data) %>% dplyr::distinct()
-
+  # Combine everything into one final dataframe
+  df <- dplyr::bind_rows(all_tables_list) %>% dplyr::distinct()
   return(df)
 }
 
