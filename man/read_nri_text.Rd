@@ -4,9 +4,11 @@
 \alias{read_nri_text}
 \title{Read NRI txt files using table_name}
 \usage{
-read_nri_text(table_name, dsn, DBKey = "auto", GL_schema_path)
+read_nri_text(sensitive_data, table_name, dsn, DBKey = "auto", GL_schema_path)
 }
 \arguments{
+\item{sensitive_data}{File path to where all sensitive data will be stored}
+
 \item{table_name}{Character string of the nri table names}
 
 \item{dsn}{File path where NRI text files stored}
