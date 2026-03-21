@@ -882,27 +882,27 @@ gather_header_nri <- function(dsn = NULL,
   # Get the field coordinates
   point_coordinate <- read.csv(file.path(dsn, "POINTCOORDINATES.csv"),
                                stringsAsFactors = FALSE
-  ) %>%
-    dplyr::mutate(
-      Latitude_NAD83 = dplyr::coalesce(
-        FIELD_LATITUDE,
-        TARGET_LATITUDE
-      ),
-      Longitude_NAD83 = dplyr::coalesce(
-        FIELD_LONGITUDE,
-        TARGET_LONGITUDE
-      ),
-      LocationType = dplyr::if_else(Latitude_NAD83 == TARGET_LATITUDE, "Target", "Field")
-    ) %>%
-    dplyr::select(
-      PrimaryKey,
-      Latitude_NAD83,
-      Longitude_NAD83,
-      LocationType
-    ) %>%
-    dplyr::left_join(point, .,
-                     by = "PrimaryKey"
-    )
+   )
+  #   dplyr::mutate(
+  #     Latitude_NAD83 = dplyr::coalesce(
+  #       FIELD_LATITUDE,
+  #       TARGET_LATITUDE
+  #     ),
+  #     Longitude_NAD83 = dplyr::coalesce(
+  #       FIELD_LONGITUDE,
+  #       TARGET_LONGITUDE
+  #     ),
+  #     LocationType = dplyr::if_else(Latitude_NAD83 == TARGET_LATITUDE, "Target", "Field")
+  #   ) %>%
+  #   dplyr::select(
+  #     PrimaryKey,
+  #     Latitude_NAD83,
+  #     Longitude_NAD83,
+  #     LocationType
+  #   ) %>%
+  #   dplyr::left_join(point, .,
+  #                    by = "PrimaryKey"
+  #   )
 
   # Add elevation data
   point_elevation <- read.csv(file.path(dsn, "GPS.csv"),
