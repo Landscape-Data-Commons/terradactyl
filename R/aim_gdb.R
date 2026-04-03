@@ -604,12 +604,20 @@ lpi_calc <- function(header,
   #   header <- header
   # }
 
-  header <- read_whatever(input = header,
-                          layer = NULL,
-                          regex = FALSE,
-                          best_guess = FALSE,
-                          accept_failure = FALSE,
-                          verbose = verbose)
+  # header <- read_whatever(input = header,
+  #                         layer = NULL,
+  #                         regex = FALSE,
+  #                         best_guess = FALSE,
+  #                         accept_failure = FALSE,
+  #                         verbose = verbose)
+
+  header <- read_with_fallback(dsn = header,
+                               tbl = NULL,
+                               default_name = "tblPlots",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose)
 
   # if ("character" %in% class(lpi_tall)) {
   #   if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
