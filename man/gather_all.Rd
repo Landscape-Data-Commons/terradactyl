@@ -10,6 +10,7 @@ gather_all(
   data_list = NULL,
   data_types = c("header", "lpi", "height", "gap", "soilstability", "species",
     "rangelandhealth"),
+  date_tables = NULL,
   output_filepath = NULL,
   output_filetype = c("csv", "rds"),
   verbose = FALSE
