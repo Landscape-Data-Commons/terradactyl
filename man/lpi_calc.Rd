@@ -21,7 +21,7 @@ lpi_calc(
 
 \item{species_file}{Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.}
 
-\item{species_code_var}{Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.}
+\item{species_code_var}{Character string. The name of the variable in the species characteristics provided as \code{species_file} that contains the species codes. Defaults to \code{"SpeciesCode"}.}
 
 \item{generic_species_file}{Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.}
 
