@@ -807,7 +807,8 @@ lpi_calc <- function(header,
   ###### Litter code categories ------------------------------------------------
   litter_codes <- list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
                        "WoodyLitter" = c("WL"),
-                       # "NonVegLitter" = c("HT", "NL", "AL"),
+                       # AL and OM are older NRI codes and HT is from somewhere
+                       "NonVegLitter" = c("HT", "NL", "AL", "OM"),
                        "EmbLitter" = c("EL"))
 
   ###### Rock codes ------------------------------------------------------------
@@ -1211,6 +1212,8 @@ lpi_calc <- function(header,
                                # first hit calculated without inflating things
                                Litter = dplyr::case_when(code %in% litter_codes[["HerbLitter"]] ~ "HerbLitter",
                                                          code %in% litter_codes[["WoodyLitter"]] ~ "WoodyLitter",
+                                                         # code %in% litter_codes[["NonVegLitter"]] ~ "NonVegLitter",
+                                                         # code %in% litter_codes[["EmbLitter"]] ~ "EmbLitter",
                                                          .default = "litter_irrelevant"),
 
                                ###### TotalLitter ------------------------------
