@@ -789,7 +789,7 @@ lpi_calc <- function(header,
   ###### Litter code categories ------------------------------------------------
   litter_codes <- list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
                        "WoodyLitter" = c("WL"),
-                       # "NonVegLitter" = c("HT", "NL", "AL"),
+                       "NonVegLitter" = c("HT", "NL", "AL", "OM"),
                        "EmbLitter" = c("EL"))
 
   ###### Rock codes ------------------------------------------------------------
