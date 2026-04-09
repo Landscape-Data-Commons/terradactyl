@@ -253,7 +253,7 @@ assign_pkey_nri <- function(df){
                   by = "PSU_POINT",
                   relationship = "many-to-many") %>%
         mutate(
-          PrimaryKey = paste(SURVEY, STATE, COUNTY, UID_Value, sep = "")
+          PrimaryKey = paste(UID_Value, sep = "")
         ) %>%
         select(-UID_Value)
 
