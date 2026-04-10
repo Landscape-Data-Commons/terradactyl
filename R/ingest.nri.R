@@ -176,7 +176,7 @@ assign_pkey_nri <- function(df){
         TARGET_LONGITUDE = stringr::str_c("-", TARGET_LONGITUDE)
       )
 
-    data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
+    data$PSU_POINT <- paste0(data$PSU, "_", data$POINT, "_", data$SURVEY, "_", data$STATE, "_", data$COUNTY)
 
 
     # pool of characters to generate the UID
@@ -232,6 +232,10 @@ assign_pkey_nri <- function(df){
     data$PSU <- NULL
     data$POINT <- NULL
     data$PSU_POINT <- NULL
+    data$SURVEY <- NA
+    data$STATE <- NA
+    data$COUNTY <- NA
+
 
     df$POINTCOORDINATES <- data
   }else(warning("UID csv or POINTCOORDINATES file required"))
@@ -246,7 +250,7 @@ assign_pkey_nri <- function(df){
     # create uid
     if (all(c("PSU", "POINT", "SURVEY") %in% names(data))) {
 
-      data$PSU_POINT <- paste0(data$PSU, "_", data$POINT)
+      data$PSU_POINT <- paste0(data$PSU, "_", data$POINT, "_", data$SURVEY, "_", data$STATE, "_", data$COUNTY)
 
       data <- data %>%
         left_join(UID %>% select(PSU_POINT, UID_Value),
@@ -261,6 +265,9 @@ assign_pkey_nri <- function(df){
       data$PSU <- NULL
       data$POINT <- NULL
       data$PSU_POINT <- NULL
+      data$SURVEY <- NA
+      data$STATE <- NA
+      data$COUNTY <- NA
 
       # Remove any columns matching the "unique key" pattern
       pattern <- "Combined"
