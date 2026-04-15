@@ -185,10 +185,17 @@ assign_pkey_nri <- function(df){
     # unqiue PSU_POINT combo shares a UID
 
     UID_lookup <- data %>%
-      distinct(PSU_POINT) %>% #if same PSU_POINT then same UID, throw away all other cols
+      # Keep SURVEY, STATE, and COUNTY so they are available for the mutate
+      distinct(PSU_POINT, .keep_all = TRUE) %>%
       rowwise() %>%
-      mutate(UID_Value = paste(sample(pool, 28, replace = TRUE), collapse = "")) %>%
-      ungroup()
+      mutate(
+        # Generate the 28-char random string first, then paste it to the metadata
+        RandomPart = paste(sample(pool, 28, replace = TRUE), collapse = ""),
+        UID_Value  = paste0(SURVEY, STATE, COUNTY, RandomPart)
+      ) %>%
+      ungroup() %>%
+      # Optional: keep only the mapping of PSU_POINT to your new UID
+      select(PSU_POINT, UID_Value)
 
     # join the lookup back to the original data to keep EVERY column including location
     UID <- data %>%
