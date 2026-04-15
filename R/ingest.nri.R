@@ -232,7 +232,12 @@ assign_pkey_nri <- function(df){
     data$PSU <- NULL
     data$POINT <- NULL
     data$PSU_POINT <- NULL
-
+    #fix state and county
+    data <- data %>%
+      mutate(
+        STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
+        COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
+      )
 
 
     df$POINTCOORDINATES <- data
@@ -264,6 +269,12 @@ assign_pkey_nri <- function(df){
       data$POINT <- NULL
       data$PSU_POINT <- NULL
 
+      #fix state and county
+      data <- data %>%
+        mutate(
+          STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
+          COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
+        )
 
       # Remove any columns matching the "unique key" pattern
       pattern <- "Combined"
