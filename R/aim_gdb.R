@@ -932,14 +932,16 @@ lpi_calc <- function(header,
                            "Taxaceae")
 
   ###### Lichen codes ----------------------------------------------------------
-  lichen_identifiers <- c(Lichen = "LC",
-                          Cyanobacteria = "CY",
-                          VagrLichen = "VL")
+  lichen_identifiers <- list(
+    Lichen = c("LC", "2LICHN", "2LICHN1"),
+    Cyanobacteria = "CY",
+    VagrLichen = "VL"
+  )
 
   ###### Biocrust codes --------------------------------------------------------
   biocrust_identifiers <- c("CY",
                             "LC",
-                            "M")
+                            "M","2MOSS")
 
   ###### Moss definitions ------------------------------------------------------
   # For moss cover, we need to identify species that use irregular unknown codes
