@@ -1260,9 +1260,9 @@ lpi_calc <- function(header,
                                                            .default = NA),
 
                                ###### Lichen -----------------------------------
-                               Lichen = dplyr::case_when(code %in% lichen_identifiers["Lichen"] ~ "Lichen",
-                                                         code %in% lichen_identifiers["VagrLichen"] ~ "VagrLichen",
-                                                         code %in% lichen_identifiers["Cyanobacteria"] ~ "Cyanobacteria",
+                               Lichen = dplyr::case_when(code %in% lichen_identifiers[["Lichen"]] ~ "Lichen",
+                                                         code %in% lichen_identifiers[["VagrLichen"]] ~ "VagrLichen",
+                                                         code %in% lichen_identifiers[["Cyanobacteria"]] ~ "Cyanobacteria",
                                                          .default = "lichen_irrelevant"),
 
                                ###### PJ ---------------------------------------
