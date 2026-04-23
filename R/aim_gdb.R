@@ -948,7 +948,7 @@ lpi_calc <- function(header,
   # and species that were keyed out in addition to the traditional "where does
   # 'M' occur as a surface code"
   # This will find codes like "MOSS", "M123", "MOS123", and "MOSS123"
-  unknown_moss_regex <- "^(M(OS{1,2})?\\d+)|(MOSS)$"
+  unknown_moss_regex <- "^(M(OS{1,2})?\\d+)|(2?MOSS)$"
   # In tblNationalPlants there's a variable called HigherTaxon that we can use
   # to identify which species codes are technically mosses. This is helpful
   # mostly for Alaska where they ID mosses to species, but anywhere we don't do
