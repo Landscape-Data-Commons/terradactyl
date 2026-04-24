@@ -262,14 +262,16 @@ assign_pkey_nri <- function(df){
 
       data$PSU_POINT <- paste0(data$SURVEY,data$STATE,data$COUNTY, data$PSU, data$POINT)
 
-      data <- data %>%
-        left_join(UID %>% select(PSU_POINT, UID_Value),
+      data <- dplyr::left_join(x = data,
+                               y = dplyr::select(.data = UID,
+                                                 PSU_POINT,
+                                                 UID_Value),
                   by = "PSU_POINT",
-                  relationship = "many-to-many") %>%
-        mutate(
-          PrimaryKey = paste(UID_Value, sep = "")
-        ) %>%
-        select(-UID_Value)
+                  relationship = "many-to-many") |>
+        dplry::rename(.data = _,
+                      PrimaryKey = UID_Value) |>
+        dplyr::mutate(.data = _,
+                      PrimaryKey = as.character(PrimaryKey))
 
       # remove sensitive columns
       data$PSU <- NULL
