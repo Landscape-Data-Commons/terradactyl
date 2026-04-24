@@ -1942,7 +1942,7 @@ height_calc <- function(header,
                     GrowthHabit_measured == GrowthHabit)
 
   # Because we'll calculate "Hgt_Sagebrush_Live_Avg" if we ought to.
-  if (toupper(source) %in% c("TERRADAT", "AIM")) {
+  if (sum(toupper(source) %in% c("TERRADAT", "AIM")) > 0) {
     height_species <- dplyr::mutate(.data = height_species,
                                     Chkbox = dplyr::case_when(Chkbox %in% c(0, "0") ~ "_Live",
                                                               .default = as.character(Chkbox)))
@@ -1977,7 +1977,7 @@ height_calc <- function(header,
                                    c("SG_Group"))
 
   # For TerrADat only
-  if (source %in% c("TerrADat", "AIM")) {
+  if (sum(toupper(source) %in% c("TERRADAT", "AIM")) > 0) {
     expected_indicator_variables <- c(expected_indicator_variables,
                                       "Hgt_Sagebrush_Live_Avg")
     indicator_variables_list[[length(indicator_variables_list) + 1]] <- c("SG_Group",
