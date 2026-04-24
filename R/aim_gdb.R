@@ -807,7 +807,9 @@ lpi_calc <- function(header,
   ###### Litter code categories ------------------------------------------------
   litter_codes <- list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
                        "WoodyLitter" = c("WL"),
-                       # AL and OM are older NRI codes and HT is from somewhere
+                       # AL and OM are older NRI codes and HT is from somewhere.
+                       # NonVeg and Emb aren't used for individual indicators
+                       # but are part of creating the TotalLitter variable
                        "NonVegLitter" = c("HT", "NL", "AL", "OM"),
                        "EmbLitter" = c("EL"))
 
