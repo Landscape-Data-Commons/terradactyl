@@ -19,13 +19,14 @@ table_name <- function(nri_path){
 # Read NRI tables
 #' Read NRI txt files using table_name
 #' @description Assign the column header to the NRI text files and save
+#' @param sensitive_data_path path to the folder where the sensitive PrimaryKey and UID PrimaryKey will be stored
 #' @param table_name Character string of the nri table names
 #' @param dsn File path where NRI text files stored
 #' @param GL_schema_path Tables and names from NRI Grazing Land Guide
 #' @returns NRI files with column name assigned
 #'
 #' @export read_nri_text
-read_nri_text <- function(table_name, dsn, DBKey = "auto", GL_schema_path) {
+read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", GL_schema_path) {
   # set up table/column names
   schema <- readxl::read_xlsx(GL_schema_path, sheet = 2) |>
     # remove TABLE names
@@ -148,12 +149,143 @@ read_nri_text <- function(table_name, dsn, DBKey = "auto", GL_schema_path) {
   }
 
   # Merge all data from different files into a single data frame
-  df <- dplyr::bind_rows(data) %>% dplyr::distinct() |>
-    assign_pkey_nri()
+  data_list <- dplyr::bind_rows(data) |>
+    dplyr::distinct() |>
+    assign_pkey_nri(data_list = _, sensitive_data_path = sensitive_data_path)
 
-  return(df)
+  return(data_list)
 }
 
+
+
+
+# Assign PrimaryKey to NRI
+#' Assign PrimaryKeys to nri data and remove sensitive information
+#' @description Assign PrimaryKeys to nri data and remove sensitive information
+#' @param data_list list of nri dataframes with header and data_list names assigned
+#' @returns nri data_list list with PrimaryKey
+#'
+#' @export
+
+assign_pkey_nri <- function(data_list,
+                            uid_lookup = NULL,
+                            sensitive_data_path){
+# get the UID table, can be a csv which prevents generating the UID/new PrimaryKeys
+    if (!is.null(UID)){
+    UID <- read_whatever(input = uid_lookup,
+                         layer = NULL,
+                         regex = FALSE,
+                         best_guess = TRUE,
+                         accept_failure = TRUE,
+                         verbose = FALSE)
+  } else if ("POINTCOORDINATES" %in% names(data_list)) {
+    UID <- generate_pkey_nri(POINTCOORDINATES = data$POINTCOORDINATES,
+                             sensitive_data_path = sensitive_data_path)
+  } else {
+    stop("Either uid_lookup must be provided as a filepath or data frame OR POINTCOORDINATES must be a data frame in the provided data_list.")
+  }
+
+  # Ensure POINTCOORDINATES is processed first if it exists in the list
+  if ("POINTCOORDINATES" %in% names(data_list)) {
+    data <- data_list$POINTCOORDINATES
+    data <- data %>%
+      left_join(UID %>% select(PSU_POINT, UID_Value),
+                by = "PSU_POINT",
+                relationship = "many-to-many") %>%
+      mutate(
+        PrimaryKey = paste(UID_Value, sep = "")
+      ) %>%
+      select(-UID_Value)
+
+    # now remove the sensitive cols
+    # lat lon
+    pattern <- "latitude|longitude"
+
+    # Subset the dataframe to keep only columns that DO NOT match the pattern
+    data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+    # unique key
+    pattern <- "Combined"
+
+    # Subset the dataframe to keep only columns that DO NOT match the pattern
+    data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+    # remove sensitive columns
+    data$PSU <- NULL
+    data$POINT <- NULL
+    data$PSU_POINT <- NULL
+    #fix state and county
+    data <- data %>%
+      mutate(
+        STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
+        COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
+      )
+
+
+    data_list$POINTCOORDINATES <- data
+  }
+
+
+
+  for (table in names(data_list)) {
+
+    # extract eac table
+    data <- data_list[[table]]
+
+    # create uid
+    if (all(c("PSU", "POINT", "SURVEY") %in% names(data))) {
+
+      data$PSU_POINT <- paste0(data$SURVEY,data$STATE,data$COUNTY, data$PSU, data$POINT)
+
+      data <- dplyr::left_join(x = data,
+                               y = dplyr::select(.data = UID,
+                                                 PSU_POINT,
+                                                 UID_Value),
+                               by = "PSU_POINT",
+                               relationship = "many-to-many") |>
+        dplry::rename(.data = _,
+                      PrimaryKey = UID_Value) |>
+        dplyr::mutate(.data = _,
+                      PrimaryKey = as.character(PrimaryKey)) |>
+        # Remove sensitive columns
+        dplyr::select(.data =_,
+                      -tidyselect::any_of(x = c("PSU",
+                                                "POINT",
+                                                "PSU_POINT")))
+
+      #fix state and county
+      data <- data %>%
+        mutate(
+          STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
+          COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
+        )
+
+      # Remove any columns matching the "unique key" pattern
+      pattern <- "Combined"
+      data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+      # modified data back into the original list
+      data_list[[table]] <- data
+
+    } else {
+      warning(paste("Table", table, "skipped: Missing PSU, POINT, or SURVEY columns."))
+    }
+
+  }
+  return(data_list)
+}
+
+
+
+
+# Generate PrimaryKey to NRI
+#' Generate PrimaryKeys to nri data
+#' @description Assign PrimaryKeys to every unique point in NRI data
+#' @param POINTCOORDINATES as a data frame, the POINTCOORDINATES data
+#' @param sensitive_data_path path where UID data frame with sensitive and UID PrimaryKeys is stored
+#' @returns UID file written to sensitive data path
+#'
+#' @export
 
 generate_pkey_nri <- function(POINTCOORDINATES,
                               sensitive_data_path) {
@@ -207,115 +339,4 @@ generate_pkey_nri <- function(POINTCOORDINATES,
   write.csv(UID,
             uid_filepath)
 
-  data <- data %>%
-    left_join(UID %>% select(PSU_POINT, UID_Value),
-              by = "PSU_POINT",
-              relationship = "many-to-many") %>%
-    mutate(
-      PrimaryKey = paste(UID_Value, sep = "")
-    ) %>%
-    select(-UID_Value)
-
-  # now remove the sensitive cols
-  # lat lon
-  pattern <- "latitude|longitude"
-
-  # Subset the dataframe to keep only columns that DO NOT match the pattern
-  data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
-
-  # unique key
-  pattern <- "Combined"
-
-  # Subset the dataframe to keep only columns that DO NOT match the pattern
-  data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
-
-  # remove sensitive columns
-  data$PSU <- NULL
-  data$POINT <- NULL
-  data$PSU_POINT <- NULL
-  #fix state and county
-  data <- data %>%
-    mutate(
-      STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
-      COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
-    )
-
-
-  df$POINTCOORDINATES <- data
 }
-
-
-# Assign PrimaryKey to NRI
-#' Assign PrimaryKeys to nri data and remove sensitive information
-#' @description Assign PrimaryKeys to nri data and remove sensitive information
-#' @param df list of nri dataframes with header and df names assigned
-#' @returns nri df list with PrimaryKey
-#'
-#' @export
-
-assign_pkey_nri <- function(data_list,
-                            uid_lookup = NULL,
-                            sensitive_data_path){
-  # Ensure POINTCOORDINATES is processed first if it exists in the list
-  if (!is.null(UID)){
-    UID <- read_whatever(input = uid_lookup,
-                         layer = NULL,
-                         regex = FALSE,
-                         best_guess = TRUE,
-                         accept_failure = TRUE,
-                         verbose = FALSE)
-  } else if ("POINTCOORDINATES" %in% names(df)) {
-    UID <- generate_pkey_nri(POINTCOORDINATES = data$POINTCOORDINATES,
-                             sensitive_data_path = sensitive_data_path)
-  } else {
-    stop("Either uid_lookup must be provided as a filepath or data frame OR POINTCOORDINATES must be a data frame in the provided data_list.")
-  }
-
-  for (table in names(df)) {
-
-    # extract eac table
-    data <- df[[table]]
-
-    # create uid
-    if (all(c("PSU", "POINT", "SURVEY") %in% names(data))) {
-
-      data$PSU_POINT <- paste0(data$SURVEY,data$STATE,data$COUNTY, data$PSU, data$POINT)
-
-      data <- dplyr::left_join(x = data,
-                               y = dplyr::select(.data = UID,
-                                                 PSU_POINT,
-                                                 UID_Value),
-                               by = "PSU_POINT",
-                               relationship = "many-to-many") |>
-        dplry::rename(.data = _,
-                      PrimaryKey = UID_Value) |>
-        dplyr::mutate(.data = _,
-                      PrimaryKey = as.character(PrimaryKey)) |>
-        # Remove sensitive columns
-        dplyr::select(.data =_,
-                      -tidyselect::any_of(x = c("PSU",
-                                                "POINT",
-                                                "PSU_POINT")))
-
-      #fix state and county
-      data <- data %>%
-        mutate(
-          STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
-          COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
-        )
-
-      # Remove any columns matching the "unique key" pattern
-      pattern <- "Combined"
-      data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
-
-      # modified data back into the original list
-      df[[table]] <- data
-
-    } else {
-      warning(paste("Table", table, "skipped: Missing PSU, POINT, or SURVEY columns."))
-    }
-
-  }
-  return(df)
-}
-
