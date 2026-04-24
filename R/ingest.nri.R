@@ -19,14 +19,13 @@ table_name <- function(nri_path){
 # Read NRI tables
 #' Read NRI txt files using table_name
 #' @description Assign the column header to the NRI text files and save
-#' @param sensitive_data File path to where all sensitive data will be stored
 #' @param table_name Character string of the nri table names
 #' @param dsn File path where NRI text files stored
 #' @param GL_schema_path Tables and names from NRI Grazing Land Guide
 #' @returns NRI files with column name assigned
 #'
 #' @export read_nri_text
-read_nri_text <- function(sensitive_data,table_name, dsn, DBKey = "auto", GL_schema_path) {
+read_nri_text <- function(table_name, dsn, DBKey = "auto", GL_schema_path) {
   # set up table/column names
   schema <- readxl::read_xlsx(GL_schema_path, sheet = 2) |>
     # remove TABLE names
