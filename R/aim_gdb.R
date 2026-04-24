@@ -1760,7 +1760,8 @@ gap_calc <- function(header = NULL,
 #' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
 #' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{6}.
+#' @param flatten_type Logical. If \code{TRUE} then the values in the type variable will be combined according to growth habit, e.g., \code{"lower.herbaceous"} will be converted to the broader category of \code{"herbaceous"}. Defaults to \code{FALSE}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
 #'
@@ -1773,6 +1774,8 @@ height_calc <- function(header,
                         source = NULL,
                         generic_species_file = NULL,
                         digits = 6,
+                        flatten_type = FALSE,
+                        # omit_garbage = FALSE,
                         verbose = FALSE) {
   if (verbose) {
     message("Beginning height calculations")
@@ -1910,7 +1913,16 @@ height_calc <- function(header,
                                                           .default = NA),
                                   # Get these values tuned up so we get the
                                   # expected indicator names.
-                                  type = stringr::str_to_title(string = type),
+                                  # The case_when() is to combine and use
+                                  # various lower heights in the calculations IF
+                                  # the user has asked for that.
+                                  type = if (flatten_type) {
+                                    stringr::str_extract(string = tolower(type),
+                                                         pattern = "(herbaceous)|(woody)") |>
+                                      stringr::str_to_title(string = _)
+                                  } else {
+                                    stringr::str_to_title(string = type)
+                                  },
                                   # Make sure that Noxious actually reflects the
                                   # assigned status for the state.
                                   Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
@@ -1937,9 +1949,34 @@ height_calc <- function(header,
     # This is the bit that keeps records where the species was NA but there was
     # a height recorded OR the GrowthHabit as recorded matches the species info
     # added by species_join().
-    dplyr::filter(.data = _,
-                  is.na(Species) & !is.na(Height) |
-                    GrowthHabit_measured == GrowthHabit)
+    # THIS IS DISABLED AS OF 2026-03-31 in favor of only excluding them from
+    # the woody and herbaceous height calculations
+    # dplyr::filter(.data = _,
+    #               is.na(Species) & !is.na(Height) |
+    #                 GrowthHabit_measured == GrowthHabit) |>
+    # This flags records for inclusion in specifically the calculations based on
+    # the type of record the height was in the form.
+    # If a record had a height without a species code (common in older data) OR
+    # the type and the "official" growth habit for the code match, those get
+    # included in the woody and herbaceous height calculations.
+    # All other height calculations based on the other variables include records
+    # without considering this.
+    dplyr::mutate(.data = _,
+                  include = (is.na(Species) & !is.na(Height)) |
+                    GrowthHabit_measured == GrowthHabit,
+                  # include = TRUE
+                  )
+
+
+  # if (omit_garbage) {
+  #   height_species <- dplyr::filter(.data = height_species,
+  #                                   GrowthHabit_measured == GrowthHabit |
+  #                                     (is.na(Species) & !is.na(Height)),
+  #   )
+  # }
+
+
+
 
   # Because we'll calculate "Hgt_Sagebrush_Live_Avg" if we ought to.
   if (sum(toupper(source) %in% c("TERRADAT", "AIM")) > 0) {
@@ -1994,7 +2031,20 @@ height_calc <- function(header,
                                                  collapse = ", "))
                                  }
 
-                                 mean_height(height_tall = height_species,
+                                 # This is the second part of the bit above that
+                                 # adds the "include" variable. If the grouping
+                                 # involves the variable "type" then we'll
+                                 # restrict the records fed in to only those
+                                 # flagged TRUE.
+                                 # if ("type" %in% X) {
+                                 #   if (verbose) {
+                                 #     message("The current set of indicator variables includes 'type' so only records where the values for the type and GrowthHabit variables are the same.")
+                                 #   }
+                                   height_species <- dplyr::filter(.data = height_species,
+                                                                   include)
+                                 # }
+
+                                 output <- mean_height(height_tall = height_species,
                                              method = "mean",
                                              tall = TRUE,
                                              indicator_variables = X,
@@ -2006,6 +2056,8 @@ height_calc <- function(header,
                                                    paste0("Hgt_",
                                                           . = _,
                                                           "_Avg"))
+
+                                 output
                                })
 
   output <- dplyr::bind_rows(height_values_list) |>
