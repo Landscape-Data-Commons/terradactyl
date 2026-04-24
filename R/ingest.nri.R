@@ -35,126 +35,215 @@ read_nri_text <- function(sensitive_data,table_name, dsn, DBKey = "auto", GL_sch
     unique() %>%
     toupper()
 
-  for(table in table_name){
-  # read text file to table
-  data <- lapply(X = dsn, function(X) {
-    # set the DBKey, if "auto" we'll populate from the folder. Otherwise, we'll use the text specified.
-    file.DBKey <- basename(X)
+  for (table in table_name) {
+    # read text file to table
+    data <- lapply(X = dsn,
+                   FUN = function(X) {
+                     # set the DBKey, if "auto" we'll populate from the folder. Otherwise, we'll use the text specified.
+                     file.DBKey <- basename(X)
 
-    # specify file
-    file <- paste(X, tolower(table), ".txt", sep = "")
+                     # specify file
+                     file <- paste(X, tolower(table), ".txt", sep = "")
 
-    # Check that the file exists
-    if (!file.exists(file)) {
-      # if the dsn doesn't exist
-      warning(paste("Table", tolower(table_name)), " does not exist in ", X)
-      return(data.frame())
-    } else {
+                     # Check that the file exists
+                     if (!file.exists(file)) {
+                       # if the dsn doesn't exist
+                       warning(paste("Table", tolower(table_name)), " does not exist in ", X)
+                       return(data.frame())
+                     } else {
 
-      # Read the table from the dsn
-      # Set the colClasses, which is the in nri.column.explanations
-      colClasses <- schema %>%
-        subset(`Table name` == toupper(table_name),
-          select = `Data type`
-        ) %>%
-        unlist() %>%
-        as.vector()
+                       # Read the table from the dsn
+                       # Set the colClasses, which is the in nri.column.explanations
+                       colClasses <- schema %>%
+                         subset(`Table name` == toupper(table_name),
+                                select = `Data type`
+                         ) %>%
+                         unlist() %>%
+                         as.vector()
 
-      # Add NA for an extra field that may be added because of an extra separator column
-      field.count <- max(readr::count_fields(
-        file = file,
-        tokenizer = readr::tokenizer_delim("|")
-      ))
-      base_length <- length(colClasses)
+                       # Add NA for an extra field that may be added because of an extra separator column
+                       field.count <- max(readr::count_fields(
+                         file = file,
+                         tokenizer = readr::tokenizer_delim("|")
+                       ))
+                       base_length <- length(colClasses)
 
-      # There may be more or fewer columns than expected by the explanations
-      # Adjust accordingly by adding NA columns if there are more fields in the
-      # file than expected or subsetting if fewer
-      if (field.count < base_length) {
-        warning(
-          "Table ", X,
-          " cannot be read in because it does not have the expected number of fields"
-        )
-        return(data.frame())
-      } else {
-        colClasses <- c(
-          colClasses,
-          rep(times = max(field.count - base_length, 0), NA)
-        )
+                       # There may be more or fewer columns than expected by the explanations
+                       # Adjust accordingly by adding NA columns if there are more fields in the
+                       # file than expected or subsetting if fewer
+                       if (field.count < base_length) {
+                         warning(
+                           "Table ", X,
+                           " cannot be read in because it does not have the expected number of fields"
+                         )
+                         return(data.frame())
+                       } else {
+                         colClasses <- c(
+                           colClasses,
+                           rep(times = max(field.count - base_length, 0), NA)
+                         )
 
-        # Read the text file
-        data <- read.delim(
-          file = file,
-          stringsAsFactors = FALSE,
-          strip.white = TRUE,
-          header = FALSE,
-          # colClasses = colClasses,
-          sep = "|",
-          flush = TRUE,
-          na.strings = c("", "."), quote = ""
-        ) # Na strings may be blank or periods
+                         # Read the text file
+                         data <- read.delim(
+                           file = file,
+                           stringsAsFactors = FALSE,
+                           strip.white = TRUE,
+                           header = FALSE,
+                           # colClasses = colClasses,
+                           sep = "|",
+                           flush = TRUE,
+                           na.strings = c("", "."), quote = ""
+                         ) # Na strings may be blank or periods
 
-        # Add field names
-        # Get the field names for the appropriate table as a vector
-        colnames <- schema %>%
-          subset(`Table name` == toupper(table_name) & `Field name` != "TABLE",# & DBKey == file.DBKey,
-            select = `Field name`
-          ) %>%
-          unlist() %>%
-          as.vector()
-        # Subset the colnames to the length of the field names for the data
-        colnames <- colnames[1:ncol(data)] %>% na.omit()
-        # Assign field names
-        names(data) <- colnames
+                         # Add field names
+                         # Get the field names for the appropriate table as a vector
+                         colnames <- schema %>%
+                           subset(`Table name` == toupper(table_name) & `Field name` != "TABLE",# & DBKey == file.DBKey,
+                                  select = `Field name`
+                           ) %>%
+                           unlist() %>%
+                           as.vector()
+                         # Subset the colnames to the length of the field names for the data
+                         colnames <- colnames[1:ncol(data)] %>% na.omit()
+                         # Assign field names
+                         names(data) <- colnames
 
-        # If there is an NA field at the end, because there is an extra "|" at
-        # the end of the file, let's remove it
-        data <- data[, !is.na(colnames(data))]
+                         # If there is an NA field at the end, because there is an extra "|" at
+                         # the end of the file, let's remove it
+                         data <- data[, !is.na(colnames(data))]
 
-        # If there is a STATE field, make sure it is 2 digits by adding leading 0
-        if ("STATE" %in% colnames) {
-          data <- data %>%
-            dplyr::mutate(STATE = stringr::str_pad(
-              string = STATE,
-              width = 2,
-              side = "left",
-              pad = "0"
-            ))
-        }
+                         # If there is a STATE field, make sure it is 2 digits by adding leading 0
+                         if ("STATE" %in% colnames) {
+                           data <- data %>%
+                             dplyr::mutate(STATE = stringr::str_pad(
+                               string = STATE,
+                               width = 2,
+                               side = "left",
+                               pad = "0"
+                             ))
+                         }
 
-        # If there is a COUNTY field, make sure it is 3 digits by adding leading 0
-        if ("COUNTY" %in% colnames) {
-          data <- data %>%
-            dplyr::mutate(COUNTY = stringr::str_pad(
-              string = COUNTY,
-              width = 3,
-              side = "left",
-              pad = "0"
-            ))
-        }
+                         # If there is a COUNTY field, make sure it is 3 digits by adding leading 0
+                         if ("COUNTY" %in% colnames) {
+                           data <- data %>%
+                             dplyr::mutate(COUNTY = stringr::str_pad(
+                               string = COUNTY,
+                               width = 3,
+                               side = "left",
+                               pad = "0"
+                             ))
+                         }
 
 
-        if ("SURVEY" %in% colnames) {
-          data <- data %>%
-            mutate(
-              DBKey = file.DBKey
-            )
-        }
-      }
+                         if ("SURVEY" %in% colnames) {
+                           data <- data %>%
+                             mutate(
+                               DBKey = file.DBKey
+                             )
+                         }
+                       }
 
-      return(data)
-    }
-  })
+                       return(data)
+                     }
+                   })
   }
 
   # Merge all data from different files into a single data frame
-  df <- dplyr::bind_rows(data) %>% dplyr::distinct()
+  df <- dplyr::bind_rows(data) %>% dplyr::distinct() |>
+    assign_pkey_nri()
 
   return(df)
 }
 
 
+generate_pkey_nri <- function(POINTCOORDINATES,
+                              sensitive_data_path) {
+  data <- dplyr::mutate(.data = POINTCOORDINATES,
+                        FIELD_LONGITUDE = stringr::str_c("-", FIELD_LONGITUDE,
+                                                         sep = ""),
+                        TARGET_LONGITUDE = stringr::str_c("-", TARGET_LONGITUDE)) |>
+    tidyr::unite(data = _,
+                 col = PSU_POINT,
+                 tidyselect::all_of(x = c("SURVEY",
+                                          "STATE",
+                                          "COUNTY",
+                                          "PSU",
+                                          "POINT")),
+                 remove = FALSE)
 
+
+  # pool of characters to generate the UID
+  pool <- c(0:9, letters, LETTERS)
+
+  # unqiue PSU_POINT combo shares a UID
+
+  UID_lookup <- data %>%
+    # Keep SURVEY, STATE, and COUNTY so they are available for the mutate
+    distinct(PSU_POINT, .keep_all = TRUE) %>%
+    rowwise() %>%
+    mutate(
+      # Generate the 28-char random string first, then paste it to the metadata
+      RandomPart = paste(sample(pool, 28, replace = TRUE), collapse = ""),
+      UID_Value  = paste0(SURVEY, STATE, COUNTY, RandomPart)
+    ) %>%
+    ungroup() %>%
+    # Optional: keep only the mapping of PSU_POINT to your new UID
+    select(PSU_POINT, UID_Value)
+
+  # join the lookup back to the original data to keep EVERY column including location
+  UID <- data %>%
+    left_join(UID_lookup, by = "PSU_POINT")
+
+  # drop the cols except the sensitive info
+  UID <- UID %>% dplyr::select(UID_Value, PSU_POINT, TARGET_LATITUDE, TARGET_LONGITUDE,
+                               FIELD_LATITUDE, FIELD_LONGITUDE)
+  #keep our look up table
+
+  #instead have uid to diff path created in the funct
+
+  #also keep the senesitive lat lon here and remove lat lon from point
+  uid_filepath <- file.path(sensitive_data_path,
+                            "UID.csv")
+  UID <- as.data.frame(UID)
+  write.csv(UID,
+            uid_filepath)
+
+  data <- data %>%
+    left_join(UID %>% select(PSU_POINT, UID_Value),
+              by = "PSU_POINT",
+              relationship = "many-to-many") %>%
+    mutate(
+      PrimaryKey = paste(UID_Value, sep = "")
+    ) %>%
+    select(-UID_Value)
+
+  # now remove the sensitive cols
+  # lat lon
+  pattern <- "latitude|longitude"
+
+  # Subset the dataframe to keep only columns that DO NOT match the pattern
+  data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+  # unique key
+  pattern <- "Combined"
+
+  # Subset the dataframe to keep only columns that DO NOT match the pattern
+  data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+  # remove sensitive columns
+  data$PSU <- NULL
+  data$POINT <- NULL
+  data$PSU_POINT <- NULL
+  #fix state and county
+  data <- data %>%
+    mutate(
+      STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
+      COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
+    )
+
+
+  df$POINTCOORDINATES <- data
+}
 
 
 # Assign PrimaryKey to NRI
@@ -165,92 +254,23 @@ read_nri_text <- function(sensitive_data,table_name, dsn, DBKey = "auto", GL_sch
 #'
 #' @export
 
-assign_pkey_nri <- function(df){
+assign_pkey_nri <- function(data_list,
+                            uid_lookup = NULL,
+                            sensitive_data_path){
   # Ensure POINTCOORDINATES is processed first if it exists in the list
-  if ("POINTCOORDINATES" %in% names(df)) {
-    data <- df$POINTCOORDINATES %>%
-      dplyr::mutate(
-        FIELD_LONGITUDE = stringr::str_c("-", FIELD_LONGITUDE,
-                                         sep = ""
-        ),
-        TARGET_LONGITUDE = stringr::str_c("-", TARGET_LONGITUDE)
-      )
-
-    data$PSU_POINT <- paste0(data$SURVEY,data$STATE,data$COUNTY, data$PSU, data$POINT )
-
-
-    # pool of characters to generate the UID
-    pool <- c(0:9, letters, LETTERS)
-
-    # unqiue PSU_POINT combo shares a UID
-
-    UID_lookup <- data %>%
-      # Keep SURVEY, STATE, and COUNTY so they are available for the mutate
-      distinct(PSU_POINT, .keep_all = TRUE) %>%
-      rowwise() %>%
-      mutate(
-        # Generate the 28-char random string first, then paste it to the metadata
-        RandomPart = paste(sample(pool, 28, replace = TRUE), collapse = ""),
-        UID_Value  = paste0(SURVEY, STATE, COUNTY, RandomPart)
-      ) %>%
-      ungroup() %>%
-      # Optional: keep only the mapping of PSU_POINT to your new UID
-      select(PSU_POINT, UID_Value)
-
-    # join the lookup back to the original data to keep EVERY column including location
-    UID <- data %>%
-      left_join(UID_lookup, by = "PSU_POINT")
-
-    # drop the cols except the sensitive info
-    UID <- UID %>% dplyr::select(UID_Value, PSU_POINT, TARGET_LATITUDE, TARGET_LONGITUDE,
-                                 FIELD_LATITUDE, FIELD_LONGITUDE)
-    #keep our look up table
-
-    #instead have uid to diff path created in the funct
-
-    #also keep the senesitive lat lon here and remove lat lon from point
-    uid_filepath <- file.path(sensitive_data,"UID.csv")
-    UID <- as.data.frame(UID)
-    write.csv(UID, uid_filepath)
-
-    data <- data %>%
-      left_join(UID %>% select(PSU_POINT, UID_Value),
-                by = "PSU_POINT",
-                relationship = "many-to-many") %>%
-      mutate(
-        PrimaryKey = paste(UID_Value, sep = "")
-      ) %>%
-      select(-UID_Value)
-
-    # now remove the sensitive cols
-    # lat lon
-    pattern <- "latitude|longitude"
-
-    # Subset the dataframe to keep only columns that DO NOT match the pattern
-    data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
-
-    # unique key
-    pattern <- "Combined"
-
-    # Subset the dataframe to keep only columns that DO NOT match the pattern
-    data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
-
-    # remove sensitive columns
-    data$PSU <- NULL
-    data$POINT <- NULL
-    data$PSU_POINT <- NULL
-    #fix state and county
-    data <- data %>%
-      mutate(
-        STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
-        COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
-      )
-
-
-    df$POINTCOORDINATES <- data
-  }else(warning("UID csv or POINTCOORDINATES file required"))
-
-  UID <- read.csv(file.path(sensitive_data, "UID.csv"))
+  if (!is.null(UID)){
+    UID <- read_whatever(input = uid_lookup,
+                         layer = NULL,
+                         regex = FALSE,
+                         best_guess = TRUE,
+                         accept_failure = TRUE,
+                         verbose = FALSE)
+  } else if ("POINTCOORDINATES" %in% names(df)) {
+    UID <- generate_pkey_nri(POINTCOORDINATES = data$POINTCOORDINATES,
+                             sensitive_data_path = sensitive_data_path)
+  } else {
+    stop("Either uid_lookup must be provided as a filepath or data frame OR POINTCOORDINATES must be a data frame in the provided data_list.")
+  }
 
   for (table in names(df)) {
 
@@ -266,17 +286,17 @@ assign_pkey_nri <- function(df){
                                y = dplyr::select(.data = UID,
                                                  PSU_POINT,
                                                  UID_Value),
-                  by = "PSU_POINT",
-                  relationship = "many-to-many") |>
+                               by = "PSU_POINT",
+                               relationship = "many-to-many") |>
         dplry::rename(.data = _,
                       PrimaryKey = UID_Value) |>
         dplyr::mutate(.data = _,
-                      PrimaryKey = as.character(PrimaryKey))
-
-      # remove sensitive columns
-      data$PSU <- NULL
-      data$POINT <- NULL
-      data$PSU_POINT <- NULL
+                      PrimaryKey = as.character(PrimaryKey)) |>
+        # Remove sensitive columns
+        dplyr::select(.data =_,
+                      -tidyselect::any_of(x = c("PSU",
+                                                "POINT",
+                                                "PSU_POINT")))
 
       #fix state and county
       data <- data %>%
