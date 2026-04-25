@@ -240,6 +240,7 @@ assign_pkey_nri <- function(data_list,
       # Subset the dataframe to keep only columns that DO NOT match the pattern
       data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
 
+      data_list[[table]] <- data
 
 
     } else {
