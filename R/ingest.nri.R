@@ -162,13 +162,14 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
 #' Assign PrimaryKeys to nri data and remove sensitive information
 #' @description Assign PrimaryKeys to nri data and remove sensitive information
 #' @param data_list list of nri dataframes with header and data_list names assigned
+#' @param sensitive_data file path to folder where UID with original PrimaryKeys and locations will be stored
 #' @returns nri data_list list with PrimaryKey
 #'
 #' @export
 
 assign_pkey_nri <- function(data_list,
                             uid_lookup = NULL,
-                            sensitive_data_path){
+                            sensitive_data){
 # get the UID table, can be a csv which prevents generating the UID/new PrimaryKeys
     if (!is.null(uid_lookup)){
     UID <- read_whatever(input = uid_lookup,
@@ -179,7 +180,7 @@ assign_pkey_nri <- function(data_list,
                          verbose = FALSE)
   } else if ("POINTCOORDINATES" %in% names(data_list)) {
     generate_pkey_nri(POINTCOORDINATES = data_list$POINTCOORDINATES,
-                             sensitive_data_path = sensitive_data_path)
+                             sensitive_data_path = sensitive_data)
     UID <- read_whatever(input = paste0(sensitive_data_path,"UID.csv"),
                          layer = NULL,
                          regex = FALSE,
