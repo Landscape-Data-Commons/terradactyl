@@ -4,10 +4,12 @@
 \alias{assign_pkey_nri}
 \title{Assign PrimaryKeys to nri data and remove sensitive information}
 \usage{
-assign_pkey_nri(data_list, uid_lookup = NULL, sensitive_data_path)
+assign_pkey_nri(data_list, uid_lookup = NULL, sensitive_data)
 }
 \arguments{
 \item{data_list}{list of nri dataframes with header and data_list names assigned}
+
+\item{sensitive_data}{file path to folder where UID with original PrimaryKeys and locations will be stored}
 }
 \value{
 nri data_list list with PrimaryKey

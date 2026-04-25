@@ -31,8 +31,8 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
   schema <- readxl::read_xlsx(GL_schema_path, sheet = 2) |>
     # remove TABLE names
     subset(`Field name` !="TABLE")
-  table_names <- schema$`Table name` %>%
-    unique() %>%
+  table_names <- schema$`Table name` |>
+    unique() |>
     toupper()
 
   for (table in table_name) {
@@ -54,11 +54,11 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
 
                        # Read the table from the dsn
                        # Set the colClasses, which is the in nri.column.explanations
-                       colClasses <- schema %>%
+                       colClasses <- schema |>
                          subset(`Table name` == toupper(table_name),
                                 select = `Data type`
-                         ) %>%
-                         unlist() %>%
+                         ) |>
+                         unlist() |>
                          as.vector()
 
                        # Add NA for an extra field that may be added because of an extra separator column
@@ -97,14 +97,14 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
 
                          # Add field names
                          # Get the field names for the appropriate table as a vector
-                         colnames <- schema %>%
+                         colnames <- schema |>
                            subset(`Table name` == toupper(table_name) & `Field name` != "TABLE",# & DBKey == file.DBKey,
                                   select = `Field name`
-                           ) %>%
-                           unlist() %>%
+                           ) |>
+                           unlist() |>
                            as.vector()
                          # Subset the colnames to the length of the field names for the data
-                         colnames <- colnames[1:ncol(data)] %>% na.omit()
+                         colnames <- colnames[1:ncol(data)] |> na.omit()
                          # Assign field names
                          names(data) <- colnames
 
@@ -114,7 +114,7 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
 
                          # If there is a STATE field, make sure it is 2 digits by adding leading 0
                          if ("STATE" %in% colnames) {
-                           data <- data %>%
+                           data <- data |>
                              dplyr::mutate(STATE = stringr::str_pad(
                                string = STATE,
                                width = 2,
@@ -125,7 +125,7 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
 
                          # If there is a COUNTY field, make sure it is 3 digits by adding leading 0
                          if ("COUNTY" %in% colnames) {
-                           data <- data %>%
+                           data <- data |>
                              dplyr::mutate(COUNTY = stringr::str_pad(
                                string = COUNTY,
                                width = 3,
@@ -136,7 +136,7 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
 
 
                          if ("SURVEY" %in% colnames) {
-                           data <- data %>%
+                           data <- data |>
                              mutate(
                                DBKey = file.DBKey
                              )
@@ -170,8 +170,8 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
 assign_pkey_nri <- function(data_list,
                             uid_lookup = NULL,
                             sensitive_data){
-# get the UID table, can be a csv which prevents generating the UID/new PrimaryKeys
-    if (!is.null(uid_lookup)){
+  # get the UID table, can be a csv which prevents generating the UID/new PrimaryKeys
+  if (!is.null(uid_lookup)){
     UID <- read_whatever(input = uid_lookup,
                          layer = NULL,
                          regex = FALSE,
@@ -180,8 +180,8 @@ assign_pkey_nri <- function(data_list,
                          verbose = FALSE)
   } else if ("POINTCOORDINATES" %in% names(data_list)) {
     generate_pkey_nri(POINTCOORDINATES = data_list$POINTCOORDINATES,
-                             sensitive_data_path = sensitive_data)
-    UID <- read_whatever(input = paste0(sensitive_data_path,"UID.csv"),
+                      sensitive_data = sensitive_data)
+    UID <- read_whatever(input = paste0(sensitive_data,"/UID.csv"),
                          layer = NULL,
                          regex = FALSE,
                          best_guess = TRUE,
@@ -198,7 +198,7 @@ assign_pkey_nri <- function(data_list,
 
     # extract eac table
     data <- data_list[[table]]
-
+    #data <- data_list[["ALTWOODY"]]
     # create uid
     if (all(c("PSU", "POINT", "SURVEY") %in% names(data))) {
 
@@ -210,7 +210,7 @@ assign_pkey_nri <- function(data_list,
                                                  UID_Value),
                                by = "PSU_POINT",
                                relationship = "many-to-many") |>
-        dplry::rename(.data = _,
+        dplyr::rename(.data = _,
                       PrimaryKey = UID_Value) |>
         dplyr::mutate(.data = _,
                       PrimaryKey = as.character(PrimaryKey)) |>
@@ -221,7 +221,7 @@ assign_pkey_nri <- function(data_list,
                                                 "PSU_POINT")))
 
       #fix state and county
-      data <- data %>%
+      data <- data |>
         mutate(
           STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
           COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
@@ -240,11 +240,6 @@ assign_pkey_nri <- function(data_list,
       # Subset the dataframe to keep only columns that DO NOT match the pattern
       data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
 
-      # unique key
-      pattern <- "Combined"
-
-      # Subset the dataframe to keep only columns that DO NOT match the pattern
-      data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
 
 
     } else {
@@ -254,6 +249,7 @@ assign_pkey_nri <- function(data_list,
   }
   return(data_list)
 }
+
 
 
 
@@ -280,6 +276,7 @@ generate_pkey_nri <- function(POINTCOORDINATES,
                                           "COUNTY",
                                           "PSU",
                                           "POINT")),
+                 sep = "",
                  remove = FALSE)
 
 
@@ -288,25 +285,25 @@ generate_pkey_nri <- function(POINTCOORDINATES,
 
   # unqiue PSU_POINT combo shares a UID
 
-  UID_lookup <- data %>%
+  UID_lookup <- data |>
     # Keep SURVEY, STATE, and COUNTY so they are available for the mutate
-    distinct(PSU_POINT, .keep_all = TRUE) %>%
-    rowwise() %>%
+    distinct(PSU_POINT, .keep_all = TRUE) |>
+    rowwise() |>
     mutate(
       # Generate the 28-char random string first, then paste it to the metadata
       RandomPart = paste(sample(pool, 28, replace = TRUE), collapse = ""),
       UID_Value  = paste0(SURVEY, STATE, COUNTY, RandomPart)
-    ) %>%
-    ungroup() %>%
+    ) |>
+    ungroup() |>
     # Optional: keep only the mapping of PSU_POINT to your new UID
     select(PSU_POINT, UID_Value)
 
   # join the lookup back to the original data to keep EVERY column including location
-  UID <- data %>%
+  UID <- data |>
     left_join(UID_lookup, by = "PSU_POINT")
 
   # drop the cols except the sensitive info
-  UID <- UID %>% dplyr::select(UID_Value, PSU_POINT, TARGET_LATITUDE, TARGET_LONGITUDE,
+  UID <- UID |> dplyr::select(UID_Value, PSU_POINT, TARGET_LATITUDE, TARGET_LONGITUDE,
                                FIELD_LATITUDE, FIELD_LONGITUDE)
   #keep our look up table
 
