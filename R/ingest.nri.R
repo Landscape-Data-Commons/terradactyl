@@ -150,8 +150,7 @@ read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", 
 
   # Merge all data from different files into a single data frame
   data_list <- dplyr::bind_rows(data) |>
-    dplyr::distinct() |>
-    assign_pkey_nri(data_list = _, sensitive_data_path = sensitive_data_path)
+    dplyr::distinct()
 
   return(data_list)
 }
@@ -171,7 +170,7 @@ assign_pkey_nri <- function(data_list,
                             uid_lookup = NULL,
                             sensitive_data_path){
 # get the UID table, can be a csv which prevents generating the UID/new PrimaryKeys
-    if (!is.null(UID)){
+    if (!is.null(uid_lookup)){
     UID <- read_whatever(input = uid_lookup,
                          layer = NULL,
                          regex = FALSE,
@@ -179,51 +178,18 @@ assign_pkey_nri <- function(data_list,
                          accept_failure = TRUE,
                          verbose = FALSE)
   } else if ("POINTCOORDINATES" %in% names(data_list)) {
-    UID <- generate_pkey_nri(POINTCOORDINATES = data$POINTCOORDINATES,
+    generate_pkey_nri(POINTCOORDINATES = data_list$POINTCOORDINATES,
                              sensitive_data_path = sensitive_data_path)
+    UID <- read_whatever(input = paste0(sensitive_data_path,"UID.csv"),
+                         layer = NULL,
+                         regex = FALSE,
+                         best_guess = TRUE,
+                         accept_failure = TRUE,
+                         verbose = FALSE)
   } else {
     stop("Either uid_lookup must be provided as a filepath or data frame OR POINTCOORDINATES must be a data frame in the provided data_list.")
   }
 
-  # Ensure POINTCOORDINATES is processed first if it exists in the list
-  if ("POINTCOORDINATES" %in% names(data_list)) {
-    data <- data_list$POINTCOORDINATES
-    data <- data %>%
-      left_join(UID %>% select(PSU_POINT, UID_Value),
-                by = "PSU_POINT",
-                relationship = "many-to-many") %>%
-      mutate(
-        PrimaryKey = paste(UID_Value, sep = "")
-      ) %>%
-      select(-UID_Value)
-
-    # now remove the sensitive cols
-    # lat lon
-    pattern <- "latitude|longitude"
-
-    # Subset the dataframe to keep only columns that DO NOT match the pattern
-    data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
-
-    # unique key
-    pattern <- "Combined"
-
-    # Subset the dataframe to keep only columns that DO NOT match the pattern
-    data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
-
-    # remove sensitive columns
-    data$PSU <- NULL
-    data$POINT <- NULL
-    data$PSU_POINT <- NULL
-    #fix state and county
-    data <- data %>%
-      mutate(
-        STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
-        COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
-      )
-
-
-    data_list$POINTCOORDINATES <- data
-  }
 
 
 
@@ -266,6 +232,19 @@ assign_pkey_nri <- function(data_list,
 
       # modified data back into the original list
       data_list[[table]] <- data
+      # now remove the sensitive cols
+      # lat lon
+      pattern <- "latitude|longitude"
+
+      # Subset the dataframe to keep only columns that DO NOT match the pattern
+      data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+      # unique key
+      pattern <- "Combined"
+
+      # Subset the dataframe to keep only columns that DO NOT match the pattern
+      data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
 
     } else {
       warning(paste("Table", table, "skipped: Missing PSU, POINT, or SURVEY columns."))
