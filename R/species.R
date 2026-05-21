@@ -43,16 +43,16 @@ species_read_aim <- function(dsn,
   if (!(tools::file_ext(dsn) %in% c("GDB", "gdb"))) {
     stop("dsn must be a character string specifying the filepath to a geodatabase containing tables called 'tblNationalPlants' and 'tblStateSpecies'.")
   }
-  required_tables <- c("tblNationalPlants",
-                       "tblStateSpecies")
-  available_layers <- sf::st_layers(dsn = dsn)$name
-  missing_tables <- setdiff(x = required_tables,
-                            y = available_layers)
-  if (length(missing_tables) > 0) {
-    stop(paste0("The following tables are required but do not exist in the specified geodatabase: ",
-                paste(missing_tables,
-                      collapse = ", ")))
-  }
+  # required_tables <- c("tblNationalPlants",
+  #                      "tblStateSpecies")
+  # available_layers <- sf::st_layers(dsn = dsn)$name
+  # missing_tables <- setdiff(x = required_tables,
+  #                           y = available_layers)
+  # if (length(missing_tables) > 0) {
+  #   stop(paste0("The following tables are required but do not exist in the specified geodatabase: ",
+  #               paste(missing_tables,
+  #                     collapse = ", ")))
+  # }
 
   #### Reading #################################################################
   # This is way more complicated now that we're working with tblNationalPlants
@@ -335,7 +335,7 @@ generic_growth_habits <- function(data,
 #'
 species_join <- function(data, # field data,
                          data_code = "code", # Species field in the data
-                         species_file, # path to .csv or .gdb holding  the species table
+                         species_file,
                          species_layer = "tblNationalPlants",
                          species_code = "NameCode", # field name in species file that identifies the species code
                          species_growth_habit_code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
