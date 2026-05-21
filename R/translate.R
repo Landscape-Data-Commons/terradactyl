@@ -1,6 +1,6 @@
 # #### TESTING #######
 #
-# stipa_data_example_path <- "C:/Users/Nelson.Stauffer/OneDrive - USDA/Documents/Projects/terradactyl/testing/stipa_lpi_qc_feb2026/data"
+# stipa_data_example_path <- "~/Projects/terradactyl/testing/stipa_lpi_qc_feb2026/data"
 #
 # # Get the list of all the Stipa text files
 # # Combine them into a single data frame
