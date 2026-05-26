@@ -751,7 +751,9 @@ lpi_calc <- function(header,
                                 c("Litter"),
                                 c("Lichen"),
                                 c("TotalLitter"),
-                                c("Moss"))
+                                c("Moss"),
+                                c("Duff"),
+                                c("Water"))
   ah_variable_groupings <- list(c("GrowthHabit"),
                                 c("GrowthHabitSub"),
                                 c("Duration", "GrowthHabit"),
@@ -778,7 +780,9 @@ lpi_calc <- function(header,
                                 c("Moss"),
                                 c("Rock"),
                                 c("Biocrust"),
-                                c("Lichen"))
+                                c("Lichen"),
+                                c("Duff"),
+                                c("Water"))
   basal_variable_groupings <- list(c("Duration", "Grass"),
                                    c("Plant"))
 
@@ -1193,8 +1197,20 @@ lpi_calc <- function(header,
                                # For the litter cover
                                # The "irrelevant" values are so that we can get
                                # first hit calculated without inflating things
+                               ###### Litter -----------------------------------
+
+                               # For the litter cover
+
+                               # The "irrelevant" values are so that we can get
+
+                               # first hit calculated without inflating things
+
                                Litter = dplyr::case_when(code %in% litter_codes[["HerbLitter"]] ~ "HerbLitter",
+
                                                          code %in% litter_codes[["WoodyLitter"]] ~ "WoodyLitter",
+
+                                                         code %in% litter_codes[["EmbLitter"]] ~ "EmbLitter",
+
                                                          .default = "litter_irrelevant"),
 
                                ###### TotalLitter ------------------------------
@@ -1357,11 +1373,27 @@ lpi_calc <- function(header,
                                                                 code %in% between_plant_codes[["BareSoil"]] ~ "BareSoil",
                                                                 .default = "between_plant_irrelevant"),
 
+
+                               ###### Duff -------------------------------------
+
+                               Duff = dplyr::case_when(code == "D" ~ "Duff",
+
+                                                       .default = "duff_irrelevant"),
+
+
+
+                               ###### Water ------------------------------------
+
+                               Water = dplyr::case_when(code %in% c("W", "WA") ~ "Water",
+
+                                                        .default = "water_irrelevant"),
+
                                ###### AdditionalRemoteSensing ------------------
                                # Special indicators for remote sensing use
                                AdditionalRemoteSensing = dplyr::case_when(code %in% c("DS") ~ "DepSoil",
                                                                           .default = "remote_sensing_irrelevant")
-  )
+
+                                )
 
   #### Calculations ############################################################
   ##### Total foliar cover #####################################################
