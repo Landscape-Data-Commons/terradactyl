@@ -2070,9 +2070,9 @@ gather_height_terradat <- function(dsn = NULL,
     current_nas_by_coercion <- coerced_nas_list[[current_variable_prefix]]
     if (length(current_nas_by_coercion) > 0) {
       warning(paste0("There are values that cannot be coerced into the correct class in at least one ", current_variable_prefix, " variable in tblLPIDetail. There will be ",
-                     sum(nas_by_coercion),
+                     sum(current_nas_by_coercion),
                      " invalid ", current_variable_prefix, " values replaced with NA across the following ", current_variable_prefix, " types: ",
-                     paste(names(nas_by_coercion) |>
+                     paste(names(current_nas_by_coercion) |>
                              stringr::str_replace(string = _,
                                                   pattern = "_",
                                                   replacement = " "),
