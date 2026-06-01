@@ -1318,8 +1318,8 @@ lpi_calc <- function(header,
                                # It assumes that everything flagged as EXOTIC or
                                # ABSENT should be considered NonNative and that
                                # everything else is Native
-                               Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) & !is.na(Plant) ~ "Native",
-                                                         !(Nonnative %in% c("NATIVE", NA)) & !is.na(Plant) ~ "NonNative",
+                               Native = dplyr::case_when(Nonnative %in% c("NATIVE", "native", "Native", NA) & !is.na(Plant) ~ "Native",
+                                                         !(Nonnative %in% c("NATIVE", "native", "Native", NA)) & !is.na(Plant) ~ "NonNative",
                                                          .default = NA),
 
                                ###### Noxious ----------------------------------
