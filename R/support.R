@@ -294,3 +294,182 @@ read_with_fallback <- function(dsn = NULL,
   }
   output
 }
+
+
+lpi_indicator_definitions <- function(){
+
+  # The following objects are values that we'll use to create new variables for
+  # use in defining indicators.
+  list(
+    #### Litter code categories ------------------------------------------------
+    litter_codes = list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
+                        "WoodyLitter" = c("WL"),
+                        # AL and OM are older NRI codes and HT is from somewhere.
+                        # NonVeg and Emb aren't used for individual indicators
+                        # but are part of creating the TotalLitter variable
+                        "NonVegLitter" = c("HT", "NL", "AL", "OM"),
+                        "EmbLitter" = c("EL")),
+
+    #### Rock codes ------------------------------------------------------------
+    rock_codes = c("R", "GR", "CB", "ST", "BY",
+                   # These are LMF codes
+                   "RF", "BR"),
+
+    #### Between-plant codes ---------------------------------------------------
+    # These are for grouping values for between-plant indicators
+    # NOTE: IF YOU ADD A NEW CATEGORY DON'T FORGET TO INCLUDE IT IN THE MUTATE()
+    # UNDER SANITIZATION/HARMONIZATION BELOW (searching for between_plant_codes
+    # will turn it up)
+    between_plant_codes = list("WoodyLitter" = litter_codes[["WoodyLitter"]],
+                               "HerbLitter" =  litter_codes[["HerbLitter"]],
+                               # "NonVegLitter" = litter_codes[["NonVegLitter"]],
+                               "EmbLitter" = litter_codes[["EmbLitter"]],
+                               "DepSoil" = c("DS"),
+                               "Duff" = c("D"),
+                               "Lichen" = c("LC"),
+                               "VagrLichen" = c("VL"),
+                               "Moss" = c("M"),
+                               "Cyanobacteria" = c("CY"),
+                               "Water" = c("W", "WA"),
+                               "Rock" = c(rock_codes),
+                               "BareSoil" = c("AG", "CM", "LM", "FG", "PC", "S")),
+
+    #### Pinyon-juniper species codes ------------------------------------------
+    pj_identifiers = c("JUCA7",
+                       "SACA29",
+                       "JUCAS2",
+                       "JUCAU",
+                       "JUOCU",
+                       "JUUT",
+                       "SAUT3",
+                       "JUCE2",
+                       "JUAR3",
+                       "JUCOA3",
+                       "JUCOA2",
+                       "JUDE2",
+                       "JUNDEPD",
+                       "JUNDEPS",
+                       "JUDES",
+                       "JUDES2",
+                       "JUER",
+                       "JUPIE",
+                       "JUCO11",
+                       "JUCOC2",
+                       "JUERC",
+                       "JUFL",
+                       "JUNFLAF",
+                       "SAFL16",
+                       "JUGR7",
+                       "JUNKNI",
+                       "JUKN",
+                       "JUMOK",
+                       "JUME6",
+                       "JUME7",
+                       "JUUTM",
+                       "JUMOG",
+                       "JUNCFMON",
+                       "JUNIP",
+                       "JUNMEXM",
+                       "JUMO",
+                       "JUMOM",
+                       "JUNOCCM",
+                       "SAMO8",
+                       "JUDEP",
+                       "JUNDEPP2",
+                       "JUNPAC",
+                       "JUNPAC2",
+                       "JUCAO",
+                       "JUOS",
+                       "JUNTETO",
+                       "SAOS",
+                       "JUOC",
+                       "JUOCO",
+                       "SAOC9",
+                       "JUOCA2",
+                       "JUOCA",
+                       "JUNGYM",
+                       "JUOCG",
+                       "JUMOP",
+                       "JUPI",
+                       "JUSC2",
+                       "JUVIS2",
+                       "JUVIS4",
+                       "SASC5",
+                       "JUSCC2",
+                       "JUSCP",
+                       "PICA16",
+                       "PIMOC2",
+                       "PIMOC",
+                       "PICA3",
+                       "PIREC",
+                       "PICE",
+                       "PINCEMC",
+                       "PINCEMB",
+                       "PICEB",
+                       "PICER",
+                       "PINCULR",
+                       "PIRE5",
+                       "PICUD",
+                       "PIDI3",
+                       "CAREDU",
+                       "PICEE",
+                       "PIED",
+                       "PIEDE",
+                       "PINMONE",
+                       "PINCALF",
+                       "PIEDF",
+                       "PINFAL",
+                       "PIMOF2",
+                       "PINMONF",
+                       "PIMOF",
+                       "APIFLE",
+                       "PINCEMF",
+                       "PIFL2",
+                       "PIFLA",
+                       "PIFLA2",
+                       "PIFLC",
+                       "PIFLC2",
+                       "PINCEMJ",
+                       "PINCULJ",
+                       "PIJO",
+                       "PIJU",
+                       "PINQUAJ",
+                       "CARMON2",
+                       "PINCEMM",
+                       "PINEDUM",
+                       "PIMO",
+                       "PIMOM2",
+                       "PINCEMP2",
+                       "PINPAR",
+                       "PINCEMQ",
+                       "PIQU"),
+
+    #### Conifer families ------------------------------------------------------
+    conifer_identifiers = c("Cupressaceae",
+                            "Pinaceae",
+                            "Taxaceae"),
+
+    #### Lichen codes ----------------------------------------------------------
+    lichen_identifiers = c(Lichen = "LC",
+                           Cyanobacteria = "CY",
+                           VagrLichen = "VL"),
+
+    #### Biocrust codes --------------------------------------------------------
+    biocrust_identifiers = c("CY",
+                             "LC",
+                             "M"),
+
+    #### Moss definitions ------------------------------------------------------
+    # For moss cover, we need to identify species that use irregular unknown codes
+    # and species that were keyed out in addition to the traditional "where does
+    # 'M' occur as a surface code"
+    # This will find codes like "MOSS", "M123", "MOS123", and "MOSS123"
+    unknown_moss_regex = "^(M(OS{1,2})?\\d+)|(MOSS)$",
+    # In tblNationalPlants there's a variable called HigherTaxon that we can use
+    # to identify which species codes are technically mosses. This is helpful
+    # mostly for Alaska where they ID mosses to species, but anywhere we don't do
+    # it runs the risk of underestimating the amount of moss cover if there are
+    # any recorded in the canopy.
+    moss_identifiers = "Moss"
+  )
+}
