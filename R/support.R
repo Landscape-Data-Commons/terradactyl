@@ -555,7 +555,8 @@ adjust_species_attributes <- function(data,
                           "Noxious",
                           "SpecialStatus",
                           "Photosynthesis",
-                          "PJ")
+                          "PJ",
+                          "chckbox")
 
   missing_expected_variables <- setdiff(x = expected_variables,
                                         names(data))
@@ -576,6 +577,14 @@ adjust_species_attributes <- function(data,
                        .x = _)
   }
 
+  #### Live ----------
+  if (all(c("chckbox") %in% names(data))) {
+    data <- dplyr::mutate(.data = data,
+                          Live = dplyr::case_when(chckbox %in% c(0, "0") ~ "Live",
+                                                  # chckbox %in% c("1") ~ "Dead",
+                                                  .default = NA)
+    )
+  }
 
   #### Duration ----------
   if (all(c("Duration") %in% names(data))) {
@@ -866,7 +875,7 @@ adjust_species_attributes <- function(data,
   }
 
   # These are all variables that this function intends to modify or create
-  target_vars <- c("Duration", "GrowthHabit", "GrowthHabitSub", "Plant", "ShrubSucculent", "Litter", "TotalLitter", "Biocrust", "Lichen", "PJ", "Rock", "AdditionalRemoteSensing", "C3", "C4", "Grass", "Conifer", "ForbGraminoid", "ForbGrass", "SG_Group", "Moss", "between_plant", "Native", "Invasive", "Noxious")
+  target_vars <- c("Duration", "GrowthHabit", "GrowthHabitSub", "Plant", "ShrubSucculent", "Litter", "TotalLitter", "Biocrust", "Lichen", "PJ", "Rock", "AdditionalRemoteSensing", "C3", "C4", "Grass", "Conifer", "ForbGraminoid", "ForbGrass", "SG_Group", "Moss", "between_plant", "Native", "Invasive", "Noxious", "Live")
 
   missed_vars <- setdiff(x = target_vars,
                          y = names(data))
