@@ -529,7 +529,8 @@ lpi_indicator_definitions <- function(){
 # variable.
 # The value of this variable will be "C4" if the associated value in Photosynthesis matches the regex "C4".
 # Otherwise, the value will be NA.
-
+#' Harmonize species attributes with TerrADat needs
+#' @export
 adjust_species_attributes <- function(data,
                                       verbose = FALSE){
 

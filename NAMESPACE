@@ -3,6 +3,7 @@
 export("%>%")
 export(RHEM)
 export(accumulated_species)
+export(adjust_species_attributes)
 export(aero)
 export(auto_qc_warning)
 export(build_indicators)
