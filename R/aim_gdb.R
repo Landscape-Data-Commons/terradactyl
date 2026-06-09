@@ -588,7 +588,57 @@ lpi_calc <- function(header,
                        verbose = FALSE) {
 
 
-    lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
+  if (!is.character(species_code_var)) {
+    stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
+  } else if (length(species_code_var) > 1) {
+    stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
+  }
+
+  #### Handling header and raw data ############################################
+  # if ("character" %in% class(header)) {
+  #   if (toupper(tools::file_ext(header)) == "RDATA") {
+  #     header <- readRDS(header)
+  #   } else {
+  #     stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+  #   }
+  # } else if ("data.frame" %in% class(header)) {
+  #   header <- header
+  # }
+
+  # header <- read_whatever(input = header,
+  #                         layer = NULL,
+  #                         regex = FALSE,
+  #                         best_guess = FALSE,
+  #                         accept_failure = FALSE,
+  #                         verbose = verbose)
+
+  header <- read_with_fallback(dsn = header,
+                               tbl = NULL,
+                               default_name = "tblPlots",
+                               regex = TRUE,
+                               best_guess = TRUE,
+                               accept_failure = FALSE,
+                               verbose = verbose)
+
+  # if ("character" %in% class(lpi_tall)) {
+  #   if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
+  #     lpi_tall <- readRDS(file = lpi_tall)
+  #   } else {
+  #     stop("When lpi_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
+  #   }
+  # } else if ("data.frame" %in% class(lpi_tall)) {
+  #   lpi_tall <- lpi_tall
+  # }
+  lpi_tall <- read_whatever(input = lpi_tall,
+                            layer = NULL,
+                            regex = FALSE,
+                            best_guess = FALSE,
+                            accept_failure = FALSE,
+                            verbose = verbose)
+
+
+
+  lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
                                                           tidyselect::any_of(c("PrimaryKey",
                                                                                "SpeciesState",
                                                                                "State",
