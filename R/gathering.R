@@ -1368,18 +1368,20 @@ gather_lpi_terradat <- function(dsn = NULL,
   # Join the header information to the tall data.
   # The suppressWarnings() and lack of defined relationships in the joins are to
   # allow the user to run this with data that have not been adequately cleaned.
-  lpi_tall <- dplyr::select(.data = header,
-                            # This is split so that we grab the first chunk of
-                            # assumed-to-be-present metadata variables and then
-                            # if we've got the checkbox ones we'll do those too
-                            LineKey:HeightUOM,
-                            tidyselect::any_of(c("ShowCheckbox",
-                                                 "CheckboxLabel")),
-                            PrimaryKey) |>
-    dplyr::left_join(x = _,
-                     y = lpi_tall,
-                     # relationship = "one-to-many",
-                     by = c("PrimaryKey", "RecKey")) |>
+  metadata_cols <- c(
+    "LineKey", "RecKey", "PrimaryKey", "DateModified", "FormType",
+    "FormDate", "Observer", "Recorder", "Direction", "Measure",
+    "LineLengthAmount", "SpacingIntervalAmount", "SpacingType",
+    "HeightOption", "HeightUOM", "ShowCheckbox", "CheckboxLabel"
+  )
+
+
+  lpi_tall <- header |>
+    dplyr::select(tidyselect::any_of(metadata_cols)) |>
+    dplyr::left_join(
+      y = lpi_tall,
+      by = c("PrimaryKey", "RecKey")
+    ) |>
     suppressWarnings()
 
   # We want to coerce dates into character strings.
