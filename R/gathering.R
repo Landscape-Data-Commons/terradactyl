@@ -2119,33 +2119,33 @@ gather_height_terradat <- function(dsn = NULL,
   # species are stored as character strings but heights are numeric) so we can't
   # put them all in one data frame variable when we pivot the data to a long
   # format.
-  lpi_heights_tall <- lapply(X = variable_types,
-                             detail = detail,
-                             FUN = function(X, detail){
-
-                               res <- dplyr::select(.data = detail,
-                                                    PrimaryKey, RecKey, PointLoc, PointNbr,
-                                                    tidyselect::ends_with(match = X)) |>
-                                 dplyr::rename_with(.cols = tidyselect::ends_with(match = X),
-                                                    .fn = ~ stringr::str_extract(string = .x,
-                                                                                 pattern = paste0(".+(?=", X, "$)")))
-
-                               # Ensure Height and Species columns exist even if a specific sub-type didn't record them
-                               if (!"Height" %in% names(res)) res$Height <- NA
-                               if (!"Species" %in% names(res)) res$Species <- NA
-
-                               res |>
-                                 dplyr::mutate(
-                                   Height = suppressWarnings(as.numeric(Height)),
-                                   Species = suppressWarnings(as.character(Species)),
-                                   type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
-                                                           .default = tolower(X)),
-                                   GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
-                                                                           X %in% c("Herbaceous", "LowerHerb") ~ "NonWoody",
-                                                                           .default = NA)
-                                 ) |>
-                                 dplyr::filter(!is.na(Height))
-                             }) |>
+  llpi_heights_tall <- lapply(X = variable_types,
+                              detail = detail,
+                              FUN = function(X, detail){
+                                dplyr::select(.data = detail,
+                                              PrimaryKey, RecKey,
+                                              PointLoc, PointNbr,
+                                              tidyselect::ends_with(match = X)) |>
+                                  dplyr::rename_with(.data = _,
+                                                     .cols = tidyselect::ends_with(match = X),
+                                                     .fn = ~ stringr::str_extract(string = .x,
+                                                                                  pattern = paste0(".+(?=", X, "$)"))) |>
+                                  dplyr::mutate(.data = _,
+                                                # We're going to suppress
+                                                # warnings about introducing
+                                                # NAs in this coercion because we
+                                                # already warned the user above.
+                                                Height = suppressWarnings(as.numeric(Height)),
+                                                Species = suppressWarnings(as.character(Species)),
+                                                type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
+                                                                        .default = tolower(X)),
+                                                GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
+                                                                                        X %in% c("Herbaceous",
+                                                                                                 "LowerHerb") ~ "NonWoody",
+                                                                                        .default = NA)) |>
+                                  dplyr::filter(.data = _,
+                                                !is.na(Height))
+                              }) |>
     dplyr::bind_rows()
 
   lpi_height <- suppressWarnings(dplyr::left_join(x = lpi_heights_tall,
