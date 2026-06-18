@@ -117,7 +117,7 @@ read_whatever <- function(input,
                          # Order them according to string length in case we make
                          # a best guess.
                          matched_layers <- matched_layers[order(sapply(X = matched_layers,
-                                                                       FUN = nchar))][1]
+                                                                       FUN = stringi::stri_length))][1]
                          if (length(matched_layers) > 1 & !best_guess) {
                            stop(paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase but must only match one if best_guess is FALSE. The following layers were found: ",
                                        paste(matched_layers,

@@ -1865,7 +1865,7 @@ spp_inventory_calc <- function(header,
                                                       "Species",
                                                       "Species" = "code"))) |>
                  dplyr::filter(.data = _,
-                               nchar(x = Species) >= 3)
+                               stringi::stri_length(str = Species) >= 3)
              } else {
                NULL
              }
@@ -2016,7 +2016,7 @@ spp_inventory_calc <- function(header,
   data <- dplyr::mutate(.data = data,
                         # This isn't just assigning "Total" to everything in
                         # case the data sources included non-plant codes.
-                        Total = dplyr::case_when(nchar(Species) >= 3 ~ "Total",
+                        Total = dplyr::case_when(stringi::stri_length(Species) >= 3 ~ "Total",
                                                  .default = NA),
                         ###### Invasive ---------------------------------
                         # This is just to make the Invasive values match

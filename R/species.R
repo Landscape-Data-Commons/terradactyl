@@ -1142,7 +1142,7 @@ accumulated_species <- function(header,
     # Add in the number of pin drops that each species was recorded at in the
     # LPI data.
     species_cover <- dplyr::filter(.data = inputs_list[["cover"]],
-                                   nchar(as.character(code)) >= 3,
+                                   stringi::stri_length(as.character(code)) >= 3,
                                    !(code %in% c("None"))) |>
       dplyr::select(.data = _,
                     tidyselect::all_of(x = c("PrimaryKey",
