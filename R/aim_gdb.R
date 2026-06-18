@@ -583,9 +583,17 @@ lpi_calc <- function(header,
                      lpi_tall,
                      species_file,
                      species_code_var = "SpeciesCode",
+                     indicators_vars = NULL,
+                     expected_indicator_names,
+                     apply_species_adjustment = FALSE,
                      generic_species_file = NULL,
                      digits = 6,
                      verbose = FALSE) {
+
+  if (base::missing(expected_indicator_names)) {
+    warning("No vector provided for expected_indicator_names. Without this, expected indicators without qualifying data will not be included in the output. To simply silence this warning, set expected_indicator_names = NULL. To use the default TerrADat indicators, set expected_indicator_names = default_lpi_indicators(source = 'terradat'). Otherwise, provide a vector of expected indicator names.")
+    expected_indicator_names <- NULL
+  }
 
   if (!is.character(species_code_var)) {
     stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
@@ -593,24 +601,52 @@ lpi_calc <- function(header,
     stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
   }
 
+  #### Grouping variables lists ------------------------------------------------
+  # These are the groupings of variables we'll use to calculate the indicators,
+  # organized by which hit (first, any, or basal).
+  # Note that a number of these variables will be defined below under:
+  # Joining species info > Sanitization/harmonization
+  if (!is.null(indicators_vars)) {
+    if (!is.list(indicators_vars)) {
+      stop("When provided, indicators_vars must be a named list using one or more of the names 'any', 'first', and 'basal'")
+    }
+
+    extraneous_names <- setdiff(x = names(indicators_vars),
+                                y = c("any", "first", "basal"))
+    if (length(extraneous_names) > 0 & verbose) {
+      message(paste0("The following names in indicators_vars are not recognized and any variable groupings they concatin will not be used in calculations: ",
+                     paste(extraneous_names,
+                           collapse = ", ")))
+    }
+
+    indicators_vars <- indicators_vars[intersect(x = names(indicators_vars),
+                                                 y = c("any", "first", "basal"))]
+
+    if (length(indicators_vars) < 1) {
+      stop("When provided, indicators_vars must be a named list using one or more of the names 'any', 'first', and 'basal'")
+    }
+
+    indicators_vars_lists <- sapply(X = indicators_vars,
+                                    FUN = is.list)
+    if (!all(indicators_vars_lists)) {
+      stop("When provided, indicators_vars must be a named list of lists of variable names. One or more of the objects in indicators_vars is not a list.")
+    }
+
+    indicators_vars_character <- unlist(indicators_vars) |>
+      sapply(X = _,
+             FUN = is.list)
+    if (!all(indicators_vars_character)) {
+      stop("When provided, indicators_vars must be a named list of lists of variable names. One or more of the objects in a list in indicators_vars is not a character string or vector of character strings.")
+    }
+
+    variable_groups <- indicators_vars
+  } else if (verbose) {
+    message("No indicators_vars list provided. The default indicator variable groupings for TerrADat will be used.")
+    variable_groups <- default_indicators_vars(source = "terradat",
+                                               verbose = verbose)
+  }
+
   #### Handling header and raw data ############################################
-  # if ("character" %in% class(header)) {
-  #   if (toupper(tools::file_ext(header)) == "RDATA") {
-  #     header <- readRDS(header)
-  #   } else {
-  #     stop("When header is a character string it must be the path to a .Rdata file containing header data.")
-  #   }
-  # } else if ("data.frame" %in% class(header)) {
-  #   header <- header
-  # }
-
-  # header <- read_whatever(input = header,
-  #                         layer = NULL,
-  #                         regex = FALSE,
-  #                         best_guess = FALSE,
-  #                         accept_failure = FALSE,
-  #                         verbose = verbose)
-
   header <- read_with_fallback(dsn = header,
                                tbl = NULL,
                                default_name = "tblPlots",
@@ -619,15 +655,6 @@ lpi_calc <- function(header,
                                accept_failure = FALSE,
                                verbose = verbose)
 
-  # if ("character" %in% class(lpi_tall)) {
-  #   if (toupper(tools::file_ext(lpi_tall)) == "RDATA") {
-  #     lpi_tall <- readRDS(file = lpi_tall)
-  #   } else {
-  #     stop("When lpi_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
-  #   }
-  # } else if ("data.frame" %in% class(lpi_tall)) {
-  #   lpi_tall <- lpi_tall
-  # }
   lpi_tall <- read_whatever(input = lpi_tall,
                             layer = NULL,
                             regex = FALSE,
@@ -652,328 +679,109 @@ lpi_calc <- function(header,
   # 2) Populate missing indicators with 0 (e.g., when there are no invasive
   #    shrubs and therefore no invasive shrub indicators calculated)
   # 3) Reorder the output of indicators in the output to meet expectations
-  expected_indicator_names <- c("TotalFoliarCover",
-                                "BareSoilCover",
-                                "AH_ForbCover",
-                                "AH_PerenForbCover",
-                                "AH_AnnForbCover",
-                                "AH_PreferredForbCover",
-                                "AH_GrassCover",
-                                "AH_GraminoidCover",
-                                "AH_PerenGrassCover",
-                                "AH_PerenGraminoidCover",
-                                "AH_C3PerenGrassCover",
-                                "AH_C4PerenGrassCover",
-                                "AH_AnnGrassCover",
-                                "AH_AnnGraminoidCover",
-                                "AH_TallPerenGrassCover",
-                                "AH_ShortPerenGrassCover",
-                                "AH_PerenForbGraminoidCover",
-                                "AH_AnnForbGraminoidCover",
-                                "AH_ShrubCover",
-                                "AH_ShrubSucculentCover",
-                                "AH_TreeCover",
-                                "AH_SubShrubCover",
-                                "AH_SagebrushCover",
-                                "AH_SagebrushCover_Live",
-                                "AH_NonSagebrushShrubCover",
-                                "AH_TotalLitterCover",
-                                "AH_WoodyLitterCover",
-                                "AH_HerbLitterCover",
-                                "AH_DuffCover",
-                                "AH_VagrLichenCover",
-                                "AH_LichenCover",
-                                "AH_MossCover",
-                                "AH_CyanobacteriaCover",
-                                "AH_RockCover",
-                                "AH_EmbLitterCover",
-                                "AH_WaterCover",
-                                "AH_InvasiveCover",
-                                "AH_InvasivePerenForbCover",
-                                "AH_InvasiveAnnForbCover",
-                                "AH_InvasivePerenGrassCover",
-                                "AH_InvasiveAnnGrassCover",
-                                "AH_InvasivePerenForbGrassCover",
-                                "AH_InvasiveAnnForbGrassCover",
-                                "AH_InvasiveShrubCover",
-                                "AH_InvasiveSubShrubCover",
-                                "AH_InvasiveSucculentCover",
-                                "AH_InvasiveTreeCover",
-                                "AH_NonInvPerenForbCover",
-                                "AH_NonInvAnnForbCover",
-                                "AH_NonInvPerenGrassCover",
-                                "AH_NonInvAnnGrassCover",
-                                "AH_NonInvPerenForbGrassCover",
-                                "AH_NonInvAnnForbGrassCover",
-                                "AH_NonInvShrubCover",
-                                "AH_NonInvSubShrubCover",
-                                "AH_NonInvSucculentCover",
-                                "AH_NonInvTreeCover",
-                                "AH_NativeCover",
-                                "AH_NonNativeCover",
-                                "AH_NoxiousCover",
-                                "AH_PJCover",
-                                "AH_ConiferCover",
-                                "AH_BasalCover",
-                                "AH_BasalPerenGrassCover",
-                                "AH_BiocrustCover",
-                                "FH_TotalLitterCover",
-                                "FH_WoodyLitterCover",
-                                "FH_HerbLitterCover",
-                                "FH_DuffCover",
-                                "FH_VagrLichenCover",
-                                "FH_LichenCover",
-                                "FH_MossCover",
-                                "FH_CyanobacteriaCover",
-                                "FH_RockCover",
-                                "FH_EmbLitterCover",
-                                "FH_WaterCover",
-
-                                # NEEDS TO BE WRITTEN FOR
-                                "FH_DepSoilCover",
-
-                                "FH_ForbCover",
-                                "FH_PerenForbCover",
-                                "FH_AnnForbCover",
-                                "FH_GraminoidCover",
-                                "FH_AnnGraminoidCover",
-                                "FH_PerenGraminoidCover",
-                                "FH_PerenForbGraminoidCover",
-                                "FH_ShrubCover",
-                                "FH_SagebrushCover",
-                                "FH_NonSagebrushShrubCover",
-                                "FH_TreeCover",
-
-                                "SagebrushShape_All_ColumnCount",
-                                "SagebrushShape_All_SpreadCount",
-                                "SagebrushShape_All_Predominant")
+  # expected_indicator_names <- c("TotalFoliarCover",
+  #                               "BareSoilCover",
+  #                               "AH_ForbCover",
+  #                               "AH_PerenForbCover",
+  #                               "AH_AnnForbCover",
+  #                               "AH_PreferredForbCover",
+  #                               "AH_GrassCover",
+  #                               "AH_GraminoidCover",
+  #                               "AH_PerenGrassCover",
+  #                               "AH_PerenGraminoidCover",
+  #                               "AH_C3PerenGrassCover",
+  #                               "AH_C4PerenGrassCover",
+  #                               "AH_AnnGrassCover",
+  #                               "AH_AnnGraminoidCover",
+  #                               "AH_TallPerenGrassCover",
+  #                               "AH_ShortPerenGrassCover",
+  #                               "AH_PerenForbGraminoidCover",
+  #                               "AH_AnnForbGraminoidCover",
+  #                               "AH_ShrubCover",
+  #                               "AH_ShrubSucculentCover",
+  #                               "AH_TreeCover",
+  #                               "AH_SubShrubCover",
+  #                               "AH_SagebrushCover",
+  #                               "AH_SagebrushCover_Live",
+  #                               "AH_NonSagebrushShrubCover",
+  #                               "AH_TotalLitterCover",
+  #                               "AH_WoodyLitterCover",
+  #                               "AH_HerbLitterCover",
+  #                               "AH_DuffCover",
+  #                               "AH_VagrLichenCover",
+  #                               "AH_LichenCover",
+  #                               "AH_MossCover",
+  #                               "AH_CyanobacteriaCover",
+  #                               "AH_RockCover",
+  #                               "AH_EmbLitterCover",
+  #                               "AH_WaterCover",
+  #                               "AH_InvasiveCover",
+  #                               "AH_InvasivePerenForbCover",
+  #                               "AH_InvasiveAnnForbCover",
+  #                               "AH_InvasivePerenGrassCover",
+  #                               "AH_InvasiveAnnGrassCover",
+  #                               "AH_InvasivePerenForbGrassCover",
+  #                               "AH_InvasiveAnnForbGrassCover",
+  #                               "AH_InvasiveShrubCover",
+  #                               "AH_InvasiveSubShrubCover",
+  #                               "AH_InvasiveSucculentCover",
+  #                               "AH_InvasiveTreeCover",
+  #                               "AH_NonInvPerenForbCover",
+  #                               "AH_NonInvAnnForbCover",
+  #                               "AH_NonInvPerenGrassCover",
+  #                               "AH_NonInvAnnGrassCover",
+  #                               "AH_NonInvPerenForbGrassCover",
+  #                               "AH_NonInvAnnForbGrassCover",
+  #                               "AH_NonInvShrubCover",
+  #                               "AH_NonInvSubShrubCover",
+  #                               "AH_NonInvSucculentCover",
+  #                               "AH_NonInvTreeCover",
+  #                               "AH_NativeCover",
+  #                               "AH_NonNativeCover",
+  #                               "AH_NoxiousCover",
+  #                               "AH_PJCover",
+  #                               "AH_ConiferCover",
+  #                               "AH_BasalCover",
+  #                               "AH_BasalPerenGrassCover",
+  #                               "AH_BiocrustCover",
+  #                               "FH_TotalLitterCover",
+  #                               "FH_WoodyLitterCover",
+  #                               "FH_HerbLitterCover",
+  #                               "FH_DuffCover",
+  #                               "FH_VagrLichenCover",
+  #                               "FH_LichenCover",
+  #                               "FH_MossCover",
+  #                               "FH_CyanobacteriaCover",
+  #                               "FH_RockCover",
+  #                               "FH_EmbLitterCover",
+  #                               "FH_WaterCover",
+  #
+  #                               # NEEDS TO BE WRITTEN FOR
+  #                               "FH_DepSoilCover",
+  #
+  #                               "FH_ForbCover",
+  #                               "FH_PerenForbCover",
+  #                               "FH_AnnForbCover",
+  #                               "FH_GraminoidCover",
+  #                               "FH_AnnGraminoidCover",
+  #                               "FH_PerenGraminoidCover",
+  #                               "FH_PerenForbGraminoidCover",
+  #                               "FH_ShrubCover",
+  #                               "FH_SagebrushCover",
+  #                               "FH_NonSagebrushShrubCover",
+  #                               "FH_TreeCover",
+  #
+  #                               "SagebrushShape_All_ColumnCount",
+  #                               "SagebrushShape_All_SpreadCount",
+  #                               "SagebrushShape_All_Predominant")
 
   ##### Indicator renaming lookup ----------------------------------------------
   # The indicators that have nonstandard names. This'll let us rename them with
   # the help of stringr::str_replace_all() later.
-  nonstandard_indicator_lookup <- c("^FH_BareSoilCover$" = "BareSoilCover",
-                                    "^AH_SagebrushLiveCover$" = "AH_SagebrushCover_Live",
-                                    "^AH_BasalPlantCover$" = "AH_BasalCover")
+  # nonstandard_indicator_lookup <- c("^FH_BareSoilCover$" = "BareSoilCover",
+  #                                   "^AH_SagebrushLiveCover$" = "AH_SagebrushCover_Live",
+  #                                   "^AH_BasalPlantCover$" = "AH_BasalCover")
 
-  ##### Grouping variable lists -----------------------------------------------
-  # These are the groupings of variables we'll use to calculate the indicators,
-  # organized by which hit (first, any, or basal).
-  # Note that a number of these variables will be defined below under:
-  # Joining species info > Sanitization/harmonization
-  fh_variable_groupings <- list(c("Duration", "GrowthHabitSub"),
-                                c("Duration", "ForbGraminoid"),
-                                c("GrowthHabitSub"),
-                                c("SG_Group"),
-                                c("Noxious", "Duration", "GrowthHabitSub"),
-                                c("between_plant"),
-                                c("Litter"),
-                                c("Lichen"),
-                                c("TotalLitter"),
-                                c("Moss"))
-  ah_variable_groupings <- list(c("GrowthHabit"),
-                                c("GrowthHabitSub"),
-                                c("Duration", "GrowthHabit"),
-                                c("Duration", "GrowthHabitSub"),
-                                c("Duration", "ForbGraminoid"),
-                                c("ShrubSucculent"),
-                                c("Noxious"),
-                                c("Litter"),
-                                c("TotalLitter"),
-                                c("SG_Group"),
-                                c("SG_Group", "Live"),
-                                c("Grass"),
-                                c("Duration", "Grass"),
-                                c("C3", "Duration", "Grass"),
-                                c("C4", "Duration", "Grass"),
-                                c("Native"),
-                                c("Invasive"),
-                                c("Invasive", "Duration", "GrowthHabitSub"),
-                                c("Invasive", "Duration", "ShrubSucculent"),
-                                c("Invasive", "Duration", "Grass"),
-                                c("Invasive", "Duration", "ForbGrass"),
-                                c("Conifer"),
-                                c("PJ"),
-                                c("Moss"),
-                                c("Rock"),
-                                c("Biocrust"),
-                                c("Lichen"))
-  basal_variable_groupings <- list(c("Duration", "Grass"),
-                                   c("Plant"))
-
-  ##### Definitions for new variables ------------------------------------------
-  # The following objects are values that we'll use to create new variables for
-  # use in defining indicators.
-
-  ###### Litter code categories ------------------------------------------------
-  litter_codes <- list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
-                       "WoodyLitter" = c("WL"),
-                       # AL and OM are older NRI codes and HT is from somewhere.
-                       # NonVeg and Emb aren't used for individual indicators
-                       # but are part of creating the TotalLitter variable
-                       "NonVegLitter" = c("HT", "NL", "AL", "OM"),
-                       "EmbLitter" = c("EL"))
-
-  ###### Rock codes ------------------------------------------------------------
-  rock_codes <- c("R", "GR", "CB", "ST", "BY",
-                  # These are LMF codes
-                  "RF", "BR")
-
-  ###### Between-plant codes ---------------------------------------------------
-  # These are for grouping values for between-plant indicators
-  # NOTE: IF YOU ADD A NEW CATEGORY DON'T FORGET TO INCLUDE IT IN THE MUTATE()
-  # UNDER SANITIZATION/HARMONIZATION BELOW (searching for between_plant_codes
-  # will turn it up)
-  between_plant_codes <- list("WoodyLitter" = litter_codes[["WoodyLitter"]],
-                              "HerbLitter" =  litter_codes[["HerbLitter"]],
-                              # "NonVegLitter" = litter_codes[["NonVegLitter"]],
-                              "EmbLitter" = litter_codes[["EmbLitter"]],
-                              "DepSoil" = c("DS"),
-                              "Duff" = c("D"),
-                              "Lichen" = c("LC"),
-                              "VagrLichen" = c("VL"),
-                              "Moss" = c("M"),
-                              "Cyanobacteria" = c("CY"),
-                              "Water" = c("W", "WA"),
-                              "Rock" = c(rock_codes),
-                              "BareSoil" = c("AG", "CM", "LM", "FG", "PC", "S"))
-
-  ###### Pinyon-juniper species codes ------------------------------------------
-  pj_identifiers <- c("JUCA7",
-                      "SACA29",
-                      "JUCAS2",
-                      "JUCAU",
-                      "JUOCU",
-                      "JUUT",
-                      "SAUT3",
-                      "JUCE2",
-                      "JUAR3",
-                      "JUCOA3",
-                      "JUCOA2",
-                      "JUDE2",
-                      "JUNDEPD",
-                      "JUNDEPS",
-                      "JUDES",
-                      "JUDES2",
-                      "JUER",
-                      "JUPIE",
-                      "JUCO11",
-                      "JUCOC2",
-                      "JUERC",
-                      "JUFL",
-                      "JUNFLAF",
-                      "SAFL16",
-                      "JUGR7",
-                      "JUNKNI",
-                      "JUKN",
-                      "JUMOK",
-                      "JUME6",
-                      "JUME7",
-                      "JUUTM",
-                      "JUMOG",
-                      "JUNCFMON",
-                      "JUNIP",
-                      "JUNMEXM",
-                      "JUMO",
-                      "JUMOM",
-                      "JUNOCCM",
-                      "SAMO8",
-                      "JUDEP",
-                      "JUNDEPP2",
-                      "JUNPAC",
-                      "JUNPAC2",
-                      "JUCAO",
-                      "JUOS",
-                      "JUNTETO",
-                      "SAOS",
-                      "JUOC",
-                      "JUOCO",
-                      "SAOC9",
-                      "JUOCA2",
-                      "JUOCA",
-                      "JUNGYM",
-                      "JUOCG",
-                      "JUMOP",
-                      "JUPI",
-                      "JUSC2",
-                      "JUVIS2",
-                      "JUVIS4",
-                      "SASC5",
-                      "JUSCC2",
-                      "JUSCP",
-                      "PICA16",
-                      "PIMOC2",
-                      "PIMOC",
-                      "PICA3",
-                      "PIREC",
-                      "PICE",
-                      "PINCEMC",
-                      "PINCEMB",
-                      "PICEB",
-                      "PICER",
-                      "PINCULR",
-                      "PIRE5",
-                      "PICUD",
-                      "PIDI3",
-                      "CAREDU",
-                      "PICEE",
-                      "PIED",
-                      "PIEDE",
-                      "PINMONE",
-                      "PINCALF",
-                      "PIEDF",
-                      "PINFAL",
-                      "PIMOF2",
-                      "PINMONF",
-                      "PIMOF",
-                      "APIFLE",
-                      "PINCEMF",
-                      "PIFL2",
-                      "PIFLA",
-                      "PIFLA2",
-                      "PIFLC",
-                      "PIFLC2",
-                      "PINCEMJ",
-                      "PINCULJ",
-                      "PIJO",
-                      "PIJU",
-                      "PINQUAJ",
-                      "CARMON2",
-                      "PINCEMM",
-                      "PINEDUM",
-                      "PIMO",
-                      "PIMOM2",
-                      "PINCEMP2",
-                      "PINPAR",
-                      "PINCEMQ",
-                      "PIQU")
-
-  ###### Conifer families ------------------------------------------------------
-  conifer_identifiers <- c("Cupressaceae",
-                           "Pinaceae",
-                           "Taxaceae")
-
-  ###### Lichen codes ----------------------------------------------------------
-  lichen_identifiers <- c(Lichen = "LC",
-                          Cyanobacteria = "CY",
-                          VagrLichen = "VL")
-
-  ###### Biocrust codes --------------------------------------------------------
-  biocrust_identifiers <- c("CY",
-                            "LC",
-                            "M")
-
-  ###### Moss definitions ------------------------------------------------------
-  # For moss cover, we need to identify species that use irregular unknown codes
-  # and species that were keyed out in addition to the traditional "where does
-  # 'M' occur as a surface code"
-  # This will find codes like "MOSS", "M123", "MOS123", and "MOSS123"
-  unknown_moss_regex <- "^(M(OS{1,2})?\\d+)|(MOSS)$"
-  # In tblNationalPlants there's a variable called HigherTaxon that we can use
-  # to identify which species codes are technically mosses. This is helpful
-  # mostly for Alaska where they ID mosses to species, but anywhere we don't do
-  # it runs the risk of underestimating the amount of moss cover if there are
-  # any recorded in the canopy.
-  moss_identifiers <- "Moss"
 
   #### Joining species info ----------------------------------------------------
   # If generic_species_file is not provided, assume it is the same as species_file
@@ -1055,59 +863,12 @@ lpi_calc <- function(header,
   # We're harmonizing multiple variants (e.g., non-woody, nonwoody, etc. all
   # being changed to NonWoody) and adding some additional variables that we can
   # use for indicator calcs
-  if (verbose) {
-    message("Harmonizing species characteristics with AIM indicator needs.")
+  if (apply_species_adjustment) {
+    lpi_species <- adjust_species_attributes(data = lpi_species,
+                                             fail_on_missing = FALSE,
+                                             verbose = verbose)
   }
 
-  # Let's check for the required variables for all these.
-  # If any are missing, we can warn the user that those variables will be
-  # created but populated with NA and so no indicators that involve them will
-  # be calculated.
-  expected_variables <- c("GrowthHabit",
-                          "GrowthHabitSub",
-                          "Duration",
-                          "Family",
-                          "HigherTaxon",
-                          "Nonnative",
-                          "Invasive",
-                          "Noxious",
-                          "SpecialStatus",
-                          "Photosynthesis",
-                          "PJ",
-                          "CurrentPLANTSCode")
-  missing_expected_variables <- setdiff(x = c("GrowthHabit",
-                                              "GrowthHabitSub",
-                                              "Duration",
-                                              "Family",
-                                              "HigherTaxon",
-                                              "Nonnative",
-                                              "Invasive",
-                                              "Noxious",
-                                              "SpecialStatus",
-                                              "Photosynthesis",
-                                              "PJ",
-                                              "CurrentPLANTSCode"),
-                                        names(lpi_species))
-
-  if (length(missing_expected_variables) > 0) {
-    warning(paste0("The provided species information does not contain all expected variables required for the standard set of indicators. Indicators which depend on those variables will not be calculated. The variables in question are: ",
-                   paste(missing_expected_variables,
-                         collapse = ", ")))
-    # This makes a new data frame without any data in it consisting of only the
-    # missing variables and a number of rows equal to the number of lpi_species
-    # records then binds them together.
-    lpi_species <- matrix(nrow = nrow(lpi_species),
-                          ncol = length(missing_expected_variables)) |>
-      as.data.frame() |>
-      setNames(object = _,
-               nm = missing_expected_variables) |>
-      dplyr::bind_cols(lpi_species,
-                       .x = _)
-  }
-
-
-  lpi_species <- adjust_species_attributes(data = lpi_species,
-                                           verbose = verbose)
 
   #### Calculations ############################################################
   ##### Total foliar cover #####################################################
@@ -1129,15 +890,14 @@ lpi_calc <- function(header,
                   indicator = "TotalFoliarCover")
 
   ##### All other cover ########################################################
-  variable_groups <- list("first" = fh_variable_groupings,
-                          "any" = ah_variable_groupings,
-                          "basal" = basal_variable_groupings)
-
   # This is going to look gnarly, but automates stuff so we don't have to do the
   # capitalization corrections by hand
-  unique_grouping_vars <- unique(c(unlist(fh_variable_groupings),
-                                   unlist(ah_variable_groupings),
-                                   unlist(basal_variable_groupings)))
+  # unique_grouping_vars <- unique(c(unlist(fh_variable_groupings),
+  #                                  unlist(ah_variable_groupings),
+  #                                  unlist(basal_variable_groupings)))
+  unique_grouping_vars <- unlist(x = variable_groups) |>
+    unique()
+
   capitalization_lookup_list <- lapply(X = unique_grouping_vars,
                                        data = lpi_species,
                                        FUN = function(X, data){
@@ -1267,13 +1027,18 @@ lpi_calc <- function(header,
                                                                      dplyr::select(.data = current_results,
                                                                                    PrimaryKey,
                                                                                    indicator,
-                                                                                   percent) |>
+                                                                                   percent)
+
+                                                                     if (!is.null(expected_indicator_names)) {
                                                                        # Get only the indicators we want to actually keep. Doing this saves us
                                                                        # from wasting memory storing unnecessary indicators even temporarily
                                                                        # and spares us the horror of storing them even less efficiently in
                                                                        # a wide format after this loop.
-                                                                       dplyr::filter(.data = _,
-                                                                                     indicator %in% expected_indicator_names)
+                                                                       current_results <- dplyr::filter(.data = _,
+                                                                                                        indicator %in% expected_indicator_names)
+
+                                                                     }
+                                                                     current_results
                                                                    })
 
                                     # Bind all those results together
@@ -1291,63 +1056,73 @@ lpi_calc <- function(header,
   if (verbose) {
     message("Combining all cover indicators and converting to a wide format.")
   }
-  lpi_indicators <- dplyr::bind_rows(cover_indicators,
-                                     total_foliar) |>
-    # Remove duplicates (which I guess is possible)
-    dplyr::distinct(.data = _) |>
-    # Spread to a wide format.
-    tidyr::pivot_wider(data = _,
-                       names_from = indicator,
-                       values_from = percent,
-                       values_fill = 0)
+  # lpi_indicators <- dplyr::bind_rows(cover_indicators,
+  #                                    total_foliar) |>
+  #   # Remove duplicates (which I guess is possible)
+  #   dplyr::distinct(.data = _) |>
+  #   # Spread to a wide format.
+  #   tidyr::pivot_wider(data = _,
+  #                      names_from = indicator,
+  #                      values_from = percent,
+  #                      values_fill = 0)
+  lpi_indicators <- tidyr::pivot_wider(data = cover_indicators,
+                                       names_from = indicator,
+                                       values_from = percent,
+                                       values_fill = 0)
 
   ##### Sagebrush shape indicators ---------------------------------------------
   # If there are qualifying data, add sagebrush shape!
-  if (any(!is.na(lpi_species$ShrubShape))) {
-    if (verbose) {
-      message("Calculating sagebrush shape indicators and joining to output.")
-    }
-    # Sagebrush shape is only recorded for live sagebrush according to the
-    # protocol, so we're going to calculate with live = FALSE and rename it to
-    # reflect the living status
-    sagebrush_shape_calc <- sagebrush_shape(lpi_tall = lpi_species,
-                                            live = FALSE)
-
-    if (is.null(sagebrush_shape_calc)) {
+  if ("ShrubShape" %in% names(lpi_species)) {
+    if (any(!is.na(lpi_species$ShrubShape))) {
       if (verbose) {
-        message("sagebrush_shape() returned NULL. Skipping sagebrush shape indicators.")
+        message("Calculating sagebrush shape indicators and joining to output.")
       }
-    } else {
-      # Sagebrush shape is gathered regardless of live/dead status so we won't
-      # rename these indicators.
-      # sagebrush_shape_calc <- dplyr::rename_with(.data = sagebrush_shape_calc,
-      #                                            .fn = ~ stringr::str_replace(string = .x,
-      #                                                                         pattern = "_All_",
-      #                                                                         replacement = "_Live_"),
-      #                                            .cols = tidyselect::contains(match = "_All_"))
-      lpi_indicators <- dplyr::left_join(x = lpi_indicators,
-                                         y = sagebrush_shape_calc,
-                                         relationship = "one-to-one",
-                                         by = "PrimaryKey")
-    }
+      # Sagebrush shape is only recorded for live sagebrush according to the
+      # protocol, so we're going to calculate with live = FALSE and rename it to
+      # reflect the living status
+      sagebrush_shape_calc <- sagebrush_shape(lpi_tall = lpi_species,
+                                              live = FALSE)
 
+      if (is.null(sagebrush_shape_calc)) {
+        if (verbose) {
+          message("sagebrush_shape() returned NULL. Skipping sagebrush shape indicators.")
+        }
+      } else {
+        # Sagebrush shape is gathered regardless of live/dead status so we won't
+        # rename these indicators.
+        # sagebrush_shape_calc <- dplyr::rename_with(.data = sagebrush_shape_calc,
+        #                                            .fn = ~ stringr::str_replace(string = .x,
+        #                                                                         pattern = "_All_",
+        #                                                                         replacement = "_Live_"),
+        #                                            .cols = tidyselect::contains(match = "_All_"))
+        lpi_indicators <- dplyr::left_join(x = lpi_indicators,
+                                           y = sagebrush_shape_calc,
+                                           relationship = "one-to-one",
+                                           by = "PrimaryKey")
+      }
+
+    } else {
+      if (verbose) {
+        message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.")
+      }
+    }
   } else {
     if (verbose) {
-      message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.")
+      message("No variable called ShrubShape found. Skipping sagebrush shape indicators.")
     }
   }
 
+
   #### Final munging ###########################################################
   # Keep only the indicators we want
-  output <- dplyr::select(lpi_indicators,
-                          PrimaryKey,
-                          dplyr::any_of(expected_indicator_names))
+  # output <- dplyr::select(.data = lpi_indicators,
+  #                         PrimaryKey,
+  #                         dplyr::any_of(expected_indicator_names))
 
   # We need to make sure that all indicator variables are numeric because
   # they're all cover values. Any NA values should be assumed to be 0s.
-  # Also, it's totally inappropriate to return indicator values with 6+ decimal
-  # places so we're rounding to a single decimal place.
-  output <- dplyr::mutate(.data = output,
+  # output <- dplyr::mutate(.data = output,
+  output <- dplyr::mutate(.data = lpi_indicators,
                           dplyr::across(.cols = -tidyselect::any_of(x = c("PrimaryKey",
                                                                           "SagebrushShape_All_Predominant")),
                                         .fns = ~ as.numeric(.x) |>
@@ -1361,25 +1136,28 @@ lpi_calc <- function(header,
   # setdiff() is rad and I wish I'd known about it years ago.
   # We'll make sure to set ONLY the numeric indicators' NAs to 0.
   # The character indicators get NAs.
-  character_value_indicators <- NULL
-  output_missing_numeric_indicators <- setdiff(x = expected_indicator_names,
-                                               y = c(names(output),
-                                                     character_value_indicators))
-  output[output_missing_numeric_indicators] <- 0
-  output_missing_character_indicators <- setdiff(x = character_value_indicators,
-                                                 y = names(output))
-  output[output_missing_character_indicators] <- NA
+  if (!is.null(expected_indicator_names)) {
+    # One day we'll handle this, but this is a stub for now.
+    character_value_indicators <- NULL
+    output_missing_numeric_indicators <- setdiff(x = expected_indicator_names,
+                                                 y = c(names(output),
+                                                       character_value_indicators))
+    output[output_missing_numeric_indicators] <- 0
+    output_missing_character_indicators <- setdiff(x = character_value_indicators,
+                                                   y = names(output))
+    output[output_missing_character_indicators] <- NA
 
-  if (length(c(output_missing_numeric_indicators, output_missing_character_indicators)) > 0) {
-    warning(paste("The following indicators had no qualifying data and have been populated with 0 or NA as appropriate. This is not unexpected with rare situations and is even likely with smaller data sets. The indicators in question are:",
-                  paste(c(output_missing_numeric_indicators, output_missing_character_indicators),
-                        collapse = ", ")))
+    if (length(c(output_missing_numeric_indicators, output_missing_character_indicators)) > 0) {
+      warning(paste("The following indicators had no qualifying data and have been populated with 0 or NA as appropriate. This is not unexpected with rare situations and is even likely with smaller data sets. The indicators in question are:",
+                    paste(c(output_missing_numeric_indicators, output_missing_character_indicators),
+                          collapse = ", ")))
+    }
+
+    # This will reorder the variables to be as expected!
+    output <- dplyr::select(.data = output,
+                            dplyr::all_of(c("PrimaryKey",
+                                            expected_indicator_names)))
   }
-
-  # This will reorder the variables to be as expected!
-  output <- dplyr::select(.data = output,
-                          dplyr::all_of(c("PrimaryKey",
-                                          expected_indicator_names)))
 
   output
 }
@@ -1688,7 +1466,7 @@ height_calc <- function(header,
                   include = (is.na(Species) & !is.na(Height)) |
                     GrowthHabit_measured == GrowthHabit,
                   # include = TRUE
-                  )
+    )
 
 
   # if (omit_garbage) {
@@ -1763,16 +1541,16 @@ height_calc <- function(header,
                                  #   if (verbose) {
                                  #     message("The current set of indicator variables includes 'type' so only records where the values for the type and GrowthHabit variables are the same.")
                                  #   }
-                                   height_species <- dplyr::filter(.data = height_species,
-                                                                   include)
+                                 height_species <- dplyr::filter(.data = height_species,
+                                                                 include)
                                  # }
 
                                  output <- mean_height(height_tall = height_species,
-                                             method = "mean",
-                                             tall = TRUE,
-                                             indicator_variables = X,
-                                             digits = digits,
-                                             verbose = verbose) |>
+                                                       method = "mean",
+                                                       tall = TRUE,
+                                                       indicator_variables = X,
+                                                       digits = digits,
+                                                       verbose = verbose) |>
                                    dplyr::mutate(.data = _,
                                                  indicator = stringr::str_remove_all(string = indicator,
                                                                                      pattern = "\\.") |>
