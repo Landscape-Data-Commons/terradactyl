@@ -493,7 +493,7 @@ validate_canopy <- function(data,
                                  # represents a plant species (assuming that the
                                  # only valid code values with 3 or more
                                  # characters are plant species)
-                                 is_plant = nchar(code) >= 3 &
+                                 is_plant = stringri::stri_length(code) >= 3 &
                                    !stringr::str_detect(string = code,
                                                         pattern = "/") &
                                    !(code %in% bad_codes),
