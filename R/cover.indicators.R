@@ -26,7 +26,7 @@ pct_cover_indicators <- function(lpi_tall,
                                                                      "code"),
                                                             species = "code"),
                                  verbose = FALSE,
-                                digits = 6) {
+                                 digits = 6) {
   #### Santization and setup ###################################################
   # TODO: ALL THE COMPLIANCE CHECKS
 
@@ -130,7 +130,7 @@ pct_cover_indicators <- function(lpi_tall,
                                                                 hit = current_hit_type,
                                                                 by_line = by_line,
                                                                 indicator_variables = X,
-                                                               digits = digits)
+                                                                digits = digits)
                                                     })
                         })
   names(values_list) <- iteration_vector
@@ -142,6 +142,23 @@ pct_cover_indicators <- function(lpi_tall,
   # Maybe eventually this can be handled in a way that doesn't duplicate code.
   outputs_list <- list()
 
+  #_#_#_#_#_#_#_#_#
+  # species_test <- dplyr::filter(.data = species_file, HigherTaxon %in% c("lycophyte", "liverwort", "hornwort")) |>
+  #   dplyr::mutate(.data = _,
+  #                 bad_habit = grepl(x = GrowthHabitSub,
+  #                                   pattern = "^((non-?vascular)|(lichen)|(moss))$",
+  #                                   ignore.case = TRUE),
+  #                 lichenous = grepl(x = NameCode,
+  #                                   pattern = "(2?LICH[EI]N?\\d?)",
+  #                                   ignore.case = TRUE))
+  #
+  # dplyr::summarize(.data = species_test,
+  #               .by = tidyselect::all_of(x = c("GrowthHabitSub",
+  #                                              "bad_habit")),
+  #               n = dplyr::n())
+
+  ##_#_#_#_#_#_#_#_#_
+
   ##### Total foliar cover -----------------------------------------------------
   if ("total foliar" %in% indicator_families) {
     # Calculate total foliar cover by summing the first hits for all plant
@@ -150,9 +167,19 @@ pct_cover_indicators <- function(lpi_tall,
                                  cover_type == "total foliar")
     # output <- values_list[[which(names(iteration_vector) == current_lut[["hit"]])]][[current_lut[["indicator_variables"]]]] |>
     current_output <- values_list[[current_lut[["hit"]]]][[current_lut[["indicator_variables"]]]] |>
-      # Remove all layer codes that are < 3 codes (i.e., non-species codes)
+      # This has gotten more complicated to reflect how codes are being used in
+      # 2026.
+      # There's now a check to not just look at character count but also
+      # GrowthHabitSub and the actual content of codes to screen out things that
+      # don't correspond to vascular species, e.g. "MOS2" or "2LICHEN"
       dplyr::filter(.data = _,
-                    nchar(indicator) >= 3) |>
+                    GrowthHabit != "Nonvascular",
+                    !(grepl(x = GrowthHabitSub,
+                           pattern = "^((non-?vascular$)|(lichen)|(moss$))",
+                           ignore.case = TRUE) |
+                      stringr::str_detect(string = indicator,
+                                           pattern = "^(((M(OS{1,2})?\\d+)|(MOSS))|(2?LICH[EI]N?\\d?))$")) &
+                      stringi::stri_length(indicator) >= 3) |>
       # Replace the indicator value with "TotalFoliarCover" because we should only
       # have records with recorded species at this point.
       dplyr::mutate(.data = _,
@@ -189,7 +216,7 @@ pct_cover_indicators <- function(lpi_tall,
       # Remove all layer codes that are >= 3 codes (i.e., species codes)
       # THIS SEEMS REALLY WRONG?????????????
       dplyr::filter(.data = _,
-                    nchar(indicator) < 3)
+                    stringi::stri_length(indicator) < 3)
 
     # Widen the data frame if the user asked for that.
     if (!tall_output["ground"]) {
@@ -210,7 +237,7 @@ pct_cover_indicators <- function(lpi_tall,
     current_output <- values_list[[current_lut[["hit"]]]][[current_lut[["indicator_variables"]]]] |>
       # Remove all layer codes that are >= 3 codes (i.e., species codes)
       dplyr::filter(.data = _,
-                    nchar(indicator) < 3)
+                    stringi::stri_length(indicator) < 3)
 
     # Widen the data frame if the user asked for that.
     if (!tall_output["between plant"]) {
@@ -317,7 +344,7 @@ pct_cover_indicators <- function(lpi_tall,
     current_output <- values_list[[current_lut[["hit"]]]][[current_lut[["indicator_variables"]]]] |>
       # Remove all layer codes that are < 3 codes (i.e., non-species codes)
       dplyr::filter(.data = _,
-                    nchar(indicator) >= 3)
+                    stringi::stri_length(indicator) >= 3)
 
     # Widen the data frame if the user asked for that.
     if (!tall_output["species"]) {
@@ -333,7 +360,7 @@ pct_cover_indicators <- function(lpi_tall,
 
   #### Combining and cleanup ###################################################
   outputs_list[!sapply(X = outputs_list,
-                      FUN = is.null)]
+                       FUN = is.null)]
 }
 
 
@@ -460,7 +487,7 @@ pct_cover_total_foliar <- function(lpi_tall,
                                    tall = FALSE,
                                    by_line = FALSE,
                                    verbose = FALSE,
-                                  digits = 6) {
+                                   digits = 6) {
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("total foliar"),
                        tall_output = c("total foliar" = tall),
@@ -589,7 +616,7 @@ pct_cover_live <- function(lpi_tall,
                            hit = "any",
                            ...,
                            verbose = FALSE,
-                          digits = 6) {
+                           digits = 6) {
   grouping_variables <- rlang::quos(...)
   # This here because we're trying to support the legacy decision to originally
   # allow for bare variables as the indicator-defining variables.
