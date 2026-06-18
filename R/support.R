@@ -650,10 +650,20 @@ adjust_species_attributes <- function(data,
   }
 
   #### Plant --------------
-  if (all(c("GrowthHabit", "code") %in% names(data))) {
+  if (all(c("GrowthHabitSub", "code") %in% names(data))) {
     data <- dplyr::mutate(.data = data,
-                          Plant = dplyr::case_when(!(GrowthHabit %in% c("growthhabit_irrelevant",
-                                                                        NA)) & nchar(code) >= 3 ~ "Plant",
+                          # Because there are species attribute records where
+                          # there are not assigned GrowthHabit or GrowthHabitSub
+                          # values, we define this negatively against nonvasculars
+                          # to try to keep it to just vascular plants.
+                          # Previously we experimented with rejecting NA values
+                          # but that dropped records we needed.
+                          # Plant = dplyr::case_when(!(GrowthHabit %in% c("growthhabit_irrelevant",
+                          #                                               NA)) & nchar(code) >= 3 ~ "Plant",
+                          #                          .default = NA)
+                          Plant = dplyr::case_when(!(GrowthHabitSub %in% c("growthhabitsub_irrelevant")) &
+                                                     GrowthHabit != "Nonvascular",
+                                                   stringi::stri_length(code) >= 3 ~ "Plant",
                                                    .default = NA)
     )
   }
