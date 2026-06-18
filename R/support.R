@@ -888,3 +888,121 @@ adjust_species_attributes <- function(data,
 
   data
 }
+default_lpi_indicators <- function(source,
+                                   lookup = FALSE){
+
+  valid_sources <- c("terradat", "ldc")
+  source <- unique(source) |>
+    toupper()
+  if (length(source) > 1 | !all(source %in% valid_sources)) {
+    stop(paste0("source must be one of the following values: '",
+                paste(valid_sources,
+                      collapse = "', '"), "'"))
+  }
+
+  indicators_vectors <- list(
+    terradat = c("TotalFoliarCover" = "AH_PlantCover",
+                 "BareSoilCover" = "FH_BareSoilCover",
+                 "AH_ForbCover",
+                 "AH_PerenForbCover",
+                 "AH_AnnForbCover",
+                 "AH_PreferredForbCover",
+                 "AH_GrassCover",
+                 "AH_GraminoidCover",
+                 "AH_PerenGrassCover",
+                 "AH_PerenGraminoidCover",
+                 "AH_C3PerenGrassCover",
+                 "AH_C4PerenGrassCover",
+                 "AH_AnnGrassCover",
+                 "AH_AnnGraminoidCover",
+                 "AH_TallPerenGrassCover",
+                 "AH_ShortPerenGrassCover",
+                 "AH_PerenForbGraminoidCover",
+                 "AH_AnnForbGraminoidCover",
+                 "AH_ShrubCover",
+                 "AH_ShrubSucculentCover",
+                 "AH_TreeCover",
+                 "AH_SubShrubCover",
+                 "AH_SagebrushCover",
+                 "AH_SagebrushCover_Live",
+                 "AH_NonSagebrushShrubCover",
+                 "AH_TotalLitterCover",
+                 "AH_WoodyLitterCover",
+                 "AH_HerbLitterCover",
+                 "AH_DuffCover",
+                 "AH_VagrLichenCover",
+                 "AH_LichenCover",
+                 "AH_MossCover",
+                 "AH_CyanobacteriaCover",
+                 "AH_RockCover",
+                 "AH_EmbLitterCover",
+                 "AH_WaterCover",
+                 "AH_InvasiveCover",
+                 "AH_InvasivePerenForbCover",
+                 "AH_InvasiveAnnForbCover",
+                 "AH_InvasivePerenGrassCover",
+                 "AH_InvasiveAnnGrassCover",
+                 "AH_InvasivePerenForbGrassCover",
+                 "AH_InvasiveAnnForbGrassCover",
+                 "AH_InvasiveShrubCover",
+                 "AH_InvasiveSubShrubCover",
+                 "AH_InvasiveSucculentCover",
+                 "AH_InvasiveTreeCover",
+                 "AH_NonInvPerenForbCover",
+                 "AH_NonInvAnnForbCover",
+                 "AH_NonInvPerenGrassCover",
+                 "AH_NonInvAnnGrassCover",
+                 "AH_NonInvPerenForbGrassCover",
+                 "AH_NonInvAnnForbGrassCover",
+                 "AH_NonInvShrubCover",
+                 "AH_NonInvSubShrubCover",
+                 "AH_NonInvSucculentCover",
+                 "AH_NonInvTreeCover",
+                 "AH_NativeCover",
+                 "AH_NonNativeCover",
+                 "AH_NoxiousCover",
+                 "AH_PJCover",
+                 "AH_ConiferCover",
+                 "AH_BasalCover" = "AH_BasalPlantCover",
+                 "AH_BasalPerenGrassCover",
+                 "AH_BiocrustCover",
+                 "FH_TotalLitterCover",
+                 "FH_WoodyLitterCover",
+                 "FH_HerbLitterCover",
+                 "FH_DuffCover",
+                 "FH_VagrLichenCover",
+                 "FH_LichenCover",
+                 "FH_MossCover",
+                 "FH_CyanobacteriaCover",
+                 "FH_RockCover",
+                 "FH_EmbLitterCover",
+                 "FH_WaterCover",
+                 "FH_DepSoilCover",
+                 "FH_ForbCover",
+                 "FH_PerenForbCover",
+                 "FH_AnnForbCover",
+                 "FH_GraminoidCover",
+                 "FH_AnnGraminoidCover",
+                 "FH_PerenGraminoidCover",
+                 "FH_PerenForbGraminoidCover",
+                 "FH_ShrubCover",
+                 "FH_SagebrushCover",
+                 "FH_NonSagebrushShrubCover",
+                 "FH_TreeCover",
+                 "SagebrushShape_All_ColumnCount",
+                 "SagebrushShape_All_SpreadCount",
+                 "SagebrushShape_All_Predominant"),
+    ldc = c()
+  )
+
+  output <- indicators_vectors[source]
+
+  # If the user doesn't want this as a lookup for something like tidyselect,
+  # this replaces the values in the vectors with the names where there are names
+  if (!lookup) {
+    output[where(!is.na(names(output)))] <- purrr::discard(.x = names(output),
+                                                           .p = is.na)
+  }
+
+  output
+}
