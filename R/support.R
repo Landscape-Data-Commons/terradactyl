@@ -615,13 +615,13 @@ adjust_species_attributes <- function(data,
                                                          # out unused indicators
                                                          # GrowthHabitSub == "Sedge" ~ "growthhabit_irrelevant",
                                                          # For first-hit calculations
-                                                         is.na(GrowthHabit) ~ "growthhabit_irrelevant",
+                                                         # is.na(GrowthHabit) ~ "growthhabit_irrelevant",
                                                          .default = GrowthHabit)
     )
   }
 
   #### GrowthHabitSub -----------
-  if (all(c("GrowthHabit", "GrowthHabitSub") %in% names(data))) {
+  if (all(c("GrowthHabitSub") %in% names(data))) {
     data <- dplyr::mutate(.data = data,
                           GrowthHabitSub = dplyr::case_when(grepl(x = GrowthHabitSub,
                                                                   pattern = "forb",
@@ -644,7 +644,7 @@ adjust_species_attributes <- function(data,
                                                                   pattern = "^lichen$",
                                                                   ignore.case = TRUE) ~ "growthhabitsub_irrelevant",
                                                             # For first-hit calculations
-                                                            is.na(GrowthHabit) ~ "growthhabitsub_irrelevant",
+                                                            # is.na(GrowthHabit) ~ "growthhabitsub_irrelevant",
                                                             .default = GrowthHabitSub)
     )
   }
