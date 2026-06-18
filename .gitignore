@@ -6,3 +6,5 @@ inst/doc
 /testing
 *.Rproj
 .Rproj.user
+*.zip
+*.csv

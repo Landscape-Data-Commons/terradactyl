@@ -43,16 +43,16 @@ species_read_aim <- function(dsn,
   if (!(tools::file_ext(dsn) %in% c("GDB", "gdb"))) {
     stop("dsn must be a character string specifying the filepath to a geodatabase containing tables called 'tblNationalPlants' and 'tblStateSpecies'.")
   }
-  required_tables <- c("tblNationalPlants",
-                       "tblStateSpecies")
-  available_layers <- sf::st_layers(dsn = dsn)$name
-  missing_tables <- setdiff(x = required_tables,
-                            y = available_layers)
-  if (length(missing_tables) > 0) {
-    stop(paste0("The following tables are required but do not exist in the specified geodatabase: ",
-                paste(missing_tables,
-                      collapse = ", ")))
-  }
+  # required_tables <- c("tblNationalPlants",
+  #                      "tblStateSpecies")
+  # available_layers <- sf::st_layers(dsn = dsn)$name
+  # missing_tables <- setdiff(x = required_tables,
+  #                           y = available_layers)
+  # if (length(missing_tables) > 0) {
+  #   stop(paste0("The following tables are required but do not exist in the specified geodatabase: ",
+  #               paste(missing_tables,
+  #                     collapse = ", ")))
+  # }
 
   #### Reading #################################################################
   # This is way more complicated now that we're working with tblNationalPlants
@@ -324,6 +324,7 @@ generic_growth_habits <- function(data,
 #' @param growth_habit_code Deprecated. Defaults to \code{"Code"}.
 #' @param overwrite_generic_species Logical. If \code{TRUE} then \code{generic_species_file} will be read in and applied. Defaults to \code{FALSE}.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{""} or \code{overwrite_generic_species} is \code{FALSE} then no action will be taken. Defaults to \code{""}.
+#' @param check_duplicates Logical. If \code{TRUE} then the generic species information will be checked for duplicated values in the variable specified with the \code{species_code} argument and only the first record for a given code retained. This is recommended if using an imported generic species list but can add significant processing time. Defaults to \code{FALSE}.
 #' @param update_species_codes Logical. If \code{TRUE} then the final output will replace the values in the variable specified with \code{data_code} using values from the variable UpdatedSpeciesCode. This is here for legacy support and is not recommended for ongoing use. Defaults to \code{FALSE}.
 #' @param by_species_key Logical. If \code{TRUE} then the species information will be joined to the data using the variable SpeciesState. This is here for legacy support and is not compatible with the current structure of Terrestrial AIM Database species information in the. Defaults to \code{FALSE}.
 #' @param check_species Deprecated. This has no effect on the function because checks for duplicate species are always carried out. Default to \code{FALSE}.
@@ -335,7 +336,7 @@ generic_growth_habits <- function(data,
 #'
 species_join <- function(data, # field data,
                          data_code = "code", # Species field in the data
-                         species_file, # path to .csv or .gdb holding  the species table
+                         species_file,
                          species_layer = "tblNationalPlants",
                          species_code = "NameCode", # field name in species file that identifies the species code
                          species_growth_habit_code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
@@ -357,6 +358,7 @@ species_join <- function(data, # field data,
                          growth_habit_code = "Code",
                          overwrite_generic_species = FALSE,
                          generic_species_file = "",
+                         check_duplicates = FALSE,
                          update_species_codes = FALSE,
                          by_species_key = FALSE,
                          check_species = FALSE,
@@ -578,35 +580,36 @@ species_join <- function(data, # field data,
   # all the possible variables that might be present.
 
   #### Checking for duplicate species ##########################################
-  if (verbose) {
-    message("Checking for duplicate species codes.")
-  }
-
-  # speciescodes_counts <- table(species_generic[[species_code]])
-  # nonunique_speciescodes <- names(speciescodes_counts)[speciescodes_counts > 1]
-  nonunique_speciescodes <- dplyr::summarize(.data = species_generic,
-                                             .by = tidyselect::all_of(species_code),
-                                             n = dplyr::n()) |>
-    dplyr::filter(.data = _,
-                  n > 1) |>
-    dplyr::pull(.data = _,
-                var = species_code)
-
-  if (length(nonunique_speciescodes) > 0) {
-    warning(paste0("There are ", length(nonunique_speciescodes), " codes which occur in the species list more than once in the variable ", species_code, ". This is expected when using a variable like CurrentPLANTSCode. The first record for each of these codes will be kept, even if other records have more complete species information. If this is unexpected, check your species list for accuracy."))
-  } else {
+  if (check_duplicates) {
     if (verbose) {
-      message("No duplicate species codes found!")
+      message("Checking for duplicate species codes.")
+    }
+
+    # speciescodes_counts <- table(species_generic[[species_code]])
+    # nonunique_speciescodes <- names(speciescodes_counts)[speciescodes_counts > 1]
+    nonunique_speciescodes <- dplyr::summarize(.data = species_generic,
+                                               .by = tidyselect::all_of(species_code),
+                                               n = dplyr::n()) |>
+      dplyr::filter(.data = _,
+                    n > 1) |>
+      dplyr::pull(.data = _,
+                  var = species_code)
+
+    if (length(nonunique_speciescodes) > 0) {
+      warning(paste0("There are ", length(nonunique_speciescodes), " codes which occur in the species list more than once in the variable ", species_code, ". This is expected when using a variable like CurrentPLANTSCode. The first record for each of these codes will be kept, even if other records have more complete species information. If this is unexpected, check your species list for accuracy."))
+      # This handles any duplicate codes.
+      species_generic <- dplyr::summarize(.data = species_generic,
+                                          .by = tidyselect::all_of(species_code),
+                                          dplyr::across(.cols = tidyselect::any_of(x = species_property_vars),
+                                                        .fns = ~ .x[!is.na(.x)] |>
+                                                          dplyr::first(x = _) |>
+                                                          as.character()))
+    } else {
+      if (verbose) {
+        message("No duplicate species codes found!")
+      }
     }
   }
-
-  # This handles any duplicate codes.
-  species_generic <- dplyr::summarize(.data = species_generic,
-                                      .by = tidyselect::all_of(species_code),
-                                      dplyr::across(.cols = tidyselect::any_of(x = species_property_vars),
-                                                    .fns = ~ .x[!is.na(.x)] |>
-                                                      dplyr::first(x = _) |>
-                                                      as.character()))
 
   if (verbose) {
     message("Adding species_list information to the data.")
@@ -1139,7 +1142,7 @@ accumulated_species <- function(header,
     # Add in the number of pin drops that each species was recorded at in the
     # LPI data.
     species_cover <- dplyr::filter(.data = inputs_list[["cover"]],
-                                   nchar(as.character(code)) >= 3,
+                                   stringi::stri_length(as.character(code)) >= 3,
                                    !(code %in% c("None"))) |>
       dplyr::select(.data = _,
                     tidyselect::all_of(x = c("PrimaryKey",

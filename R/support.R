@@ -27,6 +27,20 @@ unquoted_to_character <- function(...) {
 # The goal here is to handle all of those as seamlessly as possible.
 # If regex is TRUE and best_guess is also TRUE, then matching multiple feature
 # classes will be resolved by simply reading in the one with the shortest name.
+#' Read in various formats smoothly
+#' @description
+#' This function will flexibly read in a variety or formats including RDS, Rdata, CSV, and geodatabase feature classes.
+#' It will also accept data frames, although those will be returned unaltered.
+#' This exists to facilitate legacy code that was originally written using terradactyl v1.1.0 and earlier.
+#'
+#' @param input Data frame or character string. If a character string, this should point to an RDS, Rdata, CSV, or GDB file.
+#' @param layer Optional character string. If this is not \code{NULL} and \code{input} points to a geodatabase, this is the name of the table or feature class to try to read in. Defaults to \code{NULL}.
+#' @param regex Logical. If \code{TRUE} then \code{layer} will be treated as a regular expression. Defaults to \code{FALSE}.
+#' @param best_guess Logical. If \code{regex} is \code{TRUE} and this is \code{TRUE} then in the case that multiple layers in the geodatabase match the regular expression \code{layer} the one with the shortest name will be used. If \code{FALSE} and multiple layers match the regular expression the function will stop and return an error. Defaults to \code{TRUE}.
+#' @param accept_failure Logical. If \code{FALSE} and \code{regex} is \code{TRUE} then in the case that no layers match the regular expression the function will stop an return an error. If \code{TRUE} then the function will return \code{NULL}. Defaults to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 read_whatever <- function(input,
                           layer = NULL,
                           regex = FALSE,
@@ -103,7 +117,7 @@ read_whatever <- function(input,
                          # Order them according to string length in case we make
                          # a best guess.
                          matched_layers <- matched_layers[order(sapply(X = matched_layers,
-                                                                       FUN = nchar))][1]
+                                                                       FUN = stringi::stri_length))][1]
                          if (length(matched_layers) > 1 & !best_guess) {
                            stop(paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase but must only match one if best_guess is FALSE. The following layers were found: ",
                                        paste(matched_layers,
@@ -226,12 +240,12 @@ select_source <- function(possible_inputs,
 # 2) if tbl is NULL, try to use dsn with read_whatever() looking for layer = default_name with regex and best_guess.
 
 read_with_fallback <- function(dsn = NULL,
-                              tbl = NULL,
-                              default_name = NULL,
-                              regex = FALSE,
-                              best_guess = FALSE,
-                              accept_failure = FALSE,
-                              verbose = FALSE){
+                               tbl = NULL,
+                               default_name = NULL,
+                               regex = FALSE,
+                               best_guess = FALSE,
+                               accept_failure = FALSE,
+                               verbose = FALSE){
   #### Reading #################################################################
   # Here's the order of operations:
   # 1) If tbl is not NULL, try to figure out how to use it
@@ -285,15 +299,14 @@ read_with_fallback <- function(dsn = NULL,
 
 lpi_indicator_definitions <- function(){
 
-  # 1. Define the independent objects first so they are in the function's scope
+  # Define the independent objects first so they are in the function's scope
   litter_codes_init = list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
                            "WoodyLitter" = c("WL"),
                            "NonVegLitter" = c("HT", "NL", "AL", "OM"),
                            "EmbLitter" = c("EL"))
 
   rock_codes_init = c("R", "GR", "CB", "ST", "BY", "RF", "BR")
-
-  # 2. Now create and return the master list safely
+  
   list(
     #### Litter code categories ------------------------------------------------
     litter_codes = litter_codes_init,
@@ -412,6 +425,7 @@ lpi_indicator_definitions <- function(){
 #' Harmonize species attributes with TerrADat needs
 #' @export
 adjust_species_attributes <- function(data,
+                                      fail_on_missing = FALSE,
                                       verbose = FALSE){
 
   # This is a list of all the various bits of definitions for modifying the
@@ -443,6 +457,11 @@ adjust_species_attributes <- function(data,
                                         names(data))
 
   if (length(missing_expected_variables) > 0) {
+    if (fail_on_missing) {
+      stop(paste0("The provided species information does not contain all expected variables required for the standard set of indicators. Set fail_on_missing = FALSE to skip indicators which cannot be calculated. The variables in question are: ",
+                  paste(missing_expected_variables,
+                        collapse = ", ")))
+    }
     warning(paste0("The provided species information does not contain all expected variables required for the standard set of indicators. Indicators which depend on those variables will not be calculated. The variables in question are: ",
                    paste(missing_expected_variables,
                          collapse = ", ")))
@@ -495,13 +514,13 @@ adjust_species_attributes <- function(data,
                                                          # out unused indicators
                                                          # GrowthHabitSub == "Sedge" ~ "growthhabit_irrelevant",
                                                          # For first-hit calculations
-                                                         is.na(GrowthHabit) ~ "growthhabit_irrelevant",
+                                                         # is.na(GrowthHabit) ~ "growthhabit_irrelevant",
                                                          .default = GrowthHabit)
     )
   }
 
   #### GrowthHabitSub -----------
-  if (all(c("GrowthHabit", "GrowthHabitSub") %in% names(data))) {
+  if (all(c("GrowthHabitSub") %in% names(data))) {
     data <- dplyr::mutate(.data = data,
                           GrowthHabitSub = dplyr::case_when(grepl(x = GrowthHabitSub,
                                                                   pattern = "forb",
@@ -524,16 +543,26 @@ adjust_species_attributes <- function(data,
                                                                   pattern = "^lichen$",
                                                                   ignore.case = TRUE) ~ "growthhabitsub_irrelevant",
                                                             # For first-hit calculations
-                                                            is.na(GrowthHabit) ~ "growthhabitsub_irrelevant",
+                                                            # is.na(GrowthHabit) ~ "growthhabitsub_irrelevant",
                                                             .default = GrowthHabitSub)
     )
   }
 
   #### Plant --------------
-  if (all(c("GrowthHabit", "code") %in% names(data))) {
+  if (all(c("GrowthHabitSub", "code") %in% names(data))) {
     data <- dplyr::mutate(.data = data,
-                          Plant = dplyr::case_when(!(GrowthHabit %in% c("growthhabit_irrelevant",
-                                                                        NA)) & nchar(code) >= 3 ~ "Plant",
+                          # Because there are species attribute records where
+                          # there are not assigned GrowthHabit or GrowthHabitSub
+                          # values, we define this negatively against nonvasculars
+                          # to try to keep it to just vascular plants.
+                          # Previously we experimented with rejecting NA values
+                          # but that dropped records we needed.
+                          # Plant = dplyr::case_when(!(GrowthHabit %in% c("growthhabit_irrelevant",
+                          #                                               NA)) & nchar(code) >= 3 ~ "Plant",
+                          #                          .default = NA)
+                          Plant = dplyr::case_when(!(GrowthHabitSub %in% c("growthhabitsub_irrelevant")) &
+                                                     GrowthHabit != "Nonvascular",
+                                                   stringi::stri_length(code) >= 3 ~ "Plant",
                                                    .default = NA)
     )
   }
@@ -579,7 +608,7 @@ adjust_species_attributes <- function(data,
 
                           Duff = dplyr::case_when(code == "D" ~ "Duff",
 
-                                                  .default = "duff_irrelevant"),
+                                                  .default = NA),
 
 
 
@@ -781,4 +810,195 @@ adjust_species_attributes <- function(data,
   }
 
   data
+}
+
+# These are the indicator groupings for producing the TerrADat indicators from
+# the output from adjust_species_attributes()
+default_indicators_vars <- function(source,
+                                    hit = c("any", "first", "basal"),
+                                    verbose = FALSE){
+
+  valid_sources <- c("terradat", "ldc")
+  source <- unique(source) |>
+    toupper()
+  if (length(source) > 1 | !all(source %in% valid_sources)) {
+    stop(paste0("source must be one of the following values: '",
+                paste(valid_sources,
+                      collapse = "', '"), "'"))
+  }
+
+  valid_hits <- c("any", "first", "basal")
+  if (!all(hit %in% valid_hits)) {
+    stop("Valid values for hit are: '",
+         paste(valid_hits,
+               collapse = "', '"), "'")
+  }
+
+  groupings_lists <- list(
+    terradat = list(
+      first = list(c("Duration", "GrowthHabitSub"),
+                   c("Duration", "ForbGraminoid"),
+                   c("GrowthHabitSub"),
+                   c("SG_Group"),
+                   c("Noxious", "Duration", "GrowthHabitSub"),
+                   c("between_plant"),
+                   c("Litter"),
+                   c("Lichen"),
+                   c("TotalLitter"),
+                   c("Moss")),
+      any = list(c("Plant"),
+                 c("GrowthHabit"),
+                 c("GrowthHabitSub"),
+                 c("Duration", "GrowthHabit"),
+                 c("Duration", "GrowthHabitSub"),
+                 c("Duration", "ForbGraminoid"),
+                 c("ShrubSucculent"),
+                 c("Noxious"),
+                 c("Litter"),
+                 c("TotalLitter"),
+                 c("SG_Group"),
+                 c("SG_Group", "Live"),
+                 c("Grass"),
+                 c("Duration", "Grass"),
+                 c("C3", "Duration", "Grass"),
+                 c("C4", "Duration", "Grass"),
+                 c("Native"),
+                 c("Invasive"),
+                 c("Invasive", "Duration", "GrowthHabitSub"),
+                 c("Invasive", "Duration", "ShrubSucculent"),
+                 c("Invasive", "Duration", "Grass"),
+                 c("Invasive", "Duration", "ForbGrass"),
+                 c("Conifer"),
+                 c("PJ"),
+                 c("Moss"),
+                 c("Rock"),
+                 c("Biocrust"),
+                 c("Lichen")),
+      basal = list(c("Duration", "Grass"),
+                   c("Plant"))
+    ),
+    ldc = list(any = c(),
+               first = c(),
+               basal = c()))
+
+  groupings_lists[[source]][hit]
+}
+
+default_lpi_indicators <- function(source,
+                                   lookup = FALSE){
+
+  valid_sources <- c("terradat", "ldc")
+  source <- unique(source) |>
+    toupper()
+  if (length(source) > 1 | !all(source %in% valid_sources)) {
+    stop(paste0("source must be one of the following values: '",
+                paste(valid_sources,
+                      collapse = "', '"), "'"))
+  }
+
+  indicators_vectors <- list(
+    terradat = c("TotalFoliarCover" = "AH_PlantCover",
+                 "BareSoilCover" = "FH_BareSoilCover",
+                 "AH_ForbCover",
+                 "AH_PerenForbCover",
+                 "AH_AnnForbCover",
+                 "AH_PreferredForbCover",
+                 "AH_GrassCover",
+                 "AH_GraminoidCover",
+                 "AH_PerenGrassCover",
+                 "AH_PerenGraminoidCover",
+                 "AH_C3PerenGrassCover",
+                 "AH_C4PerenGrassCover",
+                 "AH_AnnGrassCover",
+                 "AH_AnnGraminoidCover",
+                 "AH_TallPerenGrassCover",
+                 "AH_ShortPerenGrassCover",
+                 "AH_PerenForbGraminoidCover",
+                 "AH_AnnForbGraminoidCover",
+                 "AH_ShrubCover",
+                 "AH_ShrubSucculentCover",
+                 "AH_TreeCover",
+                 "AH_SubShrubCover",
+                 "AH_SagebrushCover",
+                 "AH_SagebrushCover_Live",
+                 "AH_NonSagebrushShrubCover",
+                 "AH_TotalLitterCover",
+                 "AH_WoodyLitterCover",
+                 "AH_HerbLitterCover",
+                 "AH_DuffCover",
+                 "AH_VagrLichenCover",
+                 "AH_LichenCover",
+                 "AH_MossCover",
+                 "AH_CyanobacteriaCover",
+                 "AH_RockCover",
+                 "AH_EmbLitterCover",
+                 "AH_WaterCover",
+                 "AH_InvasiveCover",
+                 "AH_InvasivePerenForbCover",
+                 "AH_InvasiveAnnForbCover",
+                 "AH_InvasivePerenGrassCover",
+                 "AH_InvasiveAnnGrassCover",
+                 "AH_InvasivePerenForbGrassCover",
+                 "AH_InvasiveAnnForbGrassCover",
+                 "AH_InvasiveShrubCover",
+                 "AH_InvasiveSubShrubCover",
+                 "AH_InvasiveSucculentCover",
+                 "AH_InvasiveTreeCover",
+                 "AH_NonInvPerenForbCover",
+                 "AH_NonInvAnnForbCover",
+                 "AH_NonInvPerenGrassCover",
+                 "AH_NonInvAnnGrassCover",
+                 "AH_NonInvPerenForbGrassCover",
+                 "AH_NonInvAnnForbGrassCover",
+                 "AH_NonInvShrubCover",
+                 "AH_NonInvSubShrubCover",
+                 "AH_NonInvSucculentCover",
+                 "AH_NonInvTreeCover",
+                 "AH_NativeCover",
+                 "AH_NonNativeCover",
+                 "AH_NoxiousCover",
+                 "AH_PJCover",
+                 "AH_ConiferCover",
+                 "AH_BasalCover" = "AH_BasalPlantCover",
+                 "AH_BasalPerenGrassCover",
+                 "AH_BiocrustCover",
+                 "FH_TotalLitterCover",
+                 "FH_WoodyLitterCover",
+                 "FH_HerbLitterCover",
+                 "FH_DuffCover",
+                 "FH_VagrLichenCover",
+                 "FH_LichenCover",
+                 "FH_MossCover",
+                 "FH_CyanobacteriaCover",
+                 "FH_RockCover",
+                 "FH_EmbLitterCover",
+                 "FH_WaterCover",
+                 "FH_DepSoilCover",
+                 "FH_ForbCover",
+                 "FH_PerenForbCover",
+                 "FH_AnnForbCover",
+                 "FH_GraminoidCover",
+                 "FH_AnnGraminoidCover",
+                 "FH_PerenGraminoidCover",
+                 "FH_PerenForbGraminoidCover",
+                 "FH_ShrubCover",
+                 "FH_SagebrushCover",
+                 "FH_NonSagebrushShrubCover",
+                 "FH_TreeCover",
+                 "SagebrushShape_All_ColumnCount",
+                 "SagebrushShape_All_SpreadCount",
+                 "SagebrushShape_All_Predominant"),
+    ldc = c()
+  )
+
+  output <- indicators_vectors[source]
+
+  # If the user doesn't want this as a lookup for something like tidyselect,
+  # this replaces the values in the vectors with the names where there are names
+  if (!lookup) {
+    output[where(!is.na(names(output)))] <- purrr::discard(.x = names(output),
+                                                           .p = is.na)
+  }
+
+  output
 }

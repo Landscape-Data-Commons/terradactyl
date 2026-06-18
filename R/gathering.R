@@ -75,6 +75,7 @@ gather_all <- function(dsn = NULL,
                                       "soilstability",
                                       "species",
                                       "rangelandhealth"),
+                       date_tables = NULL,
                        output_filepath = NULL,
                        output_filetype = c("csv", "rds"),
                        # skip_missing = FALSE,
@@ -142,7 +143,7 @@ gather_all <- function(dsn = NULL,
 
   ##### Check data_list --------------------------------------------------------
   method_argument_names <- list("aim" = list("header" = c("tblPlots",
-                                                          "date_tables"),
+                                                          date_tables),
                                              "lpi" = c("tblLPIHeader",
                                                        "tblLPIDetail"),
                                              "height" = c("tblLPIHeader",
@@ -166,57 +167,82 @@ gather_all <- function(dsn = NULL,
                                               "species" = "PLANTCENSUS",
                                               "rangeland health" = "RANGEHEALTH"))
 
-  if (verbose) {
-    message("Checking data_list for superficial validity. Additional checks will take place later.")
+  if (!is.null(data_list)) {
+    if (verbose) {
+      message("Checking data_list for superficial validity. Additional checks will take place later.")
+    }
+
+    bad_data_list_values <- lapply(X = recognized_sources,
+                                   method_argument_names = method_argument_names,
+                                   requested_data_types = requested_data_types,
+                                   data_list = data_list,
+                                   verbose = verbose,
+                                   FUN = function(X, method_argument_names, requested_data_types, data_list, verbose){
+                                     if (any(c("aim", "terradat", "dima") %in% X)) {
+                                       current_method_argument_names <- method_argument_names[["aim"]]
+                                     } else {
+                                       current_method_argument_names <- method_argument_names[[X]]
+                                     }
+
+                                     arguments_to_check <- current_method_argument_names[requested_data_types] |>
+                                       unlist()
+
+                                     valid_classes <- sapply(X = arguments_to_check,
+                                                             data_list = data_list,
+                                                             FUN = function(X, data_list){
+                                                               is.null(data_list[[X]]) | is.data.frame(data_list[[X]]) | is.character(data_list[[X]])
+                                                             })
+
+                                     arguments_to_check[!valid_classes]
+                                   }) |>
+      unlist()
+
+    if (length(bad_data_list_values) > 0) {
+      stop(paste0("The following in data_list are not a valid class (either data frame or character string): ",
+                  paste(bad_data_list_values,
+                        collapse = ", ")))
+    }
+
+
+    anticipated_data_list_names <- lapply(X = recognized_sources,
+                                          method_argument_names = method_argument_names,
+                                          requested_data_types = requested_data_types,
+                                          FUN = function(X, method_argument_names, requested_data_types){
+                                            method_argument_names[[X]][requested_data_types]
+                                          }) |>
+      unlist()
+    extraneous_data_list_names <- setdiff(x = names(data_list),
+                                          anticipated_data_list_names)
+
+    if (length(extraneous_data_list_names) > 0) {
+      warning(paste0("The following were included in data_list but will not be used because they are not relevant to the data types being worked with: ",
+                     paste(extraneous_data_list_names,
+                           collapse = ", ")))
+    }
+  } else {
+    if (verbose) {
+      message("data_list is NULL so data will be read in from the source provided as dsn assuming that it's a geodatabase containing tables/feature classes with the standard names associated with AIM data.")
+    }
+
+    read_in_layers <- method_argument_names[[source]][requested_data_types] |>
+      unlist() |>
+      unname() |>
+      unique()
+
+    data_list <- lapply(X = setNames(object = read_in_layers,
+                                     nm = read_in_layers),
+                        dsn = dsn,
+                        verbose = verbose,
+                        FUN = function(X, dsn, verbose){
+                          read_whatever(input = dsn,
+                                        layer = X,
+                                        regex = TRUE,
+                                        best_guess = TRUE,
+                                        accept_failure = FALSE,
+                                        verbose = verbose)
+                        })
   }
 
-  bad_data_list_values <- lapply(X = recognized_sources,
-                                 method_argument_names = method_argument_names,
-                                 requested_data_types = requested_data_types,
-                                 data_list = data_list,
-                                 verbose = verbose,
-                                 FUN = function(X, method_argument_names, requested_data_types, data_list, verbose){
-                                   if (any(c("aim", "terradat", "dima") %in% X)) {
-                                     current_method_argument_names <- method_argument_names[["aim"]]
-                                   } else {
-                                     current_method_argument_names <- method_argument_names[[X]]
-                                   }
-
-                                   arguments_to_check <- current_method_argument_names[requested_data_types] |>
-                                     unlist()
-
-                                   valid_classes <- sapply(X = arguments_to_check,
-                                                           data_list = data_list,
-                                                           FUN = function(X, data_list){
-                                                             is.null(data_list[[X]]) | is.data.frame(data_list[[X]]) | is.character(data_list[[X]])
-                                                           })
-
-                                   arguments_to_check[!valid_classes]
-                                 }) |>
-    unlist()
-
-  if (length(bad_data_list_values) > 0) {
-    stop(paste0("The following in data_list are not a valid class (either data frame or character string): ",
-                paste(bad_data_list_values,
-                      collapse = ", ")))
-  }
-
-
-  anticipated_data_list_names <- lapply(X = recognized_sources,
-                                        method_argument_names = method_argument_names,
-                                        requested_data_types = requested_data_types,
-                                        FUN = function(X, method_argument_names, requested_data_types){
-                                          method_argument_names[[X]][requested_data_types]
-                                        }) |>
-    unlist()
-  extraneous_data_list_names <- setdiff(x = names(data_list),
-                                        anticipated_data_list_names)
-
-  if (length(extraneous_data_list_names) > 0) {
-    warning(paste0("The following were included in data_list but will not be used because they are not relevant to the data types being worked with: ",
-                   paste(extraneous_data_list_names,
-                         collapse = ", ")))
-  }
 
 
   ##### Check output_filepath --------------------------------------------------
@@ -294,7 +320,11 @@ gather_all <- function(dsn = NULL,
                                                POINTCOORDINATES = data_list[["POINTCOORDINATES"]],
                                                GPS = data_list[["GPS"]],
                                                ESFSG = data_list[["ESFSG"]],
-                                               date_tables = data_list[["date_tables"]],
+                                               date_tables = if (is.null(date_tables)) {
+                                                 NULL
+                                               } else {
+                                                 data_list[date_tables]
+                                               },
                                                verbose = verbose)
                                },
                                "lpi" = {
@@ -533,7 +563,7 @@ gather_header_terradat <- function(dsn = NULL,
   # We need to grab dates from the other tables.
   # If date_tables was provided, we'll work with that. Otherwise, we'll snag
   # them from the GDB pointed to by dsn.
-  if(!is.null(dsn) & is.null(date_tables)){
+  if (!is.null(dsn) & is.null(date_tables)) {
     available_layers <- sf::st_layers(dsn = dsn)$name
 
     desired_date_tables <- c("tblLPIHeader",
@@ -569,11 +599,11 @@ gather_header_terradat <- function(dsn = NULL,
                           })
   }
 
-  if(is.null(date_tables)){
+  if (is.null(date_tables)) {
     stop("date_tables must be provided if dsn is not. Provide a list of tables containing the variables FormDate or collectDate.")
   }
 
-  if(class(date_tables) != "list"){
+  if (class(date_tables) != "list") {
     stop("date_tables must be a list of minimum length 1. If you intend to provide a single data frame as date_tables, wrap it in list() like this: list(whatever_data_frame)")
   }
 
@@ -2099,9 +2129,9 @@ gather_height_terradat <- function(dsn = NULL,
     current_nas_by_coercion <- coerced_nas_list[[current_variable_prefix]]
     if (length(current_nas_by_coercion) > 0) {
       warning(paste0("There are values that cannot be coerced into the correct class in at least one ", current_variable_prefix, " variable in tblLPIDetail. There will be ",
-                     sum(nas_by_coercion),
+                     sum(current_nas_by_coercion),
                      " invalid ", current_variable_prefix, " values replaced with NA across the following ", current_variable_prefix, " types: ",
-                     paste(names(nas_by_coercion) |>
+                     paste(names(current_nas_by_coercion) |>
                              stringr::str_replace(string = _,
                                                   pattern = "_",
                                                   replacement = " "),
@@ -2148,8 +2178,8 @@ gather_height_terradat <- function(dsn = NULL,
                               }) |>
     dplyr::bind_rows()
 
-  lpi_height <- suppressWarnings(dplyr::left_join(x = lpi_heights_tall,
-                                                  y = header,
+  lpi_height <- suppressWarnings(dplyr::left_join(x = header,
+                                                  y = lpi_heights_tall,
                                                   # As per usual, not enforcing
                                                   # the relationship because
                                                   # we're letting the users move
@@ -2758,12 +2788,12 @@ gather_gap_terradat <- function(dsn = NULL,
     dplyr::select(.data = _,
                   -needs_canopy,
                   -needs_basal) |>
-    dplyr::left_join(x = _,
-                     y = dplyr::select(.data = header,
+    dplyr::left_join(x = dplyr::select(.data = header,
                                        -LineKey,
                                        -Measure,
                                        -NoCanopyGaps,
                                        -NoBasalGaps),
+                     y = _,
                      by = c("PrimaryKey", "RecKey"))
 
   gap_tall <- dplyr::bind_rows(gap_tall,
