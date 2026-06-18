@@ -2119,7 +2119,7 @@ gather_height_terradat <- function(dsn = NULL,
   # species are stored as character strings but heights are numeric) so we can't
   # put them all in one data frame variable when we pivot the data to a long
   # format.
-  llpi_heights_tall <- lapply(X = variable_types,
+  lpi_heights_tall <- lapply(X = variable_types,
                               detail = detail,
                               FUN = function(X, detail){
                                 dplyr::select(.data = detail,
