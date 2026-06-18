@@ -240,12 +240,12 @@ select_source <- function(possible_inputs,
 # 2) if tbl is NULL, try to use dsn with read_whatever() looking for layer = default_name with regex and best_guess.
 
 read_with_fallback <- function(dsn = NULL,
-                              tbl = NULL,
-                              default_name = NULL,
-                              regex = FALSE,
-                              best_guess = FALSE,
-                              accept_failure = FALSE,
-                              verbose = FALSE){
+                               tbl = NULL,
+                               default_name = NULL,
+                               regex = FALSE,
+                               best_guess = FALSE,
+                               accept_failure = FALSE,
+                               verbose = FALSE){
   #### Reading #################################################################
   # Here's the order of operations:
   # 1) If tbl is not NULL, try to figure out how to use it
@@ -532,6 +532,7 @@ lpi_indicator_definitions <- function(){
 #' Harmonize species attributes with TerrADat needs
 #' @export
 adjust_species_attributes <- function(data,
+                                      fail_on_missing = FALSE,
                                       verbose = FALSE){
 
   # This is a list of all the various bits of definitions for modifying the
@@ -563,6 +564,11 @@ adjust_species_attributes <- function(data,
                                         names(data))
 
   if (length(missing_expected_variables) > 0) {
+    if (fail_on_missing) {
+      stop(paste0("The provided species information does not contain all expected variables required for the standard set of indicators. Set fail_on_missing = FALSE to skip indicators which cannot be calculated. The variables in question are: ",
+                  paste(missing_expected_variables,
+                        collapse = ", ")))
+    }
     warning(paste0("The provided species information does not contain all expected variables required for the standard set of indicators. Indicators which depend on those variables will not be calculated. The variables in question are: ",
                    paste(missing_expected_variables,
                          collapse = ", ")))
