@@ -12,6 +12,7 @@ height_calc(
   source = NULL,
   generic_species_file = NULL,
   digits = 6,
+  flatten_type = FALSE,
   verbose = FALSE
 )
 }
@@ -26,7 +27,9 @@ height_calc(
 
 \item{generic_species_file}{Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.}
 
-\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.}
+\item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{6}.}
+
+\item{flatten_type}{Logical. If \code{TRUE} then the values in the type variable will be combined according to growth habit, e.g., \code{"lower.herbaceous"} will be converted to the broader category of \code{"herbaceous"}. Defaults to \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE} the function will produce diagnostic
 messages. Defaults to \code{FALSE}.}
