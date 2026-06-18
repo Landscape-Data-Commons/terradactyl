@@ -888,6 +888,79 @@ adjust_species_attributes <- function(data,
 
   data
 }
+
+# These are the indicator groupings for producing the TerrADat indicators from
+# the output from adjust_species_attributes()
+default_indicators_vars <- function(source,
+                                    hit = c("any", "first", "basal"),
+                                    verbose = FALSE){
+
+  valid_sources <- c("terradat", "ldc")
+  source <- unique(source) |>
+    toupper()
+  if (length(source) > 1 | !all(source %in% valid_sources)) {
+    stop(paste0("source must be one of the following values: '",
+                paste(valid_sources,
+                      collapse = "', '"), "'"))
+  }
+
+  valid_hits <- c("any", "first", "basal")
+  if (!all(hit %in% valid_hits)) {
+    stop("Valid values for hit are: '",
+         paste(valid_hits,
+               collapse = "', '"), "'")
+  }
+
+  groupings_lists <- list(
+    terradat = list(
+      first = list(c("Duration", "GrowthHabitSub"),
+                   c("Duration", "ForbGraminoid"),
+                   c("GrowthHabitSub"),
+                   c("SG_Group"),
+                   c("Noxious", "Duration", "GrowthHabitSub"),
+                   c("between_plant"),
+                   c("Litter"),
+                   c("Lichen"),
+                   c("TotalLitter"),
+                   c("Moss")),
+      any = list(c("Plant"),
+                 c("GrowthHabit"),
+                 c("GrowthHabitSub"),
+                 c("Duration", "GrowthHabit"),
+                 c("Duration", "GrowthHabitSub"),
+                 c("Duration", "ForbGraminoid"),
+                 c("ShrubSucculent"),
+                 c("Noxious"),
+                 c("Litter"),
+                 c("TotalLitter"),
+                 c("SG_Group"),
+                 c("SG_Group", "Live"),
+                 c("Grass"),
+                 c("Duration", "Grass"),
+                 c("C3", "Duration", "Grass"),
+                 c("C4", "Duration", "Grass"),
+                 c("Native"),
+                 c("Invasive"),
+                 c("Invasive", "Duration", "GrowthHabitSub"),
+                 c("Invasive", "Duration", "ShrubSucculent"),
+                 c("Invasive", "Duration", "Grass"),
+                 c("Invasive", "Duration", "ForbGrass"),
+                 c("Conifer"),
+                 c("PJ"),
+                 c("Moss"),
+                 c("Rock"),
+                 c("Biocrust"),
+                 c("Lichen")),
+      basal = list(c("Duration", "Grass"),
+                   c("Plant"))
+    ),
+    ldc = list(any = c(),
+               first = c(),
+               basal = c()))
+
+  groupings_lists[[source]][hit]
+}
+
 default_lpi_indicators <- function(source,
                                    lookup = FALSE){
 
