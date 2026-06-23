@@ -767,8 +767,7 @@ lpi_calc <- function(header,
                             by_line = FALSE,
                             indicator_variables = "Plant",
                             digits = digits) |>
-    dplyr::mutate(.data = _,
-                  indicator = "TotalFoliarCover")
+    dplyr::mutate(indicator = "TotalFoliarCover")
 
   ##### All other cover ########################################################
   # This is going to look gnarly, but automates stuff so we don't have to do the
