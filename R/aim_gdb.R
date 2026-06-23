@@ -672,7 +672,7 @@ lpi_calc <- function(header,
                                       y = lpi_tall,
                                       relationship = "one-to-many",
                                       by = "PrimaryKey")
-                       
+
     if (verbose) {
       message("Checking species_file and reading in as necessary.")
     }
@@ -1042,7 +1042,7 @@ lpi_calc <- function(header,
     output
 
   }
-
+}
 
 
 
@@ -1854,3 +1854,4 @@ soil_stability_calc <- function(soil_stability_tall,
                                digits = digits)
   indicators
 }
+
