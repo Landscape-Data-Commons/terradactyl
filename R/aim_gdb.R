@@ -662,6 +662,8 @@ lpi_calc <- function(header,
                             accept_failure = FALSE,
                             verbose = verbose)
 
+
+
   lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
                                                         tidyselect::any_of(c("PrimaryKey",
                                                                              "SpeciesState",
@@ -670,156 +672,35 @@ lpi_calc <- function(header,
                                       y = lpi_tall,
                                       relationship = "one-to-many",
                                       by = "PrimaryKey")
-
-  #### Defaults and setup ######################################################
-  ##### Expected output indicators ---------------------------------------------
-  # Valid indicator names we're looking for
-  # We'll use this to:
-  # 1) Drop any unintended indicators
-  # 2) Populate missing indicators with 0 (e.g., when there are no invasive
-  #    shrubs and therefore no invasive shrub indicators calculated)
-  # 3) Reorder the output of indicators in the output to meet expectations
-  # expected_indicator_names <- c("TotalFoliarCover",
-  #                               "BareSoilCover",
-  #                               "AH_ForbCover",
-  #                               "AH_PerenForbCover",
-  #                               "AH_AnnForbCover",
-  #                               "AH_PreferredForbCover",
-  #                               "AH_GrassCover",
-  #                               "AH_GraminoidCover",
-  #                               "AH_PerenGrassCover",
-  #                               "AH_PerenGraminoidCover",
-  #                               "AH_C3PerenGrassCover",
-  #                               "AH_C4PerenGrassCover",
-  #                               "AH_AnnGrassCover",
-  #                               "AH_AnnGraminoidCover",
-  #                               "AH_TallPerenGrassCover",
-  #                               "AH_ShortPerenGrassCover",
-  #                               "AH_PerenForbGraminoidCover",
-  #                               "AH_AnnForbGraminoidCover",
-  #                               "AH_ShrubCover",
-  #                               "AH_ShrubSucculentCover",
-  #                               "AH_TreeCover",
-  #                               "AH_SubShrubCover",
-  #                               "AH_SagebrushCover",
-  #                               "AH_SagebrushCover_Live",
-  #                               "AH_NonSagebrushShrubCover",
-  #                               "AH_TotalLitterCover",
-  #                               "AH_WoodyLitterCover",
-  #                               "AH_HerbLitterCover",
-  #                               "AH_DuffCover",
-  #                               "AH_VagrLichenCover",
-  #                               "AH_LichenCover",
-  #                               "AH_MossCover",
-  #                               "AH_CyanobacteriaCover",
-  #                               "AH_RockCover",
-  #                               "AH_EmbLitterCover",
-  #                               "AH_WaterCover",
-  #                               "AH_InvasiveCover",
-  #                               "AH_InvasivePerenForbCover",
-  #                               "AH_InvasiveAnnForbCover",
-  #                               "AH_InvasivePerenGrassCover",
-  #                               "AH_InvasiveAnnGrassCover",
-  #                               "AH_InvasivePerenForbGrassCover",
-  #                               "AH_InvasiveAnnForbGrassCover",
-  #                               "AH_InvasiveShrubCover",
-  #                               "AH_InvasiveSubShrubCover",
-  #                               "AH_InvasiveSucculentCover",
-  #                               "AH_InvasiveTreeCover",
-  #                               "AH_NonInvPerenForbCover",
-  #                               "AH_NonInvAnnForbCover",
-  #                               "AH_NonInvPerenGrassCover",
-  #                               "AH_NonInvAnnGrassCover",
-  #                               "AH_NonInvPerenForbGrassCover",
-  #                               "AH_NonInvAnnForbGrassCover",
-  #                               "AH_NonInvShrubCover",
-  #                               "AH_NonInvSubShrubCover",
-  #                               "AH_NonInvSucculentCover",
-  #                               "AH_NonInvTreeCover",
-  #                               "AH_NativeCover",
-  #                               "AH_NonNativeCover",
-  #                               "AH_NoxiousCover",
-  #                               "AH_PJCover",
-  #                               "AH_ConiferCover",
-  #                               "AH_BasalCover",
-  #                               "AH_BasalPerenGrassCover",
-  #                               "AH_BiocrustCover",
-  #                               "FH_TotalLitterCover",
-  #                               "FH_WoodyLitterCover",
-  #                               "FH_HerbLitterCover",
-  #                               "FH_DuffCover",
-  #                               "FH_VagrLichenCover",
-  #                               "FH_LichenCover",
-  #                               "FH_MossCover",
-  #                               "FH_CyanobacteriaCover",
-  #                               "FH_RockCover",
-  #                               "FH_EmbLitterCover",
-  #                               "FH_WaterCover",
-  #
-  #                               # NEEDS TO BE WRITTEN FOR
-  #                               "FH_DepSoilCover",
-  #
-  #                               "FH_ForbCover",
-  #                               "FH_PerenForbCover",
-  #                               "FH_AnnForbCover",
-  #                               "FH_GraminoidCover",
-  #                               "FH_AnnGraminoidCover",
-  #                               "FH_PerenGraminoidCover",
-  #                               "FH_PerenForbGraminoidCover",
-  #                               "FH_ShrubCover",
-  #                               "FH_SagebrushCover",
-  #                               "FH_NonSagebrushShrubCover",
-  #                               "FH_TreeCover",
-  #
-  #                               "SagebrushShape_All_ColumnCount",
-  #                               "SagebrushShape_All_SpreadCount",
-  #                               "SagebrushShape_All_Predominant")
-
-  ##### Indicator renaming lookup ----------------------------------------------
-  # The indicators that have nonstandard names. This'll let us rename them with
-  # the help of stringr::str_replace_all() later.
-  # nonstandard_indicator_lookup <- c("^FH_BareSoilCover$" = "BareSoilCover",
-  #                                   "^AH_SagebrushLiveCover$" = "AH_SagebrushCover_Live",
-  #                                   "^AH_BasalPlantCover$" = "AH_BasalCover")
-
-
-  #### Joining species info ----------------------------------------------------
-  # If generic_species_file is not provided, assume it is the same as species_file
-  if (is.null(generic_species_file)) {
+                       
     if (verbose) {
-      message("No generic_species_file provided, using species_file in its place.")
+      message("Checking species_file and reading in as necessary.")
     }
-    generic_species_file <- species_file
-  }
 
-  if (verbose) {
-    message("Checking species_file and reading in as necessary.")
-  }
+    if (is.character(species_file)) {
+      current_species_file_extension <- tools::file_ext(species_file)
 
-  if (is.character(species_file)) {
-    current_species_file_extension <- tools::file_ext(species_file)
-
-    if (nchar(current_species_file_extension) == 0) {
-      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
-    } else if (current_species_file_extension %in% c("CSV", "csv")) {
-      if (!file.exists(species_file)) {
-        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+      if (nchar(current_species_file_extension) == 0) {
+        stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+      } else if (current_species_file_extension %in% c("CSV", "csv")) {
+        if (!file.exists(species_file)) {
+          stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+        }
+        species_list <- read.csv(file = species_file,
+                                 stringsAsFactors = FALSE)
+      } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+        species_list <- species_read_aim(dsn = species_file,
+                                         verbose = verbose)
       }
-      species_list <- read.csv(file = species_file,
-                               stringsAsFactors = FALSE)
-    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
-      species_list <- species_read_aim(dsn = species_file,
-                                       verbose = verbose)
+    } else if (is.data.frame(species_file)) {
+      species_list <- species_file
+    } else {
+      stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
     }
-  } else if (is.data.frame(species_file)) {
-    species_list <- species_file
-  } else {
-    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
-  }
 
-  if (verbose) {
-    message("Attempting to join the species list to the LPI data.")
-  }
+    if (verbose) {
+      message("Attempting to join the species list to the LPI data.")
+    }
 
   lpi_species <- species_join(data = sf::st_drop_geometry(lpi_tall_header),
                               data_code = "code",
@@ -962,7 +843,7 @@ lpi_calc <- function(header,
                                                                      # we have to be prepared for that.
                                                                      if (is.null(current_results_raw)) {
                                                                        if (verbose) {
-                                                                         message("No qualifying data for the requested indicator(s). Returning NULL.")
+                                                                         message("Adjusting indicator names.")
                                                                        }
                                                                        return(NULL)
                                                                      }
@@ -1056,35 +937,23 @@ lpi_calc <- function(header,
   if (verbose) {
     message("Combining all cover indicators and converting to a wide format.")
   }
-  # lpi_indicators <- dplyr::bind_rows(cover_indicators,
-  #                                    total_foliar) |>
-  #   # Remove duplicates (which I guess is possible)
-  #   dplyr::distinct(.data = _) |>
-  #   # Spread to a wide format.
-  #   tidyr::pivot_wider(data = _,
-  #                      names_from = indicator,
-  #                      values_from = percent,
-  #                      values_fill = 0)
 
-
-  # This bit is coming in from the NRI updates and needs furthr testing. I think
-  # it might now be sidestepped by a change above.
-  # lpi_indicators <- lpi_indicators |>
-  #   # 1. Drop the duplicate row, keeping only the first one
-    # dplyr::distinct(.data = _,
-    #                 dplyr::across(-percent),
-    #                 .keep_all = TRUE) |>
-  #
-  #   # 2. Run your original pivot code
-  #   pivot_wider(
-  #     names_from = indicator,
-  #     values_from = percent,
-  #     values_fill = 0
-  #   )
-  lpi_indicators <- tidyr::pivot_wider(data = cover_indicators,
-                                       names_from = indicator,
-                                       values_from = percent,
-                                       values_fill = 0)
+  # This distinct() was added because there are duplicate indicators coming in
+  # from above, possibly due to the same value (e.g. "Moss") occurring in more
+  # than one single-variable indicator which then produces two different,
+  # identically-named indicator variables.
+  lpi_indicators <- lpi_indicators |>
+    # Drop the duplicate indicator rows, keeping only the first one.
+    # Note that this is ignoring the percent variable, so the records being
+    # dropped may differ in that single variable.
+    dplyr::distinct(.data = _,
+                    dplyr::across(-percent),
+                    .keep_all = TRUE) |>
+    # And then pivot to a wide format.
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = percent,
+                       values_fill = 0)
 
   ##### Sagebrush shape indicators ---------------------------------------------
   # If there are qualifying data, add sagebrush shape!
@@ -1126,7 +995,6 @@ lpi_calc <- function(header,
     if (verbose) {
       message("No variable called ShrubShape found. Skipping sagebrush shape indicators.")
     }
-  }
 
 
   #### Final munging ###########################################################
@@ -1175,8 +1043,10 @@ lpi_calc <- function(header,
                                             expected_indicator_names)))
   }
 
-  output
-}
+    output
+
+  }
+
 
 
 
