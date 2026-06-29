@@ -326,9 +326,9 @@ lpi_indicator_definitions <- function(){
                                "EmbLitter" = litter_codes[["EmbLitter"]],
                                "DepSoil" = c("DS"),
                                "Duff" = c("D"),
-                               "Lichen" = c("LC"),
+                               "Lichen" = c("LC", "2LICHN", "2LICHN1"),
                                "VagrLichen" = c("VL"),
-                               "Moss" = c("M"),
+                               "Moss" = c("M", "2MOSS", "2MOSS1"),
                                "Cyanobacteria" = c("CY"),
                                "Water" = c("W", "WA"),
                                "Rock" = c(rock_codes),
@@ -450,21 +450,21 @@ lpi_indicator_definitions <- function(){
                             "Taxaceae"),
 
     #### Lichen codes ----------------------------------------------------------
-    lichen_identifiers = c(Lichen = "LC",
+    lichen_identifiers = list(Lichen = c("LC", "2LICHN", "2LICHN1"),
                            Cyanobacteria = "CY",
                            VagrLichen = "VL"),
 
     #### Biocrust codes --------------------------------------------------------
     biocrust_identifiers = c("CY",
-                             "LC",
-                             "M"),
+                             "LC", "2LICHN", "2LICHN1",
+                             "M","2MOSS", "2MOSS1"),
 
     #### Moss definitions ------------------------------------------------------
     # For moss cover, we need to identify species that use irregular unknown codes
     # and species that were keyed out in addition to the traditional "where does
     # 'M' occur as a surface code"
     # This will find codes like "MOSS", "M123", "MOS123", and "MOSS123"
-    unknown_moss_regex = "^(M(OS{1,2})?\\d+)|(MOSS)$",
+    unknown_moss_regex = "^(M(OS{1,2})?\\d+)|(2?MOSS)$",
     # In tblNationalPlants there's a variable called HigherTaxon that we can use
     # to identify which species codes are technically mosses. This is helpful
     # mostly for Alaska where they ID mosses to species, but anywhere we don't do
@@ -700,9 +700,9 @@ adjust_species_attributes <- function(data,
                           Biocrust = dplyr::case_when(code %in% definitions_list[["biocrust_identifiers"]] ~ "Biocrust",
                                                       .default = NA),
                           #### Lichen -----------------------------------
-                          Lichen = dplyr::case_when(code %in% definitions_list[["lichen_identifiers"]]["Lichen"] ~ "Lichen",
-                                                    code %in% definitions_list[["lichen_identifiers"]]["VagrLichen"] ~ "VagrLichen",
-                                                    code %in% definitions_list[["lichen_identifiers"]]["Cyanobacteria"] ~ "Cyanobacteria",
+                          Lichen = dplyr::case_when(code %in% definitions_list[["lichen_identifiers"]][["Lichen"]] ~ "Lichen",
+                                                    code %in% definitions_list[["lichen_identifiers"]][["VagrLichen"]] ~ "VagrLichen",
+                                                    code %in% definitions_list[["lichen_identifiers"]][["Cyanobacteria"]] ~ "Cyanobacteria",
                                                     .default = "lichen_irrelevant"),
                           #### PJ ---------------------------------------
                           # PJ = dplyr::case_when(code %in% definitions_list[["pj_identifiers"]] ~ "PJ",
@@ -938,7 +938,9 @@ default_indicators_vars <- function(source,
                    c("Litter"),
                    c("Lichen"),
                    c("TotalLitter"),
-                   c("Moss")),
+                   c("Moss"),
+                   c("Duff"),
+                   c("Water")),
       any = list(c("Plant"),
                  c("GrowthHabit"),
                  c("GrowthHabitSub"),
@@ -966,7 +968,9 @@ default_indicators_vars <- function(source,
                  c("Moss"),
                  c("Rock"),
                  c("Biocrust"),
-                 c("Lichen")),
+                 c("Lichen"),
+                 c("Duff"),
+                 c("Water")),
       basal = list(c("Duration", "Grass"),
                    c("Plant"))
     ),
