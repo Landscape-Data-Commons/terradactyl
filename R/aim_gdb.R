@@ -947,7 +947,7 @@ lpi_calc <- function(header,
     # Note that this is ignoring the percent variable, so the records being
     # dropped may differ in that single variable.
     dplyr::distinct(.data = _,
-                    dplyr::across(-percent),
+                    dplyr::across(!tidyselect::any_of(x = c("percent"))),
                     .keep_all = TRUE) |>
     # And then pivot to a wide format.
     tidyr::pivot_wider(data = _,
