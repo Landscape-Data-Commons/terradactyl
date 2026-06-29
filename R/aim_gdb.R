@@ -672,35 +672,35 @@ lpi_calc <- function(header,
                                       y = lpi_tall,
                                       relationship = "one-to-many",
                                       by = "PrimaryKey")
-                       
-    if (verbose) {
-      message("Checking species_file and reading in as necessary.")
-    }
 
-    if (is.character(species_file)) {
-      current_species_file_extension <- tools::file_ext(species_file)
+  if (verbose) {
+    message("Checking species_file and reading in as necessary.")
+  }
 
-      if (nchar(current_species_file_extension) == 0) {
-        stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
-      } else if (current_species_file_extension %in% c("CSV", "csv")) {
-        if (!file.exists(species_file)) {
-          stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
-        }
-        species_list <- read.csv(file = species_file,
-                                 stringsAsFactors = FALSE)
-      } else if (current_species_file_extension %in% c("GDB", "gdb")) {
-        species_list <- species_read_aim(dsn = species_file,
-                                         verbose = verbose)
+  if (is.character(species_file)) {
+    current_species_file_extension <- tools::file_ext(species_file)
+
+    if (nchar(current_species_file_extension) == 0) {
+      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+    } else if (current_species_file_extension %in% c("CSV", "csv")) {
+      if (!file.exists(species_file)) {
+        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
       }
-    } else if (is.data.frame(species_file)) {
-      species_list <- species_file
-    } else {
-      stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
+      species_list <- read.csv(file = species_file,
+                               stringsAsFactors = FALSE)
+    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+      species_list <- species_read_aim(dsn = species_file,
+                                       verbose = verbose)
     }
+  } else if (is.data.frame(species_file)) {
+    species_list <- species_file
+  } else {
+    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
+  }
 
-    if (verbose) {
-      message("Attempting to join the species list to the LPI data.")
-    }
+  if (verbose) {
+    message("Attempting to join the species list to the LPI data.")
+  }
 
   lpi_species <- species_join(data = sf::st_drop_geometry(lpi_tall_header),
                               data_code = "code",
@@ -997,51 +997,51 @@ lpi_calc <- function(header,
     }
 
 
-  #### Final munging ###########################################################
-  # Keep only the indicators we want
-  # output <- dplyr::select(.data = lpi_indicators,
-  #                         PrimaryKey,
-  #                         dplyr::any_of(expected_indicator_names))
+    #### Final munging ###########################################################
+    # Keep only the indicators we want
+    # output <- dplyr::select(.data = lpi_indicators,
+    #                         PrimaryKey,
+    #                         dplyr::any_of(expected_indicator_names))
 
-  # We need to make sure that all indicator variables are numeric because
-  # they're all cover values. Any NA values should be assumed to be 0s.
-  # output <- dplyr::mutate(.data = output,
-  output <- dplyr::mutate(.data = lpi_indicators,
-                          dplyr::across(.cols = -tidyselect::any_of(x = c("PrimaryKey",
-                                                                          "SagebrushShape_All_Predominant")),
-                                        .fns = ~ as.numeric(.x) |>
-                                          tidyr::replace_na(data = _,
-                                                            replace = 0) |>
-                                          round(x = _,
-                                                digits = digits)))
+    # We need to make sure that all indicator variables are numeric because
+    # they're all cover values. Any NA values should be assumed to be 0s.
+    # output <- dplyr::mutate(.data = output,
+    output <- dplyr::mutate(.data = lpi_indicators,
+                            dplyr::across(.cols = -tidyselect::any_of(x = c("PrimaryKey",
+                                                                            "SagebrushShape_All_Predominant")),
+                                          .fns = ~ as.numeric(.x) |>
+                                            tidyr::replace_na(data = _,
+                                                              replace = 0) |>
+                                            round(x = _,
+                                                  digits = digits)))
 
-  # Add in variables for indicators we want but which had no qualifying data and
-  # therefore should have a value of 0 for all plots.
-  # setdiff() is rad and I wish I'd known about it years ago.
-  # We'll make sure to set ONLY the numeric indicators' NAs to 0.
-  # The character indicators get NAs.
-  if (!is.null(expected_indicator_names)) {
-    # One day we'll handle this, but this is a stub for now.
-    character_value_indicators <- NULL
-    output_missing_numeric_indicators <- setdiff(x = expected_indicator_names,
-                                                 y = c(names(output),
-                                                       character_value_indicators))
-    output[output_missing_numeric_indicators] <- 0
-    output_missing_character_indicators <- setdiff(x = character_value_indicators,
-                                                   y = names(output))
-    output[output_missing_character_indicators] <- NA
+    # Add in variables for indicators we want but which had no qualifying data and
+    # therefore should have a value of 0 for all plots.
+    # setdiff() is rad and I wish I'd known about it years ago.
+    # We'll make sure to set ONLY the numeric indicators' NAs to 0.
+    # The character indicators get NAs.
+    if (!is.null(expected_indicator_names)) {
+      # One day we'll handle this, but this is a stub for now.
+      character_value_indicators <- NULL
+      output_missing_numeric_indicators <- setdiff(x = expected_indicator_names,
+                                                   y = c(names(output),
+                                                         character_value_indicators))
+      output[output_missing_numeric_indicators] <- 0
+      output_missing_character_indicators <- setdiff(x = character_value_indicators,
+                                                     y = names(output))
+      output[output_missing_character_indicators] <- NA
 
-    if (length(c(output_missing_numeric_indicators, output_missing_character_indicators)) > 0) {
-      warning(paste("The following indicators had no qualifying data and have been populated with 0 or NA as appropriate. This is not unexpected with rare situations and is even likely with smaller data sets. The indicators in question are:",
-                    paste(c(output_missing_numeric_indicators, output_missing_character_indicators),
-                          collapse = ", ")))
+      if (length(c(output_missing_numeric_indicators, output_missing_character_indicators)) > 0) {
+        warning(paste("The following indicators had no qualifying data and have been populated with 0 or NA as appropriate. This is not unexpected with rare situations and is even likely with smaller data sets. The indicators in question are:",
+                      paste(c(output_missing_numeric_indicators, output_missing_character_indicators),
+                            collapse = ", ")))
+      }
+
+      # This will reorder the variables to be as expected!
+      output <- dplyr::select(.data = output,
+                              dplyr::all_of(c("PrimaryKey",
+                                              expected_indicator_names)))
     }
-
-    # This will reorder the variables to be as expected!
-    output <- dplyr::select(.data = output,
-                            dplyr::all_of(c("PrimaryKey",
-                                            expected_indicator_names)))
-  }
 
     output
 
@@ -1050,811 +1050,811 @@ lpi_calc <- function(header,
 
 
 
-# Calculate the Gap indicators for AIM
-#' Calculate the standard Terrestrial AIM Database (TerrADat) Canopy Gap indicators
-#' @description
-#' This function calculates the full set of gap-derived indicators that are standard for TerrADat.
-#'
-#' For any other gap indicators, use the underlying function \code{gap_cover()}.
-#'
-#'
-#' @param header Optional data frame or character string. The metadata for the plots involved in the calculations, this is used to filter or subset the data being used for the calculations and must contain this must contain the variable PrimaryKey. If a character string, this must point to a CSV file containing the data. If \code{NULL} then no filtering will occur. Defaults to \code{NULL}.
-#' @param gap_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_gap()}. If a character string, this must point to a CSV file containing the data.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
-#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
-#'   messages. Defaults to \code{FALSE}.
-#'
-#' @returns A data frame matching the format of gap indicators in TerrADat.
-#' @export
-gap_calc <- function(header = NULL,
-                     gap_tall,
-                     digits = 6,
-                     verbose = FALSE) {
-  if ("character" %in% class(header)) {
-    if (toupper(tools::file_ext(header)) == "RDATA") {
-      header <- readRDS(file = header)
-    } else {
-      stop("When header is a character string it must be the path to a .rds file containing tall LPI data.")
+  # Calculate the Gap indicators for AIM
+  #' Calculate the standard Terrestrial AIM Database (TerrADat) Canopy Gap indicators
+  #' @description
+  #' This function calculates the full set of gap-derived indicators that are standard for TerrADat.
+  #'
+  #' For any other gap indicators, use the underlying function \code{gap_cover()}.
+  #'
+  #'
+  #' @param header Optional data frame or character string. The metadata for the plots involved in the calculations, this is used to filter or subset the data being used for the calculations and must contain this must contain the variable PrimaryKey. If a character string, this must point to a CSV file containing the data. If \code{NULL} then no filtering will occur. Defaults to \code{NULL}.
+  #' @param gap_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_gap()}. If a character string, this must point to a CSV file containing the data.
+  #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+  #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+  #'   messages. Defaults to \code{FALSE}.
+  #'
+  #' @returns A data frame matching the format of gap indicators in TerrADat.
+  #' @export
+  gap_calc <- function(header = NULL,
+                       gap_tall,
+                       digits = 6,
+                       verbose = FALSE) {
+    if ("character" %in% class(header)) {
+      if (toupper(tools::file_ext(header)) == "RDATA") {
+        header <- readRDS(file = header)
+      } else {
+        stop("When header is a character string it must be the path to a .rds file containing tall LPI data.")
+      }
+    } else if ("data.frame" %in% class(header)) {
+      header <- header
+    } else if (!is.null(header)) {
+      stop("header must be a data frame or a filepath to an .Rdata file that contains the header data frame.")
     }
-  } else if ("data.frame" %in% class(header)) {
-    header <- header
-  } else if (!is.null(header)) {
-    stop("header must be a data frame or a filepath to an .Rdata file that contains the header data frame.")
-  }
 
 
-  if (verbose) {
-    message("Reading gap data")
-  }
-  if ("character" %in% class(gap_tall)) {
-    if (toupper(tools::file_ext(gap_tall)) == "RDATA") {
-      gap_tall <- readRDS(file = gap_tall)
-    } else {
-      stop("When gap_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+    if (verbose) {
+      message("Reading gap data")
     }
-  } else if ("data.frame" %in% class(gap_tall)) {
-    gap_tall <- gap_tall
-  } else {
-    stop("gap_tall must be a data frame or a filepath to an .Rdata file that contains the gap_tall data frame.")
-  }
-
-  if (!is.null(header)) {
-    if ("PrimaryKey" %in% names(header)) {
-      pks <- unique(header$PrimaryKey)
+    if ("character" %in% class(gap_tall)) {
+      if (toupper(tools::file_ext(gap_tall)) == "RDATA") {
+        gap_tall <- readRDS(file = gap_tall)
+      } else {
+        stop("When gap_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+      }
+    } else if ("data.frame" %in% class(gap_tall)) {
+      gap_tall <- gap_tall
     } else {
-      warning("The variable 'PrimaryKey' does not appear in the provided header data. As a result, gap_tall will not be filtered prior to calculations. If you intend to restrict gap_tall to records based on PrimaryKey values, please provide that information in header or filter gap_tall prior to calling this function.")
+      stop("gap_tall must be a data frame or a filepath to an .Rdata file that contains the gap_tall data frame.")
+    }
+
+    if (!is.null(header)) {
+      if ("PrimaryKey" %in% names(header)) {
+        pks <- unique(header$PrimaryKey)
+      } else {
+        warning("The variable 'PrimaryKey' does not appear in the provided header data. As a result, gap_tall will not be filtered prior to calculations. If you intend to restrict gap_tall to records based on PrimaryKey values, please provide that information in header or filter gap_tall prior to calling this function.")
+        pks <- NULL
+      }
+    } else {
       pks <- NULL
     }
-  } else {
-    pks <- NULL
-  }
 
-  if (length(pks) > 0) {
-    gap_tall <- dplyr::filter(.data = gap_tall,
-                              PrimaryKey %in% pks)
-  }
-
-
-  # Calculate indicators and rename them.
-  gap_values <- gap_cover(gap_tall = gap_tall,
-                          digits = digits,
-                          tall = FALSE)$percent |>
-    dplyr::select(.data = _,
-                  tidyselect::all_of(x = c("PrimaryKey",
-                                           GapCover_25_50 = "25-50",
-                                           GapCover_51_100 = "51-100",
-                                           GapCover_101_200 = "101-200",
-                                           GapCover_200_plus = "201-Inf")))
-
-  gap_values
-}
-
-
-# Calculate the Height indicators for AIM
-#' Calculate the standard Terrestrial AIM Database (TerrADat) height indicators
-#' @description
-#' This function calculates the full set of height-derived indicators that are standard for TerrADat.
-#'
-#' For any other gap indicators, use the underlying function \code{gap_cover()}.
-#'
-#'
-#' @param header Optional data frame or character string. The metadata for the plots involved in the calculations, this is used to filter or subset the data being used for the calculations and must contain this must contain the variable PrimaryKey. If a character string, this must point to a CSV file containing the data. If \code{NULL} then no filtering will occur. Defaults to \code{NULL}.
-#' @param gap_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_gap()}. If a character string, this must point to a CSV file containing the data.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
-#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
-#'   messages. Defaults to \code{FALSE}.
-#' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
-#' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
-#' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
-#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{6}.
-#' @param flatten_type Logical. If \code{TRUE} then the values in the type variable will be combined according to growth habit, e.g., \code{"lower.herbaceous"} will be converted to the broader category of \code{"herbaceous"}. Defaults to \code{FALSE}.
-#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
-#'   messages. Defaults to \code{FALSE}.
-#'
-#' @returns A data frame matching the format of height indicators in TerrADat.
-#' @export
-height_calc <- function(header,
-                        height_tall,
-                        species_file = species_file,
-                        species_code_var = "SpeciesCode",
-                        source = NULL,
-                        generic_species_file = NULL,
-                        digits = 6,
-                        flatten_type = FALSE,
-                        # omit_garbage = FALSE,
-                        verbose = FALSE) {
-  if (verbose) {
-    message("Beginning height calculations")
-  }
-
-  if ("character" %in% class(header)) {
-    if (toupper(tools::file_ext(header)) == "RDATA") {
-      header <- readRDS(header)
-    } else {
-      stop("When header is a character string it must be the path to a .Rdata file containing header data.")
+    if (length(pks) > 0) {
+      gap_tall <- dplyr::filter(.data = gap_tall,
+                                PrimaryKey %in% pks)
     }
-  }
-  if ("character" %in% class(height_tall)) {
-    if (toupper(tools::file_ext(height_tall)) == "RDATA") {
-      height_tall <- readRDS(file = height_tall)
-    } else {
-      stop("When height_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
-    }
-  } else if ("data.frame" %in% class(height_tall)) {
-    height_tall <- height_tall
+
+
+    # Calculate indicators and rename them.
+    gap_values <- gap_cover(gap_tall = gap_tall,
+                            digits = digits,
+                            tall = FALSE)$percent |>
+      dplyr::select(.data = _,
+                    tidyselect::all_of(x = c("PrimaryKey",
+                                             GapCover_25_50 = "25-50",
+                                             GapCover_51_100 = "51-100",
+                                             GapCover_101_200 = "101-200",
+                                             GapCover_200_plus = "201-Inf")))
+
+    gap_values
   }
 
-  height_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
-                                                           # Swapped from all_of()
-                                                           # because county was
-                                                           # missing from some
-                                                           # data.
-                                                           tidyselect::any_of(c("PrimaryKey",
-                                                                                "SpeciesState",
-                                                                                "State",
-                                                                                "County"))),
-                                         y = height_tall,
-                                         relationship = "one-to-many",
-                                         by = "PrimaryKey")
 
-  #### Joining species info ----------------------------------------------------
-  # If generic_species_file is not provided, assume it is the same as species_file
-  if (is.null(generic_species_file)) {
+  # Calculate the Height indicators for AIM
+  #' Calculate the standard Terrestrial AIM Database (TerrADat) height indicators
+  #' @description
+  #' This function calculates the full set of height-derived indicators that are standard for TerrADat.
+  #'
+  #' For any other gap indicators, use the underlying function \code{gap_cover()}.
+  #'
+  #'
+  #' @param header Optional data frame or character string. The metadata for the plots involved in the calculations, this is used to filter or subset the data being used for the calculations and must contain this must contain the variable PrimaryKey. If a character string, this must point to a CSV file containing the data. If \code{NULL} then no filtering will occur. Defaults to \code{NULL}.
+  #' @param gap_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_gap()}. If a character string, this must point to a CSV file containing the data.
+  #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+  #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+  #'   messages. Defaults to \code{FALSE}.
+  #' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
+  #' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+  #' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
+  #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
+  #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{6}.
+  #' @param flatten_type Logical. If \code{TRUE} then the values in the type variable will be combined according to growth habit, e.g., \code{"lower.herbaceous"} will be converted to the broader category of \code{"herbaceous"}. Defaults to \code{FALSE}.
+  #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+  #'   messages. Defaults to \code{FALSE}.
+  #'
+  #' @returns A data frame matching the format of height indicators in TerrADat.
+  #' @export
+  height_calc <- function(header,
+                          height_tall,
+                          species_file = species_file,
+                          species_code_var = "SpeciesCode",
+                          source = NULL,
+                          generic_species_file = NULL,
+                          digits = 6,
+                          flatten_type = FALSE,
+                          # omit_garbage = FALSE,
+                          verbose = FALSE) {
     if (verbose) {
-      message("No generic_species_file provided, using species_file in its place.")
+      message("Beginning height calculations")
     }
-    generic_species_file <- species_file
-  }
 
-  if (verbose) {
-    message("Checking species_file and reading in as necessary.")
-  }
-
-  if (is.character(species_file)) {
-    current_species_file_extension <- tools::file_ext(species_file)
-
-    if (nchar(current_species_file_extension) == 0) {
-      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
-    } else if (current_species_file_extension %in% c("CSV", "csv")) {
-      if (!file.exists(species_file)) {
-        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+    if ("character" %in% class(header)) {
+      if (toupper(tools::file_ext(header)) == "RDATA") {
+        header <- readRDS(header)
+      } else {
+        stop("When header is a character string it must be the path to a .Rdata file containing header data.")
       }
-      species_list <- read.csv(file = species_file,
-                               stringsAsFactors = FALSE)
-    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
-      species_list <- species_read_aim(dsn = species_file,
-                                       verbose = verbose)
     }
-  } else if (is.data.frame(species_file)) {
-    species_list <- species_file
-  } else {
-    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
-  }
+    if ("character" %in% class(height_tall)) {
+      if (toupper(tools::file_ext(height_tall)) == "RDATA") {
+        height_tall <- readRDS(file = height_tall)
+      } else {
+        stop("When height_tall is a character string it must be the path to a .Rdata file containing tall LPI data.")
+      }
+    } else if ("data.frame" %in% class(height_tall)) {
+      height_tall <- height_tall
+    }
 
-  if (verbose) {
-    message("Attempting to join the species list to the height data.")
-  }
+    height_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
+                                                             # Swapped from all_of()
+                                                             # because county was
+                                                             # missing from some
+                                                             # data.
+                                                             tidyselect::any_of(c("PrimaryKey",
+                                                                                  "SpeciesState",
+                                                                                  "State",
+                                                                                  "County"))),
+                                           y = height_tall,
+                                           relationship = "one-to-many",
+                                           by = "PrimaryKey")
 
-  height_species <- species_join(data = sf::st_drop_geometry(height_tall_header),
-                                 data_code = "Species",
-                                 species_file = species_list,
-                                 # This isn't hardcoded to accommodate other, non-
-                                 # AIM species lists.
-                                 species_code = species_code_var,
-                                 species_growth_habit_code = "GrowthHabitSub",
-                                 species_duration = "Duration",
-                                 # These won't all be present in every list, but
-                                 # that shouldn't be a problem because they're only
-                                 # used with an any_of().
-                                 species_property_vars = c("GrowthHabit",
-                                                           "GrowthHabitSub",
-                                                           "Duration",
-                                                           "Family",
-                                                           "SG_Group",
-                                                           "HigherTaxon",
-                                                           "Nonnative",
-                                                           "Invasive",
-                                                           "Noxious",
-                                                           "SpecialStatus",
-                                                           "Photosynthesis",
-                                                           "PJ",
-                                                           "CurrentPLANTSCode"),
-                                 growth_habit_file = "",
-                                 growth_habit_code = "Code",
-                                 # This FALSE should prevent us from having to
-                                 # worry about generic_species_file because that's
-                                 # only used to overwrite generic species info.
-                                 overwrite_generic_species = FALSE,
-                                 generic_species_file = generic_species_file,
-                                 update_species_codes = FALSE,
-                                 by_species_key = FALSE,
-                                 check_species = FALSE,
-                                 verbose = verbose)
+    #### Joining species info ----------------------------------------------------
+    # If generic_species_file is not provided, assume it is the same as species_file
+    if (is.null(generic_species_file)) {
+      if (verbose) {
+        message("No generic_species_file provided, using species_file in its place.")
+      }
+      generic_species_file <- species_file
+    }
 
-  #### Cleanup! ################################################################
-  # These are so we can assign a new variable called "pgpf" indicating which
-  # records contain heights for perennial grasses or perennial forbs.
-  pgpf_growthhabitsubs <- c("Forb/herb", "Forb", "Graminoid", "Grass")
+    if (verbose) {
+      message("Checking species_file and reading in as necessary.")
+    }
 
-  # Clean up variables and then keep only valid records, e.g., records where a
-  # species was recorded with the a GrowthHabit_measured value that matches the
-  # GrowthHabit value added in the species join OR the species was NA but there
-  # was a recorded height value.
-  height_species <- dplyr::mutate(.data = height_species,
-                                  Duration = dplyr::case_when(stringr::str_detect(string = Duration,
-                                                                                  pattern = "[Pp]eren") ~ "Peren",
-                                                              .default = Duration),
-                                  # Correct the Non-Woody to NonWoody
-                                  GrowthHabit = dplyr::case_when(stringr::str_detect(string = GrowthHabit,
-                                                                                     pattern = "^Non(-)?[Ww]oody$") ~ "NonWoody",
-                                                                 .default = GrowthHabit),
-                                  GrowthHabitSub = dplyr::case_when(stringr::str_detect(string = GrowthHabitSub,
-                                                                                        pattern = "[Ff]orb") ~ "Forb",
-                                                                    stringr::str_detect(string = GrowthHabitSub,
-                                                                                        pattern = "[Gg]rass") ~ "Graminoid",
-                                                                    .default = GrowthHabitSub),
-                                  # Add a variable indicating if a record is tied to a perennial forb or grass
-                                  pgpf = dplyr::case_when(Duration == "Peren" &
-                                                            GrowthHabitSub %in% pgpf_growthhabitsubs ~ "PerenForbGraminoid",
-                                                          .default = NA),
-                                  # Get these values tuned up so we get the
-                                  # expected indicator names.
-                                  # The case_when() is to combine and use
-                                  # various lower heights in the calculations IF
-                                  # the user has asked for that.
-                                  type = if (flatten_type) {
-                                    stringr::str_extract(string = tolower(type),
-                                                         pattern = "(herbaceous)|(woody)") |>
-                                      stringr::str_to_title(string = _)
-                                  } else {
-                                    stringr::str_to_title(string = type)
-                                  },
-                                  # Make sure that Noxious actually reflects the
-                                  # assigned status for the state.
-                                  Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
-                                                                                 pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Nox",
-                                                             .default = "NonNox"),
-                                  # This makes sure that the value in SG_Group is
-                                  # only the string associated with the group for
-                                  # the species code in the relevant state.
-                                  # Records where there's not a group value for the
-                                  # associated state (or "US") will get NA instead.
-                                  SG_Group = stringr::str_remove_all(string = SG_Group,
-                                                                     pattern = "Stature") |>
-                                    stringr::str_replace_all(string = _,
-                                                             pattern = "Perennial",
-                                                             replacement = "Peren") |>
-                                    stringr::str_extract(string = _,
-                                                         pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
-                                  # This makes sure that we've assigned any shrubs
-                                  # that didn't get a sage-grouse group are
-                                  # assigned to "NonSagebrushShrub"
-                                  SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
-                                                              .default = SG_Group)
-  ) |>
-    # This is the bit that keeps records where the species was NA but there was
-    # a height recorded OR the GrowthHabit as recorded matches the species info
-    # added by species_join().
-    # THIS IS DISABLED AS OF 2026-03-31 in favor of only excluding them from
-    # the woody and herbaceous height calculations
-    # dplyr::filter(.data = _,
-    #               is.na(Species) & !is.na(Height) |
-    #                 GrowthHabit_measured == GrowthHabit) |>
-    # This flags records for inclusion in specifically the calculations based on
-    # the type of record the height was in the form.
-    # If a record had a height without a species code (common in older data) OR
-    # the type and the "official" growth habit for the code match, those get
-    # included in the woody and herbaceous height calculations.
-    # All other height calculations based on the other variables include records
-    # without considering this.
-    dplyr::mutate(.data = _,
-                  include = (is.na(Species) & !is.na(Height)) |
-                    GrowthHabit_measured == GrowthHabit,
-                  # include = TRUE
-    )
+    if (is.character(species_file)) {
+      current_species_file_extension <- tools::file_ext(species_file)
 
-
-  # if (omit_garbage) {
-  #   height_species <- dplyr::filter(.data = height_species,
-  #                                   GrowthHabit_measured == GrowthHabit |
-  #                                     (is.na(Species) & !is.na(Height)),
-  #   )
-  # }
-
-
-
-
-  # Because we'll calculate "Hgt_Sagebrush_Live_Avg" if we ought to.
-  if (sum(toupper(source) %in% c("TERRADAT", "AIM")) > 0) {
-    height_species <- dplyr::mutate(.data = height_species,
-                                    Chkbox = dplyr::case_when(Chkbox %in% c(0, "0") ~ "_Live",
-                                                              .default = as.character(Chkbox)))
-  }
-
-  #### Height calculations #####################################################
-  # These are the output variables we anticipate getting back (and want)
-  expected_indicator_variables <- c("Hgt_Woody_Avg",
-                                    "Hgt_Herbaceous_Avg",
-                                    "Hgt_Forb_Avg",
-                                    "Hgt_PerenForb_Avg",
-                                    "Hgt_Graminoid_Avg",
-                                    "Hgt_PerenGraminoid_Avg",
-                                    "Hgt_TallPerenGrass_Avg",
-                                    "Hgt_ShortPerenGrass_Avg",
-                                    "Hgt_PerenForbGraminoid_Avg",
-                                    "Hgt_Shrub_Avg",
-                                    "Hgt_NonSagebrushShrub_Avg",
-                                    "Hgt_Sagebrush_Avg")
-
-  # Let's do this with a lapply()!
-  # We'll need the definitions here for which variables should be used as
-  # indicator_variables for each pass.
-  indicator_variables_list <- list(c("type"),
-                                   c("GrowthHabitSub"),
-                                   c("Duration",
-                                     "GrowthHabitSub"),
-                                   c("pgpf"),
-                                   c("Noxious",
-                                     "Duration",
-                                     "GrowthHabitSub"),
-                                   c("SG_Group"))
-
-  # For TerrADat only
-  if (sum(toupper(source) %in% c("TERRADAT", "AIM")) > 0) {
-    expected_indicator_variables <- c(expected_indicator_variables,
-                                      "Hgt_Sagebrush_Live_Avg")
-    indicator_variables_list[[length(indicator_variables_list) + 1]] <- c("SG_Group",
-                                                                          "Chkbox")
-  }
-
-  height_values_list <- lapply(X = indicator_variables_list,
-                               height_species = height_species,
-                               verbose = verbose,
-                               digits = digits,
-                               FUN = function(X, height_species, verbose, digits){
-                                 if (verbose) {
-                                   message(paste(X,
-                                                 collapse = ", "))
-                                 }
-
-                                 # This is the second part of the bit above that
-                                 # adds the "include" variable. If the grouping
-                                 # involves the variable "type" then we'll
-                                 # restrict the records fed in to only those
-                                 # flagged TRUE.
-                                 # if ("type" %in% X) {
-                                 #   if (verbose) {
-                                 #     message("The current set of indicator variables includes 'type' so only records where the values for the type and GrowthHabit variables are the same.")
-                                 #   }
-                                 height_species <- dplyr::filter(.data = height_species,
-                                                                 include)
-                                 # }
-
-                                 output <- mean_height(height_tall = height_species,
-                                                       method = "mean",
-                                                       tall = TRUE,
-                                                       indicator_variables = X,
-                                                       digits = digits,
-                                                       verbose = verbose) |>
-                                   dplyr::mutate(.data = _,
-                                                 indicator = stringr::str_remove_all(string = indicator,
-                                                                                     pattern = "\\.") |>
-                                                   paste0("Hgt_",
-                                                          . = _,
-                                                          "_Avg"))
-
-                                 output
-                               })
-
-  output <- dplyr::bind_rows(height_values_list) |>
-    dplyr::filter(.data = _,
-                  indicator %in% expected_indicator_variables) |>
-    tidyr::pivot_wider(data = _,
-                       names_from = indicator,
-                       values_from = mean_height,
-                       values_fill = NA)
-
-  missing_indicators <- setdiff(x = expected_indicator_variables,
-                                y = names(output))
-  if (length(missing_indicators) > 0) {
-    warning(paste0("One or more expected indicators did not have qualifying data and will be returned with NA values. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
-                   paste(missing_indicators,
-                         collapse = ", ")))
-    output[, missing_indicators] <- NA
-  }
-
-  output
-}
-
-
-
-# Calculate species inventory
-#' Calculate the standard Terrestrial AIM Database (TerrADat) species indicators
-#' @description
-#' This function calculates the full set of species-specific indicators that are standard for TerrADat.
-#'
-#' This depends on the species characteristics used being those found in tblNationalPlants.
-#'
-#' If there are indicators that cannot be calculated from the current data, those will be returned with a value of 0. For example, if the variable called Invasive does nto appear in the data or species characteristics provided, the variable NumSpp_Invasive will still be part of the output but all records will have a value of 0.
-#' If the required variables for an indicator are present in the inputs, then every value for that indicator will be numeric, including using 0 where a PrimaryKey had no records with qualifying values for that indicator, e.g., if the variable Invasive is present at all but no records have a non-NA value in that variable, it will be assumed that all those species were determined to be non-invasive and therefore the returned value should be 0 rather than the NA associated with truly missing records.
-#' These assumptions are less likely to hold true when applying this function to data from multiple sources simultaneously. For example, NumSpp_PreferredForb depends on per-state assignments and if the input data includes a state which has populated the SG_Group variable and one which has not, the most appropriate output value would be NA for the state without SG_Group assignments but the fact that the variable is present at all will produce 0s instead.
-#'
-#' @param header Data frame or character string. The metadata for the plots involved in the calculations, this is used to add the SpeciesState variable by joining with the PrimaryKey variable. If a character string, this must point to a CSV file containing the data.
-#' @param spp_inventory_tall  Data frame or character string. The long/tall-format species inventory data for the plots involved in the calculations. The format must match the output from \code{gather_species_inventory()}. If a character string, this must point to a CSV file containing the data.
-#' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
-#' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
-#' @param generic_species_file Optional character string or data frame. Must be either a data frame or specify the filepath to generic species information (accepted filetypes are RDS, Rdata, and CSV). If this is \code{NULL}, it will inherit the value of \code{species_file}. Defaults to \code{NULL}.
-#' @param source Character string (DEPRECATED). This argument is ignored but left here as a way to prevent legacy code from producing errors.
-#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
-#'   messages. Defaults to \code{FALSE}.
-#'
-#' @returns A data frame matching the format of height indicators in TerrADat.
-#' @export
-spp_inventory_calc <- function(header,
-                               spp_inventory_tall,
-                               # lpi_tall = NULL,
-                               # height_tall = NULL,
-                               species_file,
-                               species_code_var = "SpeciesCode",
-                               generic_species_file = NULL,
-                               source = NULL,
-                               verbose = FALSE) {
-
-  header <- read_whatever(input = header,
-                          verbose = verbose)
-
-  # This bit handles the input data, whatever accepted format each came in.
-  # It creates a list of the data frames (or NULLs) pared down to only the
-  # critical variables.
-  # input_data <- list(species = spp_inventory_tall,
-  #                    lpi = lpi_tall,
-  #                    height = height_tall)
-  # For now, we're not including LPI or height data, but I'm leaving a stub.
-  input_data <- lapply(X = list(spp_inventory_tall),
-                       verbose = verbose,
-                       FUN = function(X, verbose){
-                         if (!is.null(X)) {
-                           read_whatever(input = X,
+      if (nchar(current_species_file_extension) == 0) {
+        stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+      } else if (current_species_file_extension %in% c("CSV", "csv")) {
+        if (!file.exists(species_file)) {
+          stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+        }
+        species_list <- read.csv(file = species_file,
+                                 stringsAsFactors = FALSE)
+      } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+        species_list <- species_read_aim(dsn = species_file,
                                          verbose = verbose)
-                         } else {
-                           NULL
-                         }
-                       }) |>
-    lapply(X =  _,
-           FUN = function(X){
-             if (!is.null(X)) {
-               dplyr::select(.data = X,
-                             tidyselect::any_of(x = c("PrimaryKey",
-                                                      "Species",
-                                                      "Species" = "code"))) |>
-                 dplyr::filter(.data = _,
-                               stringi::stri_length(str = Species) >= 3)
-             } else {
-               NULL
-             }
-           }) |>
-    setNames(object = _,
-             nm = "species")
-  # setNames(object = _,
-  #          nm = c("species",
-  #                 "lpi",
-  #                 "height"))
-
-  # Make sure any of the source data were usable and not just NULL.
-  if (all(sapply(X = input_data, FUN = is.null))) {
-    stop("All source data types are NULL. Please provide at least spp_inventory_tall.")
-  }
-
-  # Bind the DATA FRAMES together and get only distinct records
-  data <- input_data[!sapply(X = input_data, FUN = is.null)] |>
-    dplyr::bind_rows() |>
-    dplyr::distinct()
-
-  # These will be used to determine which values in the outputs are NA versus 0
-  # near the end of this function
-  nonrepresented_pks <- setdiff(x = header$PrimaryKey,
-                                y = unique(data$PrimaryKey))
-
-  # SETTING THIS TO USE AN INNER_JOIN() WOULD PREVENT SOME NONSENSE HANDLED BELOW.
-  data <- dplyr::left_join(x = dplyr::select(.data = header,
-                                             PrimaryKey,
-                                             SpeciesState),
-                           y = data,
-                           by = "PrimaryKey")
-
-  #### Joining species info ----------------------------------------------------
-  # If generic_species_file is not provided, assume it is the same as species_file
-  if (is.null(generic_species_file)) {
-    if (verbose) {
-      message("No generic_species_file provided, using species_file in its place.")
-    }
-    generic_species_file <- species_file
-  }
-
-  if (verbose) {
-    message("Checking species_file and reading in as necessary.")
-  }
-
-  if (is.character(species_file)) {
-    current_species_file_extension <- tools::file_ext(species_file)
-
-    if (nchar(current_species_file_extension) == 0) {
-      stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
-    } else if (current_species_file_extension %in% c("CSV", "csv")) {
-      if (!file.exists(species_file)) {
-        stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
       }
-      species_list <- read.csv(file = species_file,
-                               stringsAsFactors = FALSE)
-    } else if (current_species_file_extension %in% c("GDB", "gdb")) {
-      species_list <- species_read_aim(dsn = species_file,
-                                       verbose = verbose)
-    }
-  } else if (is.data.frame(species_file)) {
-    species_list <- species_file
-  } else {
-    stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
-  }
-
-  if (verbose) {
-    message("Attempting to join the species characteristics to the data.")
-  }
-
-  data <- species_join(data = sf::st_drop_geometry(data),
-                       data_code = "Species",
-                       species_file = species_list,
-                       # This isn't hardcoded to accommodate other, non-
-                       # AIM species lists.
-                       species_code = species_code_var,
-                       species_growth_habit_code = "GrowthHabitSub",
-                       species_duration = "Duration",
-                       # These won't all be present in every list, but
-                       # that shouldn't be a problem because they're only
-                       # used with an any_of().
-                       species_property_vars = c("GrowthHabit",
-                                                 "GrowthHabitSub",
-                                                 "Duration",
-                                                 "Family",
-                                                 "SG_Group",
-                                                 "HigherTaxon",
-                                                 "Nonnative",
-                                                 "Invasive",
-                                                 "Noxious",
-                                                 "SpecialStatus",
-                                                 "Photosynthesis",
-                                                 "PJ",
-                                                 "CurrentPLANTSCode"),
-                       growth_habit_file = "",
-                       growth_habit_code = "Code",
-                       # This FALSE should prevent us from having to
-                       # worry about generic_species_file because that's
-                       # only used to overwrite generic species info.
-                       overwrite_generic_species = FALSE,
-                       generic_species_file = generic_species_file,
-                       update_species_codes = FALSE,
-                       by_species_key = FALSE,
-                       check_species = FALSE,
-                       verbose = verbose)
-
-  # What species variables do each of the output indicators come from?
-  # We'll use this to populate uncalculated indicators.
-  # In cases where all the required variables were present in the data,
-  # records where no data qualified and therefore the returned indicator value
-  # was NA will be replaced with 0. If any of the required variables are missing
-  # the indicator values will be left as NA to reflect that they were not actually
-  # calculated.
-  expected_indicator_variables <- list("NumSpp_Total" = c("Species"),
-                                       "NumSpp_Native" = c("Nonnative"),
-                                       "NumSpp_Nonnative" = c("Nonnative"),
-                                       "NumSpp_Invasive" = c("Invasive"),
-                                       "NumSpp_Noxious" = c("Noxious"),
-                                       "NumSpp_PreferredForb" = c("SG_Group",
-                                                                  "SpeciesState",
-                                                                  "GrowthHabitSub"))
-
-  # This is going to be the reference for later!
-  uncalculatable_indicators <- names(expected_indicator_variables)[sapply(X = expected_indicator_variables,
-                                                                          data_vars = names(data),
-                                                                          FUN = function(X, data_vars){
-                                                                            !all(X %in% data_vars)
-                                                                          })]
-
-  if (length(uncalculatable_indicators) > 0 & verbose) {
-    message(paste0("One or more indicators (", paste(uncalculatable_indicators,
-                                                     collapse = ", "), ") will not be calculated because the following variables do not appear in the data or species_file: ",
-                   paste(unlist(expected_indicator_variables[uncalculatable_indicators]),
-                         collapse = ", ")))
-  }
-
-  # Now we add in the missing variables just so that this next step doesn't
-  # fail.
-  missing_required_species_variables <- setdiff(x = unlist(expected_indicator_variables),
-                                                y = names(data))
-
-  for (current_variable in missing_required_species_variables) {
-    data[[current_variable]] <- NA
-  }
-
-  # Cleanup to get things in order for the indicators
-  data <- dplyr::mutate(.data = data,
-                        # This isn't just assigning "Total" to everything in
-                        # case the data sources included non-plant codes.
-                        Total = dplyr::case_when(stringi::stri_length(Species) >= 3 ~ "Total",
-                                                 .default = NA),
-                        ###### Invasive ---------------------------------
-                        # This is just to make the Invasive values match
-                        # the desired indicator names
-                        Invasive = stringr::str_to_title(string = Invasive),
-
-                        ###### Native -----------------------------------
-                        # This is for the native and non-native cover
-                        # It assumes that everything flagged as EXOTIC or
-                        # ABSENT should be considered NonNative and that
-                        # everything else is Native
-                        Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) & Total == "Total" ~ "Native",
-                                                  !(Nonnative %in% c("NATIVE", NA)) & Total == "Total" ~ "Nonnative",
-                                                  .default = NA),
-
-                        ###### Noxious ----------------------------------
-                        # For noxious cover. This assumes that anything
-                        # flagged as YES is noxious and nothing else is.
-                        # NOTE: This is now disabled because noxious
-                        # status is being handled more appropriately and
-                        # through a different format. I'm leaving this
-                        # for posterity for the moment though.
-                        # Noxious = dplyr::case_when(Noxious %in% c("YES") ~ "Noxious",
-                        #                            .default = NA),
-                        # Noxious is now encoded as a character string
-                        # with localities separated by |s. We need to
-                        # check for the relevant locality based on the
-                        # State variable NOT the AdminState because these
-                        # determinations are made based on the physical
-                        # location of the sampling within the legal
-                        # boundaries of states, not which state is
-                        # administering the lands (which is sometimes
-                        # different).
-                        # The regex checks to see if the beginning of
-                        # the string or the characters immediately
-                        # following a | are "US", the code from the State
-                        # variable, or the code from the State variable
-                        # and the value from the County variable
-                        # separated by a :, e.g., "OR:Jefferson".
-                        # The single-letter designations for type of
-                        # noxiousness are not taken into account, e.g.,
-                        # "OR:A" and "OR:B" will be treated identically.
-                        # County-level designations may eventually be
-                        # removed, but for now they're still in there and
-                        # this regex will work regardless.
-                        Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
-                                                                       pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
-                                                   .default = "noxious_irrelevant"),
-                        ###### SG_Group (sage-grouse) -------------------
-                        # This is to turn the SG_Group codes into values
-                        # that match the expected indicator names for
-                        # our convenience.
-                        SG_Group = stringr::str_replace_all(string = SG_Group,
-                                                            pattern = "StaturePerennialGrass",
-                                                            replacement = "PerenGrass"),
-                        # This makes sure that the value in SG_Group is
-                        # only the string associated with the group for
-                        # the species code in the relevant state.
-                        # Records where there's not a group value for the
-                        # associated state (or "US") will get NA instead.
-                        SG_Group = stringr::str_extract(string = SG_Group,
-                                                        pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
-                        # This makes sure that we've assigned any shrubs
-                        # that didn't get a sage-grouse group are
-                        # assigned to "NonSagebrushShrub"
-                        SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
-                                                    # So that first-hit calcs work as intended.
-                                                    is.na(SG_Group) & GrowthHabitSub != "Shrub" ~ "Irrelevant",
-                                                    .default = SG_Group),)
-
-  #### Calculating #############################################################
-  # These are the output variables we anticipate getting back (and want)
-  expected_indicator_variables <- names(expected_indicator_variables)
-
-  indicator_variables_list <- list(c("Total"),
-                                   c("Native"),
-                                   c("Invasive"),
-                                   c("Noxious"),
-                                   c("SG_Group"))
-  output_list <- lapply(X = indicator_variables_list,
-                        data = data,
-                        verbose = verbose,
-                        FUN = function(X, data, verbose){
-                          species_count(species_inventory_tall = data,
-                                        indicator_variables = X,
-                                        verbose = verbose) |>
-                            dplyr::mutate(.data = _,
-                                          indicator = paste0("NumSpp_",
-                                                             indicator))
-                        })
-
-  output <- dplyr::bind_rows(output_list) |>
-    dplyr::filter(.data = _,
-                  indicator %in% expected_indicator_variables) |>
-    # We'll fill the empty records with 0 with the assumption that if that
-    # indicator was calculated for at least one included PrimaryKey then it
-    # should be good to go.
-    # THIS IS NOT NECESSARILY A SAFE ASSUMPTION WHEN PROCESSING DATA FROM
-    # MULTIPLE PROJECTS/SOURCES IN A SINGLE GO!
-    tidyr::pivot_wider(data = _,
-                       names_from = indicator,
-                       values_from = n,
-                       values_fill = 0)
-
-  missing_indicators <- setdiff(x = expected_indicator_variables,
-                                y = names(output))
-  if (length(missing_indicators) > 0) {
-    warning(paste0("One or more expected indicators did not have qualifying data and will be returned with 0 or NA values as appropriate. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
-                   paste(missing_indicators,
-                         collapse = ", ")))
-    output[, missing_indicators] <- 0
-  }
-
-  # Fixing 0s added for the identified MISSING variables that should be NA
-  # because there they were determined to be uncalculatable above due to missing
-  # species variables rather than just having no qualifying records in which
-  # case the 0 was appropriate.
-  output <- dplyr::mutate(.data = output,
-                          dplyr::across(.cols = uncalculatable_indicators,
-                                        .fns = ~ NA))
-
-  # And make sure that any PrimaryKeys from the headers without associated
-  # species inventory data don't end up with 0s. I could do this above, but it's
-  # probably not that expensive to do it here and it's just so easy as a final
-  # check.
-  # output[output$PrimaryKey %in% nonrepresented_pks, expected_indicator_variables] <- NA
-
-  output
-}
-
-
-# Calculate soil stability values
-#' Calculate the standard Terrestrial AIM Database (TerrADat) soil stability indicators
-#' @description
-#' This function calculates the full set of soil stability-derived indicators that are standard for TerrADat.
-#'
-#'
-#' @param soil_stability_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_soil_stability()}. If a character string, this must point to a CSV file containing the data.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
-#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
-#'   messages. Defaults to \code{FALSE}.
-#' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
-#' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
-#' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
-#' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
-#' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
-#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
-#'   messages. Defaults to \code{FALSE}.
-#'
-#' @returns A data frame matching the format of height indicators in TerrADat.
-#' @export
-soil_stability_calc <- function(soil_stability_tall,
-                                digits = 6,
-                                verbose = FALSE) {
-  if ("character" %in% class(soil_stability_tall)) {
-    if (toupper(tools::file_ext(soil_stability_tall)) == "RDATA") {
-      data <- readRDS(file = soil_stability_tall)
+    } else if (is.data.frame(species_file)) {
+      species_list <- species_file
     } else {
-      stop("When soil_stability_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+      stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
     }
-  } else if ("data.frame" %in% class(soil_stability_tall)) {
-    data <- soil_stability_tall
+
+    if (verbose) {
+      message("Attempting to join the species list to the height data.")
+    }
+
+    height_species <- species_join(data = sf::st_drop_geometry(height_tall_header),
+                                   data_code = "Species",
+                                   species_file = species_list,
+                                   # This isn't hardcoded to accommodate other, non-
+                                   # AIM species lists.
+                                   species_code = species_code_var,
+                                   species_growth_habit_code = "GrowthHabitSub",
+                                   species_duration = "Duration",
+                                   # These won't all be present in every list, but
+                                   # that shouldn't be a problem because they're only
+                                   # used with an any_of().
+                                   species_property_vars = c("GrowthHabit",
+                                                             "GrowthHabitSub",
+                                                             "Duration",
+                                                             "Family",
+                                                             "SG_Group",
+                                                             "HigherTaxon",
+                                                             "Nonnative",
+                                                             "Invasive",
+                                                             "Noxious",
+                                                             "SpecialStatus",
+                                                             "Photosynthesis",
+                                                             "PJ",
+                                                             "CurrentPLANTSCode"),
+                                   growth_habit_file = "",
+                                   growth_habit_code = "Code",
+                                   # This FALSE should prevent us from having to
+                                   # worry about generic_species_file because that's
+                                   # only used to overwrite generic species info.
+                                   overwrite_generic_species = FALSE,
+                                   generic_species_file = generic_species_file,
+                                   update_species_codes = FALSE,
+                                   by_species_key = FALSE,
+                                   check_species = FALSE,
+                                   verbose = verbose)
+
+    #### Cleanup! ################################################################
+    # These are so we can assign a new variable called "pgpf" indicating which
+    # records contain heights for perennial grasses or perennial forbs.
+    pgpf_growthhabitsubs <- c("Forb/herb", "Forb", "Graminoid", "Grass")
+
+    # Clean up variables and then keep only valid records, e.g., records where a
+    # species was recorded with the a GrowthHabit_measured value that matches the
+    # GrowthHabit value added in the species join OR the species was NA but there
+    # was a recorded height value.
+    height_species <- dplyr::mutate(.data = height_species,
+                                    Duration = dplyr::case_when(stringr::str_detect(string = Duration,
+                                                                                    pattern = "[Pp]eren") ~ "Peren",
+                                                                .default = Duration),
+                                    # Correct the Non-Woody to NonWoody
+                                    GrowthHabit = dplyr::case_when(stringr::str_detect(string = GrowthHabit,
+                                                                                       pattern = "^Non(-)?[Ww]oody$") ~ "NonWoody",
+                                                                   .default = GrowthHabit),
+                                    GrowthHabitSub = dplyr::case_when(stringr::str_detect(string = GrowthHabitSub,
+                                                                                          pattern = "[Ff]orb") ~ "Forb",
+                                                                      stringr::str_detect(string = GrowthHabitSub,
+                                                                                          pattern = "[Gg]rass") ~ "Graminoid",
+                                                                      .default = GrowthHabitSub),
+                                    # Add a variable indicating if a record is tied to a perennial forb or grass
+                                    pgpf = dplyr::case_when(Duration == "Peren" &
+                                                              GrowthHabitSub %in% pgpf_growthhabitsubs ~ "PerenForbGraminoid",
+                                                            .default = NA),
+                                    # Get these values tuned up so we get the
+                                    # expected indicator names.
+                                    # The case_when() is to combine and use
+                                    # various lower heights in the calculations IF
+                                    # the user has asked for that.
+                                    type = if (flatten_type) {
+                                      stringr::str_extract(string = tolower(type),
+                                                           pattern = "(herbaceous)|(woody)") |>
+                                        stringr::str_to_title(string = _)
+                                    } else {
+                                      stringr::str_to_title(string = type)
+                                    },
+                                    # Make sure that Noxious actually reflects the
+                                    # assigned status for the state.
+                                    Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
+                                                                                   pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Nox",
+                                                               .default = "NonNox"),
+                                    # This makes sure that the value in SG_Group is
+                                    # only the string associated with the group for
+                                    # the species code in the relevant state.
+                                    # Records where there's not a group value for the
+                                    # associated state (or "US") will get NA instead.
+                                    SG_Group = stringr::str_remove_all(string = SG_Group,
+                                                                       pattern = "Stature") |>
+                                      stringr::str_replace_all(string = _,
+                                                               pattern = "Perennial",
+                                                               replacement = "Peren") |>
+                                      stringr::str_extract(string = _,
+                                                           pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                                    # This makes sure that we've assigned any shrubs
+                                    # that didn't get a sage-grouse group are
+                                    # assigned to "NonSagebrushShrub"
+                                    SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
+                                                                .default = SG_Group)
+    ) |>
+      # This is the bit that keeps records where the species was NA but there was
+      # a height recorded OR the GrowthHabit as recorded matches the species info
+      # added by species_join().
+      # THIS IS DISABLED AS OF 2026-03-31 in favor of only excluding them from
+      # the woody and herbaceous height calculations
+      # dplyr::filter(.data = _,
+      #               is.na(Species) & !is.na(Height) |
+      #                 GrowthHabit_measured == GrowthHabit) |>
+      # This flags records for inclusion in specifically the calculations based on
+      # the type of record the height was in the form.
+      # If a record had a height without a species code (common in older data) OR
+      # the type and the "official" growth habit for the code match, those get
+      # included in the woody and herbaceous height calculations.
+      # All other height calculations based on the other variables include records
+      # without considering this.
+      dplyr::mutate(.data = _,
+                    include = (is.na(Species) & !is.na(Height)) |
+                      GrowthHabit_measured == GrowthHabit,
+                    # include = TRUE
+      )
+
+
+    # if (omit_garbage) {
+    #   height_species <- dplyr::filter(.data = height_species,
+    #                                   GrowthHabit_measured == GrowthHabit |
+    #                                     (is.na(Species) & !is.na(Height)),
+    #   )
+    # }
+
+
+
+
+    # Because we'll calculate "Hgt_Sagebrush_Live_Avg" if we ought to.
+    if (sum(toupper(source) %in% c("TERRADAT", "AIM")) > 0) {
+      height_species <- dplyr::mutate(.data = height_species,
+                                      Chkbox = dplyr::case_when(Chkbox %in% c(0, "0") ~ "_Live",
+                                                                .default = as.character(Chkbox)))
+    }
+
+    #### Height calculations #####################################################
+    # These are the output variables we anticipate getting back (and want)
+    expected_indicator_variables <- c("Hgt_Woody_Avg",
+                                      "Hgt_Herbaceous_Avg",
+                                      "Hgt_Forb_Avg",
+                                      "Hgt_PerenForb_Avg",
+                                      "Hgt_Graminoid_Avg",
+                                      "Hgt_PerenGraminoid_Avg",
+                                      "Hgt_TallPerenGrass_Avg",
+                                      "Hgt_ShortPerenGrass_Avg",
+                                      "Hgt_PerenForbGraminoid_Avg",
+                                      "Hgt_Shrub_Avg",
+                                      "Hgt_NonSagebrushShrub_Avg",
+                                      "Hgt_Sagebrush_Avg")
+
+    # Let's do this with a lapply()!
+    # We'll need the definitions here for which variables should be used as
+    # indicator_variables for each pass.
+    indicator_variables_list <- list(c("type"),
+                                     c("GrowthHabitSub"),
+                                     c("Duration",
+                                       "GrowthHabitSub"),
+                                     c("pgpf"),
+                                     c("Noxious",
+                                       "Duration",
+                                       "GrowthHabitSub"),
+                                     c("SG_Group"))
+
+    # For TerrADat only
+    if (sum(toupper(source) %in% c("TERRADAT", "AIM")) > 0) {
+      expected_indicator_variables <- c(expected_indicator_variables,
+                                        "Hgt_Sagebrush_Live_Avg")
+      indicator_variables_list[[length(indicator_variables_list) + 1]] <- c("SG_Group",
+                                                                            "Chkbox")
+    }
+
+    height_values_list <- lapply(X = indicator_variables_list,
+                                 height_species = height_species,
+                                 verbose = verbose,
+                                 digits = digits,
+                                 FUN = function(X, height_species, verbose, digits){
+                                   if (verbose) {
+                                     message(paste(X,
+                                                   collapse = ", "))
+                                   }
+
+                                   # This is the second part of the bit above that
+                                   # adds the "include" variable. If the grouping
+                                   # involves the variable "type" then we'll
+                                   # restrict the records fed in to only those
+                                   # flagged TRUE.
+                                   # if ("type" %in% X) {
+                                   #   if (verbose) {
+                                   #     message("The current set of indicator variables includes 'type' so only records where the values for the type and GrowthHabit variables are the same.")
+                                   #   }
+                                   height_species <- dplyr::filter(.data = height_species,
+                                                                   include)
+                                   # }
+
+                                   output <- mean_height(height_tall = height_species,
+                                                         method = "mean",
+                                                         tall = TRUE,
+                                                         indicator_variables = X,
+                                                         digits = digits,
+                                                         verbose = verbose) |>
+                                     dplyr::mutate(.data = _,
+                                                   indicator = stringr::str_remove_all(string = indicator,
+                                                                                       pattern = "\\.") |>
+                                                     paste0("Hgt_",
+                                                            . = _,
+                                                            "_Avg"))
+
+                                   output
+                                 })
+
+    output <- dplyr::bind_rows(height_values_list) |>
+      dplyr::filter(.data = _,
+                    indicator %in% expected_indicator_variables) |>
+      tidyr::pivot_wider(data = _,
+                         names_from = indicator,
+                         values_from = mean_height,
+                         values_fill = NA)
+
+    missing_indicators <- setdiff(x = expected_indicator_variables,
+                                  y = names(output))
+    if (length(missing_indicators) > 0) {
+      warning(paste0("One or more expected indicators did not have qualifying data and will be returned with NA values. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
+                     paste(missing_indicators,
+                           collapse = ", ")))
+      output[, missing_indicators] <- NA
+    }
+
+    output
   }
 
-  # Drop the NA values
-  data <- dplyr::filter(.data = data,
-                        !is.na(Rating))
 
-  indicators <- soil_stability(data,
-                               all = TRUE,
-                               cover = TRUE,
-                               uncovered = TRUE,
-                               all_cover_types = FALSE,
-                               tall = FALSE,
-                               digits = digits)
-  indicators
-}
+
+  # Calculate species inventory
+  #' Calculate the standard Terrestrial AIM Database (TerrADat) species indicators
+  #' @description
+  #' This function calculates the full set of species-specific indicators that are standard for TerrADat.
+  #'
+  #' This depends on the species characteristics used being those found in tblNationalPlants.
+  #'
+  #' If there are indicators that cannot be calculated from the current data, those will be returned with a value of 0. For example, if the variable called Invasive does nto appear in the data or species characteristics provided, the variable NumSpp_Invasive will still be part of the output but all records will have a value of 0.
+  #' If the required variables for an indicator are present in the inputs, then every value for that indicator will be numeric, including using 0 where a PrimaryKey had no records with qualifying values for that indicator, e.g., if the variable Invasive is present at all but no records have a non-NA value in that variable, it will be assumed that all those species were determined to be non-invasive and therefore the returned value should be 0 rather than the NA associated with truly missing records.
+  #' These assumptions are less likely to hold true when applying this function to data from multiple sources simultaneously. For example, NumSpp_PreferredForb depends on per-state assignments and if the input data includes a state which has populated the SG_Group variable and one which has not, the most appropriate output value would be NA for the state without SG_Group assignments but the fact that the variable is present at all will produce 0s instead.
+  #'
+  #' @param header Data frame or character string. The metadata for the plots involved in the calculations, this is used to add the SpeciesState variable by joining with the PrimaryKey variable. If a character string, this must point to a CSV file containing the data.
+  #' @param spp_inventory_tall  Data frame or character string. The long/tall-format species inventory data for the plots involved in the calculations. The format must match the output from \code{gather_species_inventory()}. If a character string, this must point to a CSV file containing the data.
+  #' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
+  #' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+  #' @param generic_species_file Optional character string or data frame. Must be either a data frame or specify the filepath to generic species information (accepted filetypes are RDS, Rdata, and CSV). If this is \code{NULL}, it will inherit the value of \code{species_file}. Defaults to \code{NULL}.
+  #' @param source Character string (DEPRECATED). This argument is ignored but left here as a way to prevent legacy code from producing errors.
+  #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+  #'   messages. Defaults to \code{FALSE}.
+  #'
+  #' @returns A data frame matching the format of height indicators in TerrADat.
+  #' @export
+  spp_inventory_calc <- function(header,
+                                 spp_inventory_tall,
+                                 # lpi_tall = NULL,
+                                 # height_tall = NULL,
+                                 species_file,
+                                 species_code_var = "SpeciesCode",
+                                 generic_species_file = NULL,
+                                 source = NULL,
+                                 verbose = FALSE) {
+
+    header <- read_whatever(input = header,
+                            verbose = verbose)
+
+    # This bit handles the input data, whatever accepted format each came in.
+    # It creates a list of the data frames (or NULLs) pared down to only the
+    # critical variables.
+    # input_data <- list(species = spp_inventory_tall,
+    #                    lpi = lpi_tall,
+    #                    height = height_tall)
+    # For now, we're not including LPI or height data, but I'm leaving a stub.
+    input_data <- lapply(X = list(spp_inventory_tall),
+                         verbose = verbose,
+                         FUN = function(X, verbose){
+                           if (!is.null(X)) {
+                             read_whatever(input = X,
+                                           verbose = verbose)
+                           } else {
+                             NULL
+                           }
+                         }) |>
+      lapply(X =  _,
+             FUN = function(X){
+               if (!is.null(X)) {
+                 dplyr::select(.data = X,
+                               tidyselect::any_of(x = c("PrimaryKey",
+                                                        "Species",
+                                                        "Species" = "code"))) |>
+                   dplyr::filter(.data = _,
+                                 stringi::stri_length(str = Species) >= 3)
+               } else {
+                 NULL
+               }
+             }) |>
+      setNames(object = _,
+               nm = "species")
+    # setNames(object = _,
+    #          nm = c("species",
+    #                 "lpi",
+    #                 "height"))
+
+    # Make sure any of the source data were usable and not just NULL.
+    if (all(sapply(X = input_data, FUN = is.null))) {
+      stop("All source data types are NULL. Please provide at least spp_inventory_tall.")
+    }
+
+    # Bind the DATA FRAMES together and get only distinct records
+    data <- input_data[!sapply(X = input_data, FUN = is.null)] |>
+      dplyr::bind_rows() |>
+      dplyr::distinct()
+
+    # These will be used to determine which values in the outputs are NA versus 0
+    # near the end of this function
+    nonrepresented_pks <- setdiff(x = header$PrimaryKey,
+                                  y = unique(data$PrimaryKey))
+
+    # SETTING THIS TO USE AN INNER_JOIN() WOULD PREVENT SOME NONSENSE HANDLED BELOW.
+    data <- dplyr::left_join(x = dplyr::select(.data = header,
+                                               PrimaryKey,
+                                               SpeciesState),
+                             y = data,
+                             by = "PrimaryKey")
+
+    #### Joining species info ----------------------------------------------------
+    # If generic_species_file is not provided, assume it is the same as species_file
+    if (is.null(generic_species_file)) {
+      if (verbose) {
+        message("No generic_species_file provided, using species_file in its place.")
+      }
+      generic_species_file <- species_file
+    }
+
+    if (verbose) {
+      message("Checking species_file and reading in as necessary.")
+    }
+
+    if (is.character(species_file)) {
+      current_species_file_extension <- tools::file_ext(species_file)
+
+      if (nchar(current_species_file_extension) == 0) {
+        stop("When species_file is a character string, it must be a filepath to either a CSV or a GDB (geodatabase).")
+      } else if (current_species_file_extension %in% c("CSV", "csv")) {
+        if (!file.exists(species_file)) {
+          stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
+        }
+        species_list <- read.csv(file = species_file,
+                                 stringsAsFactors = FALSE)
+      } else if (current_species_file_extension %in% c("GDB", "gdb")) {
+        species_list <- species_read_aim(dsn = species_file,
+                                         verbose = verbose)
+      }
+    } else if (is.data.frame(species_file)) {
+      species_list <- species_file
+    } else {
+      stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
+    }
+
+    if (verbose) {
+      message("Attempting to join the species characteristics to the data.")
+    }
+
+    data <- species_join(data = sf::st_drop_geometry(data),
+                         data_code = "Species",
+                         species_file = species_list,
+                         # This isn't hardcoded to accommodate other, non-
+                         # AIM species lists.
+                         species_code = species_code_var,
+                         species_growth_habit_code = "GrowthHabitSub",
+                         species_duration = "Duration",
+                         # These won't all be present in every list, but
+                         # that shouldn't be a problem because they're only
+                         # used with an any_of().
+                         species_property_vars = c("GrowthHabit",
+                                                   "GrowthHabitSub",
+                                                   "Duration",
+                                                   "Family",
+                                                   "SG_Group",
+                                                   "HigherTaxon",
+                                                   "Nonnative",
+                                                   "Invasive",
+                                                   "Noxious",
+                                                   "SpecialStatus",
+                                                   "Photosynthesis",
+                                                   "PJ",
+                                                   "CurrentPLANTSCode"),
+                         growth_habit_file = "",
+                         growth_habit_code = "Code",
+                         # This FALSE should prevent us from having to
+                         # worry about generic_species_file because that's
+                         # only used to overwrite generic species info.
+                         overwrite_generic_species = FALSE,
+                         generic_species_file = generic_species_file,
+                         update_species_codes = FALSE,
+                         by_species_key = FALSE,
+                         check_species = FALSE,
+                         verbose = verbose)
+
+    # What species variables do each of the output indicators come from?
+    # We'll use this to populate uncalculated indicators.
+    # In cases where all the required variables were present in the data,
+    # records where no data qualified and therefore the returned indicator value
+    # was NA will be replaced with 0. If any of the required variables are missing
+    # the indicator values will be left as NA to reflect that they were not actually
+    # calculated.
+    expected_indicator_variables <- list("NumSpp_Total" = c("Species"),
+                                         "NumSpp_Native" = c("Nonnative"),
+                                         "NumSpp_Nonnative" = c("Nonnative"),
+                                         "NumSpp_Invasive" = c("Invasive"),
+                                         "NumSpp_Noxious" = c("Noxious"),
+                                         "NumSpp_PreferredForb" = c("SG_Group",
+                                                                    "SpeciesState",
+                                                                    "GrowthHabitSub"))
+
+    # This is going to be the reference for later!
+    uncalculatable_indicators <- names(expected_indicator_variables)[sapply(X = expected_indicator_variables,
+                                                                            data_vars = names(data),
+                                                                            FUN = function(X, data_vars){
+                                                                              !all(X %in% data_vars)
+                                                                            })]
+
+    if (length(uncalculatable_indicators) > 0 & verbose) {
+      message(paste0("One or more indicators (", paste(uncalculatable_indicators,
+                                                       collapse = ", "), ") will not be calculated because the following variables do not appear in the data or species_file: ",
+                     paste(unlist(expected_indicator_variables[uncalculatable_indicators]),
+                           collapse = ", ")))
+    }
+
+    # Now we add in the missing variables just so that this next step doesn't
+    # fail.
+    missing_required_species_variables <- setdiff(x = unlist(expected_indicator_variables),
+                                                  y = names(data))
+
+    for (current_variable in missing_required_species_variables) {
+      data[[current_variable]] <- NA
+    }
+
+    # Cleanup to get things in order for the indicators
+    data <- dplyr::mutate(.data = data,
+                          # This isn't just assigning "Total" to everything in
+                          # case the data sources included non-plant codes.
+                          Total = dplyr::case_when(stringi::stri_length(Species) >= 3 ~ "Total",
+                                                   .default = NA),
+                          ###### Invasive ---------------------------------
+                          # This is just to make the Invasive values match
+                          # the desired indicator names
+                          Invasive = stringr::str_to_title(string = Invasive),
+
+                          ###### Native -----------------------------------
+                          # This is for the native and non-native cover
+                          # It assumes that everything flagged as EXOTIC or
+                          # ABSENT should be considered NonNative and that
+                          # everything else is Native
+                          Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) & Total == "Total" ~ "Native",
+                                                    !(Nonnative %in% c("NATIVE", NA)) & Total == "Total" ~ "Nonnative",
+                                                    .default = NA),
+
+                          ###### Noxious ----------------------------------
+                          # For noxious cover. This assumes that anything
+                          # flagged as YES is noxious and nothing else is.
+                          # NOTE: This is now disabled because noxious
+                          # status is being handled more appropriately and
+                          # through a different format. I'm leaving this
+                          # for posterity for the moment though.
+                          # Noxious = dplyr::case_when(Noxious %in% c("YES") ~ "Noxious",
+                          #                            .default = NA),
+                          # Noxious is now encoded as a character string
+                          # with localities separated by |s. We need to
+                          # check for the relevant locality based on the
+                          # State variable NOT the AdminState because these
+                          # determinations are made based on the physical
+                          # location of the sampling within the legal
+                          # boundaries of states, not which state is
+                          # administering the lands (which is sometimes
+                          # different).
+                          # The regex checks to see if the beginning of
+                          # the string or the characters immediately
+                          # following a | are "US", the code from the State
+                          # variable, or the code from the State variable
+                          # and the value from the County variable
+                          # separated by a :, e.g., "OR:Jefferson".
+                          # The single-letter designations for type of
+                          # noxiousness are not taken into account, e.g.,
+                          # "OR:A" and "OR:B" will be treated identically.
+                          # County-level designations may eventually be
+                          # removed, but for now they're still in there and
+                          # this regex will work regardless.
+                          Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
+                                                                         pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
+                                                     .default = "noxious_irrelevant"),
+                          ###### SG_Group (sage-grouse) -------------------
+                          # This is to turn the SG_Group codes into values
+                          # that match the expected indicator names for
+                          # our convenience.
+                          SG_Group = stringr::str_replace_all(string = SG_Group,
+                                                              pattern = "StaturePerennialGrass",
+                                                              replacement = "PerenGrass"),
+                          # This makes sure that the value in SG_Group is
+                          # only the string associated with the group for
+                          # the species code in the relevant state.
+                          # Records where there's not a group value for the
+                          # associated state (or "US") will get NA instead.
+                          SG_Group = stringr::str_extract(string = SG_Group,
+                                                          pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
+                          # This makes sure that we've assigned any shrubs
+                          # that didn't get a sage-grouse group are
+                          # assigned to "NonSagebrushShrub"
+                          SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
+                                                      # So that first-hit calcs work as intended.
+                                                      is.na(SG_Group) & GrowthHabitSub != "Shrub" ~ "Irrelevant",
+                                                      .default = SG_Group),)
+
+    #### Calculating #############################################################
+    # These are the output variables we anticipate getting back (and want)
+    expected_indicator_variables <- names(expected_indicator_variables)
+
+    indicator_variables_list <- list(c("Total"),
+                                     c("Native"),
+                                     c("Invasive"),
+                                     c("Noxious"),
+                                     c("SG_Group"))
+    output_list <- lapply(X = indicator_variables_list,
+                          data = data,
+                          verbose = verbose,
+                          FUN = function(X, data, verbose){
+                            species_count(species_inventory_tall = data,
+                                          indicator_variables = X,
+                                          verbose = verbose) |>
+                              dplyr::mutate(.data = _,
+                                            indicator = paste0("NumSpp_",
+                                                               indicator))
+                          })
+
+    output <- dplyr::bind_rows(output_list) |>
+      dplyr::filter(.data = _,
+                    indicator %in% expected_indicator_variables) |>
+      # We'll fill the empty records with 0 with the assumption that if that
+      # indicator was calculated for at least one included PrimaryKey then it
+      # should be good to go.
+      # THIS IS NOT NECESSARILY A SAFE ASSUMPTION WHEN PROCESSING DATA FROM
+      # MULTIPLE PROJECTS/SOURCES IN A SINGLE GO!
+      tidyr::pivot_wider(data = _,
+                         names_from = indicator,
+                         values_from = n,
+                         values_fill = 0)
+
+    missing_indicators <- setdiff(x = expected_indicator_variables,
+                                  y = names(output))
+    if (length(missing_indicators) > 0) {
+      warning(paste0("One or more expected indicators did not have qualifying data and will be returned with 0 or NA values as appropriate. This is not unexpected, especially for sage-grouse vegetation indicators. The following indicators were not calculated: ",
+                     paste(missing_indicators,
+                           collapse = ", ")))
+      output[, missing_indicators] <- 0
+    }
+
+    # Fixing 0s added for the identified MISSING variables that should be NA
+    # because there they were determined to be uncalculatable above due to missing
+    # species variables rather than just having no qualifying records in which
+    # case the 0 was appropriate.
+    output <- dplyr::mutate(.data = output,
+                            dplyr::across(.cols = uncalculatable_indicators,
+                                          .fns = ~ NA))
+
+    # And make sure that any PrimaryKeys from the headers without associated
+    # species inventory data don't end up with 0s. I could do this above, but it's
+    # probably not that expensive to do it here and it's just so easy as a final
+    # check.
+    # output[output$PrimaryKey %in% nonrepresented_pks, expected_indicator_variables] <- NA
+
+    output
+  }
+
+
+  # Calculate soil stability values
+  #' Calculate the standard Terrestrial AIM Database (TerrADat) soil stability indicators
+  #' @description
+  #' This function calculates the full set of soil stability-derived indicators that are standard for TerrADat.
+  #'
+  #'
+  #' @param soil_stability_tall  Data frame or character string. The long/tall-format gap data for the plots involved in the calculations. The format must match the output from \code{gather_soil_stability()}. If a character string, this must point to a CSV file containing the data.
+  #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+  #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+  #'   messages. Defaults to \code{FALSE}.
+  #' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
+  #' @param species_code_var Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
+  #' @param source Character string. If \code{"terradat"} or \code{"aim"} (case insensitive) then live and "dead" heights will be calculated. Defaults to \code{NULL}.
+  #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
+  #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
+  #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+  #'   messages. Defaults to \code{FALSE}.
+  #'
+  #' @returns A data frame matching the format of height indicators in TerrADat.
+  #' @export
+  soil_stability_calc <- function(soil_stability_tall,
+                                  digits = 6,
+                                  verbose = FALSE) {
+    if ("character" %in% class(soil_stability_tall)) {
+      if (toupper(tools::file_ext(soil_stability_tall)) == "RDATA") {
+        data <- readRDS(file = soil_stability_tall)
+      } else {
+        stop("When soil_stability_tall is a character string it must be the path to a .rds file containing tall LPI data.")
+      }
+    } else if ("data.frame" %in% class(soil_stability_tall)) {
+      data <- soil_stability_tall
+    }
+
+    # Drop the NA values
+    data <- dplyr::filter(.data = data,
+                          !is.na(Rating))
+
+    indicators <- soil_stability(data,
+                                 all = TRUE,
+                                 cover = TRUE,
+                                 uncovered = TRUE,
+                                 all_cover_types = FALSE,
+                                 tall = FALSE,
+                                 digits = digits)
+    indicators
+  }
