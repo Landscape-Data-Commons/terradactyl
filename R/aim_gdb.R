@@ -1065,6 +1065,22 @@ lpi_calc <- function(header,
   #                      names_from = indicator,
   #                      values_from = percent,
   #                      values_fill = 0)
+
+
+  # This bit is coming in from the NRI updates and needs furthr testing. I think
+  # it might now be sidestepped by a change above.
+  # lpi_indicators <- lpi_indicators |>
+  #   # 1. Drop the duplicate row, keeping only the first one
+    # dplyr::distinct(.data = _,
+    #                 dplyr::across(-percent),
+    #                 .keep_all = TRUE) |>
+  #
+  #   # 2. Run your original pivot code
+  #   pivot_wider(
+  #     names_from = indicator,
+  #     values_from = percent,
+  #     values_fill = 0
+  #   )
   lpi_indicators <- tidyr::pivot_wider(data = cover_indicators,
                                        names_from = indicator,
                                        values_from = percent,
