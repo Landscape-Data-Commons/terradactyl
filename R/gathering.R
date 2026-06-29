@@ -848,9 +848,14 @@ gather_header_lmf <- function(dsn = NULL,
 #' @description This reads in metadata from NRI sampling used as headers for
 #' various methods and returns it as a long-format data frame suitable for use
 #' in indicator calculations with the package \code{terradactyl}.
+#' @param dsn File path to where the point csv is located
+#' @param point_path The name of the point csv including .csv
+#' @param speciesstate character string. State of interest for species, can also be "ALL"
 
-# #' @export
+
+#' @export
 gather_header_nri <- function(dsn = NULL,
+                              point_path,
                               speciesstate,
                               ...,
                               verbose = FALSE) {
@@ -860,7 +865,7 @@ gather_header_nri <- function(dsn = NULL,
   # if(!is.null(POINT)){
   #   point <- POINT
   # } else if(!is.null(dsn)){
-  point <- read.csv(file.path(dsn, "POINT.csv"), stringsAsFactors = FALSE)
+  point <- read.csv(file.path(dsn, point_path), stringsAsFactors = FALSE)
   # } else {
   #   stop("Provide either POINT or a path to a folder containing it")
   # }
@@ -873,7 +878,7 @@ gather_header_nri <- function(dsn = NULL,
     # Filter using the filtering expression specified by user
     # dplyr::filter(!!!filter_exprs) %>%
     dplyr::select(
-      PrimaryKey,
+      PrimaryKey ,
       COUNTY, STATE#, DBKey
     )
 
@@ -907,27 +912,27 @@ gather_header_nri <- function(dsn = NULL,
   # Get the field coordinates
   point_coordinate <- read.csv(file.path(dsn, "POINTCOORDINATES.csv"),
                                stringsAsFactors = FALSE
-  ) %>%
-    dplyr::mutate(
-      Latitude_NAD83 = dplyr::coalesce(
-        FIELD_LATITUDE,
-        TARGET_LATITUDE
-      ),
-      Longitude_NAD83 = dplyr::coalesce(
-        FIELD_LONGITUDE,
-        TARGET_LONGITUDE
-      ),
-      LocationType = dplyr::if_else(Latitude_NAD83 == TARGET_LATITUDE, "Target", "Field")
-    ) %>%
-    dplyr::select(
-      PrimaryKey,
-      Latitude_NAD83,
-      Longitude_NAD83,
-      LocationType
-    ) %>%
-    dplyr::left_join(point, .,
-                     by = "PrimaryKey"
-    )
+   )
+  #   dplyr::mutate(
+  #     Latitude_NAD83 = dplyr::coalesce(
+  #       FIELD_LATITUDE,
+  #       TARGET_LATITUDE
+  #     ),
+  #     Longitude_NAD83 = dplyr::coalesce(
+  #       FIELD_LONGITUDE,
+  #       TARGET_LONGITUDE
+  #     ),
+  #     LocationType = dplyr::if_else(Latitude_NAD83 == TARGET_LATITUDE, "Target", "Field")
+  #   ) %>%
+  #   dplyr::select(
+  #     PrimaryKey,
+  #     Latitude_NAD83,
+  #     Longitude_NAD83,
+  #     LocationType
+  #   ) %>%
+  #   dplyr::left_join(point, .,
+  #                    by = "PrimaryKey"
+  #   )
 
   # Add elevation data
   point_elevation <- read.csv(file.path(dsn, "GPS.csv"),
@@ -941,10 +946,11 @@ gather_header_nri <- function(dsn = NULL,
     dplyr::left_join(point_coordinate, .,
                      # by = c("PrimaryKey", "DBKey")
                      by = "PrimaryKey"
-    ) %>%
+    )  %>%
 
     # Convert elevation to meters
     dplyr::mutate(ELEVATION = ELEVATION * 0.3048)
+
 
   # Add Ecological Site Id
   point_ESD <- read.csv(file.path(dsn, "ESFSG.csv"),
@@ -1001,6 +1007,22 @@ gather_header_nri <- function(dsn = NULL,
 
   # Create PlotID, which is needed in later functions
   point_ESD <- point_ESD %>% dplyr::mutate(PlotID = PrimaryKey)
+
+  #add ProjectKey
+  point_ESD$ProjectKey <- "NRI"
+
+  # dropping county and st since not in LDC - but dont want to lose workflow for when
+  # we add it in
+  point_ESD$County <- NULL
+  point_ESD$State <- NULL
+  #point_ESD$SpeciesKey <- "NRI"
+  point_ESD$wkb_geometry <- NA
+  point_ESD$source <- "NRI"
+  # get the date in the order expected by LDC
+  point_ESD$DateVisited <- lubridate::parse_date_time(point_ESD$DateVisited,
+                                                   orders = c("ymd", "mdy", "dmy", "ymd HMS", "mdy HMS","ymd HM", "mdy HM"))
+  point_ESD$DateVisited <- as.Date(point_ESD$DateVisited)
+  point_ESD$ELEVATION <- NULL
 
   # Return the point_ESD as the header file
   return(point_ESD)
@@ -1376,18 +1398,20 @@ gather_lpi_terradat <- function(dsn = NULL,
   # Join the header information to the tall data.
   # The suppressWarnings() and lack of defined relationships in the joins are to
   # allow the user to run this with data that have not been adequately cleaned.
-  lpi_tall <- dplyr::select(.data = header,
-                            # This is split so that we grab the first chunk of
-                            # assumed-to-be-present metadata variables and then
-                            # if we've got the checkbox ones we'll do those too
-                            LineKey:HeightUOM,
-                            tidyselect::any_of(c("ShowCheckbox",
-                                                 "CheckboxLabel")),
-                            PrimaryKey) |>
-    dplyr::left_join(x = _,
-                     y = lpi_tall,
-                     # relationship = "one-to-many",
-                     by = c("PrimaryKey", "RecKey")) |>
+  metadata_cols <- c(
+    "LineKey", "RecKey", "PrimaryKey", "DateModified", "FormType",
+    "FormDate", "Observer", "Recorder", "Direction", "Measure",
+    "LineLengthAmount", "SpacingIntervalAmount", "SpacingType",
+    "HeightOption", "HeightUOM", "ShowCheckbox", "CheckboxLabel"
+  )
+
+
+  lpi_tall <- header |>
+    dplyr::select(tidyselect::any_of(metadata_cols)) |>
+    dplyr::left_join(
+      y = lpi_tall,
+      by = c("PrimaryKey", "RecKey")
+    ) |>
     suppressWarnings()
 
   # We want to coerce dates into character strings.
@@ -1998,11 +2022,16 @@ gather_height_terradat <- function(dsn = NULL,
     dplyr::distinct()
 
 
-  header <- dplyr::select(.data = header,
-                          PrimaryKey,
-                          LineKey:CheckboxLabel,
-                          # tidyselect::matches(match = "DBKey"),
-                          -tidyselect::any_of(internal_gdb_vars)) |>
+  header_explicit_cols <- c(
+    "PrimaryKey", # Keeping this as requested
+    "LineKey", "RecKey", "DateModified", "FormType", "FormDate",
+    "Observer", "Recorder", "DataEntry", "DataErrorChecking",
+    "Direction", "Measure", "LineLengthAmount", "SpacingIntervalAmount",
+    "SpacingType", "HeightOption", "HeightUOM", "ShowCheckbox", "CheckboxLabel"
+  )
+
+  header <- header |>
+    dplyr::select(tidyselect::any_of(header_explicit_cols)) |>
     dplyr::distinct()
 
 
@@ -2121,32 +2150,32 @@ gather_height_terradat <- function(dsn = NULL,
   # put them all in one data frame variable when we pivot the data to a long
   # format.
   lpi_heights_tall <- lapply(X = variable_types,
-                             detail = detail,
-                             FUN = function(X, detail){
-                               dplyr::select(.data = detail,
-                                             PrimaryKey, RecKey,
-                                             PointLoc, PointNbr,
-                                             tidyselect::ends_with(match = X)) |>
-                                 dplyr::rename_with(.data = _,
-                                                    .cols = tidyselect::ends_with(match = X),
-                                                    .fn = ~ stringr::str_extract(string = .x,
-                                                                                 pattern = paste0(".+(?=", X, "$)"))) |>
-                                 dplyr::mutate(.data = _,
-                                               # We're going to suppress
-                                               # warnings about introducing
-                                               # NAs in this coercion because we
-                                               # already warned the user above.
-                                               Height = suppressWarnings(as.numeric(Height)),
-                                               Species = suppressWarnings(as.character(Species)),
-                                               type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
-                                                                       .default = tolower(X)),
-                                               GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
-                                                                                       X %in% c("Herbaceous",
-                                                                                                "LowerHerb") ~ "NonWoody",
-                                                                                       .default = NA)) |>
-                                 dplyr::filter(.data = _,
-                                               !is.na(Height))
-                             }) |>
+                              detail = detail,
+                              FUN = function(X, detail){
+                                dplyr::select(.data = detail,
+                                              PrimaryKey, RecKey,
+                                              PointLoc, PointNbr,
+                                              tidyselect::ends_with(match = X)) |>
+                                  dplyr::rename_with(.data = _,
+                                                     .cols = tidyselect::ends_with(match = X),
+                                                     .fn = ~ stringr::str_extract(string = .x,
+                                                                                  pattern = paste0(".+(?=", X, "$)"))) |>
+                                  dplyr::mutate(.data = _,
+                                                # We're going to suppress
+                                                # warnings about introducing
+                                                # NAs in this coercion because we
+                                                # already warned the user above.
+                                                Height = suppressWarnings(as.numeric(Height)),
+                                                Species = suppressWarnings(as.character(Species)),
+                                                type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
+                                                                        .default = tolower(X)),
+                                                GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
+                                                                                        X %in% c("Herbaceous",
+                                                                                                 "LowerHerb") ~ "NonWoody",
+                                                                                        .default = NA)) |>
+                                  dplyr::filter(.data = _,
+                                                !is.na(Height))
+                              }) |>
     dplyr::bind_rows()
 
   lpi_height <- suppressWarnings(dplyr::left_join(x = header,
@@ -2881,7 +2910,9 @@ gather_gap_lmf <- function(dsn = NULL,
                                                                          "END_GAP")),
                                             .fns = as.numeric))
 
-  if (any(gintercept$START_GAP > gintercept$END_GAP)) {
+  ## checking for negatives or NAs
+  neg_gap <- gintercept |> dplyr::mutate(Gap = END_GAP - START_GAP) |> dplyr::filter(Gap < 0)
+  if(nrow(neg_gap) > 0){
     warning("There are some records with negative gap sizes. These will be dropped.")
     gintercept <- dplyr::filter(.data = gintercept,
                                 START_GAP <= END_GAP)
