@@ -633,12 +633,30 @@ species_join <- function(data, # field data,
                                 tidyselect::all_of(x = setNames(object = species_code,
                                                                 nm = data_code)),
                                 tidyselect::everything()) |>
+    # in certain instances NA and NULL strings are persisting in the species list
+    dplyr::filter(!is.na(!!rlang::sym(data_code)) & !!rlang::sym(data_code) != "") |>
+
+    # critical! join by to prevent weird default behavior in species assignments
     dplyr::left_join(x = data,
                      y = _,
-                     # Enforcing that there shouldn't be multiple records in
-                     # species_generic that share a code!!!!!
                      relationship = "many-to-one",
-                     by = join_by) |>
+                     by = dplyr::join_by(!!data_code)) |>
+
+    # fallback logic where if nothing is assigned in species we at least know whether woody or herb
+    dplyr::mutate(
+      # Since we cleaned the lookup table, if Duration is NA, the species was unmatched
+      is_unmatched = is.na(Duration),
+
+      # Enforce NA for unmatched sub-metrics
+      Duration       = dplyr::if_else(is_unmatched, NA_character_, Duration),
+      GrowthHabitSub = dplyr::if_else(is_unmatched, NA_character_, GrowthHabitSub),
+
+      # Fall back to your measured column values if unmatched, otherwise keep lookup value
+      GrowthHabit    = dplyr::if_else(is_unmatched, GrowthHabit_measured, GrowthHabit)
+    ) |>
+
+    # Clean up the helper column and drop duplicates
+    dplyr::select(-is_unmatched) |>
     dplyr::distinct()
 
   # Overwrite generic species assignments with provided table
