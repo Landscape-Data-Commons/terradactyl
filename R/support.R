@@ -1,3 +1,26 @@
+check_source <- function(source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF", "NRI"))){
+
+  if (!any(toupper(source) %in% toupper(unlist(valid_source_values))) | length(source) > 1) {
+    stop(paste0("source must be one of the following values (case insensitive): '",
+                paste(unlist(valid_source_values), collapse = "', '"), "'"))
+  }
+
+  # This sets source to the correctly capitalized version
+  source <- unlist(valid_source_values)[toupper(unlist(valid_source_values)) == toupper(source)]
+
+  # This identifies the source type, which is ultimately intended to be used to
+  # invoke the correct function for the type, e.g. gather_lpi_lmf()
+  source_type <- names(valid_source_values)[sapply(X = valid_source_values,
+                                                   source = source,
+                                                   FUN = function(X, source){
+                                                     source %in% X
+                                                   })]
+  c(source = source,
+    type = source_type)
+}
+
 # There are a number of functions in this package that use the ellipsis to
 # allow for unnamed/freeform arguments to be passed in.
 # This can be a real pain to support in some contexts, so this function will
