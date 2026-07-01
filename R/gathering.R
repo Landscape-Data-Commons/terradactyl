@@ -88,7 +88,8 @@ gather_all <- function(dsn = NULL,
   valid_source_values <- c("aim",
                            "terradat",
                            "dima",
-                           "lmf")
+                           "lmf",
+                           "other")
 
   # This collapses synonyms to avoid reprocessing data multiple times.
   if (sum(c("aim",
@@ -912,7 +913,7 @@ gather_header_nri <- function(dsn = NULL,
   # Get the field coordinates
   point_coordinate <- read.csv(file.path(dsn, "POINTCOORDINATES.csv"),
                                stringsAsFactors = FALSE
-   )
+  )
   #   dplyr::mutate(
   #     Latitude_NAD83 = dplyr::coalesce(
   #       FIELD_LATITUDE,
@@ -1020,7 +1021,7 @@ gather_header_nri <- function(dsn = NULL,
   point_ESD$source <- "NRI"
   # get the date in the order expected by LDC
   point_ESD$DateVisited <- lubridate::parse_date_time(point_ESD$DateVisited,
-                                                   orders = c("ymd", "mdy", "dmy", "ymd HMS", "mdy HMS","ymd HM", "mdy HM"))
+                                                      orders = c("ymd", "mdy", "dmy", "ymd HMS", "mdy HMS","ymd HM", "mdy HM"))
   point_ESD$DateVisited <- as.Date(point_ESD$DateVisited)
   point_ESD$ELEVATION <- NULL
 
@@ -1137,38 +1138,69 @@ gather_header <- function(dsn = NULL,
                           ...,
                           autoQC = FALSE,
                           verbose = FALSE) {
+
+  source <- check_source(source = source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF"),
+                                                    nri = c("NRI")))
+
   # Error check
   # Check for a valid source
-  try(if (!(toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))) {
-    stop("No valid source provided")
-  })
+  # try(if (!(toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "LMF", "NRI"))) {
+  #   stop("No valid source provided")
+  # })
 
   # Apply appropriate header function
 
-  if (toupper(source) %in% c("TERRADAT", "AIM", "DIMA")) {
-    output <- gather_header_terradat(dsn = dsn,
-                                     tblPlots = tblPlots,
-                                     date_tables = date_tables,
-                                     ...,
-                                     verbose = verbose)
-  } else if (toupper(source) == "LMF") {
-    output <- gather_header_lmf(dsn = dsn,
-                                POINT = POINT,
-                                POINTCOORDINATES = POINTCOORDINATES,
-                                GPS = GPS,
-                                ESFSG = ESFSG,
-                                ...,
-                                verbose = verbose)
-  } else if (toupper(source) == "NRI") {
-    output <- gather_header_nri(dsn = dsn,
-                                speciesstate = speciesstate,
-                                ...)
-  } else {
-    stop("No valid source provided")
-  }
+  output <- switch(source$type,
+                   terradat = {
+                     gather_header_terradat(dsn = dsn,
+                                            tblPlots = tblPlots,
+                                            date_tables = date_tables,
+                                            ...,
+                                            verbose = verbose)
+                   },
+                   lmf = {
+                     gather_header_lmf(dsn = dsn,
+                                       POINT = POINT,
+                                       POINTCOORDINATES = POINTCOORDINATES,
+                                       GPS = GPS,
+                                       ESFSG = ESFSG,
+                                       ...,
+                                       verbose = verbose)
+                   },
+                   nri = {
+                     gather_header_nri(dsn = dsn,
+                                       speciesstate = speciesstate,
+                                       ...)
+                   }) |>
+    dplyr::mutate(.data = _,
+                  source = source$source)
 
-  # Add the source value to the data.
-  output$source <- source
+  # if (toupper(source) %in% c("TERRADAT", "AIM", "DIMA")) {
+  #   output <- gather_header_terradat(dsn = dsn,
+  #                                    tblPlots = tblPlots,
+  #                                    date_tables = date_tables,
+  #                                    ...,
+  #                                    verbose = verbose)
+  # } else if (toupper(source) == "LMF") {
+  #   output <- gather_header_lmf(dsn = dsn,
+  #                               POINT = POINT,
+  #                               POINTCOORDINATES = POINTCOORDINATES,
+  #                               GPS = GPS,
+  #                               ESFSG = ESFSG,
+  #                               ...,
+  #                               verbose = verbose)
+  # } else if (toupper(source) == "NRI") {
+  #   output <- gather_header_nri(dsn = dsn,
+  #                               speciesstate = speciesstate,
+  #                               ...)
+  # } else {
+  #   stop("No valid source provided")
+  # }
+  #
+  # # Add the source value to the data.
+  # output$source <- source
 
   # Make sure there's no geometry associated with the data.
   if("sf" %in% class(output)) {
@@ -1859,27 +1891,49 @@ gather_lpi <- function(dsn = NULL,
                        # LPIDetail_1 = NULL
 ) {
 
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    lpi <- gather_lpi_terradat(dsn = dsn,
-                               tblLPIDetail = tblLPIDetail,
-                               tblLPIHeader = tblLPIHeader,
-                               verbose = verbose)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    lpi <- gather_lpi_lmf(dsn = dsn,
-                          file_type = file_type,
-                          PINTERCEPT = PINTERCEPT,
-                          verbose = verbose)
-    lpi$chckbox <- NA
-    # } else if(toupper(source) == "SURVEY123"){
-    #   lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
-    #                               LPIDetail_1 = LPIDetail_1)
-  } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
-  }
+  source <- check_source(source = source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF", "NRI")))
 
-  # Add source field
-  # lpi$source <- toupper(source)
-  lpi$source <- source
+  lpi <- switch(EXPR = source$type,
+                "terradat" = {
+                  gather_lpi_terradat(dsn = dsn,
+                                      tblLPIDetail = tblLPIDetail,
+                                      tblLPIHeader = tblLPIHeader,
+                                      verbose = verbose)
+                },
+                "lmf" = {
+                  gather_lpi_lmf(dsn = dsn,
+                                 file_type = file_type,
+                                 PINTERCEPT = PINTERCEPT,
+                                 verbose = verbose) |>
+                    dplyr::mutate(.data = _,
+                                  chckbox = NA)
+                }) |>
+    dplyr::mutate(.data = _,
+                  source = source$source)
+
+  # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "OTHER")){
+  #   lpi <- gather_lpi_terradat(dsn = dsn,
+  #                              tblLPIDetail = tblLPIDetail,
+  #                              tblLPIHeader = tblLPIHeader,
+  #                              verbose = verbose)
+  # } else if(toupper(source) %in% c("LMF", "NRI")){
+  #   lpi <- gather_lpi_lmf(dsn = dsn,
+  #                         file_type = file_type,
+  #                         PINTERCEPT = PINTERCEPT,
+  #                         verbose = verbose)
+  #   lpi$chckbox <- NA
+  #   # } else if(toupper(source) == "SURVEY123"){
+  #   #   lpi <- gather_lpi_survey123(LPI_0 = LPI_0,
+  #   #                               LPIDetail_1 = LPIDetail_1)
+  # } else {
+  #   stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+  # }
+  #
+  # # Add source field
+  # # lpi$source <- toupper(source)
+  # lpi$source <- source
 
   if("sf" %in% class(lpi)){
     lpi <- sf::st_drop_geometry(lpi)
@@ -2150,32 +2204,32 @@ gather_height_terradat <- function(dsn = NULL,
   # put them all in one data frame variable when we pivot the data to a long
   # format.
   lpi_heights_tall <- lapply(X = variable_types,
-                              detail = detail,
-                              FUN = function(X, detail){
-                                dplyr::select(.data = detail,
-                                              PrimaryKey, RecKey,
-                                              PointLoc, PointNbr,
-                                              tidyselect::ends_with(match = X)) |>
-                                  dplyr::rename_with(.data = _,
-                                                     .cols = tidyselect::ends_with(match = X),
-                                                     .fn = ~ stringr::str_extract(string = .x,
-                                                                                  pattern = paste0(".+(?=", X, "$)"))) |>
-                                  dplyr::mutate(.data = _,
-                                                # We're going to suppress
-                                                # warnings about introducing
-                                                # NAs in this coercion because we
-                                                # already warned the user above.
-                                                Height = suppressWarnings(as.numeric(Height)),
-                                                Species = suppressWarnings(as.character(Species)),
-                                                type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
-                                                                        .default = tolower(X)),
-                                                GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
-                                                                                        X %in% c("Herbaceous",
-                                                                                                 "LowerHerb") ~ "NonWoody",
-                                                                                        .default = NA)) |>
-                                  dplyr::filter(.data = _,
-                                                !is.na(Height))
-                              }) |>
+                             detail = detail,
+                             FUN = function(X, detail){
+                               dplyr::select(.data = detail,
+                                             PrimaryKey, RecKey,
+                                             PointLoc, PointNbr,
+                                             tidyselect::ends_with(match = X)) |>
+                                 dplyr::rename_with(.data = _,
+                                                    .cols = tidyselect::ends_with(match = X),
+                                                    .fn = ~ stringr::str_extract(string = .x,
+                                                                                 pattern = paste0(".+(?=", X, "$)"))) |>
+                                 dplyr::mutate(.data = _,
+                                               # We're going to suppress
+                                               # warnings about introducing
+                                               # NAs in this coercion because we
+                                               # already warned the user above.
+                                               Height = suppressWarnings(as.numeric(Height)),
+                                               Species = suppressWarnings(as.character(Species)),
+                                               type = dplyr::case_when(X == "LowerHerb" ~ "lower.herbaceous",
+                                                                       .default = tolower(X)),
+                                               GrowthHabit_measured = dplyr::case_when(X == "Woody" ~ "Woody",
+                                                                                       X %in% c("Herbaceous",
+                                                                                                "LowerHerb") ~ "NonWoody",
+                                                                                       .default = NA)) |>
+                                 dplyr::filter(.data = _,
+                                               !is.na(Height))
+                             }) |>
     dplyr::bind_rows()
 
   lpi_height <- suppressWarnings(dplyr::left_join(x = header,
@@ -2539,27 +2593,48 @@ gather_height <- function(dsn = NULL,
                           PASTUREHEIGHTS = NULL,
                           autoQC = TRUE,
                           verbose = FALSE) {
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    height <- gather_height_terradat(dsn = dsn,
-                                     tblLPIHeader = tblLPIHeader,
-                                     tblLPIDetail = tblLPIDetail,
-                                     verbose = verbose)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    height <- gather_height_lmf(dsn = dsn,
-                                file_type = file_type,
-                                PASTUREHEIGHTS = PASTUREHEIGHTS,
-                                verbose = verbose)
-    # } else if(toupper(source) %in% c("SURVEY123")){
-    #   height <- gather_height_survey123(
-    #     LPI_0 = LPI_0,
-    #     LPIDetail_1 = LPIDetail_1
-    #   )
-  } else {
-    stop('source must be "AIM", "TerrADat", "DIMA", "LMF", or "NRI" (case independent).')
-  }
 
-  # height$source <- toupper(source)
-  height$source <- source
+  source <- check_source(source = source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF", "NRI")))
+
+  height <- switch(EXPR = source$type,
+                   "terradat" = {
+                     gather_height_terradat(dsn = dsn,
+                                            tblLPIHeader = tblLPIHeader,
+                                            tblLPIDetail = tblLPIDetail,
+                                            verbose = verbose)
+                   },
+                   "lmf" = {
+                     gather_height_lmf(dsn = dsn,
+                                       file_type = file_type,
+                                       PASTUREHEIGHTS = PASTUREHEIGHTS,
+                                       verbose = verbose)
+                   }) |>
+    dplyr::mutate(.data = _,
+                  source = source$source)
+
+  # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+  #   height <- gather_height_terradat(dsn = dsn,
+  #                                    tblLPIHeader = tblLPIHeader,
+  #                                    tblLPIDetail = tblLPIDetail,
+  #                                    verbose = verbose)
+  # } else if(toupper(source) %in% c("LMF", "NRI")){
+  #   height <- gather_height_lmf(dsn = dsn,
+  #                               file_type = file_type,
+  #                               PASTUREHEIGHTS = PASTUREHEIGHTS,
+  #                               verbose = verbose)
+  #   # } else if(toupper(source) %in% c("SURVEY123")){
+  #   #   height <- gather_height_survey123(
+  #   #     LPI_0 = LPI_0,
+  #   #     LPIDetail_1 = LPIDetail_1
+  #   #   )
+  # } else {
+  #   stop('source must be "AIM", "TerrADat", "DIMA", "LMF", or "NRI" (case independent).')
+  # }
+  #
+  # # height$source <- toupper(source)
+  # height$source <- source
 
   if("sf" %in% class(height)) height <- sf::st_drop_geometry(height)
 
@@ -3349,25 +3424,46 @@ gather_gap <- function(dsn = NULL,
                        # GapDetail_1 = NULL
 ) {
 
-  # Gather gap using the appropriate method
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    gap <- gather_gap_terradat(dsn = dsn,
-                               tblGapDetail = tblGapDetail,
-                               tblGapHeader = tblGapHeader,
-                               verbose = verbose)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    gap <- gather_gap_lmf(dsn = dsn,
-                          file_type = file_type,
-                          POINT = POINT,
-                          GINTERCEPT = GINTERCEPT,
-                          verbose = verbose)
-    # } else if(toupper(source) %in% c("SURVEY123")){
-    # gap <- gather_gap_survey123(Gap_0 = Gap_0, GapDetail_1 = GapDetail_1)
-  } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
-  }
+  source <- check_source(source = source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF", "NRI")))
 
-  gap$source <- source
+  gap <- switch(EXPR = source$type,
+                "terradat" = {
+                  gather_gap_terradat(dsn = dsn,
+                                      tblGapDetail = tblGapDetail,
+                                      tblGapHeader = tblGapHeader,
+                                      verbose = verbose)
+                },
+                "lmf" = {
+                  gather_gap_lmf(dsn = dsn,
+                                 file_type = file_type,
+                                 POINT = POINT,
+                                 GINTERCEPT = GINTERCEPT,
+                                 verbose = verbose)
+                }) |>
+    dplyr::mutate(.data = _,
+                  source = source$source)
+
+  # # Gather gap using the appropriate method
+  # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+  #   gap <- gather_gap_terradat(dsn = dsn,
+  #                              tblGapDetail = tblGapDetail,
+  #                              tblGapHeader = tblGapHeader,
+  #                              verbose = verbose)
+  # } else if(toupper(source) %in% c("LMF", "NRI")){
+  #   gap <- gather_gap_lmf(dsn = dsn,
+  #                         file_type = file_type,
+  #                         POINT = POINT,
+  #                         GINTERCEPT = GINTERCEPT,
+  #                         verbose = verbose)
+  #   # } else if(toupper(source) %in% c("SURVEY123")){
+  #   # gap <- gather_gap_survey123(Gap_0 = Gap_0, GapDetail_1 = GapDetail_1)
+  # } else {
+  #   stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+  # }
+  #
+  # gap$source <- source
 
   if("sf" %in% class(gap)) gap <- sf::st_drop_geometry(gap)
 
@@ -3894,22 +3990,42 @@ gather_soil_stability <- function(dsn = NULL,
                                   verbose = FALSE
 ) {
 
-  if (toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    soil_stability <- gather_soil_stability_terradat(dsn = dsn,
-                                                     tblSoilStabDetail = tblSoilStabDetail,
-                                                     tblSoilStabHeader = tblSoilStabHeader,
-                                                     verbose = verbose)
-  } else if (toupper(source) %in% c("LMF", "NRI")){
-    soil_stability <- gather_soil_stability_lmf(dsn = dsn,
-                                                file_type = file_type,
-                                                SOILDISAG = SOILDISAG,
-                                                verbose = verbose)
+  source <- check_source(source = source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF", "NRI")))
 
-  } else {
-    stop("source must be one of 'AIM', 'TerrADat', 'DIMA', 'LMF', or 'NRI' (all case independent).")
-  }
+  soil_stability <- switch(EXPR = source$type,
+                           "terradat" = {
+                             gather_soil_stability_terradat(dsn = dsn,
+                                                            tblSoilStabDetail = tblSoilStabDetail,
+                                                            tblSoilStabHeader = tblSoilStabHeader,
+                                                            verbose = verbose)
+                           },
+                           "lmf" = {
+                             gather_soil_stability_lmf(dsn = dsn,
+                                                       file_type = file_type,
+                                                       SOILDISAG = SOILDISAG,
+                                                       verbose = verbose)
+                           }) |>
+    dplyr::mutate(.data = _,
+                  source = source$source)
 
-  soil_stability$source <- source
+  # if (toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+  #   soil_stability <- gather_soil_stability_terradat(dsn = dsn,
+  #                                                    tblSoilStabDetail = tblSoilStabDetail,
+  #                                                    tblSoilStabHeader = tblSoilStabHeader,
+  #                                                    verbose = verbose)
+  # } else if (toupper(source) %in% c("LMF", "NRI")){
+  #   soil_stability <- gather_soil_stability_lmf(dsn = dsn,
+  #                                               file_type = file_type,
+  #                                               SOILDISAG = SOILDISAG,
+  #                                               verbose = verbose)
+  #
+  # } else {
+  #   stop("source must be one of 'AIM', 'TerrADat', 'DIMA', 'LMF', or 'NRI' (all case independent).")
+  # }
+  #
+  # soil_stability$source <- source
 
   if("sf" %in% class(soil_stability)) {
     soil_stability <- sf::st_drop_geometry(x = soil_stability)
@@ -4301,21 +4417,38 @@ gather_rangeland_health <- function(dsn = NULL,
                                     autoQC = TRUE,
                                     verbose = FALSE) {
 
+  source <- check_source(source = source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF", "NRI")))
 
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    IIRH <- gather_rangeland_health_terradat(dsn = dsn,
-                                             tblQualDetail = tblQualDetail,
-                                             tblQualHeader = tblQualHeader)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    IIRH <- gather_rangeland_health_lmf(dsn = dsn,
-                                        file_type = file_type,
-                                        RANGEHEALTH = RANGEHEALTH)
-  } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
-  }
+  IIRH <- switch(EXPR = source$type,
+                 "terradat" = {
+                   gather_rangeland_health_terradat(dsn = dsn,
+                                                    tblQualDetail = tblQualDetail,
+                                                    tblQualHeader = tblQualHeader)
+                 },
+                 "lmf" = {
+                   gather_rangeland_health_lmf(dsn = dsn,
+                                               file_type = file_type,
+                                               RANGEHEALTH = RANGEHEALTH)
+                 }) |>
+    dplyr::mutate(.data = _,
+                  source = source$source)
 
-  # IIRH$source <- toupper(source)
-  if(nrow(IIRH) > 0) IIRH$source <- source
+  # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+  #   IIRH <- gather_rangeland_health_terradat(dsn = dsn,
+  #                                            tblQualDetail = tblQualDetail,
+  #                                            tblQualHeader = tblQualHeader)
+  # } else if(toupper(source) %in% c("LMF", "NRI")){
+  #   IIRH <- gather_rangeland_health_lmf(dsn = dsn,
+  #                                       file_type = file_type,
+  #                                       RANGEHEALTH = RANGEHEALTH)
+  # } else {
+  #   stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+  # }
+  #
+  # # IIRH$source <- toupper(source)
+  # if(nrow(IIRH) > 0) IIRH$source <- source
 
   if("sf" %in% class(IIRH)) IIRH <- sf::st_drop_geometry(IIRH)
 
@@ -4619,28 +4752,48 @@ gather_species_inventory <- function(dsn = NULL,
                                      autoQC = TRUE,
                                      verbose = FALSE) {
 
-  if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
-    species_inventory <- gather_species_inventory_terradat(dsn = dsn,
-                                                           tblSpecRichDetail = tblSpecRichDetail,
-                                                           tblSpecRichHeader = tblSpecRichHeader,
-                                                           verbose = verbose)
-  } else if(toupper(source) %in% c("LMF", "NRI")){
-    species_inventory <- gather_species_inventory_lmf(dsn = dsn,
-                                                      file_type = file_type,
-                                                      PLANTCENSUS = PLANTCENSUS,
-                                                      verbose = verbose)
-    # } else if (toupper(source) == "SURVEY123"){
-    #   species_inventory <- gather_species_inventory_survey123(
-    #     SpeciesRichness_0 = SpeciesRichness_0,
-    #     SpecRichDetail_1 = SpecRichDetail_1)
+  source <- check_source(source = source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF", "NRI")))
 
-  } else {
-    stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
-  }
+  species_inventory <- switch(EXPR = source$type,
+                              "terradat" = {
+                                gather_species_inventory_terradat(dsn = dsn,
+                                                                  tblSpecRichDetail = tblSpecRichDetail,
+                                                                  tblSpecRichHeader = tblSpecRichHeader,
+                                                                  verbose = verbose)
+                              },
+                              "lmf" = {
+                                gather_species_inventory_lmf(dsn = dsn,
+                                                             file_type = file_type,
+                                                             PLANTCENSUS = PLANTCENSUS,
+                                                             verbose = verbose)
+                              }) |>
+    dplyr::mutate(.data = _,
+                  source = source$source)
 
-  # Add source field so that we know where the data came from
-  # species_inventory$source <- toupper(source)
-  species_inventory$source <- source
+  # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
+  #   species_inventory <- gather_species_inventory_terradat(dsn = dsn,
+  #                                                          tblSpecRichDetail = tblSpecRichDetail,
+  #                                                          tblSpecRichHeader = tblSpecRichHeader,
+  #                                                          verbose = verbose)
+  # } else if(toupper(source) %in% c("LMF", "NRI")){
+  #   species_inventory <- gather_species_inventory_lmf(dsn = dsn,
+  #                                                     file_type = file_type,
+  #                                                     PLANTCENSUS = PLANTCENSUS,
+  #                                                     verbose = verbose)
+  #   # } else if (toupper(source) == "SURVEY123"){
+  #   #   species_inventory <- gather_species_inventory_survey123(
+  #   #     SpeciesRichness_0 = SpeciesRichness_0,
+  #   #     SpecRichDetail_1 = SpecRichDetail_1)
+  #
+  # } else {
+  #   stop("source must be AIM, TerrADat, DIMA, LMF, or NRI (all case independent)")
+  # }
+  #
+  # # Add source field so that we know where the data came from
+  # # species_inventory$source <- toupper(source)
+  # species_inventory$source <- source
 
   if("sf" %in% class(species_inventory)) {
     species_inventory <- sf::st_drop_geometry(species_inventory)
