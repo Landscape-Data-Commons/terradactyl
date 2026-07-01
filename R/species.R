@@ -629,35 +629,36 @@ species_join <- function(data, # field data,
 
   # Make sure that the variables containing the codes are named the same thing
   # between the species list and the data then join them!
+  # intentional NAs to keep GrowthHabit assignment in species join
+  acceptable_nas <- species_generic |>
+    dplyr::filter(is.na(GrowthHabit)) |>
+    dplyr::pull(!!rlang::sym(species_code)) |>
+    unique()
+
+
   data_species <- dplyr::select(.data = species_generic,
                                 tidyselect::all_of(x = setNames(object = species_code,
                                                                 nm = data_code)),
                                 tidyselect::everything()) |>
-    # in certain instances NA and NULL strings are persisting in the species list
+    # remove blank and NAs from species list
     dplyr::filter(!is.na(!!rlang::sym(data_code)) & !!rlang::sym(data_code) != "") |>
 
-    # critical! join by to prevent weird default behavior in species assignments
+    # The join handles the lookup for the entire dataset efficiently
     dplyr::left_join(x = data,
                      y = _,
                      relationship = "many-to-one",
                      by = dplyr::join_by(!!data_code)) |>
 
-    # fallback logic where if nothing is assigned in species we at least know whether woody or herb
+    # assign GrowthHabit when missing
     dplyr::mutate(
-      # Since we cleaned the lookup table, if Duration is NA, the species was unmatched
-      is_unmatched = is.na(Duration),
-
-      # Enforce NA for unmatched sub-metrics
-      Duration       = dplyr::if_else(is_unmatched, NA_character_, Duration),
-      GrowthHabitSub = dplyr::if_else(is_unmatched, NA_character_, GrowthHabitSub),
-
-      # Fall back to your measured column values if unmatched, otherwise keep lookup value
-      GrowthHabit    = dplyr::if_else(is_unmatched, GrowthHabit_measured, GrowthHabit)
+      # default to GrowthHabit_measured when not an intentional NA
+      GrowthHabit    = dplyr::case_when(
+        !(!!rlang::sym(data_code) %in% acceptable_nas) & is.na(GrowthHabit) & Height > 0 ~ GrowthHabit_measured,
+        .default = GrowthHabit
+      )
     ) |>
-
-    # Clean up the helper column and drop duplicates
-    dplyr::select(-is_unmatched) |>
     dplyr::distinct()
+
 
   # Overwrite generic species assignments with provided table
   if (overwrite_generic_species & identical(generic_species_file, "")) {
