@@ -180,9 +180,10 @@ generic_growth_habits <- function(data,
                                "NonWoody" = "^2((F(?!SMUT|[FJRU]))|(G(?!W)|(VH)))",
                                "Nonvascular" = "^2(A|BRY|HORN|L(?!TR)|LTRL|MOSS|PROT|SLIME)",
                                "Other" = "^2(PLANT|BACT|CYAN|DIAT|DINO|(F(?=SMUT|[FJRU])|(LTR(?!L))))")
-  aim_growthhabit_regexes <- c("Woody" = "^((S[HU]|TR)\\d{1,999})|(SSHH|TTRR|SSUU)",
-                               "NonWoody" = "^(([AP]{1,2}[FG]{1,2})|(PPSS))\\d{1,999}$",
+  aim_growthhabit_regexes <- c("Woody" = "^([AP]{1,2})?((S[HU]|TR)\\d{0,999})$|^(SSHH|TTRR|SSUU)$",
+                               "NonWoody" = "^(([AP]{1,2}[FG]{1,2})|(PPSS))\\d{0,999}$",
                                "Nonvascular" = "^(VL|CY|LC|M)$")
+
 
   # Growth habit sub regexes
   lmf_growthhabitsub_regexes <- c("Forb" = "^2F(?![FJRSU])",
@@ -191,11 +192,11 @@ generic_growth_habits <- function(data,
                                   "Shrub" = "^2((S[BDEHN])|(S$))",
                                   "Graminoid" = "^2G",
                                   "Succulent" = "^2(FS(?!(MUT)|(UNGI))|(SS(?![BDEN]))|(TS))")
-  aim_growthhabitsub_regexes <- c("Forb" = "^[AP]{1,2}F{1,2}\\d{1,999}$",
-                                  "Tree" = "^TR\\d{1,999}$",
-                                  "Shrub" = "^((SH)|(SSHH))\\d{1,999}$",
-                                  "Graminoid" = "^[AP]{1,2}G{1,2}\\d{1,999}$",
-                                  "Succulent" = "^SU\\d{1,999}$")
+  aim_growthhabitsub_regexes <- c("Forb" = "^[AP]{1,2}F{1,2}\\d{0,999}$",
+                                  "Tree" = "^([AP]{1,2})?TR\\d{0,999}$",
+                                  "Shrub" = "^([AP]{1,2})?((SH)|(SSHH))\\d{0,999}$",
+                                  "Graminoid" = "^[AP]{1,2}G{1,2}\\d{0,999}$",
+                                  "Succulent" = "^([AP]{1,2})?SU\\d{0,999}$")
 
   # Duration regexes
   lmf_duration_regexes <- c("Annual" = "^2(([FG]|VH)[DMSL]?[AB])$",
