@@ -1289,6 +1289,8 @@ height_calc <- function(header,
                                })
 
   output <- dplyr::bind_rows(height_values_list) |>
+    dplyr::mutate(.data = _,
+                  indicator = replace(indicator, indicator == "Hgt_Nonwoody_Avg", "Hgt_Herbaceous_Avg")) |>
     dplyr::filter(.data = _,
                   indicator %in% expected_indicator_variables) |>
     tidyr::pivot_wider(data = _,
