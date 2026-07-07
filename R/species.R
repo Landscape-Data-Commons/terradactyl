@@ -180,9 +180,10 @@ generic_growth_habits <- function(data,
                                "NonWoody" = "^2((F(?!SMUT|[FJRU]))|(G(?!W)|(VH)))",
                                "Nonvascular" = "^2(A|BRY|HORN|L(?!TR)|LTRL|MOSS|PROT|SLIME)",
                                "Other" = "^2(PLANT|BACT|CYAN|DIAT|DINO|(F(?=SMUT|[FJRU])|(LTR(?!L))))")
-  aim_growthhabit_regexes <- c("Woody" = "^((S[HU]|TR)\\d{1,999})|(SSHH|TTRR|SSUU)",
-                               "NonWoody" = "^(([AP]{1,2}[FG]{1,2})|(PPSS))\\d{1,999}$",
+  aim_growthhabit_regexes <- c("Woody" = "^(((A{1,2}|P{1,2})?(S[HU]|TR))|SSHH|TTRR|SSUU)\\d*$",
+                               "NonWoody" = "^(((A{1,2}|P{1,2})[FG]{1,2})|PPSS)\\d*$",
                                "Nonvascular" = "^(VL|CY|LC|M)$")
+
 
   # Growth habit sub regexes
   lmf_growthhabitsub_regexes <- c("Forb" = "^2F(?![FJRSU])",
@@ -191,17 +192,17 @@ generic_growth_habits <- function(data,
                                   "Shrub" = "^2((S[BDEHN])|(S$))",
                                   "Graminoid" = "^2G",
                                   "Succulent" = "^2(FS(?!(MUT)|(UNGI))|(SS(?![BDEN]))|(TS))")
-  aim_growthhabitsub_regexes <- c("Forb" = "^[AP]{1,2}F{1,2}\\d{1,999}$",
-                                  "Tree" = "^TR\\d{1,999}$",
-                                  "Shrub" = "^((SH)|(SSHH))\\d{1,999}$",
-                                  "Graminoid" = "^[AP]{1,2}G{1,2}\\d{1,999}$",
-                                  "Succulent" = "^SU\\d{1,999}$")
+   aim_growthhabitsub_regexes <- c("Forb" = "^(A{1,2}|P{1,2})F{1,2}\\d*$",
+                                  "Tree" = "^(P{1,2})?TR\\d*$",
+                                  "Shrub" = "^(((P{1,2})?SH)|(SSHH))\\d*$",
+                                  "Graminoid" = "^(A{1,2}|P{1,2})G{1,2}\\d*$",
+                                  "Succulent" = "^(A{1,2}|P{1,2})?SU\\d*$")
 
   # Duration regexes
   lmf_duration_regexes <- c("Annual" = "^2(([FG]|VH)[DMSL]?[AB])$",
                             "Perennial" = "^2((F[DMS]?P)|(GL?[PN])|(GRAM)|(S(?!LIME).*)|(T.*)|(VH[DMS]?P)|(VW.*))$")
-  aim_duration_regexes <- c("Annual" = "^A{1,2}[FG]{1,2}\\d{1,999}",
-                            "Perennial" = "^(((P{1,2}[FG]{1,2})|(TR)|(PPSS))\\d{1,999})|(S{1,2}[HU]{1,2})")
+  aim_duration_regexes <- c("Annual" = "^A{1,2}([FG]{1,2}|SU|SS)\\d*$",
+                            "Perennial" = "^(((P{1,2}(F{1,2}G{1,2}))|((P{1,2})?TR)|(PPSS))\\d*)$|^((((P{1,2})?SH)|(SSHH))|((P{1,2})?SU))\\d*$")
 
   regexes_list <- list("GrowthHabit" = c(lmf_growthhabit_regexes,
                                          aim_growthhabit_regexes),
@@ -629,17 +630,36 @@ species_join <- function(data, # field data,
 
   # Make sure that the variables containing the codes are named the same thing
   # between the species list and the data then join them!
+  # intentional NAs to keep GrowthHabit assignment in species join
+  acceptable_nas <- species_generic |>
+    dplyr::filter(is.na(GrowthHabit)) |>
+    dplyr::pull(!!rlang::sym(species_code)) |>
+    unique()
+
+
   data_species <- dplyr::select(.data = species_generic,
                                 tidyselect::all_of(x = setNames(object = species_code,
                                                                 nm = data_code)),
                                 tidyselect::everything()) |>
+    # remove blank and NAs from species list
+    dplyr::filter(!is.na(!!rlang::sym(data_code)) & !!rlang::sym(data_code) != "") |>
+
+    # The join handles the lookup for the entire dataset efficiently
     dplyr::left_join(x = data,
                      y = _,
-                     # Enforcing that there shouldn't be multiple records in
-                     # species_generic that share a code!!!!!
                      relationship = "many-to-one",
-                     by = join_by) |>
+                     by = dplyr::join_by(!!data_code)) |>
+
+    # assign GrowthHabit when missing
+    dplyr::mutate(
+      # default to GrowthHabit_measured when not an intentional NA
+      GrowthHabit    = dplyr::case_when(
+        !(!!rlang::sym(data_code) %in% acceptable_nas) & is.na(GrowthHabit) & Height > 0 ~ GrowthHabit_measured,
+        .default = GrowthHabit
+      )
+    ) |>
     dplyr::distinct()
+
 
   # Overwrite generic species assignments with provided table
   if (overwrite_generic_species & identical(generic_species_file, "")) {

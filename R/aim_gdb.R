@@ -1187,10 +1187,13 @@ height_calc <- function(header,
     # All other height calculations based on the other variables include records
     # without considering this.
     dplyr::mutate(.data = _,
-                  include = (is.na(Species) & !is.na(Height)) |
-                    GrowthHabit_measured == GrowthHabit,
-                  # include = TRUE
+           Species = dplyr::replace_values(x = Species,
+                                           to = NA,
+                                           from = c("")),
+           include = (!is.na(Height) & is.na(Species)) |
+             (GrowthHabit_measured == GrowthHabit)
     )
+
 
 
   # if (omit_garbage) {
