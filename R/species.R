@@ -643,20 +643,22 @@ species_join <- function(data, # field data,
                                 tidyselect::everything()) |>
     # remove blank and NAs from species list
     dplyr::filter(!is.na(!!rlang::sym(data_code)) & !!rlang::sym(data_code) != "") |>
-
-    # The join handles the lookup for the entire dataset efficiently
+# Enforce left_join behavior mapping many-to-one
     dplyr::left_join(x = data,
                      y = _,
                      relationship = "many-to-one",
                      by = dplyr::join_by(!!data_code)) |>
-
-    # assign GrowthHabit when missing
+    
+    # Safely assign GrowthHabit when missing ONLY if measurement columns are present
     dplyr::mutate(
-      # default to GrowthHabit_measured when not an intentional NA
-      GrowthHabit    = dplyr::case_when(
-        !(!!rlang::sym(data_code) %in% acceptable_nas) & is.na(GrowthHabit) & Height > 0 ~ GrowthHabit_measured,
-        .default = GrowthHabit
-      )
+      GrowthHabit = if ("Height" %in% names(data) && "GrowthHabit_measured" %in% names(data)) {
+        dplyr::case_when(
+          !(!!rlang::sym(data_code) %in% acceptable_nas) & is.na(GrowthHabit) & Height > 0 ~ GrowthHabit_measured,
+          .default = GrowthHabit
+        )
+      } else {
+        GrowthHabit
+      }
     ) |>
     dplyr::distinct()
 
