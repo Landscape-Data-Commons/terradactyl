@@ -306,7 +306,7 @@ lpi_indicator_definitions <- function(){
                            "EmbLitter" = c("EL"))
 
   rock_codes_init = c("R", "GR", "CB", "ST", "BY", "RF", "BR")
-  
+
   list(
     #### Litter code categories ------------------------------------------------
     litter_codes = litter_codes_init,
@@ -561,7 +561,7 @@ adjust_species_attributes <- function(data,
                           #                                               NA)) & nchar(code) >= 3 ~ "Plant",
                           #                          .default = NA)
                           Plant = dplyr::case_when(!(GrowthHabitSub %in% c("growthhabitsub_irrelevant")) &
-                                                     GrowthHabit != "Nonvascular",
+                                                     GrowthHabit != "Nonvascular"&
                                                    stringi::stri_length(code) >= 3 ~ "Plant",
                                                    .default = NA)
     )
