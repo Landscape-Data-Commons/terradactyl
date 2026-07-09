@@ -601,6 +601,10 @@ lpi_calc <- function(header,
     stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
   }
 
+  nonstandard_indicator_lookup <- c("FH_BareSoilCover" = "BareSoilCover",
+                                    "AH_SagebrushLiveCover" = "AH_SagebrushCover_Live",
+                                    "AH_BasalPlantCover" = "AH_BasalCover")
+
   #### Grouping variables lists ------------------------------------------------
   # These are the groupings of variables we'll use to calculate the indicators,
   # organized by which hit (first, any, or basal).
@@ -902,10 +906,11 @@ lpi_calc <- function(header,
                                                                                                                          "Cover")) |>
                                                                        # And correct for the special case indicators
                                                                        dplyr::mutate(.data = _,
-                                                                                     indicator = stringr::str_replace_all(string = indicator,
-                                                                                                                          pattern = nonstandard_indicator_lookup))
+                                                                                     indicator = dplyr::replace_values(x = indicator,
+                                                                                                                       from = names(nonstandard_indicator_lookup),
+                                                                                                                       to = nonstandard_indicator_lookup)) |>
                                                                      # We'll keep only the bare minimum here.
-                                                                     dplyr::select(.data = current_results,
+                                                                     dplyr::select(.data = _,
                                                                                    PrimaryKey,
                                                                                    indicator,
                                                                                    percent)
@@ -915,7 +920,7 @@ lpi_calc <- function(header,
                                                                        # from wasting memory storing unnecessary indicators even temporarily
                                                                        # and spares us the horror of storing them even less efficiently in
                                                                        # a wide format after this loop.
-                                                                       current_results <- dplyr::filter(.data = _,
+                                                                       current_results <- dplyr::filter(.data = current_results,
                                                                                                         indicator %in% expected_indicator_names)
 
                                                                      }
