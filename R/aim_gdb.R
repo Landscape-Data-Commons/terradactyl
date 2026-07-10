@@ -637,6 +637,10 @@ lpi_calc <- function(header,
     variable_groups <- default_indicators_vars(source = "terradat", verbose = verbose)
   }
 
+  nonstandard_indicator_lookup <- c("FH_BareSoilCover" = "BareSoilCover",
+                                    "AH_SagebrushLiveCover" = "AH_SagebrushCover_Live",
+                                    "AH_BasalPlantCover" = "AH_BasalCover")
+
   #### Handling header and raw data ############################################
   header <- read_with_fallback(dsn = header,
                                tbl = NULL,
@@ -814,12 +818,29 @@ lpi_calc <- function(header,
                                                                                               "any" = "AH_",
                                                                                               "basal" = "AH_Basal")
                                                                      current_results <- dplyr::mutate(.data = current_results,
-                                                                                                      indicator = paste0(current_prefix, indicator, "Cover")) |>
-                                                                       dplyr::mutate(indicator = stringr::str_replace_all(string = indicator,
-                                                                                                                          pattern = nonstandard_indicator_lookup)) # Fixed data = _ placeholder
+                                                                                                      indicator = paste0(current_prefix,
+                                                                                                                         indicator,
+                                                                                                                         "Cover")) |>
+                                                                       # And correct for the special case indicators
+                                                                       dplyr::mutate(.data = _,
+                                                                                     indicator = dplyr::replace_values(x = indicator,
+                                                                                                                       from = names(nonstandard_indicator_lookup),
+                                                                                                                       to = nonstandard_indicator_lookup)) |>
+                                                                       # We'll keep only the bare minimum here.
+                                                                       dplyr::select(.data = _,
+                                                                                     PrimaryKey,
+                                                                                     indicator,
+                                                                                     percent)
 
-                                                                     dplyr::select(.data = current_results, PrimaryKey, indicator, percent)
-                                                                   })
+                                                                     if (!is.null(expected_indicator_names)) {
+                                                                       # Get only the indicators we want to actually keep. Doing this saves us
+                                                                       # from wasting memory storing unnecessary indicators even temporarily
+                                                                       # and spares us the horror of storing them even less efficiently in
+                                                                       # a wide format after this loop.
+                                                                       current_results <- dplyr::filter(.data = current_results,
+                                                                                                        indicator %in% expected_indicator_names)
+
+                                                                     }
 
                                     dplyr::bind_rows(current_results_list)
                                   })
