@@ -599,7 +599,9 @@ lpi_calc <- function(header,
   } else if (length(species_code_var) > 1) {
     stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
   }
-
+  nonstandard_indicator_lookup <- c("FH_BareSoilCover" = "BareSoilCover",
+                                    "AH_SagebrushLiveCover" = "AH_SagebrushCover_Live",
+                                    "AH_BasalPlantCover" = "AH_BasalCover")
   #### Grouping variables lists ------------------------------------------------
   if (!is.null(indicators_vars)) {
     if (!is.list(indicators_vars)) {
@@ -637,9 +639,6 @@ lpi_calc <- function(header,
     variable_groups <- default_indicators_vars(source = "terradat", verbose = verbose)
   }
 
-  nonstandard_indicator_lookup <- c("FH_BareSoilCover" = "BareSoilCover",
-                                    "AH_SagebrushLiveCover" = "AH_SagebrushCover_Live",
-                                    "AH_BasalPlantCover" = "AH_BasalCover")
 
   #### Handling header and raw data ############################################
   header <- read_with_fallback(dsn = header,
@@ -841,6 +840,8 @@ lpi_calc <- function(header,
                                                                                                         indicator %in% expected_indicator_names)
 
                                                                      }
+                                                                     current_results
+                                                                   })
 
                                     dplyr::bind_rows(current_results_list)
                                   })
