@@ -238,7 +238,11 @@ generic_growth_habits <- function(data,
             collapse = ", ")
     stop(paste0("The following expected variables are missing from species_list: ", bad_variables_string))
   }
-
+  #### Define Codes to Ignore #####################################
+  codes_to_ignore <- c(
+    "DS", "D", "LC", "2LICHN", "2LICHN1", "VL", "M", "2MOSS", "2MOSS1",
+    "CY", "W", "WA", "AG", "CM", "LM", "FG", "PC", "S"
+  )
   # Which codes in the data aren't represented in the species_list provided?
   # These are the codes that we'll attempt to interpret as generics.
   missing_codes_df <- dplyr::select(.data = data,
@@ -246,6 +250,7 @@ generic_growth_habits <- function(data,
     dplyr::distinct(.data = _) |>
     dplyr::filter(.data = _,
                   !(code %in% species_list[[species_code]]),
+                  !(code %in% codes_to_ignore),
                   !is.na(code)) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(x = setNames(object = "code",
@@ -648,7 +653,7 @@ species_join <- function(data, # field data,
                      y = _,
                      relationship = "many-to-one",
                      by = dplyr::join_by(!!data_code)) |>
-    
+
     # Safely assign GrowthHabit when missing ONLY if measurement columns are present
     dplyr::mutate(
       GrowthHabit = if ("Height" %in% names(data) && "GrowthHabit_measured" %in% names(data)) {
