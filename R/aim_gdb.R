@@ -857,7 +857,14 @@ lpi_calc <- function(header,
                                        names_from = indicator,
                                        values_from = percent,
                                        values_fill = 0)
-
+  #### Add in total foliar!
+  total_foliar <- total_foliar %>%
+    rename(TotalFoliarCover = percent) %>%
+    select(-indicator)
+  lpi_indicators <- dplyr::left_join(x = lpi_indicators,
+                                     y = total_foliar,
+                                     relationship = "one-to-one",
+                                     by = "PrimaryKey")
   ##### Sagebrush shape indicators ---------------------------------------------
   if ("ShrubShape" %in% names(lpi_species)) {
     if (any(!is.na(lpi_species$ShrubShape))) {
