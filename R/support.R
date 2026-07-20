@@ -593,7 +593,7 @@ adjust_species_attributes <- function(data,
                           #                                               NA)) & nchar(code) >= 3 ~ "Plant",
                           #                          .default = NA)
                           Plant = dplyr::case_when(!(GrowthHabitSub %in% c("growthhabitsub_irrelevant")) &
-                                                     GrowthHabit != "Nonvascular",
+                                                     GrowthHabit != "Nonvascular"&
                                                    stringi::stri_length(code) >= 3 ~ "Plant",
                                                    .default = NA)
     )

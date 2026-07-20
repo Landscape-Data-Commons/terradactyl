@@ -4668,13 +4668,9 @@ gather_species_inventory_lmf <- function(dsn = NULL,
                       relationship = "one-to-many")
 
   # rename fields
-  species_inventory <- dplyr::rename(.data = species_inventory,
-                                     Species = CPLANT)
-
-
-  dplyr::select(.data = species_inventory,
-                -c(SURVEY:SEQNUM),
-                -tidyselect::any_of(internal_gdb_vars))
+  species_inventory <- species_inventory |>
+    dplyr::rename(Species = CPLANT) |>
+    dplyr::select(-c(SURVEY:SEQNUM), -tidyselect::any_of(internal_gdb_vars))
 
   species_inventory
 }

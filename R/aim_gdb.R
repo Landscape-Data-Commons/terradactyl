@@ -500,15 +500,14 @@ build_indicators <- function(header, source,
                              "FormType",
                              "ViewOBJECTID",
                              "Shape")
-      feature_class_field_names <- sf::st_read(dsn = dsn,
-                                               layer = source_layer) |>
+      feature_class_field_names <- sf::st_read(dsn = dsn, layer = source_layer) |>
         names() |>
-        setdiff(x = _,
-                internal_gdb_vars)
+        setdiff(y = internal_gdb_vars) # R automatically pushes the names into 'x'
 
-      expected_indicator_variables <- feature_class_field_names[stringr::str_detect(string = feature_class_field_names,
-                                                                                    pattern = "(Cover)|(^[FA]H)|(SoilStability)|(^Hgt)|(^Num)|(^SagebrushShape)")]
-      #
+      expected_indicator_variables <- feature_class_field_names[stringr::str_detect(
+        string = feature_class_field_names,
+        pattern = "(Cover)|(^[FA]H)|(SoilStability)|(^Hgt)|(^Num)|(^SagebrushShape)"
+      )]   #
       indicator_field_names <- data.frame(
         name = names(all_indicators),
         calculated = "yes"
@@ -606,10 +605,6 @@ lpi_calc <- function(header,
                                     "AH_BasalPlantCover" = "AH_BasalCover")
 
   #### Grouping variables lists ------------------------------------------------
-  # These are the groupings of variables we'll use to calculate the indicators,
-  # organized by which hit (first, any, or basal).
-  # Note that a number of these variables will be defined below under:
-  # Joining species info > Sanitization/harmonization
   if (!is.null(indicators_vars)) {
     if (!is.list(indicators_vars)) {
       stop("When provided, indicators_vars must be a named list using one or more of the names 'any', 'first', and 'basal'")
@@ -619,8 +614,7 @@ lpi_calc <- function(header,
                                 y = c("any", "first", "basal"))
     if (length(extraneous_names) > 0 & verbose) {
       message(paste0("The following names in indicators_vars are not recognized and any variable groupings they concatin will not be used in calculations: ",
-                     paste(extraneous_names,
-                           collapse = ", ")))
+                     paste(extraneous_names, collapse = ", ")))
     }
 
     indicators_vars <- indicators_vars[intersect(x = names(indicators_vars),
@@ -630,15 +624,13 @@ lpi_calc <- function(header,
       stop("When provided, indicators_vars must be a named list using one or more of the names 'any', 'first', and 'basal'")
     }
 
-    indicators_vars_lists <- sapply(X = indicators_vars,
-                                    FUN = is.list)
+    indicators_vars_lists <- sapply(X = indicators_vars, FUN = is.list)
     if (!all(indicators_vars_lists)) {
       stop("When provided, indicators_vars must be a named list of lists of variable names. One or more of the objects in indicators_vars is not a list.")
     }
 
     indicators_vars_character <- unlist(indicators_vars) |>
-      sapply(X = _,
-             FUN = is.list)
+      sapply(FUN = is.character) # Switched to is.character to accurately validate strings
     if (!all(indicators_vars_character)) {
       stop("When provided, indicators_vars must be a named list of lists of variable names. One or more of the objects in a list in indicators_vars is not a character string or vector of character strings.")
     }
@@ -646,9 +638,9 @@ lpi_calc <- function(header,
     variable_groups <- indicators_vars
   } else if (verbose) {
     message("No indicators_vars list provided. The default indicator variable groupings for TerrADat will be used.")
-    variable_groups <- default_indicators_vars(source = "terradat",
-                                               verbose = verbose)
+    variable_groups <- default_indicators_vars(source = "terradat", verbose = verbose)
   }
+
 
   #### Handling header and raw data ############################################
   header <- read_with_fallback(dsn = header,
@@ -665,8 +657,6 @@ lpi_calc <- function(header,
                             best_guess = FALSE,
                             accept_failure = FALSE,
                             verbose = verbose)
-
-
 
   lpi_tall_header <- dplyr::left_join(x = dplyr::select(.data = header,
                                                         tidyselect::any_of(c("PrimaryKey",
@@ -709,14 +699,9 @@ lpi_calc <- function(header,
   lpi_species <- species_join(data = sf::st_drop_geometry(lpi_tall_header),
                               data_code = "code",
                               species_file = species_list,
-                              # This isn't hardcoded to accommodate other, non-
-                              # AIM species lists.
                               species_code = species_code_var,
                               species_growth_habit_code = "GrowthHabitSub",
                               species_duration = "Duration",
-                              # These won't all be present in every list, but
-                              # that shouldn't be a problem because they're only
-                              # used with an any_of().
                               species_property_vars = c("GrowthHabit",
                                                         "GrowthHabitSub",
                                                         "Duration",
@@ -732,9 +717,6 @@ lpi_calc <- function(header,
                                                         "CurrentPLANTSCode"),
                               growth_habit_file = "",
                               growth_habit_code = "Code",
-                              # This FALSE should prevent us from having to
-                              # worry about generic_species_file because that's
-                              # only used to overwrite generic species info.
                               overwrite_generic_species = FALSE,
                               generic_species_file = generic_species_file,
                               update_species_codes = FALSE,
@@ -742,71 +724,45 @@ lpi_calc <- function(header,
                               check_species = FALSE,
                               verbose = verbose)
 
-
   ##### Sanitization/harmonization #############################################
-  # One big mutate() to do all this lifting.
-  # We're harmonizing multiple variants (e.g., non-woody, nonwoody, etc. all
-  # being changed to NonWoody) and adding some additional variables that we can
-  # use for indicator calcs
   if (apply_species_adjustment) {
     lpi_species <- adjust_species_attributes(data = lpi_species,
                                              fail_on_missing = FALSE,
                                              verbose = verbose)
   }
 
-
   #### Calculations ############################################################
   ##### Total foliar cover #####################################################
   if (verbose) {
     message("Calculating total foliar cover.")
   }
-  # Rather than using pct_total_foliar_cover() which currently calculates first
-  # hit cover for each plant species and sums them (in context it can be more
-  # efficient when calculating multiple cover types) for the sake of avoiding
-  # possible rounding weirdness and also just efficiency we can use the Plant
-  # variable added in the mutate() above.
+
   total_foliar <- pct_cover(lpi_tall = lpi_species,
                             tall = TRUE,
                             hit = "any",
                             by_line = FALSE,
                             indicator_variables = "Plant",
                             digits = digits) |>
-    dplyr::mutate(.data = _,
-                  indicator = "TotalFoliarCover")
+    dplyr::mutate(indicator = "TotalFoliarCover")
 
   ##### All other cover ########################################################
-  # This is going to look gnarly, but automates stuff so we don't have to do the
-  # capitalization corrections by hand
-  # unique_grouping_vars <- unique(c(unlist(fh_variable_groupings),
-  #                                  unlist(ah_variable_groupings),
-  #                                  unlist(basal_variable_groupings)))
-  unique_grouping_vars <- unlist(x = variable_groups) |>
-    unique()
+  unique_grouping_vars <- unlist(x = variable_groups) |> unique()
 
   capitalization_lookup_list <- lapply(X = unique_grouping_vars,
                                        data = lpi_species,
                                        FUN = function(X, data){
-                                         # message(paste(X,
-                                         #               collapse = ", "))
                                          current_values <- unique(data[[X]])
                                          current_values <- current_values[!is.na(current_values)]
                                          if (length(current_values) > 0) {
                                            setNames(object = current_values,
-                                                    nm = paste0("^",
-                                                                toupper(current_values),
-                                                                "$"))
+                                                    nm = paste0("^", toupper(current_values), "$"))
                                          } else {
                                            NULL
                                          }
                                        })
   names(capitalization_lookup_list) <- unique_grouping_vars
 
-  # This calculates the indicators.
-  # The first level is iterating over the list variable_groups, working through
-  # the hit types and the second level is working through all the groupings
-  # within the hit type.
   cover_indicators_list <- lapply(X = names(variable_groups),
-                                  # X = "first",
                                   variable_groups = variable_groups,
                                   data = lpi_species,
                                   capitalization_lookup_list = capitalization_lookup_list,
@@ -816,9 +772,6 @@ lpi_calc <- function(header,
                                     message(paste("Calculating", current_hit, "hit indicators."))
 
                                     current_variable_groupings <- variable_groups[[current_hit]]
-                                    # For the current hit type ("first", "any",
-                                    # "basal"), calculate indicators for each
-                                    # required variable grouping
                                     current_results_list <- lapply(X = seq(length(current_variable_groupings)),
                                                                    data = data,
                                                                    hit = current_hit,
@@ -829,8 +782,7 @@ lpi_calc <- function(header,
                                                                      current_grouping_vars <- current_variable_groupings[[X]]
                                                                      if (verbose) {
                                                                        message(paste("Calculating", hit, "hit indicators grouped by the variable(s):",
-                                                                                     paste(current_grouping_vars,
-                                                                                           collapse = ", "),
+                                                                                     paste(current_grouping_vars, collapse = ", "),
                                                                                      paste0("(Grouping ", X, " of ", length(current_variable_groupings), ")")))
                                                                      }
 
@@ -842,60 +794,28 @@ lpi_calc <- function(header,
                                                                                                       verbose = verbose,
                                                                                                       digits = digits)
 
-                                                                     # Sometimes there are no data that had non-NA
-                                                                     # values in the variables of interest, so
-                                                                     # we have to be prepared for that.
                                                                      if (is.null(current_results_raw)) {
-                                                                       if (verbose) {
-                                                                         message("Adjusting indicator names.")
-                                                                       }
+                                                                       if (verbose) { message("Adjusting indicator names.") }
                                                                        return(NULL)
                                                                      }
 
-                                                                     if (verbose) {
-                                                                       message("Adjusting indicator names.")
-                                                                     }
+                                                                     if (verbose) { message("Adjusting indicator names.") }
 
-                                                                     # Now we rename the indicators.
-                                                                     # We'll split them into their component parts
-                                                                     # and then use the appropriate lookup vector
-                                                                     # for each part to correct the capitalization.
-                                                                     # There are more efficient ways to do this,
-                                                                     # but this is extensible, standardized, and
-                                                                     # basically hands-off for us when we update
-                                                                     # indicators.
                                                                      current_results <- tidyr::separate_wider_delim(data = current_results_raw,
                                                                                                                     cols = indicator,
-                                                                                                                    # Of course this doesn't use
-                                                                                                                    # actual regex despite that
-                                                                                                                    # being the tidyverse standard
                                                                                                                     delim = ".",
                                                                                                                     names = current_grouping_vars)
 
-
-                                                                     # A for loop might actually be fastest (and
-                                                                     # is certainly easiest), so that's the
-                                                                     # solution for now.
-                                                                     # I attempted to use mutate() with {{}} and
-                                                                     # := but it wasn't evaluating the
-                                                                     # str_replace_all() correctly because I couldn't
-                                                                     # convince it to retrieve the relevant vector
-                                                                     # with {{}} or dplyr::vars() for use as the
-                                                                     # string argument.
                                                                      for (current_variable in current_grouping_vars) {
                                                                        current_results[[current_variable]] <- stringr::str_replace_all(string = current_results[[current_variable]],
                                                                                                                                        pattern = capitalization_lookup_list[[current_variable]])
                                                                      }
 
-                                                                     # Having now made the variables with the
-                                                                     # corrected components, we can recombine them
                                                                      current_results <- tidyr::unite(data = current_results,
                                                                                                      col = indicator,
                                                                                                      dplyr::all_of(current_grouping_vars),
                                                                                                      sep = "")
 
-                                                                     # And add the hit prefix and "Cover" to the
-                                                                     # indicator names
                                                                      current_prefix <- switch(EXPR = hit,
                                                                                               "first" = "FH_",
                                                                                               "any" = "AH_",
@@ -927,16 +847,10 @@ lpi_calc <- function(header,
                                                                      current_results
                                                                    })
 
-                                    # Bind all those results together
                                     dplyr::bind_rows(current_results_list)
                                   })
 
-  # It's possible to accidentally calculate the same indicator more than once,
-  # e.g. in Alaska where you might find "Moss" in the variable GrowthHabitSub
-  # and so get a FH_MossCover when calculating both from GrowthHabitSub *AND*
-  # SpecialConsiderationCode
-  cover_indicators <- dplyr::bind_rows(cover_indicators_list) |>
-    dplyr::distinct()
+  cover_indicators <- dplyr::bind_rows(cover_indicators_list) |> dplyr::distinct()
 
   #### Combine all LPI based cover indicators ##################################
   if (verbose) {
@@ -947,7 +861,8 @@ lpi_calc <- function(header,
   # from above, possibly due to the same value (e.g. "Moss") occurring in more
   # than one single-variable indicator which then produces two different,
   # identically-named indicator variables.
-  lpi_indicators <- lpi_indicators |>
+  lpi_indicators <- dplyr::bind_rows(cover_indicators,
+                                     total_foliar) |>
     # Drop the duplicate indicator rows, keeping only the first one.
     # Note that this is ignoring the percent variable, so the records being
     # dropped may differ in that single variable.
@@ -961,40 +876,24 @@ lpi_calc <- function(header,
                        values_fill = 0)
 
   ##### Sagebrush shape indicators ---------------------------------------------
-  # If there are qualifying data, add sagebrush shape!
   if ("ShrubShape" %in% names(lpi_species)) {
     if (any(!is.na(lpi_species$ShrubShape))) {
       if (verbose) {
         message("Calculating sagebrush shape indicators and joining to output.")
       }
-      # Sagebrush shape is only recorded for live sagebrush according to the
-      # protocol, so we're going to calculate with live = FALSE and rename it to
-      # reflect the living status
-      sagebrush_shape_calc <- sagebrush_shape(lpi_tall = lpi_species,
-                                              live = FALSE)
+
+      sagebrush_shape_calc <- sagebrush_shape(lpi_tall = lpi_species, live = FALSE)
 
       if (is.null(sagebrush_shape_calc)) {
-        if (verbose) {
-          message("sagebrush_shape() returned NULL. Skipping sagebrush shape indicators.")
-        }
+        if (verbose) { message("sagebrush_shape() returned NULL. Skipping sagebrush shape indicators.") }
       } else {
-        # Sagebrush shape is gathered regardless of live/dead status so we won't
-        # rename these indicators.
-        # sagebrush_shape_calc <- dplyr::rename_with(.data = sagebrush_shape_calc,
-        #                                            .fn = ~ stringr::str_replace(string = .x,
-        #                                                                         pattern = "_All_",
-        #                                                                         replacement = "_Live_"),
-        #                                            .cols = tidyselect::contains(match = "_All_"))
         lpi_indicators <- dplyr::left_join(x = lpi_indicators,
                                            y = sagebrush_shape_calc,
                                            relationship = "one-to-one",
                                            by = "PrimaryKey")
       }
-
     } else {
-      if (verbose) {
-        message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.")
-      }
+      if (verbose) { message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.") }
     }
   } else {
     if (verbose) {
@@ -1003,46 +902,26 @@ lpi_calc <- function(header,
   }
 
   #### Final munging ###########################################################
-  # Keep only the indicators we want
-  # output <- dplyr::select(.data = lpi_indicators,
-  #                         PrimaryKey,
-  #                         dplyr::any_of(expected_indicator_names))
-
-  # We need to make sure that all indicator variables are numeric because
-  # they're all cover values. Any NA values should be assumed to be 0s.
-  # output <- dplyr::mutate(.data = output,
   output <- dplyr::mutate(.data = lpi_indicators,
                           dplyr::across(.cols = -tidyselect::any_of(x = c("PrimaryKey",
                                                                           "SagebrushShape_All_Predominant")),
                                         .fns = ~ as.numeric(.x) |>
-                                          tidyr::replace_na(data = _,
-                                                            replace = 0) |>
-                                          round(x = _,
-                                                digits = digits)))
+                                          tidyr::replace_na(replace = 0) |>
+                                          round(digits = digits)))
 
-  # Add in variables for indicators we want but which had no qualifying data and
-  # therefore should have a value of 0 for all plots.
-  # setdiff() is rad and I wish I'd known about it years ago.
-  # We'll make sure to set ONLY the numeric indicators' NAs to 0.
-  # The character indicators get NAs.
   if (!is.null(expected_indicator_names)) {
-    # One day we'll handle this, but this is a stub for now.
     character_value_indicators <- NULL
     output_missing_numeric_indicators <- setdiff(x = expected_indicator_names,
-                                                 y = c(names(output),
-                                                       character_value_indicators))
+                                                 y = c(names(output), character_value_indicators))
     output[output_missing_numeric_indicators] <- 0
-    output_missing_character_indicators <- setdiff(x = character_value_indicators,
-                                                   y = names(output))
+    output_missing_character_indicators <- setdiff(x = character_value_indicators, y = names(output))
     output[output_missing_character_indicators] <- NA
 
     if (length(c(output_missing_numeric_indicators, output_missing_character_indicators)) > 0) {
-      warning(paste("The following indicators had no qualifying data and have been populated with 0 or NA as appropriate. This is not unexpected with rare situations and is even likely with smaller data sets. The indicators in question are:",
-                    paste(c(output_missing_numeric_indicators, output_missing_character_indicators),
-                          collapse = ", ")))
+      warning(paste("The following indicators had no qualifying data and have been populated with 0 or NA as appropriate. The indicators in question are:",
+                    paste(c(output_missing_numeric_indicators, output_missing_character_indicators), collapse = ", ")))
     }
 
-    # This will reorder the variables to be as expected!
     output <- dplyr::select(.data = output,
                             dplyr::all_of(c("PrimaryKey",
                                             expected_indicator_names)))
@@ -1052,8 +931,8 @@ lpi_calc <- function(header,
 
 }
 
-
-
+  output
+}
 
 # Calculate the Gap indicators for AIM
 #' Calculate the standard Terrestrial AIM Database (TerrADat) Canopy Gap indicators
@@ -1354,10 +1233,13 @@ height_calc <- function(header,
     # All other height calculations based on the other variables include records
     # without considering this.
     dplyr::mutate(.data = _,
-                  include = (is.na(Species) & !is.na(Height)) |
-                    GrowthHabit_measured == GrowthHabit,
-                  # include = TRUE
+           Species = dplyr::replace_values(x = Species,
+                                           to = NA,
+                                           from = c("")),
+           include = (!is.na(Height) & is.na(Species)) |
+             (GrowthHabit_measured == GrowthHabit)
     )
+
 
 
   # if (omit_garbage) {
@@ -1453,6 +1335,8 @@ height_calc <- function(header,
                                })
 
   output <- dplyr::bind_rows(height_values_list) |>
+    dplyr::mutate(.data = _,
+                  indicator = replace(indicator, indicator == "Hgt_Nonwoody_Avg", "Hgt_Herbaceous_Avg")) |>
     dplyr::filter(.data = _,
                   indicator %in% expected_indicator_variables) |>
     tidyr::pivot_wider(data = _,
@@ -1863,3 +1747,4 @@ soil_stability_calc <- function(soil_stability_tall,
                                digits = digits)
   indicators
 }
+
