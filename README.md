@@ -2,7 +2,8 @@
 
 ``` r
 # To install
-remotes::install_github(repo = 'Landscape-Data-Commons/terradactyl')
+remotes::install_github(repo = 'Landscape-Data-Commons/terradactyl',
+                        build_vingnettes = TRUE)
 library(terradactyl)
 ```
 
