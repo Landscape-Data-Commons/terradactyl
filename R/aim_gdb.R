@@ -636,8 +636,10 @@ lpi_calc <- function(header,
     }
 
     variable_groups <- indicators_vars
-  } else if (verbose) {
-    message("No indicators_vars list provided. The default indicator variable groupings for TerrADat will be used.")
+  } else {
+    if (verbose) {
+      message("No indicators_vars list provided. The default indicator variable groupings for TerrADat will be used.")
+    }
     variable_groups <- default_indicators_vars(source = "terradat", verbose = verbose)
   }
 
