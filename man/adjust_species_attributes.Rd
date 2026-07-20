@@ -4,7 +4,7 @@
 \alias{adjust_species_attributes}
 \title{Harmonize species attributes with TerrADat needs}
 \usage{
-adjust_species_attributes(data, verbose = FALSE)
+adjust_species_attributes(data, fail_on_missing = FALSE, verbose = FALSE)
 }
 \description{
 Harmonize species attributes with TerrADat needs

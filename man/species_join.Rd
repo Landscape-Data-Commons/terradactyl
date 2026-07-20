@@ -19,6 +19,7 @@ species_join(
   growth_habit_code = "Code",
   overwrite_generic_species = FALSE,
   generic_species_file = "",
+  check_duplicates = FALSE,
   update_species_codes = FALSE,
   by_species_key = FALSE,
   check_species = FALSE,
@@ -49,6 +50,8 @@ species_join(
 \item{overwrite_generic_species}{Logical. If \code{TRUE} then \code{generic_species_file} will be read in and applied. Defaults to \code{FALSE}.}
 
 \item{generic_species_file}{Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{""} or \code{overwrite_generic_species} is \code{FALSE} then no action will be taken. Defaults to \code{""}.}
+
+\item{check_duplicates}{Logical. If \code{TRUE} then the generic species information will be checked for duplicated values in the variable specified with the \code{species_code} argument and only the first record for a given code retained. This is recommended if using an imported generic species list but can add significant processing time. Defaults to \code{FALSE}.}
 
 \item{update_species_codes}{Logical. If \code{TRUE} then the final output will replace the values in the variable specified with \code{data_code} using values from the variable UpdatedSpeciesCode. This is here for legacy support and is not recommended for ongoing use. Defaults to \code{FALSE}.}
 
