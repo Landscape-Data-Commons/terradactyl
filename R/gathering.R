@@ -1152,7 +1152,7 @@ gather_header <- function(dsn = NULL,
 
   # Apply appropriate header function
 
-  output <- switch(source$type,
+  output <- switch(source["type"],
                    terradat = {
                      gather_header_terradat(dsn = dsn,
                                             tblPlots = tblPlots,
@@ -1175,7 +1175,7 @@ gather_header <- function(dsn = NULL,
                                        ...)
                    }) |>
     dplyr::mutate(.data = _,
-                  source = source$source)
+                  source = source["source"])
 
   # if (toupper(source) %in% c("TERRADAT", "AIM", "DIMA")) {
   #   output <- gather_header_terradat(dsn = dsn,
@@ -1895,7 +1895,7 @@ gather_lpi <- function(dsn = NULL,
                          valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
                                                     lmf = c("LMF", "NRI")))
 
-  lpi <- switch(EXPR = source$type,
+  lpi <- switch(EXPR = source["type"],
                 "terradat" = {
                   gather_lpi_terradat(dsn = dsn,
                                       tblLPIDetail = tblLPIDetail,
@@ -1911,7 +1911,7 @@ gather_lpi <- function(dsn = NULL,
                                   chckbox = NA)
                 }) |>
     dplyr::mutate(.data = _,
-                  source = source$source)
+                  source = source["source"])
 
   # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA", "OTHER")){
   #   lpi <- gather_lpi_terradat(dsn = dsn,
@@ -2595,10 +2595,10 @@ gather_height <- function(dsn = NULL,
                           verbose = FALSE) {
 
   source <- check_source(source = source,
-                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                         valid_source_values = list(terradat = c("BLM_AIM","AIM", "TerrADat", "DIMA", "Other"),
                                                     lmf = c("LMF", "NRI")))
 
-  height <- switch(EXPR = source$type,
+  height <- switch(EXPR = source["type"],
                    "terradat" = {
                      gather_height_terradat(dsn = dsn,
                                             tblLPIHeader = tblLPIHeader,
@@ -2612,7 +2612,7 @@ gather_height <- function(dsn = NULL,
                                        verbose = verbose)
                    }) |>
     dplyr::mutate(.data = _,
-                  source = source$source)
+                  source = source["source"])
 
   # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
   #   height <- gather_height_terradat(dsn = dsn,
@@ -3428,7 +3428,7 @@ gather_gap <- function(dsn = NULL,
                          valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
                                                     lmf = c("LMF", "NRI")))
 
-  gap <- switch(EXPR = source$type,
+  gap <- switch(EXPR = source["type"],
                 "terradat" = {
                   gather_gap_terradat(dsn = dsn,
                                       tblGapDetail = tblGapDetail,
@@ -3443,7 +3443,7 @@ gather_gap <- function(dsn = NULL,
                                  verbose = verbose)
                 }) |>
     dplyr::mutate(.data = _,
-                  source = source$source)
+                  source = source["source"])
 
   # # Gather gap using the appropriate method
   # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
@@ -3994,7 +3994,7 @@ gather_soil_stability <- function(dsn = NULL,
                          valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
                                                     lmf = c("LMF", "NRI")))
 
-  soil_stability <- switch(EXPR = source$type,
+  soil_stability <- switch(EXPR = source["type"],
                            "terradat" = {
                              gather_soil_stability_terradat(dsn = dsn,
                                                             tblSoilStabDetail = tblSoilStabDetail,
@@ -4008,7 +4008,7 @@ gather_soil_stability <- function(dsn = NULL,
                                                        verbose = verbose)
                            }) |>
     dplyr::mutate(.data = _,
-                  source = source$source)
+                  source = source["source"])
 
   # if (toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
   #   soil_stability <- gather_soil_stability_terradat(dsn = dsn,
@@ -4421,7 +4421,7 @@ gather_rangeland_health <- function(dsn = NULL,
                          valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
                                                     lmf = c("LMF", "NRI")))
 
-  IIRH <- switch(EXPR = source$type,
+  IIRH <- switch(EXPR = source["type"],
                  "terradat" = {
                    gather_rangeland_health_terradat(dsn = dsn,
                                                     tblQualDetail = tblQualDetail,
@@ -4433,7 +4433,7 @@ gather_rangeland_health <- function(dsn = NULL,
                                                RANGEHEALTH = RANGEHEALTH)
                  }) |>
     dplyr::mutate(.data = _,
-                  source = source$source)
+                  source = source["source"])
 
   # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
   #   IIRH <- gather_rangeland_health_terradat(dsn = dsn,
@@ -4752,7 +4752,7 @@ gather_species_inventory <- function(dsn = NULL,
                          valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
                                                     lmf = c("LMF", "NRI")))
 
-  species_inventory <- switch(EXPR = source$type,
+  species_inventory <- switch(EXPR = source["type"],
                               "terradat" = {
                                 gather_species_inventory_terradat(dsn = dsn,
                                                                   tblSpecRichDetail = tblSpecRichDetail,
@@ -4766,7 +4766,7 @@ gather_species_inventory <- function(dsn = NULL,
                                                              verbose = verbose)
                               }) |>
     dplyr::mutate(.data = _,
-                  source = source$source)
+                  source = source["source"])
 
   # if(toupper(source) %in% c("AIM", "TERRADAT", "DIMA")){
   #   species_inventory <- gather_species_inventory_terradat(dsn = dsn,
