@@ -1140,7 +1140,7 @@ gather_header <- function(dsn = NULL,
                           verbose = FALSE) {
 
   source <- check_source(source = source,
-                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                         valid_source_values = list(terradat = c("BLM_AIM", "BLM_AIM" = "AIM", "TerrADat", "DIMA", "Other"),
                                                     lmf = c("LMF"),
                                                     nri = c("NRI")))
 

@@ -1,6 +1,11 @@
 check_source <- function(source,
-                         valid_source_values = list(terradat = c("BLM_AIM", "AIM", "TerrADat", "DIMA", "Other"),
-                                                    lmf = c("LMF", "NRI"))){
+                         valid_source_values = list(terradat = c("BLM_AIM",
+                                                                 "BLM_AIM" = "AIM",
+                                                                 "TerrADat",
+                                                                 "DIMA",
+                                                                 "Other"),
+                                                    lmf = c("LMF",
+                                                            "NRI"))){
 
   if (!any(toupper(source) %in% toupper(unlist(valid_source_values))) | length(source) > 1) {
     stop(paste0("source must be one of the following values (case insensitive): '",
@@ -8,7 +13,25 @@ check_source <- function(source,
   }
 
   # This sets source to the correctly capitalized version
-  source <- unlist(valid_source_values)[toupper(unlist(valid_source_values)) == toupper(source)]
+  source_match_index <- which(toupper(unlist(valid_source_values)) == toupper(source))
+
+  alt_source <- unlist(valid_source_values) |>
+    names() |>
+    stringr::str_replace(string = _,
+                         pattern = paste0(names(valid_source_values),
+                                          "(\\.|\\d+)") |>
+                           paste(.x = _,
+                                 collapse = "|"),
+                         replacement = "")
+
+  if (alt_source[source_match_index] != "") {
+    source <- alt_source[source_match_index]
+  } else {
+    source <- unlist(valid_source_values)[source_match_index]
+  }
+
+
+
 
   # This identifies the source type, which is ultimately intended to be used to
   # invoke the correct function for the type, e.g. gather_lpi_lmf()
