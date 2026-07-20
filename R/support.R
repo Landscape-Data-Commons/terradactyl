@@ -1,5 +1,5 @@
 check_source <- function(source,
-                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                         valid_source_values = list(terradat = c("BLM_AIM", "AIM", "TerrADat", "DIMA", "Other"),
                                                     lmf = c("LMF", "NRI"))){
 
   if (!any(toupper(source) %in% toupper(unlist(valid_source_values))) | length(source) > 1) {
