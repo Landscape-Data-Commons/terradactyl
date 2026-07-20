@@ -380,7 +380,7 @@ pct_bareground <- function(lpi_tall,
     # output.
     dplyr::mutate(.data = _,
                   BareSoil = dplyr::case_when(BareSoil %in% soil_values ~ "BareSoil",
-                                              .defatul = NA)) |>
+                                              .default = NA)) |>
     # Calculate!
     pct_cover(lpi_tall = _,
               tall = tall,
