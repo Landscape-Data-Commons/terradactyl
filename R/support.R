@@ -342,7 +342,7 @@ read_with_fallback <- function(dsn = NULL,
 }
 
 
-
+#' @export
 lpi_indicator_definitions <- function(){
 
   # Define the independent objects first so they are in the function's scope
