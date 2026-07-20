@@ -928,10 +928,6 @@ lpi_calc <- function(header,
   }
 
   output
-
-}
-
-  output
 }
 
 # Calculate the Gap indicators for AIM
