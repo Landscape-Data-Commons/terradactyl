@@ -599,9 +599,11 @@ lpi_calc <- function(header,
   } else if (length(species_code_var) > 1) {
     stop("species_code_var must be a single character string specifying the name of the variable in the species_file that contains the species codes.")
   }
+
   nonstandard_indicator_lookup <- c("FH_BareSoilCover" = "BareSoilCover",
                                     "AH_SagebrushLiveCover" = "AH_SagebrushCover_Live",
                                     "AH_BasalPlantCover" = "AH_BasalCover")
+
   #### Grouping variables lists ------------------------------------------------
   if (!is.null(indicators_vars)) {
     if (!is.list(indicators_vars)) {
@@ -678,9 +680,11 @@ lpi_calc <- function(header,
       if (!file.exists(species_file)) {
         stop(paste0("The provided species_file value, ", species_file, ", points to a file that does not exist."))
       }
-      species_list <- read.csv(file = species_file, stringsAsFactors = FALSE)
+      species_list <- read.csv(file = species_file,
+                               stringsAsFactors = FALSE)
     } else if (current_species_file_extension %in% c("GDB", "gdb")) {
-      species_list <- species_read_aim(dsn = species_file, verbose = verbose)
+      species_list <- species_read_aim(dsn = species_file,
+                                       verbose = verbose)
     }
   } else if (is.data.frame(species_file)) {
     species_list <- species_file
@@ -853,18 +857,24 @@ lpi_calc <- function(header,
     message("Combining all cover indicators and converting to a wide format.")
   }
 
-  lpi_indicators <- tidyr::pivot_wider(data = cover_indicators,
-                                       names_from = indicator,
-                                       values_from = percent,
-                                       values_fill = 0)
-  #### Add in total foliar!
-  total_foliar <- total_foliar %>%
-    rename(TotalFoliarCover = percent) %>%
-    select(-indicator)
-  lpi_indicators <- dplyr::left_join(x = lpi_indicators,
-                                     y = total_foliar,
-                                     relationship = "one-to-one",
-                                     by = "PrimaryKey")
+  # This distinct() was added because there are duplicate indicators coming in
+  # from above, possibly due to the same value (e.g. "Moss") occurring in more
+  # than one single-variable indicator which then produces two different,
+  # identically-named indicator variables.
+  lpi_indicators <- dplyr::bind_rows(cover_indicators,
+                                     total_foliar) |>
+    # Drop the duplicate indicator rows, keeping only the first one.
+    # Note that this is ignoring the percent variable, so the records being
+    # dropped may differ in that single variable.
+    dplyr::distinct(.data = _,
+                    dplyr::across(!tidyselect::any_of(x = c("percent"))),
+                    .keep_all = TRUE) |>
+    # And then pivot to a wide format.
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = percent,
+                       values_fill = 0)
+
   ##### Sagebrush shape indicators ---------------------------------------------
   if ("ShrubShape" %in% names(lpi_species)) {
     if (any(!is.na(lpi_species$ShrubShape))) {
@@ -886,8 +896,10 @@ lpi_calc <- function(header,
       if (verbose) { message("No qualifying data were found in ShrubShape. Skipping sagebrush shape indicators.") }
     }
   } else {
-    if (verbose) { message("No variable called ShrubShape found. Skipping sagebrush shape indicators.") }
-  } # <-- FIXED: Added missing closing bracket here!
+    if (verbose) {
+      message("No variable called ShrubShape found. Skipping sagebrush shape indicators.")
+    }
+  }
 
   #### Final munging ###########################################################
   output <- dplyr::mutate(.data = lpi_indicators,
@@ -911,8 +923,13 @@ lpi_calc <- function(header,
     }
 
     output <- dplyr::select(.data = output,
-                            dplyr::all_of(c("PrimaryKey", expected_indicator_names)))
+                            dplyr::all_of(c("PrimaryKey",
+                                            expected_indicator_names)))
   }
+
+  output
+
+}
 
   output
 }

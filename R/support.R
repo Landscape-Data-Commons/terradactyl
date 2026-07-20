@@ -1,3 +1,26 @@
+check_source <- function(source,
+                         valid_source_values = list(terradat = c("AIM", "TerrADat", "DIMA", "Other"),
+                                                    lmf = c("LMF", "NRI"))){
+
+  if (!any(toupper(source) %in% toupper(unlist(valid_source_values))) | length(source) > 1) {
+    stop(paste0("source must be one of the following values (case insensitive): '",
+                paste(unlist(valid_source_values), collapse = "', '"), "'"))
+  }
+
+  # This sets source to the correctly capitalized version
+  source <- unlist(valid_source_values)[toupper(unlist(valid_source_values)) == toupper(source)]
+
+  # This identifies the source type, which is ultimately intended to be used to
+  # invoke the correct function for the type, e.g. gather_lpi_lmf()
+  source_type <- names(valid_source_values)[sapply(X = valid_source_values,
+                                                   source = source,
+                                                   FUN = function(X, source){
+                                                     source %in% X
+                                                   })]
+  c(source = source,
+    type = source_type)
+}
+
 # There are a number of functions in this package that use the ellipsis to
 # allow for unnamed/freeform arguments to be passed in.
 # This can be a real pain to support in some contexts, so this function will
@@ -351,18 +374,27 @@ lpi_indicator_definitions <- function(){
     #### Conifer families ------------------------------------------------------
     conifer_identifiers = c("Cupressaceae", "Pinaceae", "Taxaceae"),
 
-    ###### Lichen codes ----------------------------------------------------------
-    lichen_identifiers = list(
-      Lichen = c("LC", "2LICHN", "2LICHN1"),
-      Cyanobacteria = "CY",
-      VagrLichen = "VL"
-    ),
+    #### Lichen codes ----------------------------------------------------------
+    lichen_identifiers = list(Lichen = c("LC", "2LICHN", "2LICHN1"),
+                           Cyanobacteria = "CY",
+                           VagrLichen = "VL"),
 
-    ###### Biocrust codes --------------------------------------------------------
-    biocrust_identifiers = c("CY", "LC", "2LICHN", "2LICHN1", "M", "2MOSS", "2MOSS1"),
+    #### Biocrust codes --------------------------------------------------------
+    biocrust_identifiers = c("CY",
+                             "LC", "2LICHN", "2LICHN1",
+                             "M","2MOSS", "2MOSS1"),
 
     #### Moss definitions ------------------------------------------------------
+    # For moss cover, we need to identify species that use irregular unknown codes
+    # and species that were keyed out in addition to the traditional "where does
+    # 'M' occur as a surface code"
+    # This will find codes like "MOSS", "M123", "MOS123", and "MOSS123"
     unknown_moss_regex = "^(M(OS{1,2})?\\d+)|(2?MOSS)$",
+    # In tblNationalPlants there's a variable called HigherTaxon that we can use
+    # to identify which species codes are technically mosses. This is helpful
+    # mostly for Alaska where they ID mosses to species, but anywhere we don't do
+    # it runs the risk of underestimating the amount of moss cover if there are
+    # any recorded in the canopy.
     moss_identifiers = "Moss"
   )
 }
@@ -594,9 +626,9 @@ adjust_species_attributes <- function(data,
                           Biocrust = dplyr::case_when(code %in% definitions_list[["biocrust_identifiers"]] ~ "Biocrust",
                                                       .default = NA),
                           #### Lichen -----------------------------------
-                          Lichen = dplyr::case_when(code %in% definitions_list[["lichen_identifiers"]]["Lichen"] ~ "Lichen",
-                                                    code %in% definitions_list[["lichen_identifiers"]]["VagrLichen"] ~ "VagrLichen",
-                                                    code %in% definitions_list[["lichen_identifiers"]]["Cyanobacteria"] ~ "Cyanobacteria",
+                          Lichen = dplyr::case_when(code %in% definitions_list[["lichen_identifiers"]][["Lichen"]] ~ "Lichen",
+                                                    code %in% definitions_list[["lichen_identifiers"]][["VagrLichen"]] ~ "VagrLichen",
+                                                    code %in% definitions_list[["lichen_identifiers"]][["Cyanobacteria"]] ~ "Cyanobacteria",
                                                     .default = "lichen_irrelevant"),
                           #### PJ ---------------------------------------
                           # PJ = dplyr::case_when(code %in% definitions_list[["pj_identifiers"]] ~ "PJ",
@@ -845,7 +877,9 @@ default_indicators_vars <- function(source,
                    c("Litter"),
                    c("Lichen"),
                    c("TotalLitter"),
-                   c("Moss")),
+                   c("Moss"),
+                   c("Duff"),
+                   c("Water")),
       any = list(c("Plant"),
                  c("GrowthHabit"),
                  c("GrowthHabitSub"),
@@ -873,7 +907,9 @@ default_indicators_vars <- function(source,
                  c("Moss"),
                  c("Rock"),
                  c("Biocrust"),
-                 c("Lichen")),
+                 c("Lichen"),
+                 c("Duff"),
+                 c("Water")),
       basal = list(c("Duration", "Grass"),
                    c("Plant"))
     ),
