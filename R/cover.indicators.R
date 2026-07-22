@@ -1,3 +1,4 @@
+#' @export
 pct_cover_indicators <- function(lpi_tall,
                                  indicator_families = c("total foliar",
                                                         "ground",
@@ -401,35 +402,6 @@ pct_cover_between_plant <- function(lpi_tall,
                        tall_output = c("between plant" = tall),
                        by_line = by_line,
                        verbose = verbose)[[1]]
-  #### OLD APPROACH BELOW ######################################################
-  # # Calculate between plant cover
-  # output <- pct_cover(lpi_tall,
-  #                     tall = TRUE,
-  #                     hit = "first",
-  #                     by_line = by_line,
-  #                     indicator_variables = "code") |>
-  #   # Remove all layer codes that are >=3 codes (i.e., species codes)
-  #   dplyr::filter(.data = _,
-  #                 nchar(indicator) < 3)
-  #
-  # if (!tall) {
-  #   summary <- tidyr::spread(summary, key = indicator, value = percent) %>%
-  #     ## Replace the NA values with 0s because they represent 0% cover for that indicator
-  #     tidyr::replace_na(replace = setNames(
-  #       as.list(rep.int(0,
-  #                       # Make a list of 0s named with the newly-created field names for replace_na()
-  #                       times = length(unique(names(.)[!(names(.) %in% c(
-  #                         "PrimaryKey",
-  #                         "PlotKey",
-  #                         "PlotID",
-  #                         "LineKey",
-  #                         "LineID"
-  #                       ))]))
-  #       )),
-  #       unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
-  #     ))
-  # }
-  # return(summary)
 }
 #' @export pct_cover_all_ground
 #' @rdname cover_indicators
@@ -445,38 +417,6 @@ pct_cover_all_ground <- function(lpi_tall,
                        tall_output = c("ground" = tall),
                        by_line = by_line,
                        verbose = verbose)[[1]]
-  #### OLD APPROACH BELOW ######################################################
-  # # Calculate between plant cover
-  # summary <- pct_cover(lpi_tall,
-  #                      tall = TRUE,
-  #                      hit = "basal",
-  #
-  #                      by_line = by_line,
-  #                      code
-  # ) %>%
-  #   # Remove all layer codes that are >=3 codes (i.e., species codes)
-  #   subset(., nchar(indicator) < 3)
-  # if (!tall) {
-  #   summary <- tidyr::spread(summary,
-  #                            key = indicator,
-  #                            value = percent
-  #   ) %>%
-  #     ## Replace the NA values with 0s because they represent 0% cover for that indicator
-  #     tidyr::replace_na(replace = setNames(
-  #       as.list(rep.int(0,
-  #                       # Make a list of 0s named with the newly-created field names for replace_na()
-  #                       times = length(unique(names(.)[!(names(.) %in% c(
-  #                         "PrimaryKey",
-  #                         "PlotKey",
-  #                         "PlotID",
-  #                         "LineKey",
-  #                         "LineID"
-  #                       ))]))
-  #       )),
-  #       unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
-  #     ))
-  # }
-  # return(summary)
 }
 
 #' @export pct_cover_total_foliar
@@ -494,46 +434,6 @@ pct_cover_total_foliar <- function(lpi_tall,
                        by_line = by_line,
                        digits = digits,
                        verbose = verbose)[[1]]
-  #### OLD APPROACH BELOW ######################################################
-  # summarization_vars <- "PrimaryKey"
-  # if (by_line) {
-  #   summarization_vars <- c(summarization_vars,
-  #                           "LineKey")
-  # }
-  #
-  # # Calculate total foliar cover by summing the first hits for all plant species
-  # # on a plot (and by line if requested)
-  # output <- pct_cover(lpi_tall,
-  #                     tall = TRUE,
-  #                     hit = "first",
-  #                     by_line = by_line,
-  #                     indicator_variables = "code") |>
-  #   # Remove all layer codes that are < 3 codes (i.e., non-species codes)
-  #   dplyr::filter(.data = _,
-  #                 nchar(indicator) >= 3) |>
-  #   # Replace the indicator value with "TotalFoliarCover" because we should only
-  #   # have records with recorded species at this point.
-  #   dplyr::mutate(.data = _,
-  #                 indicator = "TotalFoliarCover") |>
-  #   # Sum the remaining records, grouped by whatever variables aren't holding
-  #   # the percentages because those should be indicator (all the same value)
-  #   # and then whatever grouping variables came through the pct_cover().
-  #   dplyr::summarize(.data = _,
-  #                    .by = -tidyselect::any_of(x = c("percent")),
-  #                    indicator = dplyr::first(indicator),
-  #                    percent = sum(percent,
-  # na.rm = TRUE))
-  #
-  # # Widen the data frame if the user asked for that.
-  # if (!tall) {
-  #   output <- tidyr::pivot_wider(data = output,
-  #                                names_from = "indicator",
-  #                                values_from = "percent",
-  #                                values_fill = 0)
-  # }
-  #
-  # # Can't hurt to ask for only distinct records, right?
-  # dplyr::distinct(output)
 }
 
 #' @export pct_cover_bare_soil
@@ -549,26 +449,6 @@ pct_cover_bare_soil <- function(lpi_tall,
                        tall_output = c("bare soil" = tall),
                        by_line = by_line,
                        verbose = verbose)[[1]]
-  #### OLD APPROACH BELOW ######################################################
-  # soil_codes <- c("S", "PC", "FG", "AG", "LM")
-  # # Calculate first hit cover then keep only the ones for soil codes.
-  # output <- pct_cover(lpi_tall,
-  #                     tall = TRUE,
-  #                     hit = "first",
-  #                     by_line = by_line,
-  #                     indicator_variables = "code") |>
-  #   dplyr::filter(.data = _,
-  #                 indicator %in% soil_codes)
-  #
-  #
-  # # Widen the data frame if the user asked for that.
-  # if (!tall) {
-  #   output <- tidyr::pivot_wider(data = output,
-  #                                names_from = "indicator",
-  #                                values_from = "percent",
-  #                                values_fill = 0)
-  # }
-  # return(output)
 }
 
 #' @export pct_cover_litter
@@ -584,26 +464,6 @@ pct_cover_litter <- function(lpi_tall,
                        tall_output = c("litter" = tall),
                        by_line = by_line,
                        verbose = verbose)[[1]]
-  #### OLD APPROACH BELOW ######################################################
-  # litter_codes <- c("L", "WL", "NL", "HL", "AM", "DN", "ER")
-  # # Calculate the any-hit cover
-  # output <- pct_cover(lpi_tall,
-  #                     tall = TRUE,
-  #                     hit = "any",
-  #                     by_line = by_line,
-  #                     code) |>
-  #   # Keep only cover by litter codes
-  #   dplyr::filter(.data = _,
-  #                 indicator %in% litter_codes)
-  #
-  # if (!tall) {
-  #   output <- tidyr::pivot_wider(data = output,
-  #                                names_from = "indicator",
-  #                                values_from = "percent",
-  #                                values_fill = 0)
-  # }
-  #
-  # return(summary)
 }
 
 #' @export pct_cover_live
@@ -617,7 +477,7 @@ pct_cover_live <- function(lpi_tall,
                            ...,
                            verbose = FALSE,
                            digits = 6) {
-  grouping_variables <- rlang::quos(...)
+
   # This here because we're trying to support the legacy decision to originally
   # allow for bare variables as the indicator-defining variables.
   # Now it can be bare variable names, character strings, vectors of character
@@ -625,19 +485,11 @@ pct_cover_live <- function(lpi_tall,
   # BUT! You can't create a vector, store it in the environment, and then pass
   # it in by name because then you end up with just the name of the vector.
   indicator_variables <- c("chckbox",
-                           rlang::quos(...) |>
-                             as.character() |>
-                             # This does the cleanup that removes the prefixed ~ from everything as well
-                             # as any quotation marks or bits of the definition of a vector.
-                             stringr::str_replace_all(string = _,
-                                                      pattern = "(^~)|(\\\")|(c\\()|(\\)$)",
-                                                      replacement = "") |>
-                             stringr::str_split(string = _,
-                                                pattern = ",[ ]*",
-                                                simplify = TRUE) |>
-                             as.vector()) |>
-    unique()
-  indicator_variables <- indicator_variables[!(indicator_variables %in% c(""))]
+                           unquoted_to_character(...)) |>
+    unique() |>
+    setdiff(x = _,
+            y = c(""))
+
   pct_cover_indicators(lpi_tall = lpi_tall,
                        indicator_families = c("live"),
                        tall_output = c("live" = tall),
@@ -646,59 +498,6 @@ pct_cover_live <- function(lpi_tall,
                        by_line = by_line,
                        digits = digits,
                        verbose = verbose)[[1]]
-  #### OLD APPROACH BELOW ######################################################
-  # # summarize by checkbox and pre-assigned grouping variables
-  # summary <- pct_cover(lpi_tall,
-  #                      tall = TRUE,
-  #                      hit = hit,
-  #                      by_line = by_line,
-  #                      chckbox,
-  #                      !!!grouping_variables
-  # )
-  #
-  # # remove groupings with NAs
-  # summary <- subset(
-  #   summary,
-  #   !indicator %in% c("0..", "1.NA.NA", "1..", "0.NA.NA")
-  # )
-  # # A more flexible option:
-  # # summary <- subset(summary,
-  # #                   !grepl(indicator, pattern = "\\.\\.|NA"))
-  #
-  # # replace "0" and "1" with live and dead
-  # summary$indicator <- stringr::str_replace_all(
-  #   summary$indicator,
-  #   c(
-  #     "1\\." = "Dead\\.",
-  #     "0\\." = "Live\\.",
-  #     "0" = "Live",
-  #     "1" = "Dead"
-  #   )
-  # )
-  #
-  # if (!tall) {
-  #   summary <- tidyr::spread(summary,
-  #                            key = indicator,
-  #                            value = percent
-  #   ) %>%
-  #     ## Replace the NA values with 0s because they represent 0% cover for that indicator
-  #     tidyr::replace_na(replace = setNames(
-  #       as.list(rep.int(0,
-  #                       # Make a list of 0s named with the newly-created field names for replace_na()
-  #                       times = length(unique(names(.)[!(names(.) %in% c(
-  #                         "PrimaryKey",
-  #                         "PlotKey",
-  #                         "PlotID",
-  #                         "LineKey",
-  #                         "LineID"
-  #                       ))]))
-  #       )),
-  #       unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
-  #     ))
-  # }
-  #
-  # # return
-  # return(summary)
 }
 
 #' @export pct_cover_species
@@ -718,43 +517,6 @@ pct_cover_species <- function(lpi_tall,
                        by_line = by_line,
                        digits = digits,
                        verbose = verbose)[[1]]
-  #### OLD APPROACH BELOW ######################################################
-  # summary <- pct_cover(lpi_tall,
-  #                      tall = TRUE,
-  #                      hit = hit,
-  #                      by_line = by_line,
-  #                      code
-  # )
-  #
-  # # Kick out codes of length < 3 because species codes should all be >= 3 characters
-  # summary <- subset(summary, nchar(indicator) >= 3)
-  #
-  # # pct_cover() used the species as an indicator, but that name makes less sense as an output here
-  # summary <- dplyr::rename(summary, Species = indicator)
-  #
-  # if (!tall) {
-  #   summary <- tidyr::spread(summary,
-  #                            key = Species,
-  #                            value = percent
-  #   ) %>%
-  #     ## Replace the NA values with 0s because they represent 0% cover for that indicator
-  #     tidyr::replace_na(replace = setNames(
-  #       as.list(rep.int(0,
-  #                       # Make a list of 0s named with the newly-created field names for replace_na()
-  #                       times = length(unique(names(.)[!(names(.) %in% c(
-  #                         "PrimaryKey",
-  #                         "PlotKey",
-  #                         "PlotID",
-  #                         "LineKey",
-  #                         "LineID"
-  #                       ))]))
-  #       )),
-  #       unique(names(.)[!(names(.) %in% c("PrimaryKey", "LineKey"))])
-  #     ))
-  # }
-  #
-  # # return
-  # return(summary)
 }
 
 
