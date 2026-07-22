@@ -875,7 +875,7 @@ default_indicators_vars <- function(source,
 
   valid_sources <- c("terradat", "ldc")
   source <- unique(source) |>
-    toupper()
+    tolower()
   if (length(source) > 1 | !all(source %in% valid_sources)) {
     stop(paste0("source must be one of the following values: '",
                 paste(valid_sources,
