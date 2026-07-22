@@ -589,9 +589,10 @@ lpi_calc <- function(header,
                      digits = 6,
                      verbose = FALSE) {
 
+
   if (base::missing(expected_indicator_names)) {
-    warning("No vector provided for expected_indicator_names. Without this, expected indicators without qualifying data will not be included in the output. To simply silence this warning, set expected_indicator_names = NULL. To use the default TerrADat indicators, set expected_indicator_names = default_lpi_indicators(source = 'terradat'). Otherwise, provide a vector of expected indicator names.")
-    expected_indicator_names <- NULL
+    warning("No vector provided for expected_indicator_names. Using the default expected indicators from default_lpi_indicators(source = 'terradat'). To simply silence this warning, set expected_indicator_names = NULL, although this will result in some irrelevant indicators being produced and any indicators without qualifying data will be missing from the output. Otherwise, provide a vector of expected indicator names.")
+    expected_indicator_names <- default_lpi_indicators(source = 'terradat')
   }
 
   if (!is.character(species_code_var)) {
