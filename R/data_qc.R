@@ -63,7 +63,7 @@ check_orphaned_records <- function(x,
     x_joining_var_classes <- sapply(X = joining_variables[["x"]],
                                     current_data = x,
                                     FUN = function(X, current_data){
-                                      if (!(X %in% names (current_data))) {
+                                      if (!(X %in% names(current_data))) {
                                         stop(paste("The variable", X,
                                                    "does not appear in x."))
                                       }
@@ -72,7 +72,7 @@ check_orphaned_records <- function(x,
     y_joining_var_classes <- sapply(X = joining_variables[["y"]],
                                     current_data = y,
                                     FUN = function(X, current_data){
-                                      if (!(X %in% names (current_data))) {
+                                      if (!(X %in% names(current_data))) {
                                         stop(paste("The variable", X,
                                                    "does not appear in y."))
                                       }
