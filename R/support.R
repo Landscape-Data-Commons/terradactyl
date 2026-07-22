@@ -943,12 +943,11 @@ default_indicators_vars <- function(source,
   groupings_lists[[source]][hit]
 }
 
-default_lpi_indicators <- function(source,
-                                   lookup = FALSE){
+default_lpi_indicators <- function(source){
 
   valid_sources <- c("terradat", "ldc")
   source <- unique(source) |>
-    toupper()
+    tolower()
   if (length(source) > 1 | !all(source %in% valid_sources)) {
     stop(paste0("source must be one of the following values: '",
                 paste(valid_sources,
@@ -956,8 +955,8 @@ default_lpi_indicators <- function(source,
   }
 
   indicators_vectors <- list(
-    terradat = c("TotalFoliarCover" = "AH_PlantCover",
-                 "BareSoilCover" = "FH_BareSoilCover",
+    terradat = c("TotalFoliarCover",
+                 "BareSoilCover",
                  "AH_ForbCover",
                  "AH_PerenForbCover",
                  "AH_AnnForbCover",
@@ -1050,14 +1049,14 @@ default_lpi_indicators <- function(source,
     ldc = c()
   )
 
-  output <- indicators_vectors[source]
+  output <- indicators_vectors[[source]]
 
-  # If the user doesn't want this as a lookup for something like tidyselect,
-  # this replaces the values in the vectors with the names where there are names
-  if (!lookup) {
-    output[where(!is.na(names(output)))] <- purrr::discard(.x = names(output),
-                                                           .p = is.na)
-  }
+  # # If the user doesn't want this as a lookup for something like tidyselect,
+  # # this replaces the values in the vectors with the names where there are names
+  # if (!lookup) {
+  #   output[which(!is.na(names(output)))] <- purrr::discard(.x = names(output),
+  #                                                          .p = is.na)
+  # }
 
   output
 }
