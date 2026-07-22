@@ -1,3 +1,4 @@
+##### GENERIC QC ###############################################################
 #' Identify records without matches in a second data frame
 #' @description Given two data frames and a set of variables which should join them, find the records in one or both data frames which have no corresponding records in the other.
 #' @param x Data frame. The data frame which will always be checked for records which do not correspond to any records in \code{y}. Must contain the variables specified in \code{joining_variables}.
@@ -431,35 +432,130 @@ auto_qc_warning <- function(header_data,
                             detail_data,
                             uid_variables,
                             joining_variables) {
-    warning_strings <- c(base_warning = "The following data issues will almost certainly produce erroneous or unexpected data in the function output.")
-    header_nonuniques <- check_uniqueness(data = header_data,
-                                          uid_variables = uid_variables[["header"]])
-    if (nrow(header_nonuniques) > 0) {
-      warning_strings["header_nonuniques"] <- paste("There are", length(unique(header_nonuniques$id_nonunique_group)),
-                                                    "instances of duplicated header records.")
-    }
-    detail_nonuniques <- check_uniqueness(data = detail_data,
-                                          uid_variables = uid_variables[["detail"]])
-    if (nrow(detail_nonuniques) > 0) {
-      warning_strings["detail_nonuniques"] <- paste("There are", length(unique(detail_nonuniques$id_nonunique_group)),
-                                                    "instances of duplicated detail records.")
-    }
-    orphaned_records_list <- check_orphaned_records(x = detail_data,
-                                                    y = header_data,
-                                                    joining_variables = joining_variables,
-                                                    symmetric = TRUE)
-    if (nrow(orphaned_records_list[["y"]]) > 0) {
-      warning_strings["header_orphaned"] <- paste("There are", nrow(orphaned_records_list[["y"]]),
-                                                  "header records which do not correspond to any detail records.")
-    }
-    if (nrow(orphaned_records_list[["x"]]) > 0) {
-      warning_strings["detail_orphaned"] <- paste("There are", nrow(orphaned_records_list[["x"]]),
-                                                  "detail records with no corresponding header records.")
-    }
+  warning_strings <- c(base_warning = "The following data issues will almost certainly produce erroneous or unexpected data in the function output.")
+  header_nonuniques <- check_uniqueness(data = header_data,
+                                        uid_variables = uid_variables[["header"]])
+  if (nrow(header_nonuniques) > 0) {
+    warning_strings["header_nonuniques"] <- paste("There are", length(unique(header_nonuniques$id_nonunique_group)),
+                                                  "instances of duplicated header records.")
+  }
+  detail_nonuniques <- check_uniqueness(data = detail_data,
+                                        uid_variables = uid_variables[["detail"]])
+  if (nrow(detail_nonuniques) > 0) {
+    warning_strings["detail_nonuniques"] <- paste("There are", length(unique(detail_nonuniques$id_nonunique_group)),
+                                                  "instances of duplicated detail records.")
+  }
+  orphaned_records_list <- check_orphaned_records(x = detail_data,
+                                                  y = header_data,
+                                                  joining_variables = joining_variables,
+                                                  symmetric = TRUE)
+  if (nrow(orphaned_records_list[["y"]]) > 0) {
+    warning_strings["header_orphaned"] <- paste("There are", nrow(orphaned_records_list[["y"]]),
+                                                "header records which do not correspond to any detail records.")
+  }
+  if (nrow(orphaned_records_list[["x"]]) > 0) {
+    warning_strings["detail_orphaned"] <- paste("There are", nrow(orphaned_records_list[["x"]]),
+                                                "detail records with no corresponding header records.")
+  }
 
-    if (length(warning_strings) > 1) {
-      warning(paste(paste(warning_strings,
-                          collapse = " "),
-                    "Strongly consider cleaning your data (the functions check_uniqueness() and check_orphaned_records() can help) and rerunning this function."))
-    }
+  if (length(warning_strings) > 1) {
+    warning(paste(paste(warning_strings,
+                        collapse = " "),
+                  "Strongly consider cleaning your data (the functions check_uniqueness() and check_orphaned_records() can help) and rerunning this function."))
+  }
+}
+
+#### LPI #######################################################################
+# N can never occur on a point where a plant was recorded
+# A basal plant code doesn't appear in the canopy
+# Non-species codes in the canopy
+# Make a lookup for valid codes
+# Handle "/" in a code (only specific codes can do this)
+# Only one instance of each layer value per unique combination of PrimaryKey,
+#   LineKey, and PointNbr values.
+
+validate_canopy <- function(data,
+                            grouping_vars = c("PrimaryKey",
+                                              "LineKey",
+                                              "PointNbr")) {
+
+
+  # THIS ASSUMES THAT RECORDS FOR A PIN DROP ARE ORDERED BY LAYER VALUES FROM
+  # TOPCANOPY THROUGH LOWER[X] TO SOILSURFACE.
+
+  bad_codes <- c("FGR")
+
+
+  # I'm trying to avoid string comparisons where possible because they're super
+  # slow and computationally expensive.
+  summary_tests <- dplyr::mutate(.data = data,
+                                 # Add in a variable to indicate if a code value
+                                 # represents a plant species (assuming that the
+                                 # only valid code values with 3 or more
+                                 # characters are plant species)
+                                 is_plant = stringri::stri_length(code) >= 3 &
+                                   !stringr::str_detect(string = code,
+                                                        pattern = "/") &
+                                   !(code %in% bad_codes),
+                                 species_code = dplyr::case_when(is_plant ~ code,
+                                                                 .default = NA)) |>
+    dplyr::summarize(.data = _,
+                     .by = grouping_vars,
+                     # These kinda double as checks on our ordering assumptions
+                     has_topcanopy = dplyr::first(layer) == "TopCanopy",
+                     has_soilsurface = dplyr::last(layer) == "SoilSurface",
+                     # Get the number of records at the pin drop. This can be
+                     # compared against the number of unique codes.
+                     n_records = dplyr::n(),
+                     # Get the number of unique code values. We're cool with
+                     # these being anything at this point, including NA.
+                     n_unique_codes = length(unique(code)),
+                     # How many of the codes were species using is_plant which
+                     # is TRUE (and coerces to 1 within sum()) for any code string
+                     # made of more than 2 characters.
+                     plant_count = sum(is_plant),
+                     # How many distinct species were recorded?
+                     # This is different from n_unique_codes because it does NOT
+                     # count NAs.
+                     species_count = na.omit(species_code) |>
+                       unique() |>
+                       length(),
+                     # Were any of the codes species according to is_plant?
+                     # This is important later because we want to make sure that
+                     # there's a TopCanopy if a plant is recorded, but pin drops
+                     # without any plant cover often only have a SoilSurface
+                     # record.
+                     has_plants = any(is_plant),
+                     # Assuming that the records are ordered from top to bottom,
+                     # is there a basal hit on a species?
+                     has_basal_species = dplyr::last(is_plant),
+                     # Assuming that the records are ordered from top to bottom,
+                     # is there a species code in the TopCanopy record?
+                     has_topcanopy_species = dplyr::first(is_plant) &
+                       has_topcanopy,
+                     # Assuming that the records are ordered from top to bottom,
+                     # and there's a TopCanopy record, is the code value for
+                     # that properly indicating none?
+                     topcanopy_none = has_topcanopy &
+                       dplyr::first(code) %in% c(NA,
+                                                 "N",
+                                                 "None")) |>
+    dplyr::mutate(.data = _,
+                  # This is the difference between the number of records with
+                  # plants versus the number of unique species. This is used to
+                  # check basal hits where this difference should be exactly 1.
+                  n_plants_vs_species = plant_count - species_count,
+                  # Add errors for the situations we've identified
+                  error_topcanopy = dplyr::case_when(topcanopy_none &
+                                                       has_plants ~ "TopCanopy must be a species code when a species code is recorded in any layer",
+                                                     !topcanopy_none &
+                                                       !has_topcanopy_species &
+                                                       has_plants ~ "When a code is recorded in the TopCanopy layer, it must be a valid species code",
+                                                     .default = NA),
+                  error_soilsurface = dplyr::case_when(has_basal_species &
+                                                         n_plants_vs_species != 1 ~ "A basal hit on a species was recorded but that species does not appear in the upper layers",
+                                                       .default = NA))
+
+
+  summary_tests
 }

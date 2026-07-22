@@ -4,7 +4,14 @@
 \alias{gather_header_nri}
 \title{Gather NRI plot-level header data}
 \usage{
-gather_header_nri(dsn = NULL, speciesstate, ..., verbose = FALSE)
+gather_header_nri(dsn = NULL, point_path, speciesstate, ..., verbose = FALSE)
+}
+\arguments{
+\item{dsn}{File path to where the point csv is located}
+
+\item{point_path}{The name of the point csv including .csv}
+
+\item{speciesstate}{character string. State of interest for species, can also be "ALL"}
 }
 \description{
 This reads in metadata from NRI sampling used as headers for

@@ -64,7 +64,7 @@ species_list_check <- function(dsn_tall, species_list_file, ...,
                                   height,
                                   spp_inventory) |>
     dplyr::filter(.data = _,
-                  nchar(Species) >= 3 & Species != "None") |>
+                  stringi::stri_length(Species) >= 3 & Species != "None") |>
     dplyr::distinct() |>
     # Join to species
     species_join(data = _,

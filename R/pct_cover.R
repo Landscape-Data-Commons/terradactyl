@@ -257,6 +257,10 @@ pct_cover <- function(lpi_tall,
 
   # In case the user has asked for first hits only, we'll go ahead and further
   # summarize to get only the first hit record for each pin drop.
+  # THIS IS NOT THE SAME THING AS ONLY USING TOPCANOPY RECORDS!!!!
+  # There are plenty of situations where there are no rooted, vascular plant
+  # species at a pin drop and so the TopCanopy record is empty but the lower
+  # canopy records are full of things like litters and rock fragments.
   if (hit == "first") {
     summary <- dplyr::summarize(.data = summary,
                                 .by = tidyselect::all_of(c("PrimaryKey",
@@ -376,7 +380,7 @@ pct_bareground <- function(lpi_tall,
     # output.
     dplyr::mutate(.data = _,
                   BareSoil = dplyr::case_when(BareSoil %in% soil_values ~ "BareSoil",
-                                              .defatul = NA)) |>
+                                              .default = NA)) |>
     # Calculate!
     pct_cover(lpi_tall = _,
               tall = tall,

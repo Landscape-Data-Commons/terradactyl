@@ -85,11 +85,8 @@ mean_height <- function(height_tall,
                   !is.na(Height))
 
   # If height of zero is dropped by the calculation, filter out zeros.
-  # Note that this has been dropping only 0s where a species wasn't recorded!
-  # If that's unintended, we should fix it.
   if (omit_zero) {
     height_tall <- dplyr::filter(.data = height_tall,
-                                 # !(Height == 0 & Species %in% c("", "None", "N", NA))
                                  Height != 0)
   }
 

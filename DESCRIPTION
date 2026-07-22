@@ -21,7 +21,6 @@ Description: Access, tidy, and calculate standard indicators for data from the B
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.3
 Depends:
     R (>= 4.2.0)
 Imports:
@@ -34,7 +33,8 @@ Imports:
     utils,
     stats,
     purrr,
-    tidyselect
+    tidyselect,
+    lubridate
 Suggests:
     knitr,
     rmarkdown,
@@ -49,3 +49,4 @@ Suggests:
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0

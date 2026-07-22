@@ -1,429 +1,320 @@
-#' Read NRI text files into a gdb
-#' @description Ingestion script to convert NRI text file format to database format
-#' @param dsn Vector of file paths to the folders where files are held. The last folder in the directory will be used to set the DBKey.
-#' @param out String. Filepath to the output database
-#' @param dsn_type Type of database. Defaults to geodatabase
-#' @param data Dateframe. NRI data table
-#' @param table_name Name of the NRI data table (e.g., \code{POINTCOORDINATES})
-#' @return List of tables and if specified a populated database
+# Retrieve NRI table names
+#' Retrieve NRI table names from text
+#' @description Retrieves the table names using the specified file referring to the folder containing NRI txt files
+#' @param nri_path Folder path. The path where the nri txt files are stored.
+#' @returns Character string of the nri table names.
 #'
-
-#' @export nri_field_names
-#' @rdname ingest_nri
-
-# Add new nri_field_names to terradactyl package
-nri_field_names <- function(dsn) {
-
-  # Get a list of all data dump field name files
-  data_dump_files <- lapply(X = dsn, FUN = function(X) {
-    file.names <- list.files(X, full.names = TRUE) %>%
-      subset(grepl(x = ., pattern = ".csv"))
-  }) %>% unlist()
-
-  # Read each file name in and append into a master list, retaining the DBKey along the way
-  field_names <- lapply(X = as.list(data_dump_files), FUN = function(X) {
-    field_names <- read.csv(X, stringsAsFactors = FALSE)
-    field_names$DBKey <- basename(dirname(X))
-    return(field_names)
-  }) %>%
-    dplyr::bind_rows() %>%
-    dplyr::select_if(!names(.) %in% ("X"))
-
-  # We store field names as all upper case
-  names(field_names) <- toupper(names(field_names))
-
-  # Change the field types as assigned by the NRI database to R readable format
-  field_names$DATA.TYPE <- stringr::str_replace_all(
-    field_names$DATA.TYPE,
-    c(
-      "NUMBER" = "numeric",
-      "VARCHAR2" = "character",
-      "CHAR" = "character"
-    )
-  )
-
-  # Reformat DBKEY to DBKey
-  field_names <- field_names %>%
-    dplyr::mutate(DBKey = DBKEY) %>%
-    dplyr::select(-DBKEY)
-
-  # Merge the original nri.data.column.explanations table saved in the package
-  nri.data.column.explanations <-
-    dplyr::full_join(
-      terradactyl::nri.data.column.explanations,
-      field_names
-    ) %>%
-    dplyr::distinct()
-
-  # Look for instances where field of the same name may have different data types assigned
-  disjointed_data_types <- nri.data.column.explanations %>%
-    dplyr::group_by(FIELD.NAME) %>%
-    dplyr::summarise(n = dplyr::n_distinct(DATA.TYPE))
-
-  if (any(disjointed_data_types$n > 1)) {
-    stop("There are mismatched data types identified between input files and the
-         original field name explanations.
-         Please check in the input file for consistencies.")
-  }
-
-  # Save the new file
-  usethis::use_data(nri.data.column.explanations,
-    overwrite = TRUE,
-    internal = TRUE
-  )
-  usethis::use_data(nri.data.column.explanations,
-    overwrite = TRUE
-  )
-
-  # Reload package
-  devtools::load_all()
+#' @export table_name
+table_name <- function(nri_path){
+  nri_files <- data.frame(file_path = list.files(path = nri_path,
+                                                 pattern = ".txt",
+                                                 recursive = T,
+                                                 include.dirs = T))
+  table_name <- gsub(".txt","",nri_files$file_path)
+  return(table_name)
 }
 
+
+
+# Read NRI tables
+#' Read NRI txt files using table_name
+#' @description Assign the column header to the NRI text files and save
+#' @param sensitive_data_path path to the folder where the sensitive PrimaryKey and UID PrimaryKey will be stored
+#' @param table_name Character string of the nri table names
+#' @param dsn File path where NRI text files stored
+#' @param GL_schema_path Tables and names from NRI Grazing Land Guide
+#' @returns NRI files with column name assigned
+#'
 #' @export read_nri_text
-#' @rdname ingest_nri
-
-
-read_nri_text <- function(table_name, dsn, DBKey = "auto", schema) {
-
-  # read text file to table
-  data <- lapply(X = dsn, function(X) {
-    # set the DBKey, if "auto" we'll populate from the folder. Otherwise, we'll use the text specified.
-    file.DBKey <- basename(X)
-
-    # specify file
-    file <- paste(X, tolower(table_name), ".txt", sep = "")
-
-    # Check that the file exists
-    if (!file.exists(file)) {
-      # if the dsn doesn't exist
-      warning(paste("Table", tolower(table_name)), " does not exist in ", X)
-      return(data.frame())
-    } else {
-
-      # Read the table from the dsn
-      # Set the colClasses, which is the in nri.column.explanations
-      colClasses <- schema %>%
-        subset(`Table name` == toupper(table_name),
-          select = `Data type`
-        ) %>%
-        unlist() %>%
-        as.vector()
-
-      # Add NA for an extra field that may be added because of an extra separator column
-      field.count <- max(readr::count_fields(
-        file = file,
-        tokenizer = readr::tokenizer_delim("|")
-      ))
-      base_length <- length(colClasses)
-
-      # There may be more or fewer columns than expected by the explanations
-      # Adjust accordingly by adding NA columns if there are more fields in the
-      # file than expected or subsetting if fewer
-      if (field.count < base_length) {
-        warning(
-          "Table ", X,
-          " cannot be read in because it does not have the expected number of fields"
-        )
-        return(data.frame())
-      } else {
-        colClasses <- c(
-          colClasses,
-          rep(times = max(field.count - base_length, 0), NA)
-        )
-
-        # Read the text file
-        data <- read.delim(
-          file = file,
-          stringsAsFactors = FALSE,
-          strip.white = TRUE,
-          header = FALSE,
-          # colClasses = colClasses,
-          sep = "|",
-          flush = TRUE,
-          na.strings = c("", "."), quote = ""
-        ) # Na strings may be blank or periods
-
-        # Add field names
-        # Get the field names for the appropriate table as a vector
-        colnames <- schema %>%
-          subset(`Table name` == toupper(table_name) & `Field name` != "TABLE",# & DBKey == file.DBKey,
-            select = `Field name`
-          ) %>%
-          unlist() %>%
-          as.vector()
-        # Subset the colnames to the length of the field names for the data
-        colnames <- colnames[1:ncol(data)] %>% na.omit()
-        # Assign field names
-        names(data) <- colnames
-
-        # If there is an NA field at the end, because there is an extra "|" at
-        # the end of the file, let's remove it
-        data <- data[, !is.na(colnames(data))]
-
-        # If there is a STATE field, make sure it is 2 digits by adding leading 0
-        if ("STATE" %in% colnames) {
-          data <- data %>%
-            dplyr::mutate(STATE = stringr::str_pad(
-              string = STATE,
-              width = 2,
-              side = "left",
-              pad = "0"
-            ))
-        }
-
-        # If there is a COUNTY field, make sure it is 3 digits by adding leading 0
-        if ("COUNTY" %in% colnames) {
-          data <- data %>%
-            dplyr::mutate(COUNTY = stringr::str_pad(
-              string = COUNTY,
-              width = 3,
-              side = "left",
-              pad = "0"
-            ))
-        }
-
-
-        # If this isn't a supporting table, build a PrimaryKey and
-        # DBKey for each record, and add FIPSPSUPNT for use by CEAP-GL
-        if ("SURVEY" %in% colnames) {
-          data <- data %>% dplyr::mutate(
-            PrimaryKey = paste(SURVEY, STATE, COUNTY, PSU, POINT, sep = ""),
-            DBKey = file.DBKey,
-            FIPSPSUPNT = paste(STATE, COUNTY, PSU, POINT, sep = "")
-          )
-        }
-
-        # if the table contains Longitude field, add - sign to indicate western
-        # hemisphere
-        if (all(c("FIELD_LONGITUDE", "TARGET_LONGITUDE") %in% colnames)) {
-          data <- data %>%
-            dplyr::mutate(
-              FIELD_LONGITUDE = stringr::str_c("-", FIELD_LONGITUDE,
-                sep = ""
-              ),
-              TARGET_LONGITUDE = stringr::str_c("-", TARGET_LONGITUDE)
-            )
-        }
-      }
-
-      return(data)
-    }
-  })
-
-  # Merge all data from different files into a single data frame
-  df <- dplyr::bind_rows(data) %>% dplyr::distinct()
-
-  return(df)
-}
-
-#' @export ingest_nri
-#' @rdname ingest_nri
-ingest_nri <- function(dsn,
-                       out,
-                       dsn_type = "gdb",
-                       rda = TRUE,
-                       uid = "",
-                       pwd = "",
-                       connection = "") {
-  # Get the list of unique table names
-  table_names <- terradactyl::nri.data.column.explanations$TABLE.NAME %>%
-    unique() %>%
+read_nri_text <- function(sensitive_data_path, table_name, dsn, DBKey = "auto", GL_schema_path) {
+  # set up table/column names
+  schema <- readxl::read_xlsx(GL_schema_path, sheet = 2) |>
+    # remove TABLE names
+    subset(`Field name` !="TABLE")
+  table_names <- schema$`Table name` |>
+    unique() |>
     toupper()
 
-  # Read  tables into the database
-  all_tables <- lapply(X = table_names, function(X) {
-    print(X)
-    # read all files for the table and merge
-    data <- terradactyl::read_nri_text(dsn = dsn, table_name = X)
+  for (table in table_name) {
+    # read text file to table
+    data <- lapply(X = dsn,
+                   FUN = function(X) {
+                     # set the DBKey, if "auto" we'll populate from the folder. Otherwise, we'll use the text specified.
+                     file.DBKey <- basename(X)
 
-    return(data)
-  })
+                     # specify file
+                     file <- paste(X, tolower(table), ".txt", sep = "")
 
-  # Set names for tables
-  names(all_tables) <- table_names
+                     # Check that the file exists
+                     if (!file.exists(file)) {
+                       # if the dsn doesn't exist
+                       warning(paste("Table", tolower(table_name)), " does not exist in ", X)
+                       return(data.frame())
+                     } else {
 
-  # If rda is true, then save an Rda file as well
-  if (rda) {
-    # Save .Rda file
-    save(all_tables,
-      file = paste(gsub(
-        pattern = basename(out),
-        replacement = "",
-        x = out
-      ),
-      "NRI.Rda",
-      sep = ""
-      )
-    ) # saved to the gdb file location
+                       # Read the table from the dsn
+                       # Set the colClasses, which is the in nri.column.explanations
+                       colClasses <- schema |>
+                         subset(`Table name` == toupper(table_name),
+                                select = `Data type`
+                         ) |>
+                         unlist() |>
+                         as.vector()
+
+                       # Add NA for an extra field that may be added because of an extra separator column
+                       field.count <- max(readr::count_fields(
+                         file = file,
+                         tokenizer = readr::tokenizer_delim("|")
+                       ))
+                       base_length <- length(colClasses)
+
+                       # There may be more or fewer columns than expected by the explanations
+                       # Adjust accordingly by adding NA columns if there are more fields in the
+                       # file than expected or subsetting if fewer
+                       if (field.count < base_length) {
+                         warning(
+                           "Table ", X,
+                           " cannot be read in because it does not have the expected number of fields"
+                         )
+                         return(data.frame())
+                       } else {
+                         colClasses <- c(
+                           colClasses,
+                           rep(times = max(field.count - base_length, 0), NA)
+                         )
+
+                         # Read the text file
+                         data <- read.delim(
+                           file = file,
+                           stringsAsFactors = FALSE,
+                           strip.white = TRUE,
+                           header = FALSE,
+                           # colClasses = colClasses,
+                           sep = "|",
+                           flush = TRUE,
+                           na.strings = c("", "."), quote = ""
+                         ) # Na strings may be blank or periods
+
+                         # Add field names
+                         # Get the field names for the appropriate table as a vector
+                         colnames <- schema |>
+                           subset(`Table name` == toupper(table_name) & `Field name` != "TABLE",# & DBKey == file.DBKey,
+                                  select = `Field name`
+                           ) |>
+                           unlist() |>
+                           as.vector()
+                         # Subset the colnames to the length of the field names for the data
+                         colnames <- colnames[1:ncol(data)] |> na.omit()
+                         # Assign field names
+                         names(data) <- colnames
+
+                         # If there is an NA field at the end, because there is an extra "|" at
+                         # the end of the file, let's remove it
+                         data <- data[, !is.na(colnames(data))]
+
+                         # If there is a STATE field, make sure it is 2 digits by adding leading 0
+                         if ("STATE" %in% colnames) {
+                           data <- data |>
+                             dplyr::mutate(STATE = stringr::str_pad(
+                               string = STATE,
+                               width = 2,
+                               side = "left",
+                               pad = "0"
+                             ))
+                         }
+
+                         # If there is a COUNTY field, make sure it is 3 digits by adding leading 0
+                         if ("COUNTY" %in% colnames) {
+                           data <- data |>
+                             dplyr::mutate(COUNTY = stringr::str_pad(
+                               string = COUNTY,
+                               width = 3,
+                               side = "left",
+                               pad = "0"
+                             ))
+                         }
+
+
+                         if ("SURVEY" %in% colnames) {
+                           data <- data |>
+                             mutate(
+                               DBKey = file.DBKey
+                             )
+                         }
+                       }
+
+                       return(data)
+                     }
+                   })
   }
 
-  # if dsn_type=="gdb" write files to geodatabase
-  ### There may be an error here--check#####
-  if (dsn_type == "gdb") {
-    # write to geodatabase
-    lapply(
-      X = names(all_tables[table_names]), FUN =
-        function(X) {
-          print(X)
-          arcgisbinding::arc.write(
-            path = paste(out, X, sep = ""),
-            data = as.data.frame(all_tables[X]),
-            overwrite = TRUE
-          )
-        }
-    )
+  # Merge all data from different files into a single data frame
+  data_list <- dplyr::bind_rows(data) |>
+    dplyr::distinct()
 
-    arcgisbinding::arc.write(
-      path = paste(out, toupper(X), sep = ""),
-      data = data,
-      overwrite = TRUE
-    )
-  }
-  if (dsn_type == "SQL") {
-    # Open connection to SQL database
-
-    con <- odbc::dbConnect(odbc::odbc(),
-      Driver = "SQL Server",
-      Server = "jornada-sqlsrv2.jrn.nmsu.edu",
-      Database = "lcd",
-      UID = "JRN\\samccord",
-      PWD = rstudioapi::askForPassword("Database password"),
-      Port = 1433
-    )
-  }
-
-  if (dsn_type %in% c("mdb", "accdb")) {
-    # Set the access connection based on the 32 bit or 64 bit R
-    switch(R.Version()$arch,
-      "x86_64" = {
-        channel <- RODBC::odbcConnectAccess2007(out)
-      },
-      "i386" = {
-        channel <- RODBC::odbcConnectAccess(out)
-      }
-    )
-    # Write PINTERCEPT separately
-
-    write.csv(as.data.frame(all_tables[["PINTERCEPT"]]), "PINTERCEPT.csv")
-    write.csv(as.data.frame(all_tables[["ECOSITE"]]), "ECOSITE.csv")
-    write.csv(as.data.frame(all_tables[["PLANTHEIGHT"]]), "PLANTHEIGHT.csv")
-    write.csv(as.data.frame(all_tables[["PRODUCTION"]]), "PRODUCTION.csv")
-
-
-
-
-    # Write all tables to Access
-    sapply(
-      X = names(all_tables[table_names])[!names(all_tables[table_names]) %in% c(
-        "PINTERCEPT", "RHSUMMARY",
-        "CONCERN",
-        "COUNTYNM",
-        "DISTURBANCE",
-        "ESFSG",
-        "GINTERCEPT",
-        "GPS",
-        "PASTUREHEIGHTS",
-        "PLANTCENSUS",
-        "POINT",
-        "PRACTICE",
-        "PTNOTE", "RANGEHEALTH",
-        "SOILDISAG",
-        "SOILHORIZON",
-        "STATENM",
-        "POINTCOORDINATES", "POINTWEIGHT"
-      )],
-      function(X) {
-        print(X)
-        dat <- as.data.frame(all_tables[[X]])
-        RODBC::sqlSave(
-          channel = channel,
-          dat = dat,
-          tablename = X,
-          verbose = TRUE,
-          rownames = FALSE
-        )
-      }
-    )
-    # Close the database channel when complete
-    RODBC::odbcClose(channel)
-  }
-
-  return(all_tables)
+  return(data_list)
 }
 
 
-# Subset database
-#' @export nri_subset
-#' @rdname ingest_nri
 
-nri_subset <- function(data, PK_subset, out) {
-  subset_data <- all_tables[which(sapply(all_tables, `[[`, "PrimaryKey") %in% PK_subset)]
 
-  test <- rlist::list.filter(all_tables[3:4], PrimaryKey %in% PK_subset)
+# Assign PrimaryKey to NRI
+#' Assign PrimaryKeys to nri data and remove sensitive information
+#' @description Assign PrimaryKeys to nri data and remove sensitive information
+#' @param data_list list of nri dataframes with header and data_list names assigned
+#' @param sensitive_data file path to folder where UID with original PrimaryKeys and locations will be stored
+#' @returns nri data_list list with PrimaryKey
+#'
+#' @export
 
-  # subset data
-  subset_data <- lapply(
-    X = all_tables[1:13],
-    function(X) {
+assign_pkey_nri <- function(data_list,
+                            uid_lookup = NULL,
+                            sensitive_data){
+  # get the UID table, can be a csv which prevents generating the UID/new PrimaryKeys
+  if (!is.null(uid_lookup)){
+    UID <- read_whatever(input = uid_lookup,
+                         layer = NULL,
+                         regex = FALSE,
+                         best_guess = TRUE,
+                         accept_failure = TRUE,
+                         verbose = FALSE)
+  } else if ("POINTCOORDINATES" %in% names(data_list)) {
+    generate_pkey_nri(POINTCOORDINATES = data_list$POINTCOORDINATES,
+                      sensitive_data = sensitive_data)
+    UID <- read_whatever(input = paste0(sensitive_data,"/UID.csv"),
+                         layer = NULL,
+                         regex = FALSE,
+                         best_guess = TRUE,
+                         accept_failure = TRUE,
+                         verbose = FALSE)
+  } else {
+    stop("Either uid_lookup must be provided as a filepath or data frame OR POINTCOORDINATES must be a data frame in the provided data_list.")
+  }
 
-      # Check for data in tables
-      if (length(X[[1]]) == 0) {
 
-        # Return blank table if no data
-        as.data.frame(X[[1]])
-      } else {
-        # If PrimaryKey is in the names of the table, then subset
-        if ("PrimaryKey" %in% names(X[[1]])) {
-          assign(
-            names(X),
-            subset(X[[1]], PrimaryKey %in% PK_subset)
-          )
-        } else {
-          as.data.frame(X[[1]])
-        }
-      }
+
+
+  for (table in names(data_list)) {
+
+    # extract eac table
+    data <- data_list[[table]]
+    #data <- data_list[["ALTWOODY"]]
+    # create uid
+    if (all(c("PSU", "POINT", "SURVEY") %in% names(data))) {
+
+      data$PSU_POINT <- paste0(data$SURVEY,data$STATE,data$COUNTY, data$PSU, data$POINT)
+
+      data <- dplyr::left_join(x = data,
+                               y = dplyr::select(.data = UID,
+                                                 PSU_POINT,
+                                                 UID_Value),
+                               by = "PSU_POINT",
+                               relationship = "many-to-many") |>
+        dplyr::rename(.data = _,
+                      PrimaryKey = UID_Value) |>
+        dplyr::mutate(.data = _,
+                      PrimaryKey = as.character(PrimaryKey)) |>
+        # Remove sensitive columns
+        dplyr::select(.data =_,
+                      -tidyselect::any_of(x = c("PSU",
+                                                "POINT",
+                                                "PSU_POINT")))
+
+      #fix state and county
+      data <- data |>
+        mutate(
+          STATE = str_pad(STATE, width = 2, side = "left", pad = "0"),
+          COUNTY = str_pad(COUNTY, width = 3, side = "left", pad = "0")
+        )
+
+      # Remove any columns matching the "unique key" pattern
+      pattern <- "Combined"
+      data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+      # modified data back into the original list
+      data_list[[table]] <- data
+      # now remove the sensitive cols
+      # lat lon
+      pattern <- "latitude|longitude"
+
+      # Subset the dataframe to keep only columns that DO NOT match the pattern
+      data <- data[, !grepl(pattern, names(data), ignore.case = TRUE)]
+
+      data_list[[table]] <- data
+
+
+    } else {
+      warning(paste("Table", table, "skipped: Missing PSU, POINT, or SURVEY columns."))
     }
-  )
 
-
-
-  names(subset_data) <- names(all_tables)
-
-  # write to geodatabase
-  if (grepl(out, ".gdb")) {
-    lapply(
-      X = names(subset_data),
-      function(X) {
-        arcgisbinding::arc.write(
-          path = paste(out, X, sep = "/"),
-          data = subset_data[[X]],
-          overwrite = TRUE
-        )
-      }
-    )
   }
-
-  return(subset_data)
+  return(data_list)
 }
 
-# Assign the correct column names
-#' @export name_variables_nri
-#' @noRd
 
-name_variables_nri <- function(data, table_name) {
-  # Add meaningful variable names from lookup table
-  variable_names <- terradactyl::nri.data.column.explanations %>%
-    subset(TABLE.NAME == table_name)
 
-  # Create a vector of variable names
-  variable_names <- variable_names$FIELD.NAME
 
-  # make sure the data have the same number of variables as the lookup table
-  data <- data[1:length(variable_names)]
 
-  # Reset variable names
-  names(data) <- variable_names
+# Generate PrimaryKey to NRI
+#' Generate PrimaryKeys to nri data
+#' @description Assign PrimaryKeys to every unique point in NRI data
+#' @param POINTCOORDINATES as a data frame, the POINTCOORDINATES data
+#' @param sensitive_data_path path where UID data frame with sensitive and UID PrimaryKeys is stored
+#' @returns UID file written to sensitive data path
+#'
+#' @export
 
-  # Return data
-  data
+generate_pkey_nri <- function(POINTCOORDINATES,
+                              sensitive_data_path) {
+  data <- dplyr::mutate(.data = POINTCOORDINATES,
+                        FIELD_LONGITUDE = stringr::str_c("-", FIELD_LONGITUDE,
+                                                         sep = ""),
+                        TARGET_LONGITUDE = stringr::str_c("-", TARGET_LONGITUDE)) |>
+    tidyr::unite(data = _,
+                 col = PSU_POINT,
+                 tidyselect::all_of(x = c("SURVEY",
+                                          "STATE",
+                                          "COUNTY",
+                                          "PSU",
+                                          "POINT")),
+                 sep = "",
+                 remove = FALSE)
+
+
+  # pool of characters to generate the UID
+  pool <- c(0:9, letters, LETTERS)
+
+  # unqiue PSU_POINT combo shares a UID
+
+  UID_lookup <- data |>
+    # Keep SURVEY, STATE, and COUNTY so they are available for the mutate
+    distinct(PSU_POINT, .keep_all = TRUE) |>
+    rowwise() |>
+    mutate(
+      # Generate the 28-char random string first, then paste it to the metadata
+      RandomPart = paste(sample(pool, 28, replace = TRUE), collapse = ""),
+      UID_Value  = paste0(SURVEY, STATE, COUNTY, RandomPart)
+    ) |>
+    ungroup() |>
+    # Optional: keep only the mapping of PSU_POINT to your new UID
+    select(PSU_POINT, UID_Value)
+
+  # join the lookup back to the original data to keep EVERY column including location
+  UID <- data |>
+    left_join(UID_lookup, by = "PSU_POINT")
+
+  # drop the cols except the sensitive info
+  UID <- UID |> dplyr::select(UID_Value, PSU_POINT, TARGET_LATITUDE, TARGET_LONGITUDE,
+                               FIELD_LATITUDE, FIELD_LONGITUDE)
+  #keep our look up table
+
+  #instead have uid to diff path created in the funct
+
+  #also keep the senesitive lat lon here and remove lat lon from point
+  uid_filepath <- file.path(sensitive_data_path,
+                            "UID.csv")
+  UID <- as.data.frame(UID)
+  write.csv(UID,
+            uid_filepath)
+
 }
