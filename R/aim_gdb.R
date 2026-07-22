@@ -797,11 +797,15 @@ lpi_calc <- function(header,
                                                                                                       digits = digits)
 
                                                                      if (is.null(current_results_raw)) {
-                                                                       if (verbose) { message("Adjusting indicator names.") }
+                                                                       if (verbose) {
+                                                                         message("No indicators calculated for this grouping.")
+                                                                       }
                                                                        return(NULL)
                                                                      }
 
-                                                                     if (verbose) { message("Adjusting indicator names.") }
+                                                                     if (verbose) {
+                                                                       message("Adjusting indicator names.")
+                                                                     }
 
                                                                      current_results <- tidyr::separate_wider_delim(data = current_results_raw,
                                                                                                                     cols = indicator,
@@ -916,7 +920,8 @@ lpi_calc <- function(header,
     output_missing_numeric_indicators <- setdiff(x = expected_indicator_names,
                                                  y = c(names(output), character_value_indicators))
     output[output_missing_numeric_indicators] <- 0
-    output_missing_character_indicators <- setdiff(x = character_value_indicators, y = names(output))
+    output_missing_character_indicators <- setdiff(x = character_value_indicators,
+                                                   y = names(output))
     output[output_missing_character_indicators] <- NA
 
     if (length(c(output_missing_numeric_indicators, output_missing_character_indicators)) > 0) {
@@ -1231,11 +1236,11 @@ height_calc <- function(header,
     # All other height calculations based on the other variables include records
     # without considering this.
     dplyr::mutate(.data = _,
-           Species = dplyr::replace_values(x = Species,
-                                           to = NA,
-                                           from = c("")),
-           include = (!is.na(Height) & is.na(Species)) |
-             (GrowthHabit_measured == GrowthHabit)
+                  Species = dplyr::replace_values(x = Species,
+                                                  to = NA,
+                                                  from = c("")),
+                  include = (!is.na(Height) & is.na(Species)) |
+                    (GrowthHabit_measured == GrowthHabit)
     )
 
 
