@@ -868,7 +868,8 @@ adjust_species_attributes <- function(data,
 }
 
 # These are the indicator groupings for producing the TerrADat indicators from
-# the output from adjust_species_attributes()
+# the output from adjust_species_attributes()\
+#' @export
 default_indicators_vars <- function(source,
                                     hit = c("any", "first", "basal"),
                                     verbose = FALSE){
@@ -943,6 +944,7 @@ default_indicators_vars <- function(source,
   groupings_lists[[source]][hit]
 }
 
+#' @export
 default_lpi_indicators <- function(source){
 
   valid_sources <- c("terradat", "ldc")
