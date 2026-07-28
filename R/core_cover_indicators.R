@@ -183,8 +183,11 @@ core_cover_indicators <- function(lpi_species,
   ) %>%
     dplyr::mutate(indicator = indicator %>% dplyr::recode("TOTALLITTER" = "TotalLitter"))
 
-  litter <- dplyr::bind_rows(litter, total_litter) %>%
-    dplyr::mutate(indicator = paste("AH_", indicator, "Cover", sep = ""))
+  litter <- dplyr::bind_rows(litter, total_litter) |>
+    dplyr::filter(.data = _,
+                  !is.na(indicator)) |>
+    dplyr::mutate(.data = _,
+                  indicator = paste("AH_", indicator, "Cover", sep = ""))
 
 
   # Species Group Cover ----
@@ -304,26 +307,17 @@ core_cover_indicators <- function(lpi_species,
     total_foliar,
     between.plant.cover,
     litter
-  ) %>%
+  ) |>
 
-    dplyr::distinct() %>%
-
-    # Remove NULL columns
-    subset(!stringr::str_detect(indicator, "NULL")) |>
+    dplyr::distinct() |>
 
     # Spread to a wide format
-    tidyr::pivot_wider(names_from = indicator,
-                        values_from = percent,
-                        values_fill=0)
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = percent,
+                       values_fill = 0)
 
-  # Clean up fields
-  if("AH_NACover" %in% names(lpi_cover)){
-    lpi_cover <- lpi_cover %>% dplyr::select(-AH_NACover)
-  }
 
-  if("AH_NACover" %in% names(lpi_cover)){
-    lpi_cover <- lpi_cover %>% dplyr::select(-AH_NACover)
-  }
   return(lpi_cover) # in this case we need the return otherwise the if state returns a null value if FALSE
 }
 
