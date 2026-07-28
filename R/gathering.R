@@ -3715,6 +3715,21 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                 .fns = as.numeric)
                   )
 
+  # Find illegal values where the rating is not 6 but they're still marked as
+  # hydrophobic
+  illegal_hydro <- dplyr::select(.data = detail_tidy,
+                                 tidyselect::all_of(x = c("Rating", "Hydro"))) |>
+    dplyr::summarize(.data = _,
+                     .by = tidyselect::all_of(x = c("Rating", "Hydro")),
+                     count = dplyr::n()) |>
+    dplyr::filter(.data = _,
+                  Rating != 6,
+                  Hydro == 1)
+
+  if (nrow(illegal_hydro) > 0) {
+    warning(paste0("There are ", sum(illegal_hydro$count), " records in the data marked as hydrophobic which have a rating other than 6. These records are impossible with the standard implementation of the soil stability data collection protocol."))
+  }
+
   # Merge soil stability detail and header tables
   soil_stability_tall <- suppressWarnings(dplyr::left_join(x = header,
                                                            y = detail_tidy,
