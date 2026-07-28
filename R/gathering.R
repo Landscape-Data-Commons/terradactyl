@@ -3698,19 +3698,22 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                   !is.na(Rating)) |>
     # And the last bit is coercing things to numeric.
     dplyr::mutate(.data = _,
-                  dplyr::across(.cols = -tidyselect::all_of(c("RecKey",
-                                                              "PrimaryKey")),
-                                # Can't trust the variables to be coercible to
-                                # numeric without introducing NAs. Even though
-                                # that'd be possible in a pristine data set,
-                                # you'll probably never have one. So, we check
-                                # to see if coercion does violence and only
-                                # coerce variables we won't damage.
-                                .fns = ~ if(any(suppressWarnings(is.na(as.numeric(.x))))) {
-                                  .x
-                                } else {
-                                  as.numeric(.x)
-                                }))
+                  dplyr::across(.cols = tidyselect::all_of(c("Position",
+                                                              "Rating",
+                                                             "Hydro")),
+                                # # Can't trust the variables to be coercible to
+                                # # numeric without introducing NAs. Even though
+                                # # that'd be possible in a pristine data set,
+                                # # you'll probably never have one. So, we check
+                                # # to see if coercion does violence and only
+                                # # coerce variables we won't damage.
+                                # .fns = ~ if(any(suppressWarnings(is.na(as.numeric(.x))))) {
+                                #   .x
+                                # } else {
+                                #   as.numeric(.x)
+                                # })
+                                .fns = as.numeric)
+                  )
 
   # Merge soil stability detail and header tables
   soil_stability_tall <- suppressWarnings(dplyr::left_join(x = header,
