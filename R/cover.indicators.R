@@ -18,7 +18,8 @@ pct_cover_indicators <- function(lpi_tall,
                                  by_line = FALSE,
                                  hit_type = c(live = "any",
                                               species = "any"),
-                                 indicator_variables = list(`total foliar` = "code",
+                                 indicator_variables = list(`total foliar` = c("code",
+                                                                               "GrowthHabit"),
                                                             ground = "code",
                                                             `between plant` = "code",
                                                             `bare soil` = "code",
@@ -173,14 +174,22 @@ pct_cover_indicators <- function(lpi_tall,
       # There's now a check to not just look at character count but also
       # GrowthHabitSub and the actual content of codes to screen out things that
       # don't correspond to vascular species, e.g. "MOS2" or "2LICHEN"
+      tidyr::separate_wider_delim(data = _,
+                      cols = tidyselect::all_of(x = "indicator"),
+                      delim = ".",
+                      names = current_lut[["indicator_variables"]] |>
+                        stringr::str_split(string = _,
+                                           pattern = "\\|") |>
+                        unlist(),
+                      cols_remove = FALSE) |>
       dplyr::filter(.data = _,
                     GrowthHabit != "Nonvascular",
-                    !(grepl(x = GrowthHabitSub,
+                    !(grepl(x = GrowthHabit,
                            pattern = "^((non-?vascular$)|(lichen)|(moss$))",
                            ignore.case = TRUE) |
-                      stringr::str_detect(string = indicator,
+                      stringr::str_detect(string = code,
                                            pattern = "^(((M(OS{1,2})?\\d+)|(MOSS))|(2?LICH[EI]N?\\d?))$")) &
-                      stringi::stri_length(indicator) >= 3) |>
+                      stringi::stri_length(code) >= 3) |>
       # Replace the indicator value with "TotalFoliarCover" because we should only
       # have records with recorded species at this point.
       dplyr::mutate(.data = _,
@@ -189,7 +198,11 @@ pct_cover_indicators <- function(lpi_tall,
       # the percentages because those should be indicator (all the same value)
       # and then whatever grouping variables came through the pct_cover().
       dplyr::summarize(.data = _,
-                       .by = -tidyselect::any_of(x = c("percent")),
+                       .by = -tidyselect::any_of(x = c("percent",
+                                                       current_lut[["indicator_variables"]] |>
+                                                         stringr::str_split(string = _,
+                                                                            pattern = "\\|") |>
+                                                         unlist())),
                        indicator = dplyr::first(indicator),
                        # The na.rm = TRUE should produce 0 when all inputs are
                        # NA and effectively treat NA as 0 when real values are
