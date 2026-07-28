@@ -3653,9 +3653,9 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                      values_drop_na = TRUE) |>
     dplyr::filter(.data = _,
                   value != "",
-                  # Correctly remove non-hydrophobic records with 0 values
-                  # and hydrophobic records with non-zero values
-                  !(variable == "Hydro" & value != "0"),
+                  # The only variable type where 0 is a valid value is Hydro, so
+                  # we'll drop any records where the value is 0 and the variable
+                  # type IS NOT "Hydro"
                   !(variable != "Hydro" & value == "0")) |>
     dplyr::distinct()
 
