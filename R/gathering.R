@@ -3653,9 +3653,9 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                      values_drop_na = TRUE) |>
     dplyr::filter(.data = _,
                   value != "",
-                  # Correctly remove non-hydrophobic records with 0 values
-                  # and hydrophobic records with non-zero values
-                  !(variable == "Hydro" & value != "0"),
+                  # The only variable type where 0 is a valid value is Hydro, so
+                  # we'll drop any records where the value is 0 and the variable
+                  # type IS NOT "Hydro"
                   !(variable != "Hydro" & value == "0")) |>
     dplyr::distinct()
 
@@ -3698,19 +3698,37 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                   !is.na(Rating)) |>
     # And the last bit is coercing things to numeric.
     dplyr::mutate(.data = _,
-                  dplyr::across(.cols = -tidyselect::all_of(c("RecKey",
-                                                              "PrimaryKey")),
-                                # Can't trust the variables to be coercible to
-                                # numeric without introducing NAs. Even though
-                                # that'd be possible in a pristine data set,
-                                # you'll probably never have one. So, we check
-                                # to see if coercion does violence and only
-                                # coerce variables we won't damage.
-                                .fns = ~ if(any(suppressWarnings(is.na(as.numeric(.x))))) {
-                                  .x
-                                } else {
-                                  as.numeric(.x)
-                                }))
+                  dplyr::across(.cols = tidyselect::all_of(c("Position",
+                                                              "Rating",
+                                                             "Hydro")),
+                                # # Can't trust the variables to be coercible to
+                                # # numeric without introducing NAs. Even though
+                                # # that'd be possible in a pristine data set,
+                                # # you'll probably never have one. So, we check
+                                # # to see if coercion does violence and only
+                                # # coerce variables we won't damage.
+                                # .fns = ~ if(any(suppressWarnings(is.na(as.numeric(.x))))) {
+                                #   .x
+                                # } else {
+                                #   as.numeric(.x)
+                                # })
+                                .fns = as.numeric)
+                  )
+
+  # Find illegal values where the rating is not 6 but they're still marked as
+  # hydrophobic
+  illegal_hydro <- dplyr::select(.data = detail_tidy,
+                                 tidyselect::all_of(x = c("Rating", "Hydro"))) |>
+    dplyr::summarize(.data = _,
+                     .by = tidyselect::all_of(x = c("Rating", "Hydro")),
+                     count = dplyr::n()) |>
+    dplyr::filter(.data = _,
+                  Rating != 6,
+                  Hydro == 1)
+
+  if (nrow(illegal_hydro) > 0) {
+    warning(paste0("There are ", sum(illegal_hydro$count), " records in the data marked as hydrophobic which have a rating other than 6. These records are impossible with the standard implementation of the soil stability data collection protocol."))
+  }
 
   # Merge soil stability detail and header tables
   soil_stability_tall <- suppressWarnings(dplyr::left_join(x = header,
