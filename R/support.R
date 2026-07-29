@@ -1,3 +1,14 @@
+# This is not currently exported.
+# This function serves as a means to let functions that accommodate different
+# data sources check their input arguments against a lookup, returning a vector
+# with a value called "source_type" that can be used to control the internal
+# flow of the function and a value called "source" intended to write into the
+# function's output and matches the expected capitalization.
+# The argument source is not case sensitive.
+# The names of the valid_source_values list are returned as source_type while
+# the vectors in the list contain the output source values. If they're named,
+# the name is used as an alias to while the value itself is still used as the
+# case-insensitive check for the input argument source.
 check_source <- function(source,
                          valid_source_values = list(terradat = c("BLM_AIM",
                                                                  "BLM_AIM" = "AIM",
@@ -278,12 +289,32 @@ select_source <- function(possible_inputs,
   input
 }
 
-# Here's the order of operations:
-# 1) If tbl is not NULL, try to figure out how to use it
-#   A) Check to see if tbl is a data frame. If so, assign it as header and move on. Otherwise try B.
-#   B) Check to see if tbl is a character string ending in a file extension. If so, use read_whatever() to assign it to header and move on. Otherwise try C.
-#   C) Check to see if tbl is a character string without a file extension. If so AND dsn is a filepath to a GDB, try to use it as a feature class name. Otherwise, throw an error.
-# 2) if tbl is NULL, try to use dsn with read_whatever() looking for layer = default_name with regex and best_guess.
+#' Read in data with a fallback option
+#' @description This is a wrapper for \code{\link{read_whatever()}} that adds an option for a default.
+#' The primary use case is in situations where there is an expected feature class in a geodatabase that should be used if the user-provided input is unusable or \code{NULL}.
+#' @details
+#' The order of operations is:
+#' \enumerate{
+#'   \item If \code{tbl} is not \code{NULL}, the function will try to figure out how to use it.
+#'     \enumerate{
+#'       \item Check to see if \code{tbl} is a data frame. If so, assign it as output and move on. Otherwise try the next step.
+#'       \item Check to see if \code{tbl} is a character string ending in a file extension. If so, use \code{read_whatever()} to assign it to output and move on. Otherwise try the next step.
+#'       \item Check to see if \code{tbl} is a character string without a file extension. If so AND \code{dsn} is a filepath to a geodatabase, try to use \code{tbl} as a feature class name. Otherwise, throw an error.
+#'     }
+#'   \item If \code{tbl} is \code{NULL}, try to use \code{dsn} with \code{read_whatever()} looking for \code{layer = default_name} with \code{regex = TRUE} and \code{best_guess = TRUE}.
+#'   \item If nothing can be read in, throw an error.
+#' }
+#'
+#' Note that \code{accept_failure} doesn't apply to the whole process and is only passed on to any \code{read_whatever()} calls.
+#'
+#' @param dsn Optional character string. If provided, this should be the filepath to the geodatabase where the feature class specified by \code{default_name} is expected. This is passed on to \code{read_whatever()} as the argument \code{input}. Defaults to \code{NULL}.
+#' @param tbl Optional character string or data frame. If this is not \code{NULL} and \code{dsn} points to a geodatabase, this will be used as the \code{layer} argument in \code{read_whatever()}. Otherwise, this is passed on to \code{read_whatever()} as the argument \code{input}. Defaults to \code{NULL}.
+#' @param regex Logical. If \code{TRUE} then \code{tbl} will be treated as a regular expression as necessary. Defaults to \code{FALSE}.
+#' @param best_guess Logical. If \code{regex} is \code{TRUE} and this is \code{TRUE} then in the case that multiple layers in a geodatabase match the regular expression \code{tbl} the one with the shortest name will be used. If \code{FALSE} and multiple layers match the regular expression the function will stop and return an error. Defaults to \code{TRUE}.
+#' @param accept_failure Logical. If \code{FALSE} and \code{regex} is \code{TRUE} then in the case that no layers match the regular expression the function will stop an return an error. If \code{TRUE} then the function will return \code{NULL}. Defaults to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @export
 
 read_with_fallback <- function(dsn = NULL,
                                tbl = NULL,
@@ -341,24 +372,22 @@ read_with_fallback <- function(dsn = NULL,
   output
 }
 
-
+#' Definitions for TerrADat indicator source variables
+#' @description
+#' This function takes no arguments and returns a structured list used by \code{\link[terradactyl:adjust_species_attributes]{adjust_species_attributes()}} to modify and add variables to LPI data with associated species attributes.
+#'
 #' @export
 lpi_indicator_definitions <- function(){
 
-  # Define the independent objects first so they are in the function's scope
-  litter_codes_init = list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
-                           "WoodyLitter" = c("WL"),
-                           "NonVegLitter" = c("HT", "NL", "AL", "OM"),
-                           "EmbLitter" = c("EL"))
-
-  rock_codes_init = c("R", "GR", "CB", "ST", "BY", "RF", "BR")
-
   list(
     #### Litter code categories ------------------------------------------------
-    litter_codes = litter_codes_init,
+    litter_codes = list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
+                        "WoodyLitter" = c("WL"),
+                        "NonVegLitter" = c("HT", "NL", "AL", "OM"),
+                        "EmbLitter" = c("EL")),
 
     #### Rock codes ------------------------------------------------------------
-    rock_codes = rock_codes_init,
+    rock_codes = c("R", "GR", "CB", "ST", "BY", "RF", "BR"),
 
     #### Between-plant codes ---------------------------------------------------
     between_plant_codes = list("WoodyLitter" = litter_codes_init[["WoodyLitter"]],
@@ -425,59 +454,236 @@ lpi_indicator_definitions <- function(){
 # Calculating LPI indicators for the Terrestrial AIM Database with lpi_calc()
 # depends (as of early 2026) on reformatting species attributes and deriving or
 # adding a few variables to make the process smooth and to control for some
-# idiosyncracies in the data.
+# idiosyncrasies in the data.
 # This is written to take the attributes (e.g., tblNationalPlants) and modify
 # them to fit into the lpi_calc() pipeline.
-## Duration
-# Any value matching the case-insensitive regex "perennial" becomes "Peren".
-# Any value matching the case-insensitive regex "annual|biennial" becomes "Ann".
-# NAs become "duration_irrelevant".
-# Any other values are left unaltered.
-## GrowthHabit
-# Any value matching the case-insensitive regex "^non-?woody$" becomes "NonWoody".
-# Any value matching the case-insensitive regex "^non-?vascular$" becomes "Nonvascular".
-# NAs become "growthhabit_irrelevant".
-# Any other values are left unaltered.
-## GrowthHabitSub
-# Any value matching the case-insensitive regex "forb" becomes "Forb".
-# Any value matching the case-insensitive regex "^sub-?shrub$" becomes "SubShrub".
-# Any value where the associated GrowthHabit value matches one of the case-insensitive regexes "^non-?vascular$", "^moss$", or "^lichen$" becomes "growthhabitsub_irrelevant".
-# NAs become "growthhabitsub_irrelevant".
-# All other values are left unaltered.
-## Plant
-# New variable.
-# This is a new variable not expected in the input species attributes and is
-# used to calculate basal cover by plants, total foliar cover, and making sure
-# plant properties aren't assigned to non-plant records in other variables that
-# are made/modified by this function.
-# The value of this variable will be "Plant" only if ALL of the following
-# criteria are true, otherwise this value with be NA.
-#   1) The associated value in GrowthHabit is NOT "growthhabit_irrelevant".
-#   2) The associated value in GrowthHabit is NOT NA.
-#   3) The associated value in code consists of three or more characters. As of
-#        January 2026, this is still a difference between valid species codes
-#        and all other types of values found in code.
-## ShrubSucculent
-# New variable.
-# This is added to make it easy to calculate indicators specific to shrubs,
-# subshrubs, and succulents.
-# The value of this variable will be "ShrubSucculent" if the associated value in GrowthHabitSub matches the case-insensitive regex "shrub|succulent".
-# Otherwise, this value will be NA.
-## C3
-# New variable.
-# This is to enable the calculation of C3 photosynthetic pathway indicators
-# because a single record may contain both "C3" and "C4" in the Photosynthesis
-# variable.
-# The value of this variable will be "C3" if the associated value in Photosynthesis matches the regex "C3".
-# Otherwise, the value will be NA.
-## C4
-# New variable.
-# This is to enable the calculation of C4 photosynthetic pathway indicators
-# because a single record may contain both "C3" and "C4" in the Photosynthesis
-# variable.
-# The value of this variable will be "C4" if the associated value in Photosynthesis matches the regex "C4".
-# Otherwise, the value will be NA.
+
 #' Harmonize species attributes with TerrADat needs
+#' @description
+#' This function is intended to be applied to LPI data which have been attributed using \code{\link[terradactyl:species_join]{species_join()}} with BLM Terrestrial AIM tblNationalPlants and tblStateSpecies read in via \code{\link[terradactyl:species_read_aim]{species_read_aim()}}.
+#' It modifies the values of some variables to clean values (e.g., converting all capitalization and hyphenation schemes for the string \code{"non-woody"} to \code{"NonWoody"}) to include relevant records in calculations and to prevent the need to rename indicator outputs.
+#' It also adds variables for use in derived indicators, e.g., creating the variable Plant which contains the value \code{"Plant"} only for records associated with vascular plants based on the variables GrowthHabit and code).
+#' Modifications are done only if the necessary variables already exist, e.g., modifications or additions which use the variable Duration will only be attempted if Duration exists in the provided data.
+#' @details
+#' Special definitions for classifications (e.g., how records are identified as corresponding to a lichen) are from \code{\link[terradactyl:lpi_indicator_definitions]{lpi_indicator_definitions()}}. This is the source of definitions referenced without explicit values in the details below.
+#' The following changes are made (if possible):
+#'
+#' \itemize{
+#'   \item Duration
+#'     \itemize{
+#'    \item Any value matching the case-insensitive regex \code{"perennial"} becomes \code{"Peren"}.
+#'    \item Any value matching the case-insensitive regex \code{"annual|biennial"} becomes \code{"Ann"}.
+#'    \item \code{NA}s become \code{"duration_irrelevant"}.
+#'    \item Any other values are left unaltered.
+#'     }
+
+#'
+#'   \item GrowthHabit
+#'     \itemize{
+#'    \item Any value matching the case-insensitive regex \code{"^non-?woody$"} becomes \code{"NonWoody"}.
+#'    \item Any value matching the case-insensitive regex \code{"^non-?vascular$"} becomes \code{"Nonvascular"}.
+#'    \item \code{NA}s become \code{"growthhabit_irrelevant"}.
+#'    \item Any other values are left unaltered.
+#'    }
+#'
+#'   \item GrowthHabitSub
+#'     \itemize{
+#'    \item Any value matching the case-insensitive regex \code{"forb"} becomes \code{"Forb"}.
+#'    \item Any value matching the case-insensitive regex \code{"^sub-?shrub$"} becomes \code{"SubShrub"}.
+#'    \item Any value where the associated GrowthHabit value matches one of the case-insensitive regexes \code{"^non-?vascular$"}, \code{"^moss$"}, or \code{"^lichen$"} becomes \code{"growthhabitsub_irrelevant"}.
+#'    \item \code{NA}s become \code{"growthhabitsub_irrelevant"}.
+#'    \item All other values are left unaltered.
+#'    }
+#'
+#'   \item Plant
+#'     \itemize{
+#'    \item This is a new variable not expected in the input species attributes and is used to calculate basal cover by vascular plants, total foliar cover by vascular plants, and making sure plant properties aren't assigned to non-plant records in other variables that are made/modified by this function.
+#'    \item The value of this variable will be "Plant" only if ALL of the following criteria are true, otherwise this value with be \code{NA}:
+#'      \itemize{
+#'      \item The associated value in GrowthHabitSub is \emph{not} \code{"growthhabitsub_irrelevant"}.
+#'      \item The associated value in GrowthHabit is \emph{not} \code{"Nonvascular"}.
+#'      \item The associated value in code consists of three or more characters. As of January 2026, this is still assumed to be a difference between valid species codes and all other types of values found in the code variable.
+#'      }
+#'     }
+#'
+#'   \item ShrubSucculent
+#'     \itemize{
+#'    \item This is a new variable added to calculate indicators specific to shrubs, subshrubs, and succulents.
+#'    \item The value of this variable will be \code{"ShrubSucculent"} if the associated value in GrowthHabitSub matches the case-insensitive regex \code{"shrub|succulent"}.
+#'    \item Otherwise, this value will be \code{NA}.
+#'    }
+#'
+#'   \item Litter
+#'     \itemize{
+#'    \item This is a new variable added to calculate indicators specific to litter types.
+#'    \item Any record where value of the code variable is in the set of herbaceous litter codes is populated with \code{"HerbLitter"}.
+#'    \item Any record where value of the code variable is in the set of woody litter codes is populated with \code{"WoodyLitter"}.
+#'    \item Any record where value of the code variable is in the set of embedded litter codes is populated with \code{"EmbLitter"}.
+#'    \item Any record where code is any other value is populated with \code{"litter_irrelevant"}.
+#'    }
+#'
+#'   \item TotalLitter
+#'     \itemize{
+#'    \item This is a new variable added to calculate total litter cover.
+#'    \item Any record where value of the code variable in the set of herbaceous, woody, or embedded litter codes is populated with \code{"TotalLitter"}.
+#'    \item Any record where code is any other value is populated with \code{NA}.
+#'    }
+#'
+#'   \item Biocrust
+#'     \itemize{
+#'    \item This is a new variable added to calculate biocrust cover.
+#'    \item Any record where value of the code variable in the set of biocrust codes is populated with \code{"Biocrust"}.
+#'    \item Any record where code is any other value is populated with \code{NA}.
+#'    }
+#'
+#'   \item Lichen
+#'     \itemize{
+#'    \item This is a new variable added to calculate indicators specific to lichen and lichen-adjacent records.
+#'    \item Any record where value of the code variable is in the set of lichen codes is populated with \code{"Lichen"}.
+#'    \item Any record where value of the code variable is in the set of vagrant lichen codes is populated with \code{"VagrLichen"}.
+#'    \item Any record where value of the code variable is in the set of cyanobacteria codes is populated with \code{"Cyanobacteria"}.
+#'    \item Any record where code is any other value is populated with \code{"litter_irrelevant"}.
+#'    }
+#'
+#'   \item PJ
+#'     \itemize{
+#'    \item This is either an existing variable that is modified or a new variable added to calculate pinyon-juniper cover.
+#'    \item If PJ is an existing variable
+#'      \itemize{
+#'        \item Any record where value of PJ is \code{TRUE} is replaced with \code{"PJ"}.
+#'        \item All other records are replaced with \code{NA}.
+#'      }
+#'
+#'    \item If PJ is \emph{not} an existing variable
+#'      \itemize{
+#'        \item Any record where value of the code variable in the set of PJ codes is populated with \code{"PJ"}.
+#'        \item Any record where code is any other value is populated with \code{NA}.
+#'      }
+#'      }
+#'
+#'   \item Rock
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of rock indicators.
+#'    \item Any record where value of the code variable is in the set of rock fragment codes is populated with \code{"Rock"}.
+#'    \item Otherwise this is populated with \code{NA}.
+#'    }
+#'
+#'   \item Duff
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of duff indicators.
+#'    \item Any record where value of the code variable is in the set of duff fragment codes is populated with \code{"Duff"}.
+#'    \item Otherwise this is populated with \code{NA}.
+#'    }
+#'
+#'   \item Water
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of water indicators.
+#'    \item Any record where value of the code variable is in the set of water fragment codes is populated with \code{"Rock"}.
+#'    \item Otherwise this is populated with \code{"water_irrelevant"}.
+#'    }
+#'
+#'   \item C3
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of C3 photosynthetic pathway indicators because a single record may contain both \code{"C3"} and \code{"C4"} in the Photosynthesis variable.
+#'    \item The value of this variable will be \code{"C3"} if the associated value in Photosynthesis matches the regex \code{"C3"}.
+#'    \item Otherwise, the value will be \code{NA}.
+#'    }
+#'
+#'   \item C4
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of C4 photosynthetic pathway indicators because a single record may contain both \code{"C3"} and \code{"C4"} in the Photosynthesis variable.
+#'    \item The value of this variable will be \code{"C4"} if the associated value in Photosynthesis matches the regex \code{"C4"}.
+#'    \item Otherwise, the value will be \code{NA}.
+#'    }
+#'
+#'   \item Grass
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of grass-specific indicators.
+#'    \item The value of this variable will be \code{"Grass"} if the associated value in Family is \code{"Poaceae"}.
+#'    \item Otherwise, the value will be \code{NA}.
+#'    }
+#'
+#'   \item Conifer
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of conifer-specific indicators.
+#'    \item The value of this variable will be \code{"Conifer"} if the associated value in Family is one of the identified conifer families.
+#'    \item Otherwise, the value will be \code{NA}.
+#'    }
+#'
+#'   \item ForbGraminoid
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of forb-and-graminoid-specific indicators.
+#'    \item The value of this variable will be \code{"ForbGraminoid"} if the associated value in GrowthHabitSub matches the regex \code{"(^((graminoid)|(grass))$)|forb"}.
+#'    \item Otherwise, the value will be \code{NA}.
+#'    }
+#'
+#'   \item ForbGrass
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of forb-and-grass-specific indicators.
+#'    \item The value of this variable will be \code{"ForbGrass"} if the associated value in GrowthHabitSub matches the regex \code{"forb"} \emph{or} if the value in Family is \code{"Poaceae"}.
+#'    \item Otherwise, the value will be \code{NA}.
+#'    }
+#'
+#'   \item SG_Group
+#'     \itemize{
+#'    \item This variable is expected to initially contain a string with multiple values corresponding to different localities and uses the value from SpeciesState to extract only the relevant substring with the regex produced with \code{paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")}.
+#'    \item If a substring was extracted and it contains the substring \code{"StaturePerennialGrass"}, that substring is replaced with \code{"PerenGrass"}, e.g., \code{"TallStaturePerennialGrass"} becomes \code{"TallPerenGrass"}.
+#'    \item If there was no matching substring extracted and the corresponding GrowthHabitSub value is \code{"Shrub"}, the value is populated with \code{"NonSagebrushShrub"}.
+#'    \item If there was no matching substring extracted and the corresponding GrowthHabitSub value is \emph{not} \code{"Shrub"}, the value is populated with \code{"Irrelevant"}.
+#'    \item Otherwise, the value is populated with the extracted substring.
+#'    }
+#'
+#'   \item Moss
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of moss-specific indicators.
+#'    \item The value of this variable will be \code{"Moss"} if the associated value in code matches the regex \code{"^(M(OS{1,2})?\\d+)|(2?MOSS)$"} \emph{or} the value in code is \code{"M"} \emph{or} if the value in HigherTaxon is \code{"Moss"}.
+#'    \item Otherwise, the value will be \code{"moss_irrelevant"}.
+#'    }
+#'
+#'   \item between_plant
+#'     \itemize{
+#'    \item This is a new variable added to enable the calculation of between-vascular-plants indicators.
+#'    \item Any record where value of the code variable is in the set of herbaceous litter codes is populated with \code{"HerbLitter"}.
+#'    \item Any record where value of the code variable is in the set of woody litter codes is populated with \code{"WoodyLitter"}.
+#'    \item Any record where value of the code variable is in the set of embedded litter codes is populated with \code{"EmbLitter"}.
+#'    \item Any record where value of the code variable is in the set of deposited soil codes is populated with \code{"DepSoil"}.
+#'    \item Any record where value of the code variable is in the set of duff codes is populated with \code{"Duff"}.
+#'    \item Any record where value of the code variable is in the set of water codes is populated with \code{"Water"}.
+#'    \item Any record where value of the code variable is in the set of rock fragment codes is populated with \code{"Rock"}.
+#'    \item Any record where value of the code variable is in the set of bare soil codes is populated with \code{"BareSoil"}.
+#'    \item Any record where value of the code variable is in the set of lichen codes is populated with \code{"Lichen"}.
+#'    \item Any record where value of the code variable is in the set of vagrant lichen codes is populated with \code{"VagrLichen"}.
+#'    \item Any record where value of the code variable is in the set of cyanobacteria codes is populated with \code{"Cyanobacteria"}.
+#'    \item Any record where value of the code variable matches the regex \code{"^(M(OS{1,2})?\\d+)|(2?MOSS)$"} \emph{or} the value in code is \code{"M"} \emph{or} if the value in HigherTaxon is \code{"Moss"} is populated with \code{"Moss"}.
+#'    \item Any record where code is any other value is populated with \code{"between_plant_irrelevant"}.
+#'    }
+#'
+#'   \item Native
+#'     \itemize{
+#'    \item This is a new variable created for native-specific cover indicators.
+#'    \item Any record where the value of Plant is \code{TRUE} and Nonnative is one of \code{"Native"}, \code{"NATIVE"}, \code{"native"}, or \code{NA} is populated with \code{"Native"}.
+#'    \item Any record where the value of Plant is \code{TRUE} and Nonnative is \emph{not} one of \code{"Native"}, \code{"NATIVE"}, \code{"native"}, or \code{NA} is populated with \code{"NonNative"}.
+#'    \item Otherwise, this is populated with \code{NA}.
+#'    }
+#'
+#'   \item Invasive
+#'     \itemize{
+#'    \item All values are converted to title case, e.g. \code{"invasive"} becomes \code{"Invasive"}.
+#'    \item Any \code{NA} values are converted to \code{"NonInv"}.
+#'    }
+#'
+#'   \item Noxious
+#'     \itemize{
+#'    \item This variable is expected to initially contain a string with multiple values corresponding to different localities and uses the value from SpeciesState to identify only the relevant substring with the regex produced with \code{"(^|\\|)((", SpeciesState, ")|(US))"}.
+#'    \item If the regex was detected, the value is populated with \code{"Noxious"}.
+#'    \item Otherwise, the value is populated with \code{"noxious_irrelevant"}.
+#'    }
+#'    }
+#' @param data Data frame. Long format LPI data with any of the required variables: \code{"GrowthHabit"}, \code{"GrowthHabitSub"}, \code{"Duration"}, \code{"Family"}, \code{"HigherTaxon"}, \code{"Nonnative"}, \code{"Invasive"}, \code{"Noxious"}, \code{"SpecialStatus"}, \code{"Photosynthesis"}, \code{"PJ"}, \code{"chckbox"}.
+#' @param fail_on_missing Logical. If \code{FALSE} then any modifications which depend on expected variables which are \emph{not} present will be skipped. If \code{TRUE}, missing expected variables will cause an error. Defaults to \code{FALSE}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns The original data frame with modified and additional variables for use in \code{lpi_calc()}.
 #' @export
 adjust_species_attributes <- function(data,
                                       fail_on_missing = FALSE,
@@ -653,13 +859,10 @@ adjust_species_attributes <- function(data,
                                                     code %in% definitions_list[["lichen_identifiers"]][["VagrLichen"]] ~ "VagrLichen",
                                                     code %in% definitions_list[["lichen_identifiers"]][["Cyanobacteria"]] ~ "Cyanobacteria",
                                                     .default = "lichen_irrelevant"),
-                          #### PJ ---------------------------------------
-                          # PJ = dplyr::case_when(code %in% definitions_list[["pj_identifiers"]] ~ "PJ",
-                          #                       .default = NA),
                           #### Rock -------------------------------------
                           Rock = dplyr::case_when(code %in% definitions_list[["rock_codes"]] ~ "Rock",
                                                   .default = NA),
-                          ###### Duff -------------------------------------
+                          #### Duff -------------------------------------
 
                           Duff = dplyr::case_when(code == "D" ~ "Duff",
 
@@ -667,7 +870,7 @@ adjust_species_attributes <- function(data,
 
 
 
-                          ###### Water ------------------------------------
+                          #### Water ------------------------------------
 
                           Water = dplyr::case_when(code %in% c("W", "WA") ~ "Water",
 
@@ -868,28 +1071,19 @@ adjust_species_attributes <- function(data,
 }
 
 # These are the indicator groupings for producing the TerrADat indicators from
-# the output from adjust_species_attributes()\
+# the output from adjust_species_attributes()
+#' List variable groupings used for default cover indicator calculation
+#' @description
+#' This returns a list of variables to use as the \code{indicator_variables} argument in \code{\link[terradactyl:pct_cover]{pct_cover()}}. The names of the list correspond to values for the \code{hit} argument in \code{pct_cover()}.
+#' @param source Character string. Must correspond to the desired output type. The only currently accepted value is \code{"terradat"}.
+#' @param hit Optional character vector. Which hit types to include in the list. May contain one or more of \code{"any"}, \code{"first"}, \code{"basal"}. Defaults to \code{c("any", "first", "basal")}.
+#' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
+#'   messages. Defaults to \code{FALSE}.
+#' @returns A named list of one or more list of vectors of variable names.
 #' @export
 default_indicators_vars <- function(source,
                                     hit = c("any", "first", "basal"),
                                     verbose = FALSE){
-
-  valid_sources <- c("terradat", "ldc")
-  source <- unique(source) |>
-    tolower()
-  if (length(source) > 1 | !all(source %in% valid_sources)) {
-    stop(paste0("source must be one of the following values: '",
-                paste(valid_sources,
-                      collapse = "', '"), "'"))
-  }
-
-  valid_hits <- c("any", "first", "basal")
-  if (!all(hit %in% valid_hits)) {
-    stop("Valid values for hit are: '",
-         paste(valid_hits,
-               collapse = "', '"), "'")
-  }
-
   groupings_lists <- list(
     terradat = list(
       first = list(c("Duration", "GrowthHabitSub"),
@@ -944,6 +1138,11 @@ default_indicators_vars <- function(source,
   groupings_lists[[source]][hit]
 }
 
+#' Default expected cover indicators by source
+#' @description
+#' Get a vector of expected cover indicator names to be produced by \code{\link[terradactyl:lpi_calc]{lpi_calc()}} for a given data source.
+#' @param source Character string. Must correspond to the desired output type. The only currently accepted value is \code{"terradat"}.
+#' @returns A vector of names corresponding to possible cover indicators calculated by \code{lpi_calc()}.
 #' @export
 default_lpi_indicators <- function(source){
 
