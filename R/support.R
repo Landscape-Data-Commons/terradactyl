@@ -174,12 +174,14 @@ read_whatever <- function(input,
                          # Order them according to string length in case we make
                          # a best guess.
                          matched_layers <- matched_layers[order(sapply(X = matched_layers,
-                                                                       FUN = stringi::stri_length))][1]
+                                                                       FUN = stringi::stri_length))][1] |>
+                           purrr::discard(.x = _,
+                                          .p = is.na)
                          if (length(matched_layers) > 1 & !best_guess) {
                            stop(paste0("Using '", layer, "' as a regular expression matched multiple layers/feature classes in the geodatabase but must only match one if best_guess is FALSE. The following layers were found: ",
                                        paste(matched_layers,
                                              collapse = ", ")))
-                         } else if (length(matched_layers) > 1 & !best_guess) {
+                         } else if (length(matched_layers) > 1 & best_guess) {
                            # When making a best guess, this'll use the shortest
                            # layer name
                            if (verbose) {
@@ -189,6 +191,15 @@ read_whatever <- function(input,
                            layer <- matched_layers[1]
                          } else if (length(matched_layers) > 0){
                            layer <- matched_layers[1]
+                         } else {
+                           if (accept_failure) {
+                             if (verbose) {
+                               message(paste0("No feature classes in the geodatabase matched the provided regex, '", layer, "'."))
+                             }
+                             return(NULL)
+                           } else {
+                             stop(paste0("No feature classes in the geodatabase matched the provided regex, '", layer, "'."))
+                           }
                          }
                        } else if (!(layer %in% available_layers)) {
                          stop(paste0("The geodatabase does not contain a layer/feature class called '", layer, "'. Did you intend to use it as a regular expression with the argument 'regex = TRUE'?"))
