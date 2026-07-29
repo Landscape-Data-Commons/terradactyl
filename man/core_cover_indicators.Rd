@@ -2,19 +2,20 @@
 % Please edit documentation in R/core_cover_indicators.R
 \name{core_cover_indicators}
 \alias{core_cover_indicators}
-\title{Core Cover Indicators
-Generates cover calculations from the Line-point intercept method that are likely generalizable across programs (e.g., TotalFoliarCover, TotalLitterCover, BareSoilCover, cover by GrowthHabit, etc)}
+\title{Calculate "core" cover indicators}
 \usage{
 core_cover_indicators(lpi_species, verbose = FALSE)
 }
 \arguments{
-\item{lpi_species}{Dataframe in environment. An LPI tall table generated from \code{gather_lpi()} and \code{species_join()}.}
+\item{lpi_species}{Data frame. This must by a long-format collection of LPI data in the format produced from \code{\link[terradactyl:gather_lpi]{gather_lpi()}} and \code{\link[terradactyl:species_join]{species_join()}}.}
+}
+\value{
+A data frame with variables containing the percent cover of indicators for each PrimaryKey.
 }
 \description{
-Core Cover Indicators
-Generates cover calculations from the Line-point intercept method that are likely generalizable across programs (e.g., TotalFoliarCover, TotalLitterCover, BareSoilCover, cover by GrowthHabit, etc)
+Generates cover calculations from the Line-point intercept method that are likely generalizable across programs (e.g., TotalFoliarCover, TotalLitterCover, BareSoilCover, cover by GrowthHabit, etc.)
+This function has been superseded by \code{\link[terradactyl:pct_cover_indicators]{pct_cover_indicators()}}.
 }
 \examples{
-library(terradactyl)
 cover <- core_cover_indicators(lpi_species)
 }
