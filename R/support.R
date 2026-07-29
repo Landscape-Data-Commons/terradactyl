@@ -1146,6 +1146,27 @@ default_indicators_vars <- function(source,
                first = c(),
                basal = c()))
 
+  valid_sources <- names(groupings_lists)
+
+  source <- unique(source) |>
+    tolower()
+  if (length(source) > 1 | !all(source %in% valid_sources)) {
+    stop(paste0("source must be one of the following values: '",
+                paste(valid_sources,
+                      collapse = "', '"), "'"))
+  }
+
+  # valid_hits <- c("any", "first", "basal")
+  valid_hits <- names(groupings_lists[[source]])
+
+  hit <- tolower(hit)
+
+  if (!all(hit %in% valid_hits)) {
+    stop("Valid values for hit are: '",
+         paste(valid_hits,
+               collapse = "', '"), "'")
+  }
+
   groupings_lists[[source]][hit]
 }
 
