@@ -1,7 +1,7 @@
 #' Calculate "core" cover indicators
 #' @description
 #' Generates cover calculations from the Line-point intercept method that are likely generalizable across programs (e.g., TotalFoliarCover, TotalLitterCover, BareSoilCover, cover by GrowthHabit, etc.)
-#' This function has been superseded by \code{\link[terradactyl:pct_cover_indicators]{pct_cover_indicators()}}.
+#' This function has been superseded by \code{\link[terradactyl:cover_indicators]{pct_cover_indicators()}}.
 #' @param lpi_species Data frame. This must by a long-format collection of LPI data in the format produced from \code{\link[terradactyl:gather_lpi]{gather_lpi()}} and \code{\link[terradactyl:species_join]{species_join()}}.
 #' @returns A data frame with variables containing the percent cover of indicators for each PrimaryKey.
 #' @examples

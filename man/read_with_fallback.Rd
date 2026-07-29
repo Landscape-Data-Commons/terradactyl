@@ -29,7 +29,7 @@ read_with_fallback(
 messages. Defaults to \code{FALSE}.}
 }
 \description{
-This is a wrapper for \code{\link{read_whatever()}} that adds an option for a default.
+This is a wrapper for \code{\link[terradactyl:read_whatever]{read_whatever()}} that adds an option for a default.
 The primary use case is in situations where there is an expected feature class in a geodatabase that should be used if the user-provided input is unusable or \code{NULL}.
 }
 \details{

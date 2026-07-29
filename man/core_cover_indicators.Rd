@@ -14,7 +14,7 @@ A data frame with variables containing the percent cover of indicators for each 
 }
 \description{
 Generates cover calculations from the Line-point intercept method that are likely generalizable across programs (e.g., TotalFoliarCover, TotalLitterCover, BareSoilCover, cover by GrowthHabit, etc.)
-This function has been superseded by \code{\link[terradactyl:pct_cover_indicators]{pct_cover_indicators()}}.
+This function has been superseded by \code{\link[terradactyl:cover_indicators]{pct_cover_indicators()}}.
 }
 \examples{
 cover <- core_cover_indicators(lpi_species)
