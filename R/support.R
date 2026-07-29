@@ -821,7 +821,7 @@ adjust_species_attributes <- function(data,
   }
 
   #### Plant --------------
-  if (all(c("GrowthHabitSub", "code") %in% names(data))) {
+  if (all(c("GrowthHabit", "GrowthHabitSub", "code") %in% names(data))) {
     data <- dplyr::mutate(.data = data,
                           # Because there are species attribute records where
                           # there are not assigned GrowthHabit or GrowthHabitSub
