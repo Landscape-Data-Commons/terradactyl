@@ -1404,6 +1404,47 @@ accumulated_species <- function(header,
       dplyr::bind_rows() |>
       dplyr::distinct()
 
+
+    final_species_info <- dplyr::summarize(.data = final_species_info,
+                                           .by = tidyselect::all_of(x = c("PrimaryKey",
+                                                                          "Species")),
+                                           duplicated = dplyr::n() > 1) |>
+      dplyr::left_join(x = final_species_info,
+                       y = _,
+                       by = c("PrimaryKey",
+                              "Species"),
+                       relationship = "many-to-one")
+
+    final_species_info <- dplyr::bind_rows(dplyr::filter(.data = final_species_info,
+                                                         !duplicated),
+                                           dplyr::filter(.data = final_species_info,
+                                                         duplicated) |>
+                                             dplyr::summarize(.data = _,
+                                                              .by = tidyselect::all_of(x = c("PrimaryKey",
+                                                                                             "Species")),
+                                                              dplyr::across(.cols = tidyselect::any_of(x = c("GrowthHabit",
+                                                                                                             "GrowthHabitSub",
+                                                                                                             "Duration",
+                                                                                                             "Nonnative",
+                                                                                                             "Noxious",
+                                                                                                             "Invasive",
+                                                                                                             "SpecialStatus",
+                                                                                                             "SG_Group",
+                                                                                                             "CommonName",
+                                                                                                             "ScientificName")),
+                                                                            .fns = ~ {
+                                                                              new_vector <- na.omit(.x)
+
+                                                                              if (length(new_vector) < 1) {
+                                                                                NA
+                                                                              } else {
+                                                                                new_vector[1]
+                                                                              }
+                                                                            }))
+    ) |>
+      dplyr::select(.data = _,
+                    -tidyselect::all_of(x = c("duplicated")))
+
     output <- dplyr::left_join(x = output,
                                y = final_species_info,
                                relationship = "many-to-one",
