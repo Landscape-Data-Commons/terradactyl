@@ -390,15 +390,20 @@ read_with_fallback <- function(dsn = NULL,
 #' @export
 lpi_indicator_definitions <- function(){
 
+  # Define the independent objects first so they are in the function's scope
+  litter_codes_init = list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
+                           "WoodyLitter" = c("WL"),
+                           "NonVegLitter" = c("HT", "NL", "AL", "OM"),
+                           "EmbLitter" = c("EL"))
+
+  rock_codes_init = c("R", "GR", "CB", "ST", "BY", "RF", "BR")
+
   list(
     #### Litter code categories ------------------------------------------------
-    litter_codes = list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
-                        "WoodyLitter" = c("WL"),
-                        "NonVegLitter" = c("HT", "NL", "AL", "OM"),
-                        "EmbLitter" = c("EL")),
+    litter_codes = litter_codes_init,
 
     #### Rock codes ------------------------------------------------------------
-    rock_codes = c("R", "GR", "CB", "ST", "BY", "RF", "BR"),
+    rock_codes = rock_codes_init,
 
     #### Between-plant codes ---------------------------------------------------
     between_plant_codes = list("WoodyLitter" = litter_codes_init[["WoodyLitter"]],
