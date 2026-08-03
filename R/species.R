@@ -711,7 +711,20 @@ species_join <- function(data, # field data,
         # Make sure we're not dealing with factors
         dplyr::mutate(.data = _,
                       dplyr::across(.cols = tidyselect::where(fn = is.factor),
-                                    .fns = as.character))
+                                    .fns = as.character),
+                      GrowthHabit = dplyr::case_match(.x = GrowthHabitCode,
+                                                      c(1:4) ~ "Woody",
+                                                      c(5:7) ~ "NonWoody",
+                                                      .missing = GrowthHabit),
+                      GrowthHabitSub = dplyr::case_match(.x = GrowthHabitCode,
+                                                         1 ~ "Tree",
+                                                         2 ~ "Shrub",
+                                                         3 ~ "Subshrub",
+                                                         4 ~ "Succulent",
+                                                         5 ~ "Forb",
+                                                         6 ~ "Graminoid",
+                                                         7 ~ "Sedge",
+                                                         .missing = GrowthHabitSub))
     } else {
       stop("Unknown generic species list format. Must be a path to a CSV")
     }
@@ -725,19 +738,6 @@ species_join <- function(data, # field data,
       # This CSV is apparently expected to encode growth habit info as integers
       # so here's the hardcoded lookup.
       dplyr::mutate(.data = _,
-                    GrowthHabit = dplyr::case_match(.x = GrowthHabitCode,
-                                                    c(1:4) ~ "Woody",
-                                                    c(5:7) ~ "NonWoody",
-                                                    .missing = GrowthHabit),
-                    GrowthHabitSub = dplyr::case_match(.x = GrowthHabitCode,
-                                                       1 ~ "Tree",
-                                                       2 ~ "Shrub",
-                                                       3 ~ "Subshrub",
-                                                       4 ~ "Succulent",
-                                                       5 ~ "Forb",
-                                                       6 ~ "Graminoid",
-                                                       7 ~ "Sedge",
-                                                       .missing = GrowthHabitSub),
                     # Only update these variables if the generic species info
                     # contradicts the already existing value and isn't NA
                     Duration = dplyr::case_when(!(Duration %in% Duration_generic) & !is.na(Duration_generic) ~ Duration_generic,
