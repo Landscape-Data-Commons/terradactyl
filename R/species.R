@@ -1436,7 +1436,7 @@ accumulated_species <- function(header,
                                                                               new_vector <- na.omit(.x)
 
                                                                               if (length(new_vector) < 1) {
-                                                                                NA
+                                                                                NA_character_
                                                                               } else {
                                                                                 new_vector[1]
                                                                               }
