@@ -916,9 +916,9 @@ accumulated_species <- function(header,
   }
 
   ##### Data -------------------------------------------------------------------
-  inputs_list <- lapply(X = c("lpi_tall",
-                              "height_tall",
-                              "spp_inventory_tall"),
+  inputs_list <- lapply(X = c("cover" = "lpi_tall",
+                              "heights" = "height_tall",
+                              "species" = "spp_inventory_tall"),
                         inputs = list("lpi_tall" = lpi_tall,
                                       "height_tall" = height_tall,
                                       "spp_inventory_tall" = spp_inventory_tall),
