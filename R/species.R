@@ -985,111 +985,42 @@ accumulated_species <- function(header,
   }
 
   ###### Joining to the data ---------------------------------------------------
-  inputs_list <- lapply(X = inputs_list,
-                        species_info = species_info,
-                        FUN = function(X, species_info){
-                          if (is.null(X)) {
-                            return(NULL)
-                          }
-                          current_data <- species_join(data = X,
-                                                       species_file = species_info,
-                                                       species_code = species_code_var,
-                                                       species_property_vars = c("GrowthHabit",
-                                                                                 "GrowthHabitSub",
-                                                                                 "Duration",
-                                                                                 "Family",
-                                                                                 "SG_Group",
-                                                                                 "HigherTaxon",
-                                                                                 "Nonnative",
-                                                                                 "Invasive",
-                                                                                 "Noxious",
-                                                                                 "SpecialStatus",
-                                                                                 "Photosynthesis",
-                                                                                 "PJ",
-                                                                                 "CurrentPLANTSCode",
-                                                                                 "ScientificName",
-                                                                                 "SG_Group",
-                                                                                 "GrowthHabit_measured"),
-                                                       update_species_codes = FALSE,
-                                                       by_species_key = FALSE,
-                                                       verbose = verbose) |>
-                            # We want to use whatever is the currently accepted code in USDA PLANTS for
-                            # the species, even though that may be less taxonomically correct.
-                            # Using dplyr::case_when() lets us keep any codes that don't have a
-                            # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
-                            # dplyr::mutate(.data = _,
-                            #               code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
-                            #                                       .default = code)) |>
-                            # Not necessary, but I'm paranoid.
-                            dplyr::distinct() |>
-                            dplyr::mutate(.data = _,
-                                          # Correct the Non-Woody to NonWoody
-                                          GrowthHabit = dplyr::case_when(stringr::str_detect(string = GrowthHabit,
-                                                                                             pattern = "^Non(-)?[Ww]oody$") ~ "NonWoody",
-                                                                         .default = GrowthHabit),
-                                          # This is to turn the SG_Group codes into values
-                                          # that match the expected indicator names for
-                                          # our convenience.
-                                          # This makes sure that the value in SG_Group is
-                                          # only the string associated with the group for
-                                          # the species code in the relevant state.
-                                          # Records where there's not a group value for the
-                                          # associated state (or "US") will get NA instead.
-                                          SG_Group = stringr::str_extract(string = SG_Group,
-                                                                          pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
-                                          # This makes sure that we've assigned any shrubs
-                                          # that didn't get a sage-grouse group are
-                                          # assigned to "NonSagebrushShrub"
-                                          SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
-                                                                      .default = SG_Group),
-                                          SpecialStatus = stringr::str_extract(string = SpecialStatus,
-                                                                               pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
-                                          # This is just to make the Invasive values match
-                                          # the desired indicator names
-                                          Invasive = stringr::str_to_title(string = Invasive),
-                                          # This is for the native and non-native cover
-                                          # It assumes that everything flagged as EXOTIC or
-                                          # ABSENT should be considered NonNative and that
-                                          # everything else is Native
-                                          Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) ~ "Native",
-                                                                    .default = "Nonnative"),
-                                          # For noxious cover. This assumes that anything
-                                          # flagged as YES is noxious and nothing else is.
-                                          # NOTE: This is now disabled because noxious
-                                          # status is being handled more appropriately and
-                                          # through a different format. I'm leaving this
-                                          # for posterity for the moment though.
-                                          # Noxious = dplyr::case_when(Noxious %in% c("YES") ~ "Noxious",
-                                          #                            .default = NA),
-                                          # Noxious is now encoded as a character string
-                                          # with localities separated by |s. We need to
-                                          # check for the relevant locality based on the
-                                          # State variable NOT the AdminState because these
-                                          # determinations are made based on the physical
-                                          # location of the sampling within the legal
-                                          # boundaries of states, not which state is
-                                          # administering the lands (which is sometimes
-                                          # different).
-                                          # The regex checks to see if the beginning of
-                                          # the string or the characters immediately
-                                          # following a | are "US", the code from the State
-                                          # variable, or the code from the State variable
-                                          # and the value from the County variable
-                                          # separated by a :, e.g., "OR:Jefferson".
-                                          # The single-letter designations for type of
-                                          # noxiousness are not taken into account, e.g.,
-                                          # "OR:A" and "OR:B" will be treated identically.
-                                          # County-level designations may eventually be
-                                          # removed, but for now they're still in there and
-                                          # this regex will work regardless.
-                                          Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
-                                                                                         pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
-                                                                     .default = NA))
-                        })
-
-  names(inputs_list) <- c("cover",
-                          "heights",
-                          "species")
+  # inputs_list <- lapply(X = inputs_list,
+  #                       species_info = species_info,
+  #                       FUN = function(X, species_info){
+  #                         if (is.null(X)) {
+  #                           return(NULL)
+  #                         }
+  #                         current_data <- species_join(data = X,
+  #                                                      species_file = species_info,
+  #                                                      species_code = species_code_var,
+  #                                                      species_property_vars = c("GrowthHabit",
+  #                                                                                "GrowthHabitSub",
+  #                                                                                "Duration",
+  #                                                                                "Family",
+  #                                                                                "SG_Group",
+  #                                                                                "HigherTaxon",
+  #                                                                                "Nonnative",
+  #                                                                                "Invasive",
+  #                                                                                "Noxious",
+  #                                                                                "SpecialStatus",
+  #                                                                                "Photosynthesis",
+  #                                                                                "PJ",
+  #                                                                                "CurrentPLANTSCode",
+  #                                                                                "ScientificName",
+  #                                                                                "SG_Group",
+  #                                                                                "GrowthHabit_measured"),
+  #                                                      update_species_codes = FALSE,
+  #                                                      by_species_key = FALSE,
+  #                                                      verbose = verbose) |>
+  #                           # Not necessary, but I'm paranoid.
+  #                           dplyr::distinct() |>
+  #                           adjust_species_attributes(data = _,
+  #                                                     fail_on_missing = FALSE,
+  #                                                     verbose = verbose)
+  #
+  #                         current_data
+  #                       })
 
   #### CALCULATIONS #############################################################
   output_list <- list()
