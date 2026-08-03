@@ -1175,11 +1175,22 @@ accumulated_species <- function(header,
   ##### Heights ----------------------------------------------------------------
   if (!is.null(inputs_list[["heights"]])) {
 
-    # For any unresolved height errors, change height to "0" so
-    # they are omitted from the calculations
-    height_species <- dplyr::filter(.data = inputs_list[["heights"]],
-                                    GrowthHabit_measured == GrowthHabit)
-    # height_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
+    height_species <- inputs_list[["heights"]] |>
+      species_join(data = X,
+                   species_file = species_info,
+                   species_code = species_code_var,
+                   species_property_vars = c("GrowthHabit",
+                                             "GrowthHabit_measured"),
+                   update_species_codes = FALSE,
+                   by_species_key = FALSE,
+                   verbose = verbose) |>
+      # Not necessary, but I'm paranoid.
+      dplyr::distinct() |>
+      adjust_species_attributes(data = _,
+                                fail_on_missing = FALSE,
+                                verbose = verbose) |>
+      dplyr::filter(.data = _,
+                    GrowthHabit_measured == GrowthHabit)
 
     if (verbose) {
       message("Calculating per-species mean heights.")
