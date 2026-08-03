@@ -865,35 +865,13 @@ accumulated_species <- function(header,
                                 species_code_var = "SpeciesCode",
                                 dead = TRUE,
                                 source = c("TerrADat", "AIM", "LMF", "NRI"),
+                                # drop_nonvascular = TRUE,
                                 ...,
-                                # indicator_variables = NULL,
                                 generic_species_file = NULL,
                                 digits = 6,
                                 # discard_nulls = TRUE,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
-  # # Get a list of the variables the user wants to group data by for calculations.
-  # # There's a grouping_variables argument that takes the names of variables as
-  # # character strings, so we'll handle that.
-  # if (!is.null(indicator_variables)) {
-  #   if (!is.character(indicator_variables)) {
-  #     stop("indicator_variables must be a character string or vector of character strings")
-  #   }
-  # }
-  # # Clean this up!
-  # indicator_variables <- unique(indicator_variables)
-  #
-  # # This here because we're trying to support the legacy decision to originally
-  # # allow for bare variables as the indicator-defining variables.
-  # # Now it can be bare variable names, character strings, vectors of character
-  # # strings or some combination of the three.
-  # # BUT! You can't create a vector, store it in the environment, and then pass
-  # # it in by name because then you end up with just the name of the vector.
-  # indicator_variables <- c(indicator_variables,
-  #                          unquoted_to_character(...)) |>
-  #   unique()
-  # indicator_variables <- indicator_variables[!(indicator_variables %in% c(""))]
-
   # The default value of "" is a legacy decision. Internally we'll treat it as a
   # NULL for consistency and ease.
   if (identical(species_file, "")) {
@@ -913,13 +891,6 @@ accumulated_species <- function(header,
     message("Reading in headers and filtering them using any provided filtering expressions.")
   }
 
-  # if ("character" %in% class(header)) {
-  #   if (tools::file_ext(header) == "Rdata") {
-  #     header <- readRDS(file = header)
-  #   } else {
-  #     stop("When header is a character string it must be the path to a .Rdata file containing header data.")
-  #   }
-  # }
   header <- read_whatever(input = header,
                           verbose = verbose)
 
@@ -1192,18 +1163,6 @@ accumulated_species <- function(header,
       dplyr::rename(.data = _,
                     "AH_SpeciesCover" = "percent",
                     "AH_SpeciesCover_n" = "n")
-
-
-    # species_cover <- lpi_species %>%
-    #   subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
-    #   subset(nchar(as.character(code)) >= 3 & code != "None") %>%
-    #   dplyr::distinct(PrimaryKey, LineKey, PointNbr, code) %>%
-    #   dplyr::count(PrimaryKey, code) %>%
-    #   dplyr::left_join(species_cover, .,
-    #                    by = c("PrimaryKey", "Species" = "code")) %>%
-    #   dplyr::rename("AH_SpeciesCover_n" = "n",)
-
-
   } else {
     if (verbose) {
       message("No LPI data provided.")
@@ -1247,17 +1206,6 @@ accumulated_species <- function(header,
                     "Species" = "indicator",
                     "Hgt_Species_Avg" = "mean_height",
                     "Hgt_Species_Avg_n" = "n")
-
-    # species_height <- height_species %>%
-    #   subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
-    #   dplyr::count(PrimaryKey, Species) %>%
-    #   dplyr::left_join(., species_height,
-    #                    by = c("PrimaryKey",
-    #                           "Species" = "indicator")) %>%
-    #   dplyr::rename("Hgt_Species_Avg_n" = "n") %>%
-    #
-    #   # remove "None" codes
-    #   subset(Species != "None")
 
     ###### Live vs dead --------------------------------------------------------
     if(dead) {
