@@ -1262,49 +1262,29 @@ accumulated_species <- function(header,
       message("Joining species data to the output")
     }
 
-    # We're going to yank the species information from the inputs_list() because
-    # that's computationally cheaper than doing a join from scratch again.
-    suitable_input_sources <- sapply(X = inputs_list,
-                                     FUN = function(X){
-                                       !is.null(X)
-                                     }) |>
-      which()
-
-    final_species_info <- lapply(X = inputs_list[suitable_input_sources],
-                                 FUN = function(X){
-                                   dplyr::select(.data = X,
-                                                 tidyselect::all_of(x = c("PrimaryKey")),
-                                                 # Should only need the last one in this vector, but the
-                                                 # others don't hurt and were there from previous iterations
-                                                 # of the function. Consider removing them.
-                                                 tidyselect::any_of(x = c("Species",
-                                                                          "Species" = "NameCode",
-                                                                          "Species" = "code")),
-                                                 # We're going to put the PLANTS code in its own variable so
-                                                 # we don't collapse species codes that are distinct but
-                                                 # unrecognized by PLANTS.
-                                                 tidyselect::any_of(x = c("CurrentPLANTSCode")),
-                                                 tidyselect::any_of(c("GrowthHabit",
-                                                                      "GrowthHabitSub",
-                                                                      "Duration",
-                                                                      "Nonnative",
-                                                                      "Noxious",
-                                                                      "Invasive",
-                                                                      "SpecialStatus",
-                                                                      "SG_Group",
-                                                                      "CommonName",
-                                                                      "ScientificName"))) |>
-                                     dplyr::distinct()
-                                 }) |>
-      dplyr::bind_rows() |>
-      dplyr::distinct()
-
-    output <- dplyr::left_join(x = output,
-                               y = final_species_info,
-                               relationship = "many-to-one",
-                               by = c("PrimaryKey",
-                                      "Species"))
-  }
+    output <- species_join(data = output,
+                           species_file = species_info,
+                           species_code = species_code_var,
+                           species_property_vars = c("GrowthHabit",
+                                                     "GrowthHabitSub",
+                                                     "Duration",
+                                                     "Family",
+                                                     "SG_Group",
+                                                     "HigherTaxon",
+                                                     "Nonnative",
+                                                     "Invasive",
+                                                     "Noxious",
+                                                     "SpecialStatus",
+                                                     "Photosynthesis",
+                                                     "PJ",
+                                                     "CurrentPLANTSCode"),
+                           updated_species_join = FALSE,
+                           by_species_key = FALSE,
+                           verbose = verbose) |>
+      adjust_species_attributes(data = _,
+                                fail_on_missing = FALSE,
+                                verbose = verbose)
+    }
 
   ##### Final cleanup ----------------------------------------------------------
   output_indicators <- list(cover = c("AH_SpeciesCover",
