@@ -455,7 +455,12 @@ species_join <- function(data, # field data,
   # the geodatabase, so we'll chuck them to
   # prevent issues down the line, specifically
   # trying to use distinct()
+  # ALSO! This should keep only the absolute minimum of variables as requested
+  # by the user with species_property_vars.
   species_list <- dplyr::select(.data = species_list,
+                                tidyselect::any_of(x = c(species_code,
+                                                         "UpdatedSpeciesCode",
+                                                         species_propoerty_var)),
                                 -tidyselect::any_of(x = c("created_user",
                                                           "created_date",
                                                           "last_edited_user",
