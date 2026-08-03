@@ -192,7 +192,7 @@ generic_growth_habits <- function(data,
                                   "Shrub" = "^2((S[BDEHN])|(S$))",
                                   "Graminoid" = "^2G",
                                   "Succulent" = "^2(FS(?!(MUT)|(UNGI))|(SS(?![BDEN]))|(TS))")
-   aim_growthhabitsub_regexes <- c("Forb" = "^(A{1,2}|P{1,2})F{1,2}\\d*$",
+  aim_growthhabitsub_regexes <- c("Forb" = "^(A{1,2}|P{1,2})F{1,2}\\d*$",
                                   "Tree" = "^(P{1,2})?TR\\d*$",
                                   "Shrub" = "^(((P{1,2})?SH)|(SSHH))\\d*$",
                                   "Graminoid" = "^(A{1,2}|P{1,2})G{1,2}\\d*$",
@@ -653,7 +653,7 @@ species_join <- function(data, # field data,
                                 tidyselect::everything()) |>
     # remove blank and NAs from species list
     dplyr::filter(!is.na(!!rlang::sym(data_code)) & !!rlang::sym(data_code) != "") |>
-# Enforce left_join behavior mapping many-to-one
+    # Enforce left_join behavior mapping many-to-one
     dplyr::left_join(x = data,
                      y = _,
                      relationship = "many-to-one",
