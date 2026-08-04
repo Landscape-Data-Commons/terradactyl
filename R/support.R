@@ -822,6 +822,9 @@ adjust_species_attributes <- function(data,
 
   #### Plant --------------
   if (all(c("GrowthHabit", "GrowthHabitSub", "code") %in% names(data))) {
+    if (verbose) {
+      message("Creating the variable Plant")
+    }
     data <- dplyr::mutate(.data = data,
                           # Because there are species attribute records where
                           # there are not assigned GrowthHabit or GrowthHabitSub
@@ -837,6 +840,10 @@ adjust_species_attributes <- function(data,
                                                    stringi::stri_length(code) >= 3 ~ "Plant",
                                                    .default = NA)
     )
+  } else {
+    if (verbose) {
+      message("Unable to create the variable Plant.")
+    }
   }
 
   #### ShrubSucculent ---------------------------
