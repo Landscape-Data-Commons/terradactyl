@@ -460,7 +460,7 @@ species_join <- function(data, # field data,
   species_list <- dplyr::select(.data = species_list,
                                 tidyselect::any_of(x = c(species_code,
                                                          "UpdatedSpeciesCode",
-                                                         species_propoerty_var)),
+                                                         species_property_vars)),
                                 -tidyselect::any_of(x = c("created_user",
                                                           "created_date",
                                                           "last_edited_user",
@@ -1107,14 +1107,19 @@ accumulated_species <- function(header,
   if (!is.null(inputs_list[["heights"]])) {
 
     height_species <- inputs_list[["heights"]] |>
-      species_join(data = X,
+      # dplyr::mutate(.data = _,
+      #               code = Species) |>
+      species_join(data = _,
                    species_file = species_info,
                    species_code = species_code_var,
                    species_property_vars = c("GrowthHabit",
+                                             "GrowthHabitSub",
                                              "GrowthHabit_measured"),
                    update_species_codes = FALSE,
                    by_species_key = FALSE,
                    verbose = verbose) |>
+      # dplyr::select(.data = _,
+      #               -tidyselect::any_of(x = c("code"))) |>
       # Not necessary, but I'm paranoid.
       dplyr::distinct() |>
       adjust_species_attributes(data = _,
@@ -1150,7 +1155,7 @@ accumulated_species <- function(header,
                     "Hgt_Species_Avg_n" = "n")
 
     ###### Live vs dead --------------------------------------------------------
-    if(dead) {
+    if (dead) {
       message("Calculating live and dead heights.")
       species_height_live_dead <- mean_height(height_tall = readRDS(height_tall) %>%
                                                 subset(PrimaryKey %in% header_sub$PrimaryKey),
@@ -1263,6 +1268,7 @@ accumulated_species <- function(header,
     }
 
     output <- species_join(data = output,
+                           data_code = "Species",
                            species_file = species_info,
                            species_code = species_code_var,
                            species_property_vars = c("GrowthHabit",
@@ -1278,7 +1284,7 @@ accumulated_species <- function(header,
                                                      "Photosynthesis",
                                                      "PJ",
                                                      "CurrentPLANTSCode"),
-                           updated_species_join = FALSE,
+                           update_species_codes = FALSE,
                            by_species_key = FALSE,
                            verbose = verbose) |>
       adjust_species_attributes(data = _,
