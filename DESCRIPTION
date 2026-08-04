@@ -4,6 +4,7 @@ Title: Tools for Creating and Using TerrADat
 Version: 1.9.1
 Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
                person(given="Nelson G", family="Stauffer", role="aut"),
+               person(given="Brandi", family="Wheeler", role="aut"),
                person(given="Joseph R", family = "Brehm", role="aut"),
                person(given="Sarah H", family="Burnett", role="aut"),
                person(given="Chris", family="Dietrich", role="aut"),
