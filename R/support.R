@@ -463,7 +463,7 @@ lpi_indicator_definitions <- function(){
     # mostly for Alaska where they ID mosses to species, but anywhere we don't do
     # it runs the risk of underestimating the amount of moss cover if there are
     # any recorded in the canopy.
-    moss_identifiers = "Moss"
+    moss_identifiers = c("Moss", "moss")
   )
 }
 
