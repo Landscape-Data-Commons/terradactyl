@@ -134,21 +134,35 @@ RHEM <- function(
   )
 
   # Litter, Rock, Soil Cover
-  litter_rock_soil <- basal_cover %>%
-    dplyr::filter(indicator %in% c("ROCK", "SOIL", "SURFACELITTER")) %>%
-    dplyr::mutate(indicator = indicator %>% snakecase::to_upper_camel_case() %>%
-      stringr::str_c("AH_", ., "Cover")) %>%
-    tidyr::pivot_wider(names_from = indicator, values_from = percent) %>%
+  litter_rock_soil <- basal_cover |>
+    dplyr::mutate(.data = _,
+                  indicator = toupper(indicator)) |>
+    dplyr::filter(.data = _,
+                  indicator %in% c("ROCK", "SOIL", "SURFACELITTER")) |>
+    dplyr::mutate(.data = _,
+                  indicator = indicator |>
+                    stringr::str_to_camel(string = _,
+                                          first_upper = TRUE) |>
+                    stringr::str_c("AH_", .x = _, "Cover")) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = percent) |>
     # add total ground cover
-    dplyr::mutate(AH_TotalGroundCover = 100 - AH_SoilCover) %>%
+    dplyr::mutate(.data = _,
+                  AH_TotalGroundCover = 100 - AH_SoilCover) |>
     # rename Surface Litter
-    dplyr::rename("AH_SurfaceLitterCover" = "AH_SurfacelitterCover",
+    dplyr::rename(.data = _,
+                  "AH_SurfaceLitterCover" = "AH_SurfacelitterCover",
                   "AH_BareSoilCover" = "AH_SoilCover")
 
-  basal_cover_sum <- basal_cover %>%
-    dplyr::filter(!indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN", "M", "LC")) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarise(BasalCover = sum(percent,
+  basal_cover_sum <- basal_cover |>
+    dplyr::mutate(.data = _,
+                  indicator = toupper(indicator)) |>
+    dplyr::filter(.data = _,
+                  !indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN", "M", "LC")) |>
+    dplyr::summarize(.data = _,
+                     .by = tidyselect::all_of(x = "PrimaryKey"),
+                     BasalCover = sum(percent,
                                       na.rm = TRUE))
 
   # Slope Shape
