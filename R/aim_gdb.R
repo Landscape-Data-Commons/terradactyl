@@ -742,7 +742,7 @@ lpi_calc <- function(header,
 
   total_foliar <- pct_cover(lpi_tall = lpi_species,
                             tall = TRUE,
-                            hit = "any",
+                            hit = "first",
                             by_line = FALSE,
                             indicator_variables = "Plant",
                             digits = digits) |>
