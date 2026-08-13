@@ -11,10 +11,10 @@
 #' @export RHEM
 #' @rdname RHEM
 RHEM <- function(
-                 lpi_species,
-                 header,
-                 slope_shape,
-                 verbose = FALSE) {
+    lpi_species,
+    header,
+    slope_shape,
+    verbose = FALSE) {
 
   #check we have header info for all data
   lpi_species <-lpi_species %>% subset(PrimaryKey %in% header$PrimaryKey)
@@ -40,7 +40,7 @@ RHEM <- function(
 
   ah_cover_rhem_clean <- ah_cover_rhem %>%
     dplyr::mutate(indicator = indicator %>% snakecase::to_upper_camel_case() %>%
-      stringr::str_c("AH_", ., "Cover")) %>%
+                    stringr::str_c("AH_", ., "Cover")) %>%
     tidyr::pivot_wider(names_from = "indicator", values_from = "percent")
 
   fh_cover_rhem <- pct_cover(
@@ -53,7 +53,7 @@ RHEM <- function(
 
   fh_cover_rhem_clean <- fh_cover_rhem %>%
     dplyr::mutate(indicator = indicator %>% snakecase::to_upper_camel_case() %>%
-      stringr::str_c("FH_", ., "Cover")) %>%
+                    stringr::str_c("FH_", ., "Cover")) %>%
     tidyr::pivot_wider(names_from = "indicator", values_from = "percent")
 
 
@@ -62,17 +62,17 @@ RHEM <- function(
   lpi_species <- lpi_species %>%
     dplyr::mutate(
       layer = factor(layer,
-        levels = c(
-          "TopCanopy",
-          "Lower1",
-          "Lower2",
-          "Lower3",
-          "Lower4",
-          "Lower5",
-          "Lower6",
-          "Lower7",
-          "SoilSurface"
-        )
+                     levels = c(
+                       "TopCanopy",
+                       "Lower1",
+                       "Lower2",
+                       "Lower3",
+                       "Lower4",
+                       "Lower5",
+                       "Lower6",
+                       "Lower7",
+                       "SoilSurface"
+                     )
       )
     ) %>%
     dplyr::arrange(layer)
@@ -153,10 +153,10 @@ RHEM <- function(
 
   # Slope Shape
   slope_shape <- slope_shape %>% dplyr::mutate(SlopeShape = SlopeShape %>%
-    snakecase::to_upper_camel_case() %>%
-    dplyr::recode(
-      "Uniform" = "Linear"
-    ))
+                                                 snakecase::to_upper_camel_case() %>%
+                                                 dplyr::recode(
+                                                   "Uniform" = "Linear"
+                                                 ))
   # join all indicators together
   rhem_indicators <- dplyr::left_join(ah_cover_rhem_clean, fh_cover_rhem_clean, by = "PrimaryKey") %>%
     dplyr::left_join(litter_rock_soil) %>%
