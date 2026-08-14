@@ -11,10 +11,10 @@
 #' @export RHEM
 #' @rdname RHEM
 RHEM <- function(
-                 lpi_species,
-                 header,
-                 slope_shape,
-                 verbose = FALSE) {
+    lpi_species,
+    header,
+    slope_shape,
+    verbose = FALSE) {
 
   #check we have header info for all data
   lpi_species <-lpi_species %>% subset(PrimaryKey %in% header$PrimaryKey)
@@ -40,7 +40,7 @@ RHEM <- function(
 
   ah_cover_rhem_clean <- ah_cover_rhem %>%
     dplyr::mutate(indicator = indicator %>% snakecase::to_upper_camel_case() %>%
-      stringr::str_c("AH_", ., "Cover")) %>%
+                    stringr::str_c("AH_", ., "Cover")) %>%
     tidyr::pivot_wider(names_from = "indicator", values_from = "percent")
 
   fh_cover_rhem <- pct_cover(
@@ -53,7 +53,7 @@ RHEM <- function(
 
   fh_cover_rhem_clean <- fh_cover_rhem %>%
     dplyr::mutate(indicator = indicator %>% snakecase::to_upper_camel_case() %>%
-      stringr::str_c("FH_", ., "Cover")) %>%
+                    stringr::str_c("FH_", ., "Cover")) %>%
     tidyr::pivot_wider(names_from = "indicator", values_from = "percent")
 
 
@@ -62,17 +62,17 @@ RHEM <- function(
   lpi_species <- lpi_species %>%
     dplyr::mutate(
       layer = factor(layer,
-        levels = c(
-          "TopCanopy",
-          "Lower1",
-          "Lower2",
-          "Lower3",
-          "Lower4",
-          "Lower5",
-          "Lower6",
-          "Lower7",
-          "SoilSurface"
-        )
+                     levels = c(
+                       "TopCanopy",
+                       "Lower1",
+                       "Lower2",
+                       "Lower3",
+                       "Lower4",
+                       "Lower5",
+                       "Lower6",
+                       "Lower7",
+                       "SoilSurface"
+                     )
       )
     ) %>%
     dplyr::arrange(layer)
@@ -134,29 +134,43 @@ RHEM <- function(
   )
 
   # Litter, Rock, Soil Cover
-  litter_rock_soil <- basal_cover %>%
-    dplyr::filter(indicator %in% c("ROCK", "SOIL", "SURFACELITTER")) %>%
-    dplyr::mutate(indicator = indicator %>% snakecase::to_upper_camel_case() %>%
-      stringr::str_c("AH_", ., "Cover")) %>%
-    tidyr::pivot_wider(names_from = indicator, values_from = percent) %>%
+  litter_rock_soil <- basal_cover |>
+    dplyr::mutate(.data = _,
+                  indicator = toupper(indicator)) |>
+    dplyr::filter(.data = _,
+                  indicator %in% c("ROCK", "SOIL", "SURFACELITTER")) |>
+    dplyr::mutate(.data = _,
+                  indicator = indicator |>
+                    stringr::str_to_camel(string = _,
+                                          first_upper = TRUE) |>
+                    stringr::str_c("AH_", .x = _, "Cover")) |>
+    tidyr::pivot_wider(data = _,
+                       names_from = indicator,
+                       values_from = percent) |>
     # add total ground cover
-    dplyr::mutate(AH_TotalGroundCover = 100 - AH_SoilCover) %>%
+    dplyr::mutate(.data = _,
+                  AH_TotalGroundCover = 100 - AH_SoilCover) |>
     # rename Surface Litter
-    dplyr::rename("AH_SurfaceLitterCover" = "AH_SurfacelitterCover",
+    dplyr::rename(.data = _,
+                  "AH_SurfaceLitterCover" = "AH_SurfacelitterCover",
                   "AH_BareSoilCover" = "AH_SoilCover")
 
-  basal_cover_sum <- basal_cover %>%
-    dplyr::filter(!indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN", "M", "LC")) %>%
-    dplyr::group_by(PrimaryKey) %>%
-    dplyr::summarise(BasalCover = sum(percent,
+  basal_cover_sum <- basal_cover |>
+    dplyr::mutate(.data = _,
+                  indicator = toupper(indicator)) |>
+    dplyr::filter(.data = _,
+                  !indicator %in% c("ROCK", "SOIL", "SURFACELITTER", "2MOSS", "2LICHN", "M", "LC")) |>
+    dplyr::summarize(.data = _,
+                     .by = tidyselect::all_of(x = "PrimaryKey"),
+                     BasalCover = sum(percent,
                                       na.rm = TRUE))
 
   # Slope Shape
   slope_shape <- slope_shape %>% dplyr::mutate(SlopeShape = SlopeShape %>%
-    snakecase::to_upper_camel_case() %>%
-    dplyr::recode(
-      "Uniform" = "Linear"
-    ))
+                                                 snakecase::to_upper_camel_case() %>%
+                                                 dplyr::recode(
+                                                   "Uniform" = "Linear"
+                                                 ))
   # join all indicators together
   rhem_indicators <- dplyr::left_join(ah_cover_rhem_clean, fh_cover_rhem_clean, by = "PrimaryKey") %>%
     dplyr::left_join(litter_rock_soil) %>%
