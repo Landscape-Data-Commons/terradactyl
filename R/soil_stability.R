@@ -16,9 +16,19 @@
 #' @param tall Logical. Indicates if output will be tall/long or wide. Defaults to \code{TRUE}.
 #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
 #' @return Data frame of calculated soil stability values by PrimaryKey, depth, and cover type.
-
+#' @examples
+#' # To calculate all soil stability indicators
+#' soil_stability_indicators <- soil_stability(soil_stability_tall = soil_stability_data)
+#'
+#' # To calculate only uncovered soil stability indicators for only subsurface samples
+#' soil_stability_indicators <- soil_stability(soil_stability_tall = soil_stability_data,
+#'                                             depths = "subsurface",
+#'                                             all = FALSE,
+#'                                             uncovered = TRUE,
+#'                                             cover = FALSE,
+#'                                             all_cover_types = FALSE)
+#'
 #' @export soil_stability
-#' @rdname soil_stability
 soil_stability <- function(soil_stability_tall,
                            depths = c("surface",
                                      "subsurface"),

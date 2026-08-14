@@ -42,3 +42,16 @@ Data frame of calculated soil stability values by PrimaryKey, depth, and cover t
 \description{
 Soil Stability Indicator Calculations
 }
+\examples{
+# To calculate all soil stability indicators
+soil_stability_indicators <- soil_stability(soil_stability_tall = soil_stability_data)
+
+# To calculate only uncovered soil stability indicators for only subsurface samples
+soil_stability_indicators <- soil_stability(soil_stability_tall = soil_stability_data,
+                                            depths = "subsurface",
+                                            all = FALSE,
+                                            uncovered = TRUE,
+                                            cover = FALSE,
+                                            all_cover_types = FALSE)
+
+}
