@@ -11,7 +11,7 @@ lpi_calc(
   species_code_var = "SpeciesCode",
   indicators_vars = NULL,
   expected_indicator_names,
-  apply_species_adjustment = FALSE,
+  apply_species_adjustment = TRUE,
   generic_species_file = NULL,
   digits = 6,
   verbose = FALSE
