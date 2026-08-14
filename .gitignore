@@ -3,7 +3,7 @@ inst/doc
 *.Rhistory
 *.RData
 *.Ruserdata
-/testing
+testing
 *.Rproj
 .Rproj.user
 *.zip
