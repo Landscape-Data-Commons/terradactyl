@@ -6,7 +6,8 @@
 # }
 
 #' Soil Stability Indicator Calculations
-#' @param soil_stability_tall Dataframe Gathered soil stability data
+#' @param soil_stability_tall Data frame. Gathered (long/tall-format) soil stability data.
+#' @param depths Character vector. If the variable Depth is present in \code{soil_stability_tall} then the calculations will include only records where the value in Depth matches one of these values (case-insensitive). Defaults to \code{c("surface", "subsurface")}.
 #' @param all Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples regardless of cover type will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"all"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_All. Defaults to \code{TRUE}.
 #' @param cover Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples associated with perennial plant cover (defined as records which DO NOT have \code{"NC"} in the Veg variable) will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"covered"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_Protected. Defaults to \code{TRUE}.
 #' @param uncovered. Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples not associated with perennial plant cover (defined as records which have \code{"NC"} in the Veg variable) will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"uncovered"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_Unprotected. Defaults to \code{TRUE}.
@@ -14,11 +15,13 @@
 #' @param exclude_na_cover Logical. When \code{TRUE}, all records with \code{NA} in the Veg variable will be removed prior to calculations. Defaults to \code{TRUE}.
 #' @param tall Logical. Indicates if output will be tall/long or wide. Defaults to \code{TRUE}.
 #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{1} are not recommended because they will likely imply false precision. Defaults to \code{1}.
-#' @return Dataframe of calculated soil stability values by plot and cover type.
+#' @return Data frame of calculated soil stability values by PrimaryKey, depth, and cover type.
 
 #' @export soil_stability
 #' @rdname soil_stability
 soil_stability <- function(soil_stability_tall,
+                           depths = c("surface",
+                                     "subsurface"),
                            all = TRUE,
                            cover = TRUE,
                            uncovered = TRUE,
@@ -50,9 +53,9 @@ soil_stability <- function(soil_stability_tall,
 
   if (!all(current_required_variables %in% names(soil_stability_tall))) {
     stop(paste0("The following variables are required but not present in soil_stability_tall: ",
-               paste(setdiff(x = current_required_variables,
-                             y = names(soil_stability_tall))),
-               collapse = ", "))
+                paste(setdiff(x = current_required_variables,
+                              y = names(soil_stability_tall))),
+                collapse = ", "))
   }
 
   # Remove records with NA Veg values if requested.
@@ -79,6 +82,56 @@ soil_stability <- function(soil_stability_tall,
     }
   }
 
+  # Handle the user-defined depths
+  valid_depths <- c("surface",
+                    "subsurface")
+
+  requested_depths <- tolower(depths)
+
+  invalid_depths <- depths[which(!requested_depths %in% valid_depths)] |>
+    unique()
+
+  if (length(invalid_depths) > 0) {
+    stop(paste0("The following value(s) provided in the argument depth are invalid: ",
+                paste(invalid_depths,
+                      collapse = ", ")))
+  } else {
+    # Holding off on this unique to make it easier to tell the user about values
+    # which are unique by capitalization but will be treated as identical below
+    requested_depths <- unique(requested_depths)
+  }
+
+
+  if ("Depth" %in% names(soil_stability_tall)) {
+    if (verbose) {
+      message(paste0("Restricting calculations to records where Depth is one of the following values (case-insensitive): ",
+                     paste(requested_depths,
+                           collapse = ", ")))
+    }
+
+    if (verbose) {
+      unaccounted_for_depths <- unique(soil_stability_tall$Depth)[which(!(tolower(soil_stability_tall$Depth) |>
+                                                                            unique() %in% requested_depths))]
+      if (length(unaccounted_for_depths) > 0) {
+        message(paste0("The following depths are represented in the data but will not be included in the calculations: ",
+                       paste(unaccounted_for_depths,
+                             collapse = ", ")))
+      }
+    }
+
+    soil_stability_tall <- dplyr::filter(.data = soil_stability_tall,
+                                         tolower(Depth) %in% requested_depths)
+
+    if (nrow(soil_stability_tall) < 1) {
+      stop(paste0('No records in soil_stability_tall exist for any of the values provided in the depth argument ("',
+                  paste(requested_depths,
+                        collapse = '", "'), '")'))
+    }
+  } else {
+    if (verbose) {
+      message("The variable Depth is not present in soil_stability_tall and all records will be assumed to be sampled from the same depth.")
+    }
+  }
 
   #### Calculations ############################################################
   # A list to store our outputs from the various calculations.
@@ -92,7 +145,8 @@ soil_stability <- function(soil_stability_tall,
     }
 
     soil_stability_indicator_list[["all"]] <- dplyr::summarize(.data = soil_stability_tall,
-                                                               .by = c("PrimaryKey"),
+                                                               .by = tidyselect::any_of(x = c("PrimaryKey",
+                                                                                              "Depth")),
                                                                # rating_mode = mode(Rating),
                                                                # rating_median = median(Rating),
                                                                rating = mean(Rating)) |>
@@ -113,7 +167,8 @@ soil_stability <- function(soil_stability_tall,
     soil_stability_indicator_list[["covered"]] <- dplyr::filter(.data = soil_stability_tall,
                                                                 !(Veg %in% c("NC"))) |>
       dplyr::summarize(.data = _,
-                       .by = c("PrimaryKey"),
+                       .by = tidyselect::any_of(x = c("PrimaryKey",
+                                                      "Depth")),
                        # rating_mode = mode(Rating),
                        # rating_median = median(Rating),
                        rating = mean(Rating)) |>
@@ -128,7 +183,8 @@ soil_stability <- function(soil_stability_tall,
     soil_stability_indicator_list[["uncovered"]] <- dplyr::filter(.data = soil_stability_tall,
                                                                   Veg %in% c("NC")) |>
       dplyr::summarize(.data = _,
-                       .by = c("PrimaryKey"),
+                       .by = tidyselect::any_of(x = c("PrimaryKey",
+                                                      "Depth")),
                        # rating_mode = mode(Rating),
                        # rating_median = median(Rating),
                        rating = mean(Rating)) |>
@@ -141,8 +197,9 @@ soil_stability <- function(soil_stability_tall,
     soil_stability_indicator_list[["all_cover_types"]] <- dplyr::filter(.data = soil_stability_tall,
                                                                         Veg %in% c("NC")) |>
       dplyr::summarize(.data = _,
-                       .by = c("PrimaryKey",
-                               "Veg"),
+                       .by = tidyselect::any_of(x = c("PrimaryKey",
+                                                      "Veg",
+                                                      "Depth")),
                        # rating_mode = mode(Rating),
                        # rating_median = median(Rating),
                        rating = mean(Rating))

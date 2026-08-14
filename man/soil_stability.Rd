@@ -6,6 +6,7 @@
 \usage{
 soil_stability(
   soil_stability_tall,
+  depths = c("surface", "subsurface"),
   all = TRUE,
   cover = TRUE,
   uncovered = TRUE,
@@ -17,7 +18,9 @@ soil_stability(
 )
 }
 \arguments{
-\item{soil_stability_tall}{Dataframe Gathered soil stability data}
+\item{soil_stability_tall}{Data frame. Gathered (long/tall-format) soil stability data.}
+
+\item{depths}{Character vector. If the variable Depth is present in \code{soil_stability_tall} then the calculations will include only records where the value in Depth matches one of these values (case-insensitive). Defaults to \code{c("surface", "subsurface")}.}
 
 \item{all}{Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples regardless of cover type will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"all"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_All. Defaults to \code{TRUE}.}
 
@@ -34,7 +37,7 @@ soil_stability(
 \item{uncovered.}{Logical. When \code{TRUE}, an indicator representing mean soil stability for all samples not associated with perennial plant cover (defined as records which have \code{"NC"} in the Veg variable) will be calculated. If \code{tall = TRUE} these indicator values will be associated with \code{"uncovered"} in the Veg variable. If \code{tall = FALSE} they will be found in the variable called SoilStability_Unprotected. Defaults to \code{TRUE}.}
 }
 \value{
-Dataframe of calculated soil stability values by plot and cover type.
+Data frame of calculated soil stability values by PrimaryKey, depth, and cover type.
 }
 \description{
 Soil Stability Indicator Calculations
