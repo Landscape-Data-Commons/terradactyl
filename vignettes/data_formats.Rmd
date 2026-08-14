@@ -1,0 +1,93 @@
+---
+title: "Recognized and Assumed Data Formats"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Recognized and Assumed Data Formats}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(terradactyl)
+```
+
+# Overview
+Many of the functions in terradactyl make assumptions about incoming data tabular formats, specifically the names of variables containing expected values and their data types/classes. In some cases, there are arguments for providing the name of a variable for a particular value type, e.g., `species_join()` has arguments for identifying the variables that contain species attributes like growth habits. Other functions like the `gather_*()` family have exclusively hard-coded variable names based on the incoming data types.
+
+Some variables are common across multiple or even all data types. Most critically, this includes PrimaryKey which is expected in nearly every data input. This document describes the expected and required variables for all tabular data and which data sets they are part of.
+
+To see the expectations for specific variables, reference the [Variables] section.
+
+To see the expectations for a table, reference the [Data Types] section.
+
+# Variables
+The following are the variables that various functions expect, their descriptions, the allowed values, and which data types they're required for. To see these organized by data type, see the [Data Types] section.
+
+## PrimaryKey
+A unique sampling event
+
+## LineKey
+Unique transect ID. Unique only in combination with associated [PrimaryKey] value.
+
+## LineLengthAmount
+Length of transect
+
+## Measure
+1 or 2 where 1 is metric and 2 is imperial
+
+## GapStart
+Mark on transect in cm or in where a gap started. Units indicated by associated [Measure] value
+
+## GapEnd
+Mark on transect in cm or in where a gap started. Units indicated by associated [Measure] value
+
+## Gap
+Length of gap in cm or in. Units indicated by associated [Measure] value.
+
+## RecType
+"C", "B", or "P" corresponding to if the gap represents canopy gap, basal gap, or perennial-only canopy gap, respectively.
+
+
+# Data Types
+Data types are cool
+
+## Cover and heights
+### Tables
+#### tblLPIHeader
+#### tblLPIDetail
+#### lpi_tall
+
+## Canopy gaps
+
+### Tables
+
+#### tblGapHeader
+
+#### tblGapDetail
+
+#### gap_tall
+This is the tall/long-format gap data used by functions like `gap_cover()` and which can be produced by `gather_gap()` from [tblGapHeader] and [tblGapDetail].
+
+##### Variables
+[PrimaryKey], [LineKey], [LineLengthAmount], [Measure], [GapStart], [GapEnd], [Gap], [RecType]
+
+## Species inventory
+### Tables
+#### tblSpeciesInvHeader
+#### tblSpeciesInvDetail
+#### species_tall
+
+## Soil stability
+### Tables
+#### tblSoilStabHeader
+#### tblSoilStabDetail
+#### gap_tall
+
+## Interpreting Indicators of Rangeland Health (IIRH) {IIRH}
