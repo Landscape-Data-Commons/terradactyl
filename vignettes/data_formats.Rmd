@@ -31,13 +31,43 @@ To see the expectations for a table, reference the [Data Types] section.
 The following are the variables that various functions expect, their descriptions, the allowed values, and which data types they're required for. To see these organized by data type, see the [Data Types] section.
 
 ## PrimaryKey
-A unique sampling event
+
+### Value type
+Character string
+
+### Present in
+[tblHeader]
+
+### Description
+PrimaryKey functions as the unique identifier for a sampling event at a location, i.e., a field crew visiting a plot and collecting data with one or more methods. Every record across all data tables associated with a sampling event will share the same PrimaryKey value.
+
+In most tables, PrimaryKey values are not unique per-record. Exceptions include header tables (e.g. [tblLPIHeader]) in which there should only be one record per sampling event at a location.
 
 ## LineKey
-Unique transect ID. Unique only in combination with associated [PrimaryKey] value.
+
+### Value type
+Character string
+
+### Present in
+[tblLPIHeader]
+
+### Description
+LineKey functions as the unique identifier for a transect *for a [PrimaryKey]*. The values in LineKey should not be used as a unique identifier within any table because it is intended to be used in conjunction with [PrimaryKey].
+
+All records associated with the same transect—that is, collected along, from, or on that transect—share the same LineKey value. This is expected to hold true across tables. For example, canopy gap data and LPI data collected on the same transect for the same PrimaryKey would be expected to share the same LineKey value.
 
 ## LineLengthAmount
-Length of transect
+
+### Value type
+Numeric
+
+### Present in
+[tblGapHeader]
+
+### Description
+The length of the transect for the associated [PrimaryKey] and [LineKey] combination.
+
+The units for this variable are not standardized. In cases like [tblGapHeader] the [Measure] variable is used to indicate whether this is imperial or metric. Typically, this value is in meters but may also be recorded in centimeters or even feet.
 
 ## Measure
 1 or 2 where 1 is metric and 2 is imperial
