@@ -745,8 +745,12 @@ lpi_calc <- function(header,
                             hit = "first",
                             by_line = FALSE,
                             indicator_variables = "Plant",
-                            digits = digits) |>
-    dplyr::mutate(indicator = "TotalFoliarCover")
+                                                       digits = digits)
+  #Mutate total_foliar has to be kept separate in case it is NULL
+  if (!is.null(total_foliar)) {
+    total_foliar <- total_foliar %>%
+      mutate(indicator = "TotalFoliarCover")
+  }
 
   ##### All other cover ########################################################
   unique_grouping_vars <- unlist(x = variable_groups) |> unique()
