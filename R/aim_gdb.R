@@ -748,8 +748,15 @@ lpi_calc <- function(header,
                             digits = digits)
   # Mutate total_foliar has to be kept separate in case it is NULL
   if (!is.null(total_foliar)) {
-    total_foliar <- total_foliar %>%
-      mutate(indicator = "TotalFoliarCover")
+    total_foliar <- dplyr::mutate(.data = total_foliar,
+                                  indicator = "TotalFoliarCover")
+  } else {
+    total_foliar <- dplyr::select(.data = lpi_species,
+                                  tidyselect::all_of(x = "PrimaryKey")) |>
+      dplyr::distinct() |>
+      dplyr::mutate(.data = _,
+                    indicator = "TotalFoliarCover",
+                    percent = 0)
   }
 
   ##### All other cover ########################################################
