@@ -36,7 +36,7 @@ The following are the variables that various functions expect, their description
 Character string
 
 ### Present in
-[tblHeader]
+[tblLPIHeader]
 
 ### Description
 PrimaryKey functions as the unique identifier for a sampling event at a location, i.e., a field crew visiting a plot and collecting data with one or more methods. Every record across all data tables associated with a sampling event will share the same PrimaryKey value.
@@ -52,7 +52,7 @@ Character string
 [tblLPIHeader]
 
 ### Description
-LineKey functions as the unique identifier for a transect *for a [PrimaryKey]*. The values in LineKey should not be used as a unique identifier within any table because it is intended to be used in conjunction with [PrimaryKey].
+LineKey functions as the unique identifier for a transect *for a [PrimaryKey]*. The values in LineKey is not expected to be a unique identifier for a transect within any table because it is intended to be used in conjunction with [PrimaryKey]. Any uniqueness will be incidental.
 
 All records associated with the same transect—that is, collected along, from, or on that transect—share the same LineKey value. This is expected to hold true across tables. For example, canopy gap data and LPI data collected on the same transect for the same PrimaryKey would be expected to share the same LineKey value.
 
@@ -70,7 +70,15 @@ The length of the transect for the associated [PrimaryKey] and [LineKey] combina
 The units for this variable are not standardized. In cases like [tblGapHeader] the [Measure] variable is used to indicate whether this is imperial or metric. Typically, this value is in meters but may also be recorded in centimeters or even feet.
 
 ## Measure
-1 or 2 where 1 is metric and 2 is imperial
+
+### Value type
+Numeric
+
+### Present in
+[tblGapHeader]
+
+### Description
+This variable indicates the family of units used for recording data for a combination of method, [PrimaryKey], and [LineKey]. When the value of Measure is 1 the units are metric (centimeters or meters). When the value is 2 the units are imperial (inches or feet). The particular units used for a measurement are specific to the method and implementation.
 
 ## GapStart
 Mark on transect in cm or in where a gap started. Units indicated by associated [Measure] value
