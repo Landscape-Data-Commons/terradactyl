@@ -30,7 +30,8 @@ RHEM <- function(lpi_species,
   # Total Foliar Cover
   total_foliar <- pct_cover_total_foliar(lpi_tall = lpi_species,
                                          by_line = FALSE,
-                                         tall = TRUE) |>
+                                         tall = TRUE,
+                                         verbose = verbose) |>
     dplyr::select(.data = _,
                   tidyselect::all_of(x = c("PrimaryKey",
                                            "FH_TotalFoliarCover" = "percent")))
