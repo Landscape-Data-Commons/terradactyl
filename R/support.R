@@ -463,7 +463,7 @@ lpi_indicator_definitions <- function(){
     # mostly for Alaska where they ID mosses to species, but anywhere we don't do
     # it runs the risk of underestimating the amount of moss cover if there are
     # any recorded in the canopy.
-    moss_identifiers = "Moss"
+    moss_identifiers = c("Moss", "moss")
   )
 }
 
@@ -709,10 +709,6 @@ adjust_species_attributes <- function(data,
   # species attributes in accordance with AIM definitions
   definitions_list <- lpi_indicator_definitions()
 
-  if (verbose) {
-    message("Harmonizing species characteristics with AIM indicator needs.")
-  }
-
   # Let's check for the required variables for all these.
   # If any are missing, we can warn the user that those variables will be
   # created but populated with NA and so no indicators that involve them will
@@ -756,15 +752,25 @@ adjust_species_attributes <- function(data,
 
   #### Live ----------
   if (all(c("chckbox") %in% names(data))) {
+    if (verbose) {
+      message("Creating Live using chckbox variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           Live = dplyr::case_when(chckbox %in% c(0, "0") ~ "Live",
                                                   # chckbox %in% c("1") ~ "Dead",
                                                   .default = NA)
     )
+  } else {
+    if (verbose) {
+      message("chckbox variable is not present. The variable Live will not be created.")
+    }
   }
 
   #### Duration ----------
   if (all(c("Duration") %in% names(data))) {
+    if (verbose) {
+      message("Adjusting values in the Duration variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           Duration = dplyr::case_when(grepl(x = Duration,
                                                             pattern = "perennial",
@@ -775,10 +781,17 @@ adjust_species_attributes <- function(data,
                                                       is.na(Duration) ~ "duration_irrelevant",
                                                       .default = Duration)
     )
+  } else {
+    if (verbose) {
+      message("Duration variable is not present and will not be modified.")
+    }
   }
 
   #### GrowthHabit ------------
   if (all(c("GrowthHabit") %in% names(data))) {
+    if (verbose) {
+      message("Adjusting values in the GrowthHabit variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           GrowthHabit = dplyr::case_when(grepl(x = GrowthHabit,
                                                                pattern = "^non-?woody$",
@@ -794,10 +807,17 @@ adjust_species_attributes <- function(data,
                                                          # is.na(GrowthHabit) ~ "growthhabit_irrelevant",
                                                          .default = GrowthHabit)
     )
+  } else {
+    if (verbose) {
+      message("GrowthHabit variable is not present and will not be modified.")
+    }
   }
 
   #### GrowthHabitSub -----------
   if (all(c("GrowthHabitSub") %in% names(data))) {
+    if (verbose) {
+      message("Adjusting values in GrowthHabitSub variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           GrowthHabitSub = dplyr::case_when(grepl(x = GrowthHabitSub,
                                                                   pattern = "forb",
@@ -823,10 +843,17 @@ adjust_species_attributes <- function(data,
                                                             # is.na(GrowthHabit) ~ "growthhabitsub_irrelevant",
                                                             .default = GrowthHabitSub)
     )
+  } else {
+    if (verbose) {
+      message("GrowthHabitSub variable is not present and will not be modified.")
+    }
   }
 
   #### Plant --------------
   if (all(c("GrowthHabit", "GrowthHabitSub", "code") %in% names(data))) {
+    if (verbose) {
+      message("Creating Plant variable using GrowthHabit, GrowthHabitSub, and code variables.")
+    }
     data <- dplyr::mutate(.data = data,
                           # Because there are species attribute records where
                           # there are not assigned GrowthHabit or GrowthHabitSub
@@ -838,24 +865,43 @@ adjust_species_attributes <- function(data,
                           #                                               NA)) & nchar(code) >= 3 ~ "Plant",
                           #                          .default = NA)
                           Plant = dplyr::case_when(!(GrowthHabitSub %in% c("growthhabitsub_irrelevant")) &
-                                                     GrowthHabit != "Nonvascular"&
+                                                     !(GrowthHabit %in% "Nonvascular") &
                                                    stringi::stri_length(code) >= 3 ~ "Plant",
                                                    .default = NA)
     )
+  } else {
+    if (verbose) {
+      setdiff(x = c("GrowthHabit", "GrowthHabitSub", "code"),
+              y = names(data)) |>
+        paste(.x = _,
+              collapse = ", ") |>
+        paste0("Some variables are not present (", .x = _, "). The variable Plant will not be created.") |>
+      message()
+    }
   }
 
   #### ShrubSucculent ---------------------------
   if (all(c("GrowthHabitSub") %in% names(data))) {
+    if (verbose) {
+      message("Creating ShrubSucculent using GrowthHabitSub variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           ShrubSucculent = dplyr::case_when(grepl(x = GrowthHabitSub,
                                                                   pattern = "shrub|succulent",
                                                                   ignore.case = TRUE) ~ "ShrubSucculent",
                                                             .default = NA)
     )
+  } else {
+    if (verbose) {
+      message("GrowthHabitSub variable is not present. The variable ShrubSucculent will not be created.")
+    }
   }
 
 
   if (all(c("code") %in% names(data))) {
+    if (verbose) {
+      message("Creating Litter, TotalLitter, Biocrust, Lichen, Rock, Duff, Water, and AdditionalRemoteSensing using code variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           #### Litter ---------------------
                           Litter = dplyr::case_when(
@@ -895,23 +941,40 @@ adjust_species_attributes <- function(data,
                           AdditionalRemoteSensing = dplyr::case_when(code %in% c("DS") ~ "DepSoil",
                                                                      .default = "remote_sensing_irrelevant")
     )
+  } else {
+    if (verbose) {
+      message("code variable is not present. The variables Litter, TotalLitter, Biocrust, Lichen, Rock, Duff, Water, and AdditionalRemoteSensing will not be created.")
+    }
   }
 
   #### PJ --------------
   if (all(c("PJ") %in% names(data))) {
+    if (verbose) {
+      message("Adjusting values in the PJ variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           PJ = dplyr::case_when(PJ %in% c(TRUE) ~ "PJ",
                                                 .default = NA)
     )
   } else if (all(c("code") %in% names(data))) {
+    if (verbose) {
+      message("Creating PJ using code variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           PJ = dplyr::case_when(code %in% definitions_list[["pj_identifiers"]] ~ "PJ",
                                                 .default = NA)
     )
+  } else {
+    if (verbose) {
+      message("Neither the code or PJ variables are not present. The variable PJ will not be created or modified.")
+    }
   }
 
   #### C3/C4 ---------------------
   if (all(c("Photosynthesis") %in% names(data))) {
+    if (verbose) {
+      message("Creating C3 and C4 using Photosynthesis variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           C3 = dplyr::case_when(grepl(x = Photosynthesis,
                                                       pattern = "C3") ~ "C3",
@@ -920,9 +983,16 @@ adjust_species_attributes <- function(data,
                                                       pattern = "C4") ~ "C4",
                                                 .default = NA)
     )
+  } else {
+    if (verbose) {
+      message("The Photosynthesis variable is not present. The C3 and C4 variables will not be created.")
+    }
   }
 
   if (all(c("Family") %in% names(data))) {
+    if (verbose) {
+      message("Creating Grass and Conifer using Family variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           #### Grass ------------
                           Grass = dplyr::case_when(Family %in% c("Poaceae") ~ "Grass",
@@ -931,10 +1001,17 @@ adjust_species_attributes <- function(data,
                           Conifer = dplyr::case_when(Family %in% definitions_list[["conifer_identifiers"]] ~ "Conifer",
                                                      .default = NA)
     )
+  } else {
+    if (verbose) {
+      message("The Family variable is not present. The Grass and Conifer variables will not be created.")
+    }
   }
 
 
   if (all(c("GrowthHabitSub", "Family") %in% names(data))) {
+    if (verbose) {
+      message("Creating ForbGraminoid and ForbGrass using GrowthHabitSub and Family variables.")
+    }
     data <- dplyr::mutate(.data = data,
                           #### Forb/Graminoid ---------------------
                           ForbGraminoid = dplyr::case_when(grepl(x = GrowthHabitSub,
@@ -947,11 +1024,23 @@ adjust_species_attributes <- function(data,
                                                              ignore.case = TRUE) | Family %in% "Poaceae" ~ "ForbGrass",
                                                        .default = NA)
     )
+  } else {
+    if (verbose) {
+      setdiff(x = c("GrowthHabitSub", "Family"),
+              y = names(data)) |>
+        paste(.x = _,
+              collapse = ", ") |>
+        paste0("Some variables are not present (", .x = _, "). The variables ForbGraminoid and ForbGrass will not be created.") |>
+        message()
+    }
   }
 
 
   #### SG_Group ---------------------
   if (all(c("SG_Group", "SpeciesState", "GrowthHabitSub") %in% names(data))) {
+    if (verbose) {
+      message("Adjusting values in SG_Group using SG_Group, SpeciesState, and GrowthHabitSub variables.")
+    }
     data <- dplyr::mutate(.data = data,
                           # This is to turn the SG_Group codes into values
                           # that match the expected indicator names for
@@ -974,9 +1063,21 @@ adjust_species_attributes <- function(data,
                                                       is.na(SG_Group) & GrowthHabitSub != "Shrub" ~ "Irrelevant",
                                                       .default = SG_Group)
     )
+  } else {
+    if (verbose) {
+      setdiff(x = c("SG_Group", "SpeciesState", "GrowthHabitSub"),
+              y = names(data)) |>
+        paste(.x = _,
+              collapse = ", ") |>
+        paste0("Some variables are not present (", .x = _, "). The variable SG_Group will not be modified.") |>
+        message()
+    }
   }
 
   if (all(c("code", "HigherTaxon") %in% names(data))) {
+    if (verbose) {
+      message("Creating Moss and between_plant using code and HigherTaxon variables.")
+    }
     data <- dplyr::mutate(.data = data,
                           #### Moss ---------------------
                           Moss = dplyr::case_when(HigherTaxon %in% definitions_list[["moss_identifiers"]] |
@@ -1005,10 +1106,22 @@ adjust_species_attributes <- function(data,
                                                            code %in% definitions_list[["between_plant_codes"]][["BareSoil"]] ~ "BareSoil",
                                                            .default = "between_plant_irrelevant")
     )
+  } else {
+    if (verbose) {
+      setdiff(x = c("code", "HigherTaxon"),
+              y = names(data)) |>
+        paste(.x = _,
+              collapse = ", ") |>
+        paste0("Some variables are not present (", .x = _, "). The variables Moss and between_plant will not be created.") |>
+        message()
+    }
   }
 
   #### Native ---------------------
   if (all(c("Nonnative", "Plant") %in% names(data))) {
+    if (verbose) {
+      message("Creating Native using Nonnative and Plant variables.")
+    }
     data <- dplyr::mutate(.data = data,
                           # This is for the native and non-native cover
                           # It assumes that everything flagged as EXOTIC or
@@ -1020,10 +1133,22 @@ adjust_species_attributes <- function(data,
                                                       !is.na(Plant) ~ "NonNative",
                                                     .default = NA)
     )
+  } else {
+    if (verbose) {
+      setdiff(x = c("Nonnative", "Plant"),
+              y = names(data)) |>
+        paste(.x = _,
+              collapse = ", ") |>
+        paste0("Some variables are not present (", .x = _, "). The variable Native will not be created.") |>
+        message()
+    }
   }
 
   #### Invasive ---------------------
   if (all(c("Invasive") %in% names(data))) {
+    if (verbose) {
+      message("Adjusting values in Invasive variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           # This is just to make the Invasive values match
                           # the desired indicator names.
@@ -1031,6 +1156,10 @@ adjust_species_attributes <- function(data,
                             tidyr::replace_na(data = _,
                                               replace = "NonInv")
     )
+  } else {
+    if (verbose) {
+        message("The variable Invasive is not present and will not be modified.")
+    }
   }
 
   #### Noxious ----------------------------------
@@ -1065,11 +1194,23 @@ adjust_species_attributes <- function(data,
   # removed, but for now they're still in there and
   # this regex will work regardless.
   if (all(c("Noxious", "SpeciesState") %in% names(data))) {
+    if (verbose) {
+      message("Adjusting values in Noxious variable.")
+    }
     data <- dplyr::mutate(.data = data,
                           Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
                                                                          pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
                                                      .default = "noxious_irrelevant")
     )
+  } else {
+    if (verbose) {
+      setdiff(x = c("Noxious", "SpeciesState"),
+              y = names(data)) |>
+        paste(.x = _,
+              collapse = ", ") |>
+        paste0("Some variables are not present (", .x = _, "). The variable Noxious will not be modified.") |>
+        message()
+    }
   }
 
   # These are all variables that this function intends to modify or create

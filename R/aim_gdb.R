@@ -584,7 +584,7 @@ lpi_calc <- function(header,
                      species_code_var = "SpeciesCode",
                      indicators_vars = NULL,
                      expected_indicator_names,
-                     apply_species_adjustment = FALSE,
+                     apply_species_adjustment = TRUE,
                      generic_species_file = NULL,
                      digits = 6,
                      verbose = FALSE) {
@@ -742,11 +742,22 @@ lpi_calc <- function(header,
 
   total_foliar <- pct_cover(lpi_tall = lpi_species,
                             tall = TRUE,
-                            hit = "any",
+                            hit = "first",
                             by_line = FALSE,
                             indicator_variables = "Plant",
-                            digits = digits) |>
-    dplyr::mutate(indicator = "TotalFoliarCover")
+                            digits = digits)
+  # Mutate total_foliar has to be kept separate in case it is NULL
+  if (!is.null(total_foliar)) {
+    total_foliar <- dplyr::mutate(.data = total_foliar,
+                                  indicator = "TotalFoliarCover")
+  } else {
+    total_foliar <- dplyr::select(.data = lpi_species,
+                                  tidyselect::all_of(x = "PrimaryKey")) |>
+      dplyr::distinct() |>
+      dplyr::mutate(.data = _,
+                    indicator = "TotalFoliarCover",
+                    percent = 0)
+  }
 
   ##### All other cover ########################################################
   unique_grouping_vars <- unlist(x = variable_groups) |> unique()
