@@ -3706,18 +3706,16 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                   dplyr::across(.cols = tidyselect::all_of(c("Position",
                                                               "Rating",
                                                              "Hydro")),
-                                # # Can't trust the variables to be coercible to
-                                # # numeric without introducing NAs. Even though
-                                # # that'd be possible in a pristine data set,
-                                # # you'll probably never have one. So, we check
-                                # # to see if coercion does violence and only
-                                # # coerce variables we won't damage.
-                                # .fns = ~ if(any(suppressWarnings(is.na(as.numeric(.x))))) {
-                                #   .x
-                                # } else {
-                                #   as.numeric(.x)
-                                # })
-                                .fns = as.numeric)
+                                # This makes sure that any logical values
+                                # (possible for Hydro) that are strings get
+                                # converted to their numeric counterparts.
+                                # Otherwise, "TRUE" and "FALSE" would become NA.
+                                .fns = ~ dplyr::replace_values(x = .x,
+                                                               from = c("TRUE",
+                                                                        "FALSE"),
+                                                               to = c("1",
+                                                                      "0")) |>
+                                  as.numeric())
                   )
 
   # Find illegal values where the rating is not 6 but they're still marked as
