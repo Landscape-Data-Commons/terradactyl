@@ -3720,12 +3720,12 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                            "Veg",
                            "Rating",
                            "Hydro")
-  detail_tidy <- lapply(X = gathering_variables,
+    detail_tidy <- lapply(X = gathering_variables,
                         detail_tall = detail_tall,
                         FUN = function(X, detail_tall){
                           # Renaming the "value" variable and then
                           # dropping the "variable" variable.
-                          dplyr::filter(.data = detail_tall,
+                          output <- dplyr::filter(.data = detail_tall,
                                         variable == X) |>
                             # A little clunky, but this way we
                             # don't have to hardcode any
@@ -3735,10 +3735,11 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                                                       nm = X))) |>
                             dplyr::select(.data = _,
                                           -variable)
-                        }) |>
+
+                          }) |>
     # Throw out any that weren't represented in the data somehow.
     purrr::discard(.x = _,
-                   .p = ~ nrow(.x) > 0) |>
+                   .p = function(x) nrow(x) < 1) |>
     # The purrr::reduce() then binds all those together according to the
     # identifying variables. The use of a full_join() makes sure we don't drop
     # anything that had incomplete data. Yet.
@@ -3771,13 +3772,13 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                 # did.
                                 .fns = ~ dplyr::coalesce(as.logical(.x) |>
                                                            as.numeric(),
-                                                         as.numeric(.x)) |>
-                                  # This approach is almost certainly going to
-                                  # trigger a warning about introducing NAs in
-                                  # the coercion, but that's okay because we
-                                  # expect that so we're going to suppress that.
-                                  suppressWarnings())
-    )
+                                                         as.numeric(.x)))
+    ) |>
+    # This approach is almost certainly going to
+    # trigger a warning about introducing NAs in
+    # the coercion, but that's okay because we
+    # expect that so we're going to suppress that.
+    suppressWarnings()
 
   # Find illegal values where the rating is not 6 but they're still marked as
   # hydrophobic
