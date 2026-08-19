@@ -3560,7 +3560,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                          "DataErrorChecking",
                          "DataEntry",
                          "DateModified",
-                         "FormType")
+                         "FormType",
+                         "X")
   #### Reading #################################################################
   header <- read_with_fallback(dsn = dsn,
                                tbl = tblSoilStabHeader,
