@@ -3614,6 +3614,51 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                FUN = function(X){
                                  !all(is.na(as.vector(X)))
                                })), ]
+  # If Line* variables are present, we need to make sure that we populated the
+  # "missing" ones. The assumed situation is that we'll have Line1 through Line6
+  # but that each of those corresponds to three other variables, e.g. Line1 goes
+  # with Veg1, Veg2, and Veg3 while Line2 goes with Veg4, Veg5, and Veg6.
+  # This will check to see that we make the expected Line variables and that
+  # those provide coverage for all the other ones.
+  line_positions <- names(detail) |>
+    stringr::str_extract(string = _,
+                         pattern = "(?<=^Line)\\d+$") |>
+    purrr::discard(.x = _,
+                   .p = is.na) |>
+    as.numeric()
+  veg_positions <- names(detail) |>
+    stringr::str_extract(string = _,
+                         pattern = "(?<=^Veg)\\d+$") |>
+    purrr::discard(.x = _,
+                   .p = is.na) |>
+    as.numeric()
+
+  if (length(line_positions) > 0) {
+    if (length(veg_positions) %% length(line_positions) != 0) {
+      warning(paste0("The Line variables in tblSoilDetail can't be clearly mapped to the other variables because there are ",
+                     length(line_positions), " which is not a factor of the maximum position number appended to the Veg variable (", length(veg_positions), "). This will result in missing values in the Line variable in the output."))
+    } else if (length(line_positions) != max(line_positions)) {
+      warning(paste0("The Line variables in tblSoilDetail can't be clearly mapped to the other variables because the there are missing expected position suffixes: ",
+                     paste(setdiff(x = seq_len(max(line_positions)),
+                                   y = max(line_positions)),
+                           collapse = ", "), ". This will result in missing values in the Line variable in the output."))
+    } else if (max(veg_positions) != max(line_positions)) {
+      if (verbose) {
+        message("Attempting to reconcile Line variables with other variables.")
+      }
+      line_increment <- max(veg_positions) / max(line_positions)
+      for (current_position in line_positions[order(line_positions,
+                                                    decreasing = TRUE)]) {
+        detail[, paste0("Line", seq(from = current_position * line_increment - line_increment + 1,
+                                    to = current_position * line_increment))] <- detail[[paste0("Line", current_position)]]
+      }
+    } else {
+      if (verbose) {
+        message("Line variables appear to align with other variables and will not be expanded.")
+      }
+    }
+  }
+
 
   #### Automatic QC ############################################################
   if (auto_qc_warnings) {
@@ -3668,8 +3713,14 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   # grabs only the records with identical "variable" values. It then renames the
   # "value" variable to use whatever the "variable" value is for that set of
   # data and drops the "variable" variable.
-  detail_tidy <- lapply(X = setdiff(x = unique(detail_tall$variable),
-                                    y = c(NA)),
+  # Update: This now only works over specific variable values, but could easily
+  # be switched back if ever necessary.
+  gathering_variables <- c("Line",
+                           "Pos",
+                           "Veg",
+                           "Rating",
+                           "Hydro")
+  detail_tidy <- lapply(X = gathering_variables,
                         detail_tall = detail_tall,
                         FUN = function(X, detail_tall){
                           # Renaming the "value" variable and then
@@ -3685,6 +3736,9 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                             dplyr::select(.data = _,
                                           -variable)
                         }) |>
+    # Throw out any that weren't represented in the data somehow.
+    purrr::discard(.x = _,
+                   .p = ~ nrow(.x) > 0) |>
     # The purrr::reduce() then binds all those together according to the
     # identifying variables. The use of a full_join() makes sure we don't drop
     # anything that had incomplete data. Yet.
@@ -3698,14 +3752,17 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     # those get dropped.
     dplyr::filter(.data = _,
                   !is.na(Rating)) |>
-    # And the last bit is coercing things to numeric.
+    # And the last bit is coercing things to numeric, setting Hydro aside as a
+    # special case because the input format can't be trusted and skipping Line
+    # entirely because people put all kinds of non-numeric things in there.
     dplyr::mutate(.data = _,
-                  dplyr::across(.cols = tidyselect::all_of(c("Position",
-                                                             "Rating")),
+                  dplyr::across(.cols = tidyselect::any_of(setdiff(x = gathering_variables,
+                                                                   y = c("Hydro",
+                                                                         "Line"))),
                                 # These should be numeric every time, so we'll
-                                # coerce them.
+                                # coerce them directly.
                                 .fns = as.numeric),
-                  dplyr::across(.cols = tidyselect::all_of(c("Hydro")),
+                  dplyr::across(.cols = tidyselect::any_of(c("Hydro")),
                                 # Hydro is supposed to end up numeric, but the
                                 # incoming data is sometimes "0" and "1" but
                                 # might also be "TRUE" and "FALSE". This will
