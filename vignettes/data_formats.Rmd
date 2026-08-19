@@ -39,7 +39,7 @@ Character string
 [tblLPIHeader]
 
 ### Description
-PrimaryKey functions as the unique identifier for a sampling event at a location, i.e., a field crew visiting a plot and collecting data with one or more methods. Every record across all data tables associated with a sampling event will share the same PrimaryKey value.
+PrimaryKey is intended to function as the unique identifier for a sampling event at a location, i.e., a field crew visiting a plot and collecting data with one or more methods. Every record across all data tables associated with a sampling event should share the same PrimaryKey value. Because PrimaryKey is used to group data as a sampling event, a value should be shared between data collected across multiple visits to a location *if* that is still considered one sampling event, e.g. collecting different data types across multiple days. Consider timing aspects such as phenological windows or interseasonal variability when determining what constitutes a sampling event; data collection separated by months or years should not share a PrimaryKey because combining and comparing those data would be ecologically inappropriate.
 
 In most tables, PrimaryKey values are not unique per-record. Exceptions include header tables (e.g. [tblLPIHeader]) in which there should only be one record per sampling event at a location.
 
