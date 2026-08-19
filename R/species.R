@@ -202,7 +202,7 @@ generic_growth_habits <- function(data,
   lmf_duration_regexes <- c("Annual" = "^2(([FG]|VH)[DMSL]?[AB])$",
                             "Perennial" = "^2((F[DMS]?P)|(GL?[PN])|(GRAM)|(S(?!LIME).*)|(T.*)|(VH[DMS]?P)|(VW.*))$")
   aim_duration_regexes <- c("Annual" = "^A{1,2}([FG]{1,2}|SU|SS)\\d*$",
-                           "Perennial" = "^(((P{1,2}[FG]{1,4})|((P{1,2})?TR)|(PPSS))\\d*)$|^((((P{1,2})?SH)|(SSHH))|((P{1,2})?SU))\\d*$")
+                           "Perennial" = "^(((P{1,2}(F{1,2}|G{1,2}))|((P{1,2})?TR)|(PPSS))\\d*)$|^((((P{1,2})?SH)|(SSHH))|((P{1,2})?SU))\\d*$")
 
   regexes_list <- list("GrowthHabit" = c(lmf_growthhabit_regexes,
                                          aim_growthhabit_regexes),
