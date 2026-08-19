@@ -3614,6 +3614,51 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                FUN = function(X){
                                  !all(is.na(as.vector(X)))
                                })), ]
+  # If Line* variables are present, we need to make sure that we populated the
+  # "missing" ones. The assumed situation is that we'll have Line1 through Line6
+  # but that each of those corresponds to three other variables, e.g. Line1 goes
+  # with Veg1, Veg2, and Veg3 while Line2 goes with Veg4, Veg5, and Veg6.
+  # This will check to see that we make the expected Line variables and that
+  # those provide coverage for all the other ones.
+  line_positions <- names(detail) |>
+    stringr::str_extract(string = _,
+                         pattern = "(?<=^Line)\\d+$") |>
+    purrr::discard(.x = _,
+                   .p = is.na) |>
+    as.numeric()
+  veg_positions <- names(detail) |>
+    stringr::str_extract(string = _,
+                         pattern = "(?<=^Veg)\\d+$") |>
+    purrr::discard(.x = _,
+                   .p = is.na) |>
+    as.numeric()
+
+  if (length(line_positions) > 0) {
+    if (length(veg_positions) %% length(line_positions) != 0) {
+      warning(paste0("The Line variables in tblSoilDetail can't be clearly mapped to the other variables because there are ",
+                     length(line_positions), " which is not a factor of the maximum position number appended to the Veg variable (", length(veg_positions), "). This will result in missing values in the Line variable in the output."))
+    } else if (length(line_positions) != max(line_positions)) {
+      warning(paste0("The Line variables in tblSoilDetail can't be clearly mapped to the other variables because the there are missing expected position suffixes: ",
+                     paste(setdiff(x = seq_len(max(line_positions)),
+                                   y = max(line_positions)),
+                           collapse = ", "), ". This will result in missing values in the Line variable in the output."))
+    } else if (max(veg_positions) != max(line_positions)) {
+      if (verbose) {
+        message("Attempting to reconcile Line variables with other variables.")
+      }
+      line_increment <- max(veg_positions) / max(line_positions)
+      for (current_position in line_positions[order(line_positions,
+                                                    decreasing = TRUE)]) {
+        detail[, paste0("Line", seq(from = current_position * line_increment - line_increment + 1,
+                                    to = current_position * line_increment))] <- detail[[paste0("Line", current_position)]]
+      }
+    } else {
+      if (verbose) {
+        message("Line variables appear to align with other variables and will not be expanded.")
+      }
+    }
+  }
+
 
   #### Automatic QC ############################################################
   if (auto_qc_warnings) {
