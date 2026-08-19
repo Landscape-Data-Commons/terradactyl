@@ -3668,8 +3668,14 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   # grabs only the records with identical "variable" values. It then renames the
   # "value" variable to use whatever the "variable" value is for that set of
   # data and drops the "variable" variable.
-  detail_tidy <- lapply(X = setdiff(x = unique(detail_tall$variable),
-                                    y = c(NA)),
+  # Update: This now only works over specific variable values, but could easily
+  # be switched back if ever necessary.
+  gathering_variables <- c("Line",
+                           "Pos",
+                           "Veg",
+                           "Rating",
+                           "Hydro")
+  detail_tidy <- lapply(X = gathering_variables,
                         detail_tall = detail_tall,
                         FUN = function(X, detail_tall){
                           # Renaming the "value" variable and then
@@ -3700,12 +3706,13 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                   !is.na(Rating)) |>
     # And the last bit is coercing things to numeric.
     dplyr::mutate(.data = _,
-                  dplyr::across(.cols = tidyselect::all_of(c("Position",
-                                                             "Rating")),
+                  dplyr::across(.cols = tidyselect::any_of(setdiff(x = gathering_variables,
+                                                                   y = c("Hydro",
+                                                                         "Line"))),
                                 # These should be numeric every time, so we'll
-                                # coerce them.
+                                # coerce them directly.
                                 .fns = as.numeric),
-                  dplyr::across(.cols = tidyselect::all_of(c("Hydro")),
+                  dplyr::across(.cols = tidyselect::any_of(c("Hydro")),
                                 # Hydro is supposed to end up numeric, but the
                                 # incoming data is sometimes "0" and "1" but
                                 # might also be "TRUE" and "FALSE". This will
