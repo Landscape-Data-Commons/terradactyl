@@ -3713,7 +3713,14 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   # grabs only the records with identical "variable" values. It then renames the
   # "value" variable to use whatever the "variable" value is for that set of
   # data and drops the "variable" variable.
-  detail_tidy <- lapply(X = unique(detail_tall$variable),
+  # Update: This now only works over specific variable values, but could easily
+  # be switched back if ever necessary.
+  gathering_variables <- c("Line",
+                           "Pos",
+                           "Veg",
+                           "Rating",
+                           "Hydro")
+  detail_tidy <- lapply(X = gathering_variables,
                         detail_tall = detail_tall,
                         FUN = function(X, detail_tall){
                           # Renaming the "value" variable and then
@@ -3729,6 +3736,9 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                             dplyr::select(.data = _,
                                           -variable)
                         }) |>
+    # Throw out any that weren't represented in the data somehow.
+    purrr::discard(.x = _,
+                   .p = ~ nrow(.x) > 0) |>
     # The purrr::reduce() then binds all those together according to the
     # identifying variables. The use of a full_join() makes sure we don't drop
     # anything that had incomplete data. Yet.
