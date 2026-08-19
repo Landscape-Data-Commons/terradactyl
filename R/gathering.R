@@ -3752,24 +3752,32 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     # those get dropped.
     dplyr::filter(.data = _,
                   !is.na(Rating)) |>
-    # And the last bit is coercing things to numeric.
+    # And the last bit is coercing things to numeric, setting Hydro aside as a
+    # special case because the input format can't be trusted and skipping Line
+    # entirely because people put all kinds of non-numeric things in there.
     dplyr::mutate(.data = _,
-                  dplyr::across(.cols = tidyselect::all_of(c("Position",
-                                                              "Rating",
-                                                             "Hydro")),
-                                # # Can't trust the variables to be coercible to
-                                # # numeric without introducing NAs. Even though
-                                # # that'd be possible in a pristine data set,
-                                # # you'll probably never have one. So, we check
-                                # # to see if coercion does violence and only
-                                # # coerce variables we won't damage.
-                                # .fns = ~ if(any(suppressWarnings(is.na(as.numeric(.x))))) {
-                                #   .x
-                                # } else {
-                                #   as.numeric(.x)
-                                # })
-                                .fns = as.numeric)
-                  )
+                  dplyr::across(.cols = tidyselect::any_of(setdiff(x = gathering_variables,
+                                                                   y = c("Hydro",
+                                                                         "Line"))),
+                                # These should be numeric every time, so we'll
+                                # coerce them directly.
+                                .fns = as.numeric),
+                  dplyr::across(.cols = tidyselect::any_of(c("Hydro")),
+                                # Hydro is supposed to end up numeric, but the
+                                # incoming data is sometimes "0" and "1" but
+                                # might also be "TRUE" and "FALSE". This will
+                                # attempt to coerce it as though it's both and
+                                # keep only the one that worked or NA if neither
+                                # did.
+                                .fns = ~ dplyr::coalesce(as.logical(.x) |>
+                                                           as.numeric(),
+                                                         as.numeric(.x)) |>
+                                  # This approach is almost certainly going to
+                                  # trigger a warning about introducing NAs in
+                                  # the coercion, but that's okay because we
+                                  # expect that so we're going to suppress that.
+                                  suppressWarnings())
+    )
 
   # Find illegal values where the rating is not 6 but they're still marked as
   # hydrophobic
