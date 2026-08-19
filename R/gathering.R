@@ -3560,7 +3560,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                          "DataErrorChecking",
                          "DataEntry",
                          "DateModified",
-                         "FormType")
+                         "FormType",
+                         "X")
   #### Reading #################################################################
   header <- read_with_fallback(dsn = dsn,
                                tbl = tblSoilStabHeader,
@@ -3667,7 +3668,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   # grabs only the records with identical "variable" values. It then renames the
   # "value" variable to use whatever the "variable" value is for that set of
   # data and drops the "variable" variable.
-  detail_tidy <- lapply(X = unique(detail_tall$variable),
+  detail_tidy <- lapply(X = setdiff(x = unique(detail_tall$variable),
+                                    y = c(NA)),
                         detail_tall = detail_tall,
                         FUN = function(X, detail_tall){
                           # Renaming the "value" variable and then
