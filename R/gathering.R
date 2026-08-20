@@ -3605,7 +3605,23 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey)) |>
     dplyr::distinct()
+  # clean up the header - only keep what's expected in the header and the schema
+  target_cols <- c(
+    "ProjectKey", "PrimaryKey", "LineKey", "RecKey", "DateVisited",
+    "FormDate", "FormType", "SoilStabSub", "Notes", "DBKey",
+    "DateLoadedInDb", "source"
+  )
 
+  header <- header %>%
+    dplyr::select(dplyr::any_of(target_cols))
+
+
+  # clean up the detail - only keep what we need since we are pivotting
+  # regex to keep vars of interest
+  target_cols <- "PrimaryKey|RecKey|Line|Pos|Veg|Rating|Hydro"
+
+  detail <- detail %>%
+    dplyr::select(dplyr::matches(target_cols, ignore.case = TRUE))
   # In some cases (due to bad DIMA defaults) empty rows may exist in DIMA data.
   # This finds all the records where there were no valid ratings and drops them.
   detail <- detail[which(apply(X = dplyr::select(.data = detail,
@@ -3696,7 +3712,17 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                      # accommodate the cover values which are
                                      # character strings.
                                      values_transform = as.character,
-                                     values_drop_na = TRUE) |>
+                                     values_drop_na = TRUE)|>
+    mutate(
+      value = if_else(
+        variable == "Hydro",
+        # 1. as.logical("TRUE") -> TRUE
+        # 2. as.numeric(TRUE) -> 1
+        # 3. as.character(1) -> "1"
+        as.character(as.numeric(as.logical(value))),
+        value
+      )
+    ) |>
     dplyr::filter(.data = _,
                   value != "",
                   # The only variable type where 0 is a valid value is Hydro, so
