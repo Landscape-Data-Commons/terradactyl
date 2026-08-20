@@ -95,7 +95,7 @@ RHEM <- function(lpi_species,
     # accidentally considering a value like NA when that was somehow below a
     # litter code in the canopy records.
     dplyr::filter(.data = _,
-                  layer != "SoilSurface",
+                  !(layer %in% c("SoilSurface")),
                   !(code %in% c("", NA, "None", "N"))) |>
     # Summarizing by each pin drop, create LowestCanopy which is TRUE where a
     # litter code was in the lowest canopy record and FALSE where any other kind
