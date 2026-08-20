@@ -390,25 +390,26 @@ read_with_fallback <- function(dsn = NULL,
 #' @export
 lpi_indicator_definitions <- function(){
 
-  # Define the independent objects first so they are in the function's scope
-  litter_codes_init = list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
-                           "WoodyLitter" = c("WL"),
-                           "NonVegLitter" = c("HT", "NL", "AL", "OM"),
-                           "EmbLitter" = c("EL"))
+  # These are defined outside the list so that the between_plants_codes can be
+  # made from them.
+  litter_codes <- list("HerbLitter" = c("HL", "L", "DN", "ER", "AM"),
+                       "WoodyLitter" = c("WL"),
+                       "NonVegLitter" = c("HT", "NL", "AL", "OM"),
+                       "EmbLitter" = c("EL"))
 
-  rock_codes_init = c("R", "GR", "CB", "ST", "BY", "RF", "BR")
+  rock_codes <- c("R", "GR", "CB", "ST", "BY", "RF", "BR")
 
   list(
     #### Litter code categories ------------------------------------------------
-    litter_codes = litter_codes_init,
+    litter_codes = litter_codes,
 
     #### Rock codes ------------------------------------------------------------
-    rock_codes = rock_codes_init,
+    rock_codes = rock_codes,
 
     #### Between-plant codes ---------------------------------------------------
-    between_plant_codes = list("WoodyLitter" = litter_codes_init[["WoodyLitter"]],
-                               "HerbLitter" =  litter_codes_init[["HerbLitter"]],
-                               "EmbLitter" = litter_codes_init[["EmbLitter"]],
+    between_plant_codes = list("WoodyLitter" = litter_codes[["WoodyLitter"]],
+                               "HerbLitter" =  litter_codes[["HerbLitter"]],
+                               "EmbLitter" = litter_codes[["EmbLitter"]],
                                "DepSoil" = c("DS"),
                                "Duff" = c("D"),
                                "Lichen" = c("LC", "2LICHN", "2LICHN1"),
@@ -416,7 +417,7 @@ lpi_indicator_definitions <- function(){
                                "Moss" = c("M", "2MOSS", "2MOSS1"),
                                "Cyanobacteria" = c("CY"),
                                "Water" = c("W", "WA"),
-                               "Rock" = c(rock_codes_init),
+                               "Rock" = c(rock_codes),
                                "BareSoil" = c("AG", "CM", "LM", "FG", "PC", "S")),
 
     #### Pinyon-juniper species codes ------------------------------------------
