@@ -125,8 +125,11 @@ pct_cover_indicators <- function(lpi_tall,
                                                     lpi_tall = lpi_tall,
                                                     by_line = by_line,
                                                     FUN = function(X, current_hit_type, lpi_tall, tall, by_line){
-                                                      # message(paste(current_hit_type, "by", paste(X,
-                                                      #                                             collapse = ", ")))
+                                                      if (verbose) {
+                                                        message(paste("Calculating", current_hit_type, "hit using the variables:", paste(X,
+                                                                                                    collapse = ", ")))
+                                                      }
+
                                                       pct_cover(lpi_tall = lpi_tall,
                                                                 tall = TRUE,
                                                                 hit = current_hit_type,
@@ -183,7 +186,7 @@ pct_cover_indicators <- function(lpi_tall,
                         unlist(),
                       cols_remove = FALSE) |>
       dplyr::filter(.data = _,
-                    GrowthHabit != "Nonvascular",
+                    !GrowthHabit %in% "Nonvascular",
                     !(grepl(x = GrowthHabit,
                            pattern = "^((non-?vascular$)|(lichen)|(moss$))",
                            ignore.case = TRUE) |
