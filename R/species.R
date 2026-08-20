@@ -984,44 +984,6 @@ accumulated_species <- function(header,
     stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
   }
 
-  ###### Joining to the data ---------------------------------------------------
-  # inputs_list <- lapply(X = inputs_list,
-  #                       species_info = species_info,
-  #                       FUN = function(X, species_info){
-  #                         if (is.null(X)) {
-  #                           return(NULL)
-  #                         }
-  #                         current_data <- species_join(data = X,
-  #                                                      species_file = species_info,
-  #                                                      species_code = species_code_var,
-  #                                                      species_property_vars = c("GrowthHabit",
-  #                                                                                "GrowthHabitSub",
-  #                                                                                "Duration",
-  #                                                                                "Family",
-  #                                                                                "SG_Group",
-  #                                                                                "HigherTaxon",
-  #                                                                                "Nonnative",
-  #                                                                                "Invasive",
-  #                                                                                "Noxious",
-  #                                                                                "SpecialStatus",
-  #                                                                                "Photosynthesis",
-  #                                                                                "PJ",
-  #                                                                                "CurrentPLANTSCode",
-  #                                                                                "ScientificName",
-  #                                                                                "SG_Group",
-  #                                                                                "GrowthHabit_measured"),
-  #                                                      update_species_codes = FALSE,
-  #                                                      by_species_key = FALSE,
-  #                                                      verbose = verbose) |>
-  #                           # Not necessary, but I'm paranoid.
-  #                           dplyr::distinct() |>
-  #                           adjust_species_attributes(data = _,
-  #                                                     fail_on_missing = FALSE,
-  #                                                     verbose = verbose)
-  #
-  #                         current_data
-  #                       })
-
   #### CALCULATIONS #############################################################
   output_list <- list()
   ##### Cover ------------------------------------------------------------------
