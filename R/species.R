@@ -202,7 +202,7 @@ generic_growth_habits <- function(data,
   lmf_duration_regexes <- c("Annual" = "^2(([FG]|VH)[DMSL]?[AB])$",
                             "Perennial" = "^2((F[DMS]?P)|(GL?[PN])|(GRAM)|(S(?!LIME).*)|(T.*)|(VH[DMS]?P)|(VW.*))$")
   aim_duration_regexes <- c("Annual" = "^A{1,2}([FG]{1,2}|SU|SS)\\d*$",
-                           "Perennial" = "^(((P{1,2}[FG]{1,4})|((P{1,2})?TR)|(PPSS))\\d*)$|^((((P{1,2})?SH)|(SSHH))|((P{1,2})?SU))\\d*$")
+                           "Perennial" = "^(((P{1,2}(F{1,2}|G{1,2}))|((P{1,2})?TR)|(PPSS))\\d*)$|^((((P{1,2})?SH)|(SSHH))|((P{1,2})?SU))\\d*$")
 
   regexes_list <- list("GrowthHabit" = c(lmf_growthhabit_regexes,
                                          aim_growthhabit_regexes),
@@ -352,7 +352,7 @@ species_join <- function(data, # field data,
                                                    "GrowthHabitSub",
                                                    "Duration",
                                                    "Family",
-                                                   "Sg_Group",
+                                                   "SG_Group",
                                                    "HigherTaxon",
                                                    "Nonnative",
                                                    "Invasive",
@@ -457,7 +457,12 @@ species_join <- function(data, # field data,
   # the geodatabase, so we'll chuck them to
   # prevent issues down the line, specifically
   # trying to use distinct()
+  # ALSO! This should keep only the absolute minimum of variables as requested
+  # by the user with species_property_vars.
   species_list <- dplyr::select(.data = species_list,
+                                tidyselect::any_of(x = c(species_code,
+                                                         "UpdatedSpeciesCode",
+                                                         species_property_vars)),
                                 -tidyselect::any_of(x = c("created_user",
                                                           "created_date",
                                                           "last_edited_user",
@@ -758,7 +763,20 @@ species_join <- function(data, # field data,
         # Make sure we're not dealing with factors
         dplyr::mutate(.data = _,
                       dplyr::across(.cols = tidyselect::where(fn = is.factor),
-                                    .fns = as.character))
+                                    .fns = as.character),
+                      GrowthHabit = dplyr::case_match(.x = GrowthHabitCode,
+                                                      c(1:4) ~ "Woody",
+                                                      c(5:7) ~ "NonWoody",
+                                                      .missing = GrowthHabit),
+                      GrowthHabitSub = dplyr::case_match(.x = GrowthHabitCode,
+                                                         1 ~ "Tree",
+                                                         2 ~ "Shrub",
+                                                         3 ~ "Subshrub",
+                                                         4 ~ "Succulent",
+                                                         5 ~ "Forb",
+                                                         6 ~ "Graminoid",
+                                                         7 ~ "Sedge",
+                                                         .missing = GrowthHabitSub))
     } else {
       stop("Unknown generic species list format. Must be a path to a CSV")
     }
@@ -772,19 +790,6 @@ species_join <- function(data, # field data,
       # This CSV is apparently expected to encode growth habit info as integers
       # so here's the hardcoded lookup.
       dplyr::mutate(.data = _,
-                    GrowthHabit = dplyr::case_match(.x = GrowthHabitCode,
-                                                    c(1:4) ~ "Woody",
-                                                    c(5:7) ~ "NonWoody",
-                                                    .missing = GrowthHabit),
-                    GrowthHabitSub = dplyr::case_match(.x = GrowthHabitCode,
-                                                       1 ~ "Tree",
-                                                       2 ~ "Shrub",
-                                                       3 ~ "Subshrub",
-                                                       4 ~ "Succulent",
-                                                       5 ~ "Forb",
-                                                       6 ~ "Graminoid",
-                                                       7 ~ "Sedge",
-                                                       .missing = GrowthHabitSub),
                     # Only update these variables if the generic species info
                     # contradicts the already existing value and isn't NA
                     Duration = dplyr::case_when(!(Duration %in% Duration_generic) & !is.na(Duration_generic) ~ Duration_generic,
@@ -912,35 +917,13 @@ accumulated_species <- function(header,
                                 species_code_var = "SpeciesCode",
                                 dead = TRUE,
                                 source = c("TerrADat", "AIM", "LMF", "NRI"),
+                                # drop_nonvascular = TRUE,
                                 ...,
-                                # indicator_variables = NULL,
                                 generic_species_file = NULL,
                                 digits = 6,
                                 # discard_nulls = TRUE,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
-  # # Get a list of the variables the user wants to group data by for calculations.
-  # # There's a grouping_variables argument that takes the names of variables as
-  # # character strings, so we'll handle that.
-  # if (!is.null(indicator_variables)) {
-  #   if (!is.character(indicator_variables)) {
-  #     stop("indicator_variables must be a character string or vector of character strings")
-  #   }
-  # }
-  # # Clean this up!
-  # indicator_variables <- unique(indicator_variables)
-  #
-  # # This here because we're trying to support the legacy decision to originally
-  # # allow for bare variables as the indicator-defining variables.
-  # # Now it can be bare variable names, character strings, vectors of character
-  # # strings or some combination of the three.
-  # # BUT! You can't create a vector, store it in the environment, and then pass
-  # # it in by name because then you end up with just the name of the vector.
-  # indicator_variables <- c(indicator_variables,
-  #                          unquoted_to_character(...)) |>
-  #   unique()
-  # indicator_variables <- indicator_variables[!(indicator_variables %in% c(""))]
-
   # The default value of "" is a legacy decision. Internally we'll treat it as a
   # NULL for consistency and ease.
   if (identical(species_file, "")) {
@@ -960,13 +943,6 @@ accumulated_species <- function(header,
     message("Reading in headers and filtering them using any provided filtering expressions.")
   }
 
-  # if ("character" %in% class(header)) {
-  #   if (tools::file_ext(header) == "Rdata") {
-  #     header <- readRDS(file = header)
-  #   } else {
-  #     stop("When header is a character string it must be the path to a .Rdata file containing header data.")
-  #   }
-  # }
   header <- read_whatever(input = header,
                           verbose = verbose)
 
@@ -992,9 +968,9 @@ accumulated_species <- function(header,
   }
 
   ##### Data -------------------------------------------------------------------
-  inputs_list <- lapply(X = c("lpi_tall",
-                              "height_tall",
-                              "spp_inventory_tall"),
+  inputs_list <- lapply(X = c("cover" = "lpi_tall",
+                              "heights" = "height_tall",
+                              "species" = "spp_inventory_tall"),
                         inputs = list("lpi_tall" = lpi_tall,
                                       "height_tall" = height_tall,
                                       "spp_inventory_tall" = spp_inventory_tall),
@@ -1059,113 +1035,6 @@ accumulated_species <- function(header,
   } else {
     stop("species_file must either be a filepath to a CSV or a GDB file or a data frame.")
   }
-
-  ###### Joining to the data ---------------------------------------------------
-  inputs_list <- lapply(X = inputs_list,
-                        species_info = species_info,
-                        FUN = function(X, species_info){
-                          if (is.null(X)) {
-                            return(NULL)
-                          }
-                          current_data <- species_join(data = X,
-                                                       species_file = species_info,
-                                                       species_code = species_code_var,
-                                                       species_property_vars = c("GrowthHabit",
-                                                                                 "GrowthHabitSub",
-                                                                                 "Duration",
-                                                                                 "Family",
-                                                                                 "SG_Group",
-                                                                                 "HigherTaxon",
-                                                                                 "Nonnative",
-                                                                                 "Invasive",
-                                                                                 "Noxious",
-                                                                                 "SpecialStatus",
-                                                                                 "Photosynthesis",
-                                                                                 "PJ",
-                                                                                 "CurrentPLANTSCode",
-                                                                                 "ScientificName",
-                                                                                 "SG_Group",
-                                                                                 "GrowthHabit_measured"),
-                                                       update_species_codes = FALSE,
-                                                       by_species_key = FALSE,
-                                                       verbose = verbose) |>
-                            # We want to use whatever is the currently accepted code in USDA PLANTS for
-                            # the species, even though that may be less taxonomically correct.
-                            # Using dplyr::case_when() lets us keep any codes that don't have a
-                            # CurrentPLANTSCode value, e.g., "R" which doesn't represent a species.
-                            # dplyr::mutate(.data = _,
-                            #               code = dplyr::case_when(!is.na(CurrentPLANTSCode) ~ CurrentPLANTSCode,
-                            #                                       .default = code)) |>
-                            # Not necessary, but I'm paranoid.
-                            dplyr::distinct() |>
-                            dplyr::mutate(.data = _,
-                                          # Correct the Non-Woody to NonWoody
-                                          GrowthHabit = dplyr::case_when(stringr::str_detect(string = GrowthHabit,
-                                                                                             pattern = "^Non(-)?[Ww]oody$") ~ "NonWoody",
-                                                                         .default = GrowthHabit),
-                                          # This is to turn the SG_Group codes into values
-                                          # that match the expected indicator names for
-                                          # our convenience.
-                                          # This makes sure that the value in SG_Group is
-                                          # only the string associated with the group for
-                                          # the species code in the relevant state.
-                                          # Records where there's not a group value for the
-                                          # associated state (or "US") will get NA instead.
-                                          SG_Group = stringr::str_extract(string = SG_Group,
-                                                                          pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
-                                          # This makes sure that we've assigned any shrubs
-                                          # that didn't get a sage-grouse group are
-                                          # assigned to "NonSagebrushShrub"
-                                          SG_Group = dplyr::case_when(is.na(SG_Group) & GrowthHabitSub == "Shrub" ~ "NonSagebrushShrub",
-                                                                      .default = SG_Group),
-                                          SpecialStatus = stringr::str_extract(string = SpecialStatus,
-                                                                               pattern = paste0("(?<=((US)|(", SpeciesState, ")):)[A-z]+")),
-                                          # This is just to make the Invasive values match
-                                          # the desired indicator names
-                                          Invasive = stringr::str_to_title(string = Invasive),
-                                          # This is for the native and non-native cover
-                                          # It assumes that everything flagged as EXOTIC or
-                                          # ABSENT should be considered NonNative and that
-                                          # everything else is Native
-                                          Native = dplyr::case_when(Nonnative %in% c("NATIVE", NA) ~ "Native",
-                                                                    .default = "Nonnative"),
-                                          # For noxious cover. This assumes that anything
-                                          # flagged as YES is noxious and nothing else is.
-                                          # NOTE: This is now disabled because noxious
-                                          # status is being handled more appropriately and
-                                          # through a different format. I'm leaving this
-                                          # for posterity for the moment though.
-                                          # Noxious = dplyr::case_when(Noxious %in% c("YES") ~ "Noxious",
-                                          #                            .default = NA),
-                                          # Noxious is now encoded as a character string
-                                          # with localities separated by |s. We need to
-                                          # check for the relevant locality based on the
-                                          # State variable NOT the AdminState because these
-                                          # determinations are made based on the physical
-                                          # location of the sampling within the legal
-                                          # boundaries of states, not which state is
-                                          # administering the lands (which is sometimes
-                                          # different).
-                                          # The regex checks to see if the beginning of
-                                          # the string or the characters immediately
-                                          # following a | are "US", the code from the State
-                                          # variable, or the code from the State variable
-                                          # and the value from the County variable
-                                          # separated by a :, e.g., "OR:Jefferson".
-                                          # The single-letter designations for type of
-                                          # noxiousness are not taken into account, e.g.,
-                                          # "OR:A" and "OR:B" will be treated identically.
-                                          # County-level designations may eventually be
-                                          # removed, but for now they're still in there and
-                                          # this regex will work regardless.
-                                          Noxious = dplyr::case_when(stringr::str_detect(string = Noxious,
-                                                                                         pattern = paste0("(^|\\|)((", SpeciesState, ")|(US))")) ~ "Noxious",
-                                                                     .default = NA))
-                        })
-
-  names(inputs_list) <- c("cover",
-                          "heights",
-                          "species")
 
   #### CALCULATIONS #############################################################
   output_list <- list()
@@ -1239,18 +1108,6 @@ accumulated_species <- function(header,
       dplyr::rename(.data = _,
                     "AH_SpeciesCover" = "percent",
                     "AH_SpeciesCover_n" = "n")
-
-
-    # species_cover <- lpi_species %>%
-    #   subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
-    #   subset(nchar(as.character(code)) >= 3 & code != "None") %>%
-    #   dplyr::distinct(PrimaryKey, LineKey, PointNbr, code) %>%
-    #   dplyr::count(PrimaryKey, code) %>%
-    #   dplyr::left_join(species_cover, .,
-    #                    by = c("PrimaryKey", "Species" = "code")) %>%
-    #   dplyr::rename("AH_SpeciesCover_n" = "n",)
-
-
   } else {
     if (verbose) {
       message("No LPI data provided.")
@@ -1263,11 +1120,27 @@ accumulated_species <- function(header,
   ##### Heights ----------------------------------------------------------------
   if (!is.null(inputs_list[["heights"]])) {
 
-    # For any unresolved height errors, change height to "0" so
-    # they are omitted from the calculations
-    height_species <- dplyr::filter(.data = inputs_list[["heights"]],
-                                    GrowthHabit_measured == GrowthHabit)
-    # height_species <- height_species %>% subset(GrowthHabit_measured == GrowthHabit)
+    height_species <- inputs_list[["heights"]] |>
+      # dplyr::mutate(.data = _,
+      #               code = Species) |>
+      species_join(data = _,
+                   species_file = species_info,
+                   species_code = species_code_var,
+                   species_property_vars = c("GrowthHabit",
+                                             "GrowthHabitSub",
+                                             "GrowthHabit_measured"),
+                   update_species_codes = FALSE,
+                   by_species_key = FALSE,
+                   verbose = verbose) |>
+      # dplyr::select(.data = _,
+      #               -tidyselect::any_of(x = c("code"))) |>
+      # Not necessary, but I'm paranoid.
+      dplyr::distinct() |>
+      adjust_species_attributes(data = _,
+                                fail_on_missing = FALSE,
+                                verbose = verbose) |>
+      dplyr::filter(.data = _,
+                    GrowthHabit_measured == GrowthHabit)
 
     if (verbose) {
       message("Calculating per-species mean heights.")
@@ -1295,19 +1168,8 @@ accumulated_species <- function(header,
                     "Hgt_Species_Avg" = "mean_height",
                     "Hgt_Species_Avg_n" = "n")
 
-    # species_height <- height_species %>%
-    #   subset(PrimaryKey %in% header_sub$PrimaryKey) %>%
-    #   dplyr::count(PrimaryKey, Species) %>%
-    #   dplyr::left_join(., species_height,
-    #                    by = c("PrimaryKey",
-    #                           "Species" = "indicator")) %>%
-    #   dplyr::rename("Hgt_Species_Avg_n" = "n") %>%
-    #
-    #   # remove "None" codes
-    #   subset(Species != "None")
-
     ###### Live vs dead --------------------------------------------------------
-    if(dead) {
+    if (dead) {
       message("Calculating live and dead heights.")
       species_height_live_dead <- mean_height(height_tall = readRDS(height_tall) %>%
                                                 subset(PrimaryKey %in% header_sub$PrimaryKey),
@@ -1419,90 +1281,28 @@ accumulated_species <- function(header,
       message("Joining species data to the output")
     }
 
-    # We're going to yank the species information from the inputs_list() because
-    # that's computationally cheaper than doing a join from scratch again.
-    suitable_input_sources <- sapply(X = inputs_list,
-                                     FUN = function(X){
-                                       !is.null(X)
-                                     }) |>
-      which()
-
-    final_species_info <- lapply(X = inputs_list[suitable_input_sources],
-                                 FUN = function(X){
-                                   dplyr::select(.data = X,
-                                                 tidyselect::all_of(x = c("PrimaryKey")),
-                                                 # Should only need the last one in this vector, but the
-                                                 # others don't hurt and were there from previous iterations
-                                                 # of the function. Consider removing them.
-                                                 tidyselect::any_of(x = c("Species",
-                                                                          "Species" = "NameCode",
-                                                                          "Species" = "code")),
-                                                 # We're going to put the PLANTS code in its own variable so
-                                                 # we don't collapse species codes that are distinct but
-                                                 # unrecognized by PLANTS.
-                                                 tidyselect::any_of(x = c("CurrentPLANTSCode")),
-                                                 tidyselect::any_of(c("GrowthHabit",
-                                                                      "GrowthHabitSub",
-                                                                      "Duration",
-                                                                      "Nonnative",
-                                                                      "Noxious",
-                                                                      "Invasive",
-                                                                      "SpecialStatus",
-                                                                      "SG_Group",
-                                                                      "CommonName",
-                                                                      "ScientificName"))) |>
-                                     dplyr::distinct()
-                                 }) |>
-      dplyr::bind_rows() |>
-      dplyr::distinct()
-
-
-    final_species_info <- dplyr::summarize(.data = final_species_info,
-                                           .by = tidyselect::all_of(x = c("PrimaryKey",
-                                                                          "Species")),
-                                           duplicated = dplyr::n() > 1) |>
-      dplyr::left_join(x = final_species_info,
-                       y = _,
-                       by = c("PrimaryKey",
-                              "Species"),
-                       relationship = "many-to-one")
-
-    final_species_info <- dplyr::bind_rows(dplyr::filter(.data = final_species_info,
-                                                         !duplicated),
-                                           dplyr::filter(.data = final_species_info,
-                                                         duplicated) |>
-                                             dplyr::summarize(.data = _,
-                                                              .by = tidyselect::all_of(x = c("PrimaryKey",
-                                                                                             "Species")),
-                                                              dplyr::across(.cols = tidyselect::any_of(x = c("GrowthHabit",
-                                                                                                             "GrowthHabitSub",
-                                                                                                             "Duration",
-                                                                                                             "Nonnative",
-                                                                                                             "Noxious",
-                                                                                                             "Invasive",
-                                                                                                             "SpecialStatus",
-                                                                                                             "SG_Group",
-                                                                                                             "CommonName",
-                                                                                                             "ScientificName")),
-                                                                            .fns = ~ {
-                                                                              new_vector <- na.omit(.x)
-
-                                                                              if (length(new_vector) < 1) {
-                                                                                NA_character_
-                                                                              } else {
-                                                                                new_vector[1]
-                                                                              }
-                                                                            }))
-    ) |>
-      dplyr::select(.data = _,
-                    -tidyselect::all_of(x = c("duplicated")))
-
-    output <- dplyr::left_join(x = output,
-                               y = final_species_info,
-                               relationship = "many-to-one",
-                               by = c("PrimaryKey",
-                                      "Species"))
-  }
+    output <- species_join(data = output,
+                           data_code = "Species",
+                           species_file = species_info,
+                           species_code = species_code_var,
+                           species_property_vars = c("GrowthHabit",
+                                                     "GrowthHabitSub",
+                                                     "Duration",
+                                                     "ScientificName",
+                                                     "Family",
+                                                     "SG_Group",
+                                                     "HigherTaxon",
+                                                     "Nonnative",
+                                                     "Invasive",
+                                                     "Noxious",
+                                                     "SpecialStatus",
+                                                     "Photosynthesis",
+                                                     "PJ",
+                                                     "CurrentPLANTSCode"),
+                           update_species_codes = FALSE,
+                           by_species_key = FALSE,
+                           verbose = verbose)
+    }
 
   ##### Final cleanup ----------------------------------------------------------
   output_indicators <- list(cover = c("AH_SpeciesCover",
