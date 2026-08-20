@@ -202,7 +202,7 @@ generic_growth_habits <- function(data,
   lmf_duration_regexes <- c("Annual" = "^2(([FG]|VH)[DMSL]?[AB])$",
                             "Perennial" = "^2((F[DMS]?P)|(GL?[PN])|(GRAM)|(S(?!LIME).*)|(T.*)|(VH[DMS]?P)|(VW.*))$")
   aim_duration_regexes <- c("Annual" = "^A{1,2}([FG]{1,2}|SU|SS)\\d*$",
-                            "Perennial" = "^(((P{1,2}(F{1,2}G{1,2}))|((P{1,2})?TR)|(PPSS))\\d*)$|^((((P{1,2})?SH)|(SSHH))|((P{1,2})?SU))\\d*$")
+                           "Perennial" = "^(((P{1,2}(F{1,2}|G{1,2}))|((P{1,2})?TR)|(PPSS))\\d*)$|^((((P{1,2})?SH)|(SSHH))|((P{1,2})?SU))\\d*$")
 
   regexes_list <- list("GrowthHabit" = c(lmf_growthhabit_regexes,
                                          aim_growthhabit_regexes),
@@ -333,6 +333,7 @@ generic_growth_habits <- function(data,
 #' @param check_duplicates Logical. If \code{TRUE} then the generic species information will be checked for duplicated values in the variable specified with the \code{species_code} argument and only the first record for a given code retained. This is recommended if using an imported generic species list but can add significant processing time. Defaults to \code{FALSE}.
 #' @param update_species_codes Logical. If \code{TRUE} then the final output will replace the values in the variable specified with \code{data_code} using values from the variable UpdatedSpeciesCode. This is here for legacy support and is not recommended for ongoing use. Defaults to \code{FALSE}.
 #' @param by_species_key Logical. If \code{TRUE} then the species information will be joined to the data using the variable SpeciesState. This is here for legacy support and is not compatible with the current structure of Terrestrial AIM Database species information in the. Defaults to \code{FALSE}.
+#' @param replace_attributes Logical. If \code{TRUE} then the values for any variables in \code{data} which appear in the species attributes in \code{species_file} will be preserved, e.g. if \code{data} contains a variable called GrowthHabit then the GrowthHabit variable from \code{species_file} will be discarded. If \code{FALSE} then the variables from \code{data} will be discarded and those from \code{species_file} will be kept. This is only applied when a non-joining variable name is identical between the two. Defaults to \code{FALSE}.
 #' @param check_species Deprecated. This has no effect on the function because checks for duplicate species are always carried out. Default to \code{FALSE}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
 #'   messages. Defaults to \code{FALSE}.
@@ -367,6 +368,7 @@ species_join <- function(data, # field data,
                          check_duplicates = FALSE,
                          update_species_codes = FALSE,
                          by_species_key = FALSE,
+                         replace_attributes = FALSE,
                          check_species = FALSE,
                          verbose = FALSE) {
   #### Validity checks #########################################################
@@ -657,19 +659,69 @@ species_join <- function(data, # field data,
     dplyr::left_join(x = data,
                      y = _,
                      relationship = "many-to-one",
-                     by = dplyr::join_by(!!data_code)) |>
+                     by = dplyr::join_by(!!data_code))
 
-    # Safely assign GrowthHabit when missing ONLY if measurement columns are present
-    dplyr::mutate(
-      GrowthHabit = if ("Height" %in% names(data) && "GrowthHabit_measured" %in% names(data)) {
-        dplyr::case_when(
-          !(!!rlang::sym(data_code) %in% acceptable_nas) & is.na(GrowthHabit) & Height > 0 ~ GrowthHabit_measured,
-          .default = GrowthHabit
-        )
-      } else {
-        GrowthHabit
-      }
-    ) |>
+  # In case there were already variables in data that shared names with
+  # variables in species_file, we'll keep the values from only one. Otherwise,
+  # we'll get both and they'll have been differentiated with the suffixes .x and
+  # .y
+  # First, we'll identify variables names that occur twice, once with .x and
+  # once with .y because it's possible that the input data frames had variables
+  # that already had .x or ,y suffixes and we don't want to do anything to those
+  duplicated_var_summary <- names(data_species)[stringr::str_detect(string = names(data_species),
+                                                                    pattern = "\\.[xy]$")] |>
+    stringr::str_remove(string = _,
+                        pattern = "\\.[xy]$") |>
+    table()
+
+  # Make sure that these are the fault of species_file and not coming through
+  # from whatever happened to data before being fed into this function.
+  duplicated_vars <- intersect(x = names(species_file),
+                               y = names(duplicated_var_summary)[duplicated_var_summary == 2])
+
+  if (replace_attributes & length(duplicated_vars) > 0) {
+    if (verbose) {
+      message(paste0("Because replace_attributes is TRUE, replacing any already-assigned values in data with values from species_file in the following variables: ",
+                     paste(duplicated_vars,
+                           collapse = ", ")))
+    }
+    # When replacing the values, we rename the .y (coming from species_file) and
+    # throw out the .x
+    data_species <- dplyr::rename_with(.data = data_species,
+                                       .cols = tidyselect::matches(match = "\\.y"),
+                                       .fn = ~ stringr::str_remove(string = .x,
+                                                                   pattern = "\\.y")) |>
+      dplyr::select(.data = _,
+                    -tidyselect::matches(match = "\\.x"))
+  } else if (!replace_attributes & length(duplicated_vars) > 0) {
+    if (verbose) {
+      message(paste0("Because replace_attributes is FALSE, keeping any already-assigned values in data regardless of values from species_file in the following variables: ",
+                     paste(duplicated_vars,
+                           collapse = ", ")))
+    }
+    # When keeping the values, we rename the .x (coming from data) and
+    # throw out the .y
+    data_species <- dplyr::rename_with(.data = data_species,
+                                       .cols = tidyselect::matches(match = "\\.x"),
+                                       .fn = ~ stringr::str_remove(string = .x,
+                                                                   pattern = "\\.x")) |>
+      dplyr::select(.data = _,
+                    -tidyselect::matches(match = "\\.y"))
+  } else if (verbose) {
+    message("No attribute variable names present in both the original data and species_file.")
+  }
+
+  # Safely assign GrowthHabit when missing ONLY if measurement columns are present
+  data_species <- dplyr::mutate(.data = data_species,
+                                GrowthHabit = if ("Height" %in% names(data) && "GrowthHabit_measured" %in% names(data)) {
+                                  dplyr::case_when(
+                                    !(!!rlang::sym(data_code) %in% acceptable_nas) & is.na(GrowthHabit) & Height > 0 ~ GrowthHabit_measured,
+                                    .default = GrowthHabit
+                                  )
+                                } else {
+                                  GrowthHabit
+                                }
+  ) |>
     dplyr::distinct()
 
 

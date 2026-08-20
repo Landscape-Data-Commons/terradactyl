@@ -3560,7 +3560,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                          "DataErrorChecking",
                          "DataEntry",
                          "DateModified",
-                         "FormType")
+                         "FormType",
+                         "X")
   #### Reading #################################################################
   header <- read_with_fallback(dsn = dsn,
                                tbl = tblSoilStabHeader,
@@ -3604,7 +3605,23 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     dplyr::filter(.data = _,
                   !is.na(PrimaryKey)) |>
     dplyr::distinct()
+  # clean up the header - only keep what's expected in the header and the schema
+  target_cols <- c(
+    "ProjectKey", "PrimaryKey", "LineKey", "RecKey", "DateVisited",
+    "FormDate", "FormType", "SoilStabSub", "Notes", "DBKey",
+    "DateLoadedInDb", "source"
+  )
 
+  header <- header %>%
+    dplyr::select(dplyr::any_of(target_cols))
+
+
+  # clean up the detail - only keep what we need since we are pivotting
+  # regex to keep vars of interest
+  target_cols <- "PrimaryKey|RecKey|Line|Pos|Veg|Rating|Hydro"
+
+  detail <- detail %>%
+    dplyr::select(dplyr::matches(target_cols, ignore.case = TRUE))
   # In some cases (due to bad DIMA defaults) empty rows may exist in DIMA data.
   # This finds all the records where there were no valid ratings and drops them.
   detail <- detail[which(apply(X = dplyr::select(.data = detail,
@@ -3613,6 +3630,51 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                FUN = function(X){
                                  !all(is.na(as.vector(X)))
                                })), ]
+  # If Line* variables are present, we need to make sure that we populated the
+  # "missing" ones. The assumed situation is that we'll have Line1 through Line6
+  # but that each of those corresponds to three other variables, e.g. Line1 goes
+  # with Veg1, Veg2, and Veg3 while Line2 goes with Veg4, Veg5, and Veg6.
+  # This will check to see that we make the expected Line variables and that
+  # those provide coverage for all the other ones.
+  line_positions <- names(detail) |>
+    stringr::str_extract(string = _,
+                         pattern = "(?<=^Line)\\d+$") |>
+    purrr::discard(.x = _,
+                   .p = is.na) |>
+    as.numeric()
+  veg_positions <- names(detail) |>
+    stringr::str_extract(string = _,
+                         pattern = "(?<=^Veg)\\d+$") |>
+    purrr::discard(.x = _,
+                   .p = is.na) |>
+    as.numeric()
+
+  if (length(line_positions) > 0) {
+    if (length(veg_positions) %% length(line_positions) != 0) {
+      warning(paste0("The Line variables in tblSoilDetail can't be clearly mapped to the other variables because there are ",
+                     length(line_positions), " which is not a factor of the maximum position number appended to the Veg variable (", length(veg_positions), "). This will result in missing values in the Line variable in the output."))
+    } else if (length(line_positions) != max(line_positions)) {
+      warning(paste0("The Line variables in tblSoilDetail can't be clearly mapped to the other variables because the there are missing expected position suffixes: ",
+                     paste(setdiff(x = seq_len(max(line_positions)),
+                                   y = max(line_positions)),
+                           collapse = ", "), ". This will result in missing values in the Line variable in the output."))
+    } else if (max(veg_positions) != max(line_positions)) {
+      if (verbose) {
+        message("Attempting to reconcile Line variables with other variables.")
+      }
+      line_increment <- max(veg_positions) / max(line_positions)
+      for (current_position in line_positions[order(line_positions,
+                                                    decreasing = TRUE)]) {
+        detail[, paste0("Line", seq(from = current_position * line_increment - line_increment + 1,
+                                    to = current_position * line_increment))] <- detail[[paste0("Line", current_position)]]
+      }
+    } else {
+      if (verbose) {
+        message("Line variables appear to align with other variables and will not be expanded.")
+      }
+    }
+  }
+
 
   #### Automatic QC ############################################################
   if (auto_qc_warnings) {
@@ -3650,7 +3712,17 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                      # accommodate the cover values which are
                                      # character strings.
                                      values_transform = as.character,
-                                     values_drop_na = TRUE) |>
+                                     values_drop_na = TRUE)|>
+    mutate(
+      value = if_else(
+        variable == "Hydro",
+        # 1. as.logical("TRUE") -> TRUE
+        # 2. as.numeric(TRUE) -> 1
+        # 3. as.character(1) -> "1"
+        as.character(as.numeric(as.logical(value))),
+        value
+      )
+    ) |>
     dplyr::filter(.data = _,
                   value != "",
                   # The only variable type where 0 is a valid value is Hydro, so
@@ -3667,12 +3739,19 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   # grabs only the records with identical "variable" values. It then renames the
   # "value" variable to use whatever the "variable" value is for that set of
   # data and drops the "variable" variable.
-  detail_tidy <- lapply(X = unique(detail_tall$variable),
+  # Update: This now only works over specific variable values, but could easily
+  # be switched back if ever necessary.
+  gathering_variables <- c("Line",
+                           "Pos",
+                           "Veg",
+                           "Rating",
+                           "Hydro")
+    detail_tidy <- lapply(X = gathering_variables,
                         detail_tall = detail_tall,
                         FUN = function(X, detail_tall){
                           # Renaming the "value" variable and then
                           # dropping the "variable" variable.
-                          dplyr::filter(.data = detail_tall,
+                          output <- dplyr::filter(.data = detail_tall,
                                         variable == X) |>
                             # A little clunky, but this way we
                             # don't have to hardcode any
@@ -3682,7 +3761,11 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                                                       nm = X))) |>
                             dplyr::select(.data = _,
                                           -variable)
-                        }) |>
+
+                          }) |>
+    # Throw out any that weren't represented in the data somehow.
+    purrr::discard(.x = _,
+                   .p = function(x) nrow(x) < 1) |>
     # The purrr::reduce() then binds all those together according to the
     # identifying variables. The use of a full_join() makes sure we don't drop
     # anything that had incomplete data. Yet.
@@ -3696,24 +3779,32 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     # those get dropped.
     dplyr::filter(.data = _,
                   !is.na(Rating)) |>
-    # And the last bit is coercing things to numeric.
+    # And the last bit is coercing things to numeric, setting Hydro aside as a
+    # special case because the input format can't be trusted and skipping Line
+    # entirely because people put all kinds of non-numeric things in there.
     dplyr::mutate(.data = _,
-                  dplyr::across(.cols = tidyselect::all_of(c("Position",
-                                                              "Rating",
-                                                             "Hydro")),
-                                # # Can't trust the variables to be coercible to
-                                # # numeric without introducing NAs. Even though
-                                # # that'd be possible in a pristine data set,
-                                # # you'll probably never have one. So, we check
-                                # # to see if coercion does violence and only
-                                # # coerce variables we won't damage.
-                                # .fns = ~ if(any(suppressWarnings(is.na(as.numeric(.x))))) {
-                                #   .x
-                                # } else {
-                                #   as.numeric(.x)
-                                # })
-                                .fns = as.numeric)
-                  )
+                  dplyr::across(.cols = tidyselect::any_of(setdiff(x = gathering_variables,
+                                                                   y = c("Hydro",
+                                                                         "Line"))),
+                                # These should be numeric every time, so we'll
+                                # coerce them directly.
+                                .fns = as.numeric),
+                  dplyr::across(.cols = tidyselect::any_of(c("Hydro")),
+                                # Hydro is supposed to end up numeric, but the
+                                # incoming data is sometimes "0" and "1" but
+                                # might also be "TRUE" and "FALSE". This will
+                                # attempt to coerce it as though it's both and
+                                # keep only the one that worked or NA if neither
+                                # did.
+                                .fns = ~ dplyr::coalesce(as.logical(.x) |>
+                                                           as.numeric(),
+                                                         as.numeric(.x)))
+    ) |>
+    # This approach is almost certainly going to
+    # trigger a warning about introducing NAs in
+    # the coercion, but that's okay because we
+    # expect that so we're going to suppress that.
+    suppressWarnings()
 
   # Find illegal values where the rating is not 6 but they're still marked as
   # hydrophobic

@@ -22,6 +22,7 @@ species_join(
   check_duplicates = FALSE,
   update_species_codes = FALSE,
   by_species_key = FALSE,
+  replace_attributes = FALSE,
   check_species = FALSE,
   verbose = FALSE
 )
@@ -56,6 +57,8 @@ species_join(
 \item{update_species_codes}{Logical. If \code{TRUE} then the final output will replace the values in the variable specified with \code{data_code} using values from the variable UpdatedSpeciesCode. This is here for legacy support and is not recommended for ongoing use. Defaults to \code{FALSE}.}
 
 \item{by_species_key}{Logical. If \code{TRUE} then the species information will be joined to the data using the variable SpeciesState. This is here for legacy support and is not compatible with the current structure of Terrestrial AIM Database species information in the. Defaults to \code{FALSE}.}
+
+\item{replace_attributes}{Logical. If \code{TRUE} then the values for any variables in \code{data} which appear in the species attributes in \code{species_file} will be preserved, e.g. if \code{data} contains a variable called GrowthHabit then the GrowthHabit variable from \code{species_file} will be discarded. If \code{FALSE} then the variables from \code{data} will be discarded and those from \code{species_file} will be kept. This is only applied when a non-joining variable name is identical between the two. Defaults to \code{FALSE}.}
 
 \item{check_species}{Deprecated. This has no effect on the function because checks for duplicate species are always carried out. Default to \code{FALSE}.}
 
