@@ -1248,10 +1248,7 @@ accumulated_species <- function(header,
                                                      "CurrentPLANTSCode"),
                            update_species_codes = FALSE,
                            by_species_key = FALSE,
-                           verbose = verbose) |>
-      adjust_species_attributes(data = _,
-                                fail_on_missing = FALSE,
-                                verbose = verbose)
+                           verbose = verbose)
     }
 
   ##### Final cleanup ----------------------------------------------------------
