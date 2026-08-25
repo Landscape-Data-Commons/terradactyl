@@ -3782,9 +3782,12 @@ gather_soil_stability_terradat <- function(dsn = NULL,
     # And the last bit is coercing things to numeric, setting Hydro aside as a
     # special case because the input format can't be trusted and skipping Line
     # entirely because people put all kinds of non-numeric things in there.
+    # Hydro, Veg, and Line are all excluded from the initial attempt to coerce
+    # to numeric.
     dplyr::mutate(.data = _,
                   dplyr::across(.cols = tidyselect::any_of(setdiff(x = gathering_variables,
                                                                    y = c("Hydro",
+                                                                         "Veg",
                                                                          "Line"))),
                                 # These should be numeric every time, so we'll
                                 # coerce them directly.
