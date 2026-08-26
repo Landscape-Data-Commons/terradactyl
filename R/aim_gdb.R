@@ -760,31 +760,12 @@ lpi_calc <- function(header,
   }
 
   ##### All other cover ########################################################
-  # unique_grouping_vars <- unlist(x = variable_groups) |> unique()
-  #
-  # capitalization_lookup_list <- lapply(X = unique_grouping_vars,
-  #                                      data = lpi_species,
-  #                                      FUN = function(X, data){
-  #                                        current_values <- unique(data[[X]])
-  #                                        current_values <- current_values[!is.na(current_values)]
-  #                                        if (length(current_values) > 0) {
-  #                                          setNames(object = current_values,
-  #                                                   nm = paste0("^", toupper(current_values), "$"))
-  #                                          # setNames(object = toupper(current_values),
-  #                                          #          nm = current_values)
-  #                                        } else {
-  #                                          NULL
-  #                                        }
-  #                                      })
-  # names(capitalization_lookup_list) <- unique_grouping_vars
-
+  
   cover_indicators_list <- lapply(X = names(variable_groups),
                                   variable_groups = variable_groups,
                                   data = lpi_species,
-                                  capitalization_lookup_list = capitalization_lookup_list,
                                   verbose = verbose,
                                   FUN = function(X, variable_groups, data,
-                                                 # capitalization_lookup_list,
                                                  verbose){
                                     current_hit <- X
                                     message(paste("Calculating", current_hit, "hit indicators."))
@@ -794,9 +775,8 @@ lpi_calc <- function(header,
                                                                    data = data,
                                                                    hit = current_hit,
                                                                    current_variable_groupings = current_variable_groupings,
-                                                                   capitalization_lookup_list = capitalization_lookup_list,
                                                                    verbose = verbose,
-                                                                   FUN = function(X, data, hit, current_variable_groupings, capitalization_lookup_list, verbose){
+                                                                   FUN = function(X, data, hit, current_variable_groupings, verbose){
                                                                      current_grouping_vars <- current_variable_groupings[[X]]
                                                                      if (verbose) {
                                                                        message(paste("Calculating", hit, "hit indicators grouped by the variable(s):",
@@ -828,11 +808,7 @@ lpi_calc <- function(header,
                                                                                                                     delim = ".",
                                                                                                                     names = current_grouping_vars)
 
-                                                                     # for (current_variable in current_grouping_vars) {
-                                                                     #   current_results[[current_variable]] <- stringr::str_replace_all(string = current_results[[current_variable]],
-                                                                     #                                                                   pattern = capitalization_lookup_list[[current_variable]])
-                                                                     # }
-
+                                                              
                                                                      current_results <- tidyr::unite(data = current_results,
                                                                                                      col = indicator,
                                                                                                      dplyr::all_of(current_grouping_vars),
