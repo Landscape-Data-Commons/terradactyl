@@ -569,7 +569,10 @@ gather_header_terradat <- function(dsn = NULL,
 
     desired_date_tables <- c("tblLPIHeader",
                              "tblGapHeader",
-                             "tblSpecRichHeader")
+                             "tblSpecRichHeader",
+                             "tblSoilStabHeader",
+                             "tblQualHeader",
+                             "tblPlantDenHeader")
 
     date_tables <- lapply(X = desired_date_tables,
                           dsn = dsn,
