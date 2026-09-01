@@ -3715,23 +3715,17 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                      # accommodate the cover values which are
                                      # character strings.
                                      values_transform = as.character,
-                                     values_drop_na = TRUE)|>
-    mutate(
-      value = if_else(
-        variable == "Hydro",
-        # 1. as.logical("TRUE") -> TRUE
-        # 2. as.numeric(TRUE) -> 1
-        # 3. as.character(1) -> "1"
-        as.character(as.numeric(as.logical(value))),
-        value
-      )
+                                     values_drop_na = TRUE) |>
+    mutate(.data = _,
+           value = dplyr::if_else(condition = variable == "Hydro",
+                                  # 1. as.logical("TRUE") -> TRUE
+                                  # 2. as.numeric(TRUE) -> 1
+                                  # 3. as.character(1) -> "1"
+                                  true = as.character(as.numeric(as.logical(value))),
+                                  false = value)
     ) |>
     dplyr::filter(.data = _,
-                  value != "",
-                  # The only variable type where 0 is a valid value is Hydro, so
-                  # we'll drop any records where the value is 0 and the variable
-                  # type IS NOT "Hydro"
-                  !(variable != "Hydro" & value == "0")) |>
+                  value != "") |>
     dplyr::distinct()
 
   # This will make things wider. We can't just use tidyr::pivot_wider() because
@@ -3749,13 +3743,13 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                            "Veg",
                            "Rating",
                            "Hydro")
-    detail_tidy <- lapply(X = gathering_variables,
+  detail_tidy <- lapply(X = gathering_variables,
                         detail_tall = detail_tall,
                         FUN = function(X, detail_tall){
                           # Renaming the "value" variable and then
                           # dropping the "variable" variable.
                           output <- dplyr::filter(.data = detail_tall,
-                                        variable == X) |>
+                                                  variable == X) |>
                             # A little clunky, but this way we
                             # don't have to hardcode any
                             # "variable" values.
@@ -3765,7 +3759,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                             dplyr::select(.data = _,
                                           -variable)
 
-                          }) |>
+                        }) |>
     # Throw out any that weren't represented in the data somehow.
     purrr::discard(.x = _,
                    .p = function(x) nrow(x) < 1) |>
