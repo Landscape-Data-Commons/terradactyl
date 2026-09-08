@@ -6,3 +6,6 @@ inst/doc
 /testing
 *.Rproj
 .Rproj.user
+
+/.quarto/
+**/*.quarto_ipynb
