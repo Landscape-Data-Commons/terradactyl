@@ -63,8 +63,16 @@ demo_data <- function(type,
 
   # This is here in case we ever support reading in multiple things at once.
   for (current_type in type) {
-    load(file = file.path("data",
-                          file_lookup[current_type]),
+    data_path <- system.file("data",
+                             file_lookup[current_type],
+                             package = "terradactyl")
+
+    if (!nzchar(data_path)) {
+      stop(paste0("Unable to find the bundled data file for type '",
+                  current_type, "'. The package installation may be corrupted."))
+    }
+
+    load(file = data_path,
          # So that this loads into the global environment
          # envir = .GlobalEnv,
          verbose = verbose)
