@@ -24,35 +24,27 @@ check_source <- function(source,
   }
 
   # This sets source to the correctly capitalized version
-  source_match_index <- which(toupper(unlist(valid_source_values)) == toupper(source))
+  source_match_index <- toupper(unlist(valid_source_values)) == toupper(source)
 
-  alt_source <- unlist(valid_source_values) |>
-    names() |>
-    stringr::str_replace(string = _,
-                         pattern = paste0(names(valid_source_values),
-                                          "(\\.|\\d+)") |>
-                           paste(.x = _,
-                                 collapse = "|"),
-                         replacement = "")
-
-  if (alt_source[source_match_index] != "") {
-    source <- alt_source[source_match_index]
-  } else {
-    source <- unlist(valid_source_values)[source_match_index]
+  if (!any(source_match_index)) {
+    stop(paste0('The current source value, "', source, '", is not recognized. Valid source values are: "',
+                paste(unlist(valid_source_values),
+                      collapse = '", "'), '"'))
   }
 
-
+  source <- unlist(valid_source_values)[source_match_index] |>
+    unname()
 
 
   # This identifies the source type, which is ultimately intended to be used to
   # invoke the correct function for the type, e.g. gather_lpi_lmf()
   source_type <- names(valid_source_values)[sapply(X = valid_source_values,
-                                                   source = source,
+                                                   source = toupper(source),
                                                    FUN = function(X, source){
                                                      source %in% X
                                                    })]
-  c(source = source,
-    type = source_type)
+  return(c(source = source,
+           type = source_type))
 }
 
 # There are a number of functions in this package that use the ellipsis to
