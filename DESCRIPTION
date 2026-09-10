@@ -25,7 +25,7 @@ LazyData: true
 Depends:
     R (>= 4.2.0)
 Imports:
-    dplyr,
+    dplyr (>= 1.2.0),
     stringr,
     tidyr,
     sf,
