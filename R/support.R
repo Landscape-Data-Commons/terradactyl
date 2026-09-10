@@ -437,8 +437,8 @@ lpi_indicator_definitions <- function(){
 
     #### Lichen codes ----------------------------------------------------------
     lichen_identifiers = list(Lichen = c("LC", "2LICHN", "2LICHN1"),
-                           Cyanobacteria = "CY",
-                           VagrLichen = "VL"),
+                              Cyanobacteria = "CY",
+                              VagrLichen = "VL"),
 
     #### Biocrust codes --------------------------------------------------------
     biocrust_identifiers = c("CY",
@@ -859,7 +859,7 @@ adjust_species_attributes <- function(data,
                           #                          .default = NA)
                           Plant = dplyr::case_when(!(GrowthHabitSub %in% c("growthhabitsub_irrelevant")) &
                                                      !(GrowthHabit %in% "Nonvascular") &
-                                                   stringi::stri_length(code) >= 3 ~ "Plant",
+                                                     stringi::stri_length(code) >= 3 ~ "Plant",
                                                    .default = NA)
     )
   } else {
@@ -869,7 +869,7 @@ adjust_species_attributes <- function(data,
         paste(.x = _,
               collapse = ", ") |>
         paste0("Some variables are not present (", .x = _, "). The variable Plant will not be created.") |>
-      message()
+        message()
     }
   }
 
@@ -1151,7 +1151,7 @@ adjust_species_attributes <- function(data,
     )
   } else {
     if (verbose) {
-        message("The variable Invasive is not present and will not be modified.")
+      message("The variable Invasive is not present and will not be modified.")
     }
   }
 

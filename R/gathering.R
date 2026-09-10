@@ -847,7 +847,6 @@ gather_header_lmf <- function(dsn = NULL,
   output
 }
 
-
 #' Gather NRI plot-level header data
 #' @description This reads in metadata from NRI sampling used as headers for
 #' various methods and returns it as a long-format data frame suitable for use
