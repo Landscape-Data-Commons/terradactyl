@@ -2,8 +2,8 @@ Package: terradactyl
 Type: Package
 Title: Tools for Creating and Using TerrADat
 Version: 1.9.3
-Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
-               person(given="Nelson G", family="Stauffer", role="aut"),
+Authors@R: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@usda.gov"),
+               person(given="Nelson G", family="Stauffer", role="aut", email = "nelson.stauffer@usda.gov"),
                person(given="Brandi", family="Wheeler", role="aut"),
                person(given="Joseph R", family = "Brehm", role="aut"),
                person(given="Sarah H", family="Burnett", role="aut"),
