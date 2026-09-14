@@ -52,23 +52,19 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## DESCRIPTION fields
 
-- [ ] Convert `Author:`/`Maintainer:` fields to a single `Authors@R:` field
-      (CRAN policy prefers/requires this format; the list of `person()`
-      calls is already there, just needs restructuring).
-- [ ] Add `URL` field (GitHub repo: `Landscape-Data-Commons/terradactyl`,
-      currently only referenced in the README).
-- [ ] Add `BugReports` field (GitHub issues URL).
-- [ ] Resolve vignette mismatch: DESCRIPTION declares
-      `VignetteBuilder: knitr` and `Suggests: knitr, rmarkdown`, but there is
-      no `vignettes/` directory in the package. Either add a real vignette
-      (e.g. adapt `README.Rmd`) or drop the vignette-related fields/deps.
-- [ ] Reconsider `raster` in `Suggests` — it's soft-deprecated in favor of
-      `terra`. Confirm it's still actually needed or migrate.
-- [ ] Double-check `Title` and `Description` fields read clearly to an
-      outside CRAN reviewer (e.g. "TerrADat", "BLM AIM", "BLM LMF", "NRCS
-      NRI" are internal acronyms that may need spelling out on first use).
-      Consider adding a `<doi:...>` reference for the McCord et al. 2022
-      paper cited in the README.
+- [x] Convert `Author:`/`Maintainer:` fields to a single `Authors@R:` field
+      (CRAN policy prefers/requires this format; Nelson Stauffer is designated
+      as the maintainer via the `cre` role).
+- [x] Add `URL` field for the GitHub repository.
+- [x] Add `BugReports` field for GitHub issues.
+- [x] Resolve vignette mismatch by dropping `VignetteBuilder` and the `knitr`
+      and `rmarkdown` suggestions; the package has no vignette directory.
+- [x] Reconsider `raster` in `Suggests`. Retained for now because `aero()`
+      directly uses `raster::extract()` for raster texture inputs; migration
+      to `terra` requires a separate update to the function's spatial types.
+- [x] Revise `Title` and `Description` for CRAN readers by removing TerrADat
+      from the title, spelling out program names, and adding the McCord et al.
+      (2022) DOI.
 
 ## Licensing
 

@@ -1,24 +1,33 @@
 Package: terradactyl
 Type: Package
-Title: Tools for Creating and Using TerrADat
+Title: Standardize Terrestrial Monitoring Data and Calculate Indicators
 Version: 1.7.1
-Author: c(person(given="Sarah E", family="McCord", role=c("aut", "cre"), email = "sarah.mccord@ars.usda.gov"),
-               person(given="Nelson G", family="Stauffer", role="aut"),
-               person(given="Joseph R", family = "Brehm", role="aut"),
-               person(given="Sarah H", family="Burnett", role="aut"),
-               person(given="Chris", family="Dietrich", role="aut"),
-               person(given="Brandon", family="Edwards", role="aut"),
-               person(given="Mariano", family="Hernandez-Narvaez", role="aut"),
-               person(given="Emily", family="Kachergis", role="aut"),
-               person(given="Loretta J", family="Metz", role="aut"),
-               person(given="Fred", family="Pierson", role="aut"),
-               person(given="Kelly S", family="Ramirez", role="aut"),
-               person(given="Nicholas P", family="Webb", role="aut"),
-               person(given="Craig E", family="Tweedie", role="aut")
-               )
-Maintainer: Nelson Stauffer <nelson.stauffer@usda.gov>
-Description: Access, tidy, and calculate standard indicators for data from the BLM AIM, BLM LMF, and NRCS NRI monitoring programs.
+Authors@R: c(
+    person("Sarah E", "McCord", role = "aut",
+           email = "sarah.mccord@ars.usda.gov"),
+    person("Nelson G", "Stauffer", role = c("aut", "cre"),
+           email = "nelson.stauffer@usda.gov"),
+    person("Joseph R", "Brehm", role = "aut"),
+    person("Sarah H", "Burnett", role = "aut"),
+    person("Chris", "Dietrich", role = "aut"),
+    person("Brandon", "Edwards", role = "aut"),
+    person("Mariano", "Hernandez-Narvaez", role = "aut"),
+    person("Emily", "Kachergis", role = "aut"),
+    person("Loretta J", "Metz", role = "aut"),
+    person("Fred", "Pierson", role = "aut"),
+    person("Kelly S", "Ramirez", role = "aut"),
+    person("Nicholas P", "Webb", role = "aut"),
+    person("Craig E", "Tweedie", role = "aut")
+    )
+Description: Accesses and standardizes terrestrial monitoring data and
+    calculates indicators used by the Bureau of Land Management Assessment,
+    Inventory, and Monitoring program and Landscape Monitoring Framework, and
+    the Natural Resources Conservation Service National Resources Inventory.
+    Methods are described in McCord et al. (2022)
+    <doi:10.1016/j.ecolind.2022.109511>.
 License: GPL-3
+URL: https://github.com/Landscape-Data-Commons/terradactyl
+BugReports: https://github.com/Landscape-Data-Commons/terradactyl/issues
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
@@ -36,8 +45,6 @@ Imports:
     purrr,
     tidyselect
 Suggests:
-    knitr,
-    rmarkdown,
     RODBC,
     devtools,
     odbc,
@@ -47,5 +54,4 @@ Suggests:
     rstudioapi,
     usethis,
     testthat (>= 3.0.0)
-VignetteBuilder: knitr
 Config/testthat/edition: 3
