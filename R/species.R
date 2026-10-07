@@ -342,35 +342,35 @@ generic_growth_habits <- function(data,
 #' @export
 #'
 species_join <- function(data, # field data,
-                         data_code = "code", # Species field in the data
-                         species_file,
-                         species_layer = "tblNationalPlants",
-                         species_code = "NameCode", # field name in species file that identifies the species code
-                         species_growth_habit_code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
-                         species_duration = "Duration", # field name in species file of the Duration assignment
-                         species_property_vars = c("GrowthHabit",
-                                                   "GrowthHabitSub",
-                                                   "Duration",
-                                                   "Family",
-                                                   "SG_Group",
-                                                   "HigherTaxon",
-                                                   "Nonnative",
-                                                   "Invasive",
-                                                   "Noxious",
-                                                   "SpecialStatus",
-                                                   "Photosynthesis",
-                                                   "PJ",
-                                                   "CurrentPLANTSCode"),
-                         growth_habit_file = "", # path to .csv or gdb holding tblSpeciesGrowthHabit
-                         growth_habit_code = "Code",
-                         overwrite_generic_species = FALSE,
-                         generic_species_file = "",
-                         check_duplicates = FALSE,
-                         update_species_codes = FALSE,
-                         by_species_key = FALSE,
-                         replace_attributes = FALSE,
-                         check_species = FALSE,
-                         verbose = FALSE) {
+                                data_code = "code", # Species field in the data
+                                species_file,
+                                species_layer = "tblNationalPlants",
+                                species_code = "NameCode", # field name in species file that identifies the species code
+                                species_growth_habit_code = "GrowthHabitSub", # field name in species file of the species code to link to GrowthHabit
+                                species_duration = "Duration", # field name in species file of the Duration assignment
+                                species_property_vars = c("GrowthHabit",
+                                                          "GrowthHabitSub",
+                                                          "Duration",
+                                                          "Family",
+                                                          "SG_Group",
+                                                          "HigherTaxon",
+                                                          "Nonnative",
+                                                          "Invasive",
+                                                          "Noxious",
+                                                          "SpecialStatus",
+                                                          "Photosynthesis",
+                                                          "PJ",
+                                                          "CurrentPLANTSCode"),
+                                growth_habit_file = "", # path to .csv or gdb holding tblSpeciesGrowthHabit
+                                growth_habit_code = "Code",
+                                overwrite_generic_species = FALSE,
+                                generic_species_file = "",
+                                check_duplicates = FALSE,
+                                update_species_codes = FALSE,
+                                by_species_key = FALSE,
+                                replace_attributes = FALSE,
+                                check_species = FALSE,
+                                verbose = FALSE) {
   #### Validity checks #########################################################
 
 
@@ -653,6 +653,9 @@ species_join <- function(data, # field data,
                                 tidyselect::all_of(x = setNames(object = species_code,
                                                                 nm = data_code)),
                                 tidyselect::everything()) |>
+    #UPDATE HERE
+    # Deduplicate on the join key to guarantee 1 row per species code - more than one pkey can share an unknown code
+    dplyr::distinct(!!rlang::sym(data_code), .keep_all = TRUE) |>
     # remove blank and NAs from species list
     dplyr::filter(!is.na(!!rlang::sym(data_code)) & !!rlang::sym(data_code) != "") |>
     # Enforce left_join behavior mapping many-to-one
