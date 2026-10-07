@@ -3544,7 +3544,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                            tblSoilStabDetail = NULL,
                                            tblSoilStabHeader = NULL,
                                            auto_qc_warnings = TRUE,
-                                           verbose = FALSE) {
+                                           verbose = TRUE) {
 
   # These are used for data management within a geodatabase and we're going to
   # drop them.
@@ -3630,6 +3630,8 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                FUN = function(X){
                                  !all(is.na(as.vector(X)))
                                })), ]
+
+
   # If Line* variables are present, we need to make sure that we populated the
   # "missing" ones. The assumed situation is that we'll have Line1 through Line6
   # but that each of those corresponds to three other variables, e.g. Line1 goes
@@ -3676,6 +3678,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   }
 
 
+
   #### Automatic QC ############################################################
   if (auto_qc_warnings) {
     if (verbose) {
@@ -3692,6 +3695,14 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   }
 
   #### Munging #################################################################
+  # drop all NULL cols
+
+  target_cols <- names(detail)[str_detect(names(detail), regex("Line|Veg|Rating", ignore_case = TRUE))]
+
+  # 2. Filter out rows where ALL matching columns are NA, NULL string, or whitespace
+  detail <- detail %>%
+    filter(!if_all(all_of(target_cols), ~ is.na(.) | str_trim(as.character(.)) %in% c("", "NULL", "null", "N/A", "na")))
+
   # Convert to tall format
   detail_tall <- tidyr::pivot_longer(data = detail,
                                      cols = -tidyselect::all_of(c("PrimaryKey",
@@ -3712,23 +3723,17 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                                      # accommodate the cover values which are
                                      # character strings.
                                      values_transform = as.character,
-                                     values_drop_na = TRUE)|>
-    mutate(
-      value = if_else(
-        variable == "Hydro",
-        # 1. as.logical("TRUE") -> TRUE
-        # 2. as.numeric(TRUE) -> 1
-        # 3. as.character(1) -> "1"
-        as.character(as.numeric(as.logical(value))),
-        value
-      )
+                                     values_drop_na = TRUE) |>
+    mutate(.data = _,
+           value = dplyr::if_else(condition = variable == "Hydro",
+                                  # 1. as.logical("TRUE") -> TRUE
+                                  # 2. as.numeric(TRUE) -> 1
+                                  # 3. as.character(1) -> "1"
+                                  true = as.character(as.numeric(as.logical(value))),
+                                  false = value)
     ) |>
     dplyr::filter(.data = _,
-                  value != "",
-                  # The only variable type where 0 is a valid value is Hydro, so
-                  # we'll drop any records where the value is 0 and the variable
-                  # type IS NOT "Hydro"
-                  !(variable != "Hydro" & value == "0")) |>
+                  value != "") |>
     dplyr::distinct()
 
   # This will make things wider. We can't just use tidyr::pivot_wider() because
@@ -3746,13 +3751,13 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                            "Veg",
                            "Rating",
                            "Hydro")
-    detail_tidy <- lapply(X = gathering_variables,
+  detail_tidy <- lapply(X = gathering_variables,
                         detail_tall = detail_tall,
                         FUN = function(X, detail_tall){
                           # Renaming the "value" variable and then
                           # dropping the "variable" variable.
                           output <- dplyr::filter(.data = detail_tall,
-                                        variable == X) |>
+                                                  variable == X) |>
                             # A little clunky, but this way we
                             # don't have to hardcode any
                             # "variable" values.
@@ -3762,7 +3767,7 @@ gather_soil_stability_terradat <- function(dsn = NULL,
                             dplyr::select(.data = _,
                                           -variable)
 
-                          }) |>
+                        }) |>
     # Throw out any that weren't represented in the data somehow.
     purrr::discard(.x = _,
                    .p = function(x) nrow(x) < 1) |>
@@ -3823,6 +3828,30 @@ gather_soil_stability_terradat <- function(dsn = NULL,
   if (nrow(illegal_hydro) > 0) {
     warning(paste0("There are ", sum(illegal_hydro$count), " records in the data marked as hydrophobic which have a rating other than 6. These records are impossible with the standard implementation of the soil stability data collection protocol."))
   }
+
+  #Sarah doesn't want the values converted to NA all the time
+  # # NOW replace those Hydros with NA
+  # # Identify rows with illegal Hydro/Rating combinations
+  # illegal_hydro <- detail_tidy |>
+  #   dplyr::select(tidyselect::all_of(c("Rating", "Hydro"))) |>
+  #   dplyr::summarize(
+  #     .by = tidyselect::all_of(c("Rating", "Hydro")),
+  #     count = dplyr::n()
+  #   ) |>
+  #   dplyr::filter(Rating != 6, Hydro == 1)
+  #
+  # # If invalid combinations exist, replace BOTH Hydro and Rating with NA in 'detail'
+  # if (nrow(illegal_hydro) > 0) {
+  #   cat("Illegal Hydro values found. Setting Hydro and Rating to NA...\n")
+  #
+  #   detail_tidy <- detail_tidy |>
+  #     dplyr::mutate(
+  #       Hydro  = dplyr::if_else(Hydro == 1 & (Rating != 6 | is.na(Rating)), NA, Hydro),
+  #       Rating = dplyr::if_else(Hydro == 1 & (Rating != 6 | is.na(Rating)), NA, Rating)
+  #     )
+  # } else {
+  #   cat("Check Passed: No illegal Hydro/Rating combinations found.\n")
+  # }
 
   # Merge soil stability detail and header tables
   soil_stability_tall <- suppressWarnings(dplyr::left_join(x = header,
