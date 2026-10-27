@@ -35,7 +35,8 @@ Imports:
     stats,
     purrr,
     tidyselect,
-    lubridate
+    lubridate,
+    lifecycle
 Suggests:
     knitr,
     rmarkdown,
