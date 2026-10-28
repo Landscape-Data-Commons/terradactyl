@@ -113,15 +113,23 @@ gap_cover <- function(gap_tall,
                     breaks[2])
 
   # If there are enough breaks, we need classes that are only inclusive on the
-  # right, so we'll take the lower bounds and add 1 then use the upper bounds
-  # without making changes.
+  # right, so we'll take the lower bounds and add the appropriate increment then
+  # use the upper bounds without making changes.
+  # The increments will be based on the number of non-zero decimal places in
+  # each break.
+  incrementing_breaks <- breaks[2:(length(breaks) - 1)]
+
+  increments <- sapply(X = incrementing_breaks,
+                       FUN = function(X){
+                         1 / 10 ^ get_decimal_places(X)
+                       })
+
   if (length(breaks > 2)) {
     classes <- c(classes,
-                 paste(breaks[2:(length(breaks) - 1)] + 1,
+                 paste(incrementing_breaks + increments,
                        breaks[3:length(breaks)],
                        sep = "-"))
   }
-
 
   ##### Gap data ---------------------------------------------------------------
   ###### Unit harmonization ----------------------------------------------------
@@ -267,6 +275,9 @@ gap_cover <- function(gap_tall,
   # minimum and maximum values in the class and adjust those to reflect the
   # inclusivity, e.g. if 50 is the minimum, then we'll change that to 51 because
   # it wasn't inclusive on the left.
+  # If the user has provided breaks that have more than three digits, cut() will
+  # convert those into scientific notation in the classes, e.g. 3000 becomes
+  # "3e+03" and so the regexes need to accommodate that.
   #_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#
   #_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#_#
   # NOTE!!!!! The Gap values are being truncated here when classifying them to
@@ -287,8 +298,9 @@ gap_cover <- function(gap_tall,
                             # This lets us avoid all the messiness of trying to
                             # work with the [, ], (, and ) that cut() uses to
                             # indicate inclusivity.
+                            # The (e[-+]\\d+)? is to make sure that
                             break_min = as.numeric(stringr::str_extract(string = class,
-                                                                        pattern = "\\d+|Inf(?=,)")),
+                                                                        pattern = "((\\d+(\\.\\d+)?(e[-+]\\d+)?)|Inf)(?=,)")),
                             # This makes sure that the lower bound value gets
                             # bumped up by 1 for all classes where the lower
                             # bound wasn't the lowest break value.
@@ -297,7 +309,7 @@ gap_cover <- function(gap_tall,
                             # Same as above, but with digits (or Inf) *preceded*
                             # by a comma.
                             break_max = as.numeric(stringr::str_extract(string = class,
-                                                                        pattern = "(?<=,)\\d+|Inf")))
+                                                                        pattern = "(?<=,)((\\d+(\\.\\d+)?(e[-+]\\d+)?)|Inf)")))
 
   #### CALCULATE ###############################################################
   ##### Calculate the indicators -----------------------------------------------

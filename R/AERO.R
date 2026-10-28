@@ -21,6 +21,10 @@ aero <- function(lpi_tall,
                  folder_location,
                  verbose = FALSE){
 
+  lifecycle::deprecate_stop(when = "1.9.4",
+                            what = "aero()",
+                            details = "The functionality of aero() has been moved to the aeroinputs package available at https://github.com/landscape-data-commons/aeroinputs")
+
   # Remove NAs from coordinates
   header <- header %>% subset(!is.na(Longitude_NAD83) &
                                 !is.na(Latitude_NAD83))

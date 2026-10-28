@@ -1289,6 +1289,7 @@ accumulated_species <- function(header,
                                                      "GrowthHabitSub",
                                                      "Duration",
                                                      "ScientificName",
+                                                     "CommonName",
                                                      "Family",
                                                      "SG_Group",
                                                      "HigherTaxon",
@@ -1301,8 +1302,65 @@ accumulated_species <- function(header,
                                                      "CurrentPLANTSCode"),
                            update_species_codes = FALSE,
                            by_species_key = FALSE,
-                           verbose = verbose)
-    }
+                           verbose = verbose) |>
+      adjust_species_attributes(data = _,
+                                fail_on_missing = FALSE,
+                                verbose = verbose) |>
+      dplyr::select(.data = _,
+                    tidyselect::all_of(x = names(output)),
+                    tidyselect::any_of(x = c("GrowthHabit",
+                                             "GrowthHabitSub",
+                                             "Duration",
+                                             "ScientificName",
+                                             "Nonnative" = "Native",
+                                             "Noxious",
+                                             "Invasive",
+                                             "SpecialStatus",
+                                             "SG_Group",
+                                             "CommonName"))) |>
+      # Stupid, but the quick fix to using the current version (9/2026) of
+      # adjust_species_attributes() is to revert the lpi_calc()-specific changes
+      # to core attributes because refactoring the function is more challenging.
+      dplyr::mutate(.data = data,
+                    # Expand these again
+                    Duration = dplyr::replace_values(from = c("Peren",
+                                                              "Ann"),
+                                                     to = c("Perennial",
+                                                            "Annual")),
+                    # Make sure these are standardized (maybe nonessential)
+                    GrowthHabit = stringr::str_replace_all(string = GrowthHabit,
+                                                              pattern = c("(?<=[Nn]on)-?(?=[Ww])" = " ",
+                                                                          "(?<=[Nn]on)-?[Vv](?=[ascular])" = "v")) |>
+                      stringr::str_to_camel(string = _,
+                                            first_upper = TRUE),
+                    # Make sure these are standardized (maybe nonessential)
+                    GrowthHabitSub = stringr::str_replace_all(string = GrowthHabitSub,
+                                                          pattern = c("(?<=[Ss]ub)-?(?=[Ss])" = " ",
+                                                                      "(?<=[Nn]on)-?[Vv](?=[ascular])" = "v")) |>
+                      stringr::str_to_camel(string = _,
+                                                           first_upper = TRUE),
+                    # Expand these again and replace "Irrelevant" with NA
+                    SG_Group = stringr::str_replace_all(string = SG_Group,
+                                                        replacement = "StaturePerennialGrass",
+                                                        pattern = "PerenGrass") |>
+                      dplyr::replace_values(x = _,
+                                            from = "Irrelevant",
+                                            to = NA),
+                    # Make this "NATIVE" and "EXOTIC"
+                    Nonnative = dplyr::replace_values(x = Nonnative,
+                                                     from =  c("Native",
+                                                               "NonNative"),
+                                                     to = c("NATIVE",
+                                                            "EXOTIC")),
+                    # Make this "Noxious" or NA
+                    Noxious = dplyr::replace_values(x = Nonnative,
+                                                    from =  c("noxious_irrelevant"),
+                                                    to = c(NA)),
+                    # Make this "Invasive" or NA
+                    Invasive = dplyr::replace_values(x = Nonnative,
+                                                     from =  c("NonInv"),
+                                                     to = c(NA)))
+  }
 
   ##### Final cleanup ----------------------------------------------------------
   output_indicators <- list(cover = c("AH_SpeciesCover",
