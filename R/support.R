@@ -1,3 +1,21 @@
+# Not exported, just here so we can label gap classes accurately-ish.
+get_decimal_places <- function(x) {
+  # If there's no remainder here, then there are 0 decimal places, otherwise we
+  # can convert the number to a character string, split with a regex that will
+  # capture digits before the decimal plus the decimal, and count the number of
+  # characters in the returned string.
+  if (x %% 1) {
+    as.character(x) |>
+      stringi::stri_split_regex(str = _,
+                                pattern = "\\d+\\.",
+                                omit_empty = TRUE) |>
+      unlist() |>
+      stringi::stri_length()
+  } else {
+    0
+  }
+}
+
 # This is not currently exported.
 # This function serves as a means to let functions that accommodate different
 # data sources check their input arguments against a lookup, returning a vector

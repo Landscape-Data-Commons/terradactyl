@@ -113,15 +113,23 @@ gap_cover <- function(gap_tall,
                     breaks[2])
 
   # If there are enough breaks, we need classes that are only inclusive on the
-  # right, so we'll take the lower bounds and add 1 then use the upper bounds
-  # without making changes.
+  # right, so we'll take the lower bounds and add the appropriate increment then
+  # use the upper bounds without making changes.
+  # The increments will be based on the number of non-zero decimal places in
+  # each break.
+  incrementing_breaks <- breaks[2:(length(breaks) - 1)]
+
+  increments <- sapply(X = incrementing_breaks,
+                       FUN = function(X){
+                         1 / 10 ^ get_decimal_places(X)
+                       })
+
   if (length(breaks > 2)) {
     classes <- c(classes,
-                 paste(breaks[2:(length(breaks) - 1)] + 1,
+                 paste(incrementing_breaks + increments,
                        breaks[3:length(breaks)],
                        sep = "-"))
   }
-
 
   ##### Gap data ---------------------------------------------------------------
   ###### Unit harmonization ----------------------------------------------------
