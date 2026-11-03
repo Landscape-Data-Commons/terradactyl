@@ -1,3 +1,21 @@
+# Not exported, just here so we can label gap classes accurately-ish.
+get_decimal_places <- function(x) {
+  # If there's no remainder here, then there are 0 decimal places, otherwise we
+  # can convert the number to a character string, split with a regex that will
+  # capture digits before the decimal plus the decimal, and count the number of
+  # characters in the returned string.
+  if (x %% 1) {
+    as.character(x) |>
+      stringi::stri_split_regex(str = _,
+                                pattern = "\\d+\\.",
+                                omit_empty = TRUE) |>
+      unlist() |>
+      stringi::stri_length()
+  } else {
+    0
+  }
+}
+
 # This is not currently exported.
 # This function serves as a means to let functions that accommodate different
 # data sources check their input arguments against a lookup, returning a vector
@@ -24,35 +42,27 @@ check_source <- function(source,
   }
 
   # This sets source to the correctly capitalized version
-  source_match_index <- which(toupper(unlist(valid_source_values)) == toupper(source))
+  source_match_index <- toupper(unlist(valid_source_values)) == toupper(source)
 
-  alt_source <- unlist(valid_source_values) |>
-    names() |>
-    stringr::str_replace(string = _,
-                         pattern = paste0(names(valid_source_values),
-                                          "(\\.|\\d+)") |>
-                           paste(.x = _,
-                                 collapse = "|"),
-                         replacement = "")
-
-  if (alt_source[source_match_index] != "") {
-    source <- alt_source[source_match_index]
-  } else {
-    source <- unlist(valid_source_values)[source_match_index]
+  if (!any(source_match_index)) {
+    stop(paste0('The current source value, "', source, '", is not recognized. Valid source values are: "',
+                paste(unlist(valid_source_values),
+                      collapse = '", "'), '"'))
   }
 
-
+  source <- unlist(valid_source_values)[source_match_index] |>
+    unname()
 
 
   # This identifies the source type, which is ultimately intended to be used to
   # invoke the correct function for the type, e.g. gather_lpi_lmf()
   source_type <- names(valid_source_values)[sapply(X = valid_source_values,
-                                                   source = source,
+                                                   source = toupper(source),
                                                    FUN = function(X, source){
                                                      source %in% X
                                                    })]
-  c(source = source,
-    type = source_type)
+  return(c(source = source,
+           type = source_type))
 }
 
 # There are a number of functions in this package that use the ellipsis to
@@ -445,8 +455,8 @@ lpi_indicator_definitions <- function(){
 
     #### Lichen codes ----------------------------------------------------------
     lichen_identifiers = list(Lichen = c("LC", "2LICHN", "2LICHN1"),
-                           Cyanobacteria = "CY",
-                           VagrLichen = "VL"),
+                              Cyanobacteria = "CY",
+                              VagrLichen = "VL"),
 
     #### Biocrust codes --------------------------------------------------------
     biocrust_identifiers = c("CY",
@@ -867,7 +877,7 @@ adjust_species_attributes <- function(data,
                           #                          .default = NA)
                           Plant = dplyr::case_when(!(GrowthHabitSub %in% c("growthhabitsub_irrelevant")) &
                                                      !(GrowthHabit %in% "Nonvascular") &
-                                                   stringi::stri_length(code) >= 3 ~ "Plant",
+                                                     stringi::stri_length(code) >= 3 ~ "Plant",
                                                    .default = NA)
     )
   } else {
@@ -877,7 +887,7 @@ adjust_species_attributes <- function(data,
         paste(.x = _,
               collapse = ", ") |>
         paste0("Some variables are not present (", .x = _, "). The variable Plant will not be created.") |>
-      message()
+        message()
     }
   }
 
@@ -1159,7 +1169,7 @@ adjust_species_attributes <- function(data,
     )
   } else {
     if (verbose) {
-        message("The variable Invasive is not present and will not be modified.")
+      message("The variable Invasive is not present and will not be modified.")
     }
   }
 

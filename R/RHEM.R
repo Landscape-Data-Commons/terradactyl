@@ -15,6 +15,10 @@ RHEM <- function(lpi_species,
                  slope_shape,
                  verbose = FALSE) {
 
+  lifecycle::deprecate_stop(when = "1.9.4",
+                            what = "RHEM()",
+                            details = "The functionality of RHEM() has been moved to the aeroinputs package available at https://github.com/landscape-data-commons/aeroinputs")
+
   #check we have header info for all data
   if (verbose) {
     message("Restricting data to PrimaryKeys found in header.")

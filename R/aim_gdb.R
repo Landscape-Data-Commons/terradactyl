@@ -760,7 +760,6 @@ lpi_calc <- function(header,
   }
 
   ##### All other cover ########################################################
-  
   cover_indicators_list <- lapply(X = names(variable_groups),
                                   variable_groups = variable_groups,
                                   data = lpi_species,
@@ -799,16 +798,11 @@ lpi_calc <- function(header,
                                                                        return(NULL)
                                                                      }
 
-                                                                     # if (verbose) {
-                                                                     #   message("Adjusting indicator names.")
-                                                                     # }
-
                                                                      current_results <- tidyr::separate_wider_delim(data = current_results_raw,
                                                                                                                     cols = indicator,
                                                                                                                     delim = ".",
                                                                                                                     names = current_grouping_vars)
 
-                                                              
                                                                      current_results <- tidyr::unite(data = current_results,
                                                                                                      col = indicator,
                                                                                                      dplyr::all_of(current_grouping_vars),
