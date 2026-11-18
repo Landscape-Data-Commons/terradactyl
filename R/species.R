@@ -885,10 +885,15 @@ species_count <- function(species_inventory_tall,
 }
 
 #' Accumulated species presence and related cover and height indicators.
-#' @description This function will take one or more input data types (line-point intercept, heights, and species inventory) and produce a data frame of indicators for each species for each PrimaryKey value.
+#' @description
+#' This function will take one or more input data types (line-point intercept, heights, and species inventory) and produce a data frame of indicators for each species for each PrimaryKey value.
+#'
 #' If LPI data are provided, the function will calculate per-species the indicators AH_SpeciesCover which is the cover provided by the species and AH_SpeciesCover_n which is the number of pin drops at which the species was recorded.
+#'
 #' If height data are provided, the function will calculate per-species the indicators Hgt_Species_Avg which is the mean of the heights recorded for the species and Hgt_Species_Avg_n which is the number of height records included in that mean.
+#'
 #' If species inventory data are provided, then species which were recorded as present but did not occur in LPI or height data will also be in the output, however they will not have associated values in any indicator variables derived from data types where they were not represented, e.g. a plant which was recorded but was not encountered on an LPI transect will not have AH_SpeciesCover or AH_SpeciesCover_n values.
+#'
 #' At least one data type must be provided. Any indicators which cannot be calculated from the data provided will simply not be calculated although those variables will still be included in the output.
 #' @param header Data frame or character string. The data to be provided as the argument \code{header} to any indicator calculation functions that require it. If this is a character string, it must point to the RDS, Rdata, or CSV file containing the data.
 #' @param lpi_tall Data frame or character string. The line-point intercept data in the format produced by \code{gather_lpi()}. If this is a character string, it must point to the file (of filetype RDS, CSV, or Rdata) containing the data.
@@ -897,6 +902,7 @@ species_count <- function(species_inventory_tall,
 #' @param species_file Data frame or character string. The species characteristic data (e.g., growth habit) to join to the returned indicators. If this is a character string, it must point to the file (of filetype RDS, CSV, Rdata, or GDB) containing the data. If this points to a geodatabase, it will assume that the standard AIM species data are present to use and will read in tblNationalPlants and tblStateSpecies. Defaults to \code{""} which is equivalent to \code{NULL}.
 #' @param species_code Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.
 #' @param ... Optional additional filtering expression to pass on to dplyr::filter() to restrict the output to.
+#' @param drop_na_species Logical. If this is \code{TRUE} then all tall table records with \code{NA} in the relevant species variable will be dropped before calculations. Defaults to \code{TRUE}.
 #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.
 #' @examples
 #' # Get a list of all species occurring on a plot across methods (LPI, height, species inventory)
@@ -921,6 +927,7 @@ accumulated_species <- function(header,
                                 ...,
                                 generic_species_file = NULL,
                                 digits = 6,
+                                drop_na_species = TRUE,
                                 # discard_nulls = TRUE,
                                 verbose = FALSE) {
   #### SETUP ###################################################################
