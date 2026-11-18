@@ -488,8 +488,11 @@ lpi_indicator_definitions <- function(){
 #' Harmonize species attributes with TerrADat needs
 #' @description
 #' This function is intended to be applied to LPI data which have been attributed using \code{\link[terradactyl:species_join]{species_join()}} with BLM Terrestrial AIM tblNationalPlants and tblStateSpecies read in via \code{\link[terradactyl:species_read_aim]{species_read_aim()}}.
+#'
 #' It modifies the values of some variables to clean values (e.g., converting all capitalization and hyphenation schemes for the string \code{"non-woody"} to \code{"NonWoody"}) to include relevant records in calculations and to prevent the need to rename indicator outputs.
+#'
 #' It also adds variables for use in derived indicators, e.g., creating the variable Plant which contains the value \code{"Plant"} only for records associated with vascular plants based on the variables GrowthHabit and code).
+#'
 #' Modifications are done only if the necessary variables already exist, e.g., modifications or additions which use the variable Duration will only be attempted if Duration exists in the provided data.
 #' @details
 #' Special definitions for classifications (e.g., how records are identified as corresponding to a lichen) are from \code{\link[terradactyl:lpi_indicator_definitions]{lpi_indicator_definitions()}}. This is the source of definitions referenced without explicit values in the details below.
