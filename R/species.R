@@ -1005,7 +1005,7 @@ accumulated_species <- function(header,
                             if (verbose) {
                               message("Combining the data with the header information.")
                             }
-                            dplyr::inner_join(x = dplyr::select(.data = header,
+                            output <- dplyr::inner_join(x = dplyr::select(.data = header,
                                                                 tidyselect::all_of(x = c("PrimaryKey",
                                                                                          "SpeciesState"))),
                                               y = output,
@@ -1013,6 +1013,15 @@ accumulated_species <- function(header,
                                               by = c("PrimaryKey")) |>
                               dplyr::rename(.data = _,
                                             tidyselect::any_of(x = c("code" = "Species")))
+
+                            if (verbose & drop_na_species) {
+                              message("Removing records with NA in the species variable.")
+                            }
+
+                            output |>
+                              tidyr::drop_na(data = _,
+                                             code)
+
                           } else {
                             if (verbose) {
                               message(paste0(X, " is NULL and indicators depending on it will not be calculated."))
