@@ -588,6 +588,7 @@ lpi_calc <- function(header,
                      species_code_var = "SpeciesCode",
                      indicators_vars = NULL,
                      expected_indicator_names,
+                     limit_output_indicators = TRUE,
                      apply_species_adjustment = TRUE,
                      generic_species_file = NULL,
                      digits = 6,
@@ -919,9 +920,14 @@ lpi_calc <- function(header,
                     paste(c(output_missing_numeric_indicators, output_missing_character_indicators), collapse = ", ")))
     }
 
-    output <- dplyr::select(.data = output,
-                            dplyr::all_of(c("PrimaryKey",
-                                            expected_indicator_names)))
+    if (limit_output_indicators) {
+      if (verbose) {
+        message("Discarding any indicators not found in expected_indicator_names because limit_output_indicators is TRUE.")
+      }
+      output <- dplyr::select(.data = output,
+                              dplyr::all_of(c("PrimaryKey",
+                                              expected_indicator_names)))
+    }
   }
 
   output
