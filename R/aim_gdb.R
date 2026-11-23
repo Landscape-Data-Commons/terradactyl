@@ -571,6 +571,10 @@ build_indicators <- function(header, source,
 #' @param lpi_tall  Data frame or character string. The long/tall-format LPI data for the plots involved in the calculations. The format must match the output from \code{gather_lpi()}. If a character string, this must point to a CSV file containing the data.
 #' @param species_file Data frame or character string. The species characteristics information. If this is a character string for the filepath to a geodatabase, that geodatabase must contain both the tblNationalPlants and tblStateSpecies tables. Otherwise, this must either be the output from \code{species_read_aim()} or be a character string pointing to a CSV file containing the output from \code{species_read_aim()}.
 #' @param species_code_var Character string. The name of the variable in the species characteristics provided as \code{species_file} that contains the species codes. Defaults to \code{"SpeciesCode"}.
+#' @param indicators_vars List of lists of character string vectors. This list is used to define groups of variables that produce the desired indicators. It must be organized so that the top-level list contains named lists where the names are \code{"any"}, \code{"first"}, and/or \code{"basal"} corresponding to the type of cover indicator to calculate. Each of those lists must contain one or more vectors of one or more variable names containing the values required to calculate the desired indicators. For example, to calculate both any- and first-hit indicators related to growth habit and duration like perennial herbaceous cover one of the vectors would be the names of the variables that contain growth habit and duration values, \code{list(any = list(c("GrowthHabit", "Duration")), first = list(c("GrowthHabit", "Duration")))}. If this is \code{NULL}, the defaults for the BLM Terrestrial AIM Database will be used via \code{\link[terradactyl:default_indicators_vars]{default_indicators_vars("terradat")}}. Defaults to \code{NULL}.
+#' @param expected_indicator_names Optional character string vector. These are the expected indicator names to be produced in the output. Any indicator names specified here that are not calculated due to lack of qualifying data will be populated with \code{0} in the output. If \code{limit_output_indicators} is \code{TRUE} this is also used to discard unexpected indicators which have been incidentally calculated. Defaults to the indicators found in the BLM Terrestrial AIM Database using \code{\link[terradactyl:default_lpi_indicators]{default_lpi_indicators("terradat")}}.
+#' @param limit_output_indicators Logical. If \code{TRUE} then only indicators appearing in \code{expected_indicator_names} will be returned even if additional indicators will incidentally calculated. Defaults to \code{TRUE}.
+#' @param apply_species_adjustment Logical. If \code{TRUE} then \code{\link[terradactyl:adjust_species_attributes]{adjust_species_attributes()}} will be used to standardize the values in variables (e.g., capitalization and abbreviation of strings) and produce the additional variables to necessary for indicators for the BLM Terrestrial AIM Database. Defaults to \code{TRUE}.
 #' @param generic_species_file Optional character string. Must specify the full path to a CSV containing generic species information. If this is \code{NULL}. Defaults to \code{NULL}.
 #' @param digits Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.
 #' @param verbose Logical. If \code{TRUE} the function will produce diagnostic
@@ -584,6 +588,7 @@ lpi_calc <- function(header,
                      species_code_var = "SpeciesCode",
                      indicators_vars = NULL,
                      expected_indicator_names,
+                     limit_output_indicators = TRUE,
                      apply_species_adjustment = TRUE,
                      generic_species_file = NULL,
                      digits = 6,
@@ -915,9 +920,14 @@ lpi_calc <- function(header,
                     paste(c(output_missing_numeric_indicators, output_missing_character_indicators), collapse = ", ")))
     }
 
-    output <- dplyr::select(.data = output,
-                            dplyr::all_of(c("PrimaryKey",
-                                            expected_indicator_names)))
+    if (limit_output_indicators) {
+      if (verbose) {
+        message("Discarding any indicators not found in expected_indicator_names because limit_output_indicators is TRUE.")
+      }
+      output <- dplyr::select(.data = output,
+                              dplyr::all_of(c("PrimaryKey",
+                                              expected_indicator_names)))
+    }
   }
 
   output

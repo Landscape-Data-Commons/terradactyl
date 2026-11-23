@@ -16,6 +16,7 @@ accumulated_species(
   ...,
   generic_species_file = NULL,
   digits = 6,
+  drop_na_species = TRUE,
   verbose = FALSE
 )
 }
@@ -34,13 +35,19 @@ accumulated_species(
 
 \item{digits}{Integer. The number of decimal places that the output values will be rounded to. Values larger than \code{2} are not recommended because they will likely imply false precision. Defaults to \code{6}.}
 
+\item{drop_na_species}{Logical. If this is \code{TRUE} then all tall table records with \code{NA} in the relevant species variable will be dropped before calculations. Defaults to \code{TRUE}.}
+
 \item{species_code}{Character string. The name of the variable in the species characteristics that contains the species codes. Defaults to \code{"SpeciesCode"}.}
 }
 \description{
 This function will take one or more input data types (line-point intercept, heights, and species inventory) and produce a data frame of indicators for each species for each PrimaryKey value.
+
 If LPI data are provided, the function will calculate per-species the indicators AH_SpeciesCover which is the cover provided by the species and AH_SpeciesCover_n which is the number of pin drops at which the species was recorded.
+
 If height data are provided, the function will calculate per-species the indicators Hgt_Species_Avg which is the mean of the heights recorded for the species and Hgt_Species_Avg_n which is the number of height records included in that mean.
+
 If species inventory data are provided, then species which were recorded as present but did not occur in LPI or height data will also be in the output, however they will not have associated values in any indicator variables derived from data types where they were not represented, e.g. a plant which was recorded but was not encountered on an LPI transect will not have AH_SpeciesCover or AH_SpeciesCover_n values.
+
 At least one data type must be provided. Any indicators which cannot be calculated from the data provided will simply not be calculated although those variables will still be included in the output.
 }
 \examples{
